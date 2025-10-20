@@ -199,8 +199,20 @@ Een registry‑entry ziet er zo uit:
 
 ### Registry uitbreiden (minimale keten)
 - [ ] `Point` + `Vector` + eenvoudige rekennodes (`Add`, `Multiply`).
+  - Maak registry-entries voor **Point** en **Vector** die respectievelijk een `THREE.Vector3` en `{ x, y, z }` teruggeven.
+  - Voeg een fallback toe zodat rekennodes zowel sliderwaarden als hardcoded `Number`-inputs accepteren.
+  - Implementeer `Add` en `Multiply` met ondersteuning voor scalars én componentgewijze vector-operaties.
+  - Schrijf mini-tests/snippets die een dataflow valideren (bijv. `Slider → Add → Box`).
 - [ ] `Circle (R)` en `Extrude` (lichte variant naar `BufferGeometry`).
-- [ ] Pin‑naam mapping vastleggen (GH‑pin → interne key).
+  - Laat `Circle` de `R`-pin lezen, genereer een vlakke `THREE.Shape` of puntenverzameling als output (`curve`).
+  - Bouw `Extrude` die de `curve` accepteert en via `THREE.ExtrudeGeometry` een eenvoudige `BufferGeometry` teruggeeft.
+  - Definieer defaults voor hoogte/segmenten zodat de node zonder alle inputs blijft werken.
+  - Valideer met mock-graph (`Slider → Circle → Extrude`) dat `updateMesh` de extrusie toont.
+- [ ] Pin-naam mapping vastleggen (GH-pin → interne key).
+  - Documenteer per node een `pinMap` (zoals `R → radius`, `P → point`) in de registry-entry.
+  - Voeg een helper toe die GH-pin-namen tijdens parsing/evaluatie omzet naar interne property-namen.
+  - Leg de mappingconventie vast in deze planfile zodat uitbreidingen dezelfde stijl volgen.
+  - Controleer bestaande nodes (`SLIDER`, `BOX`) op consistente benaming en pas zo nodig aan.
 
 ### UX & Robuustheid
 - [ ] Debounce op sliderinput (b.v. 16–33 ms) om jank te vermijden.
