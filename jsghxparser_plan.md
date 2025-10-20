@@ -184,10 +184,10 @@ Een registry‑entry ziet er zo uit:
 - [x] Live evaluatie en render controleren.
 
 ### GHX Parser (eerste iteratie)
-- [ ] `ghx-loader.js` basis: DOMParser, nodes detecteren op `GUID`/`Name`.
-- [ ] Heuristische slider‑detectie met default min/max/step/value.
-- [ ] Logging van onbekende nodes (voor latere mapping).
-- [ ] Wires voorlopig overslaan of mocken; engine mag niet crashen.
+- [x] `ghx-loader.js` basis: DOMParser, nodes detecteren op `GUID`/`Name`.
+- [x] Heuristische slider‑detectie met default min/max/step/value.
+- [x] Logging van onbekende nodes (voor latere mapping).
+- [x] Wires voorlopig overslaan of mocken; engine mag niet crashen.
 
 ### Integratie met echte GHX
 - [ ] Voorbeeld‑GHX (Number Slider → Box) ontvangen en lokaal testen.
