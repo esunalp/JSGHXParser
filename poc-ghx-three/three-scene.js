@@ -1,7 +1,5 @@
-//import * as THREE from './vendor/three.module.js';
-//import { OrbitControls } from './vendor/OrbitControls.js';
-import * as THREE from 'https://unpkg.com/three@0.180.0/build/three.module.js?version=2';
-import { OrbitControls } from 'https://unpkg.com/three@0.180.0/examples/jsm/controls/OrbitControls.js?version=2';
+import * as THREE from './vendor/three.module.js?version=3';
+import { OrbitControls } from './vendor/OrbitControls.js?version=3';
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
