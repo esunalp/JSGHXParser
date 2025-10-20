@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { registerMathDomainComponents } from './registry-components-maths.js';
+import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js';
 
 const entries = new Map();
 
@@ -163,69 +163,6 @@ function toVector3(value, fallback = new THREE.Vector3()) {
   return fallback.clone ? fallback.clone() : fallback;
 }
 
-function addScalarsOrVectors(a, b) {
-  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
-  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
-  if (!aIsVector && !bIsVector) {
-    return toNumber(a, 0) + toNumber(b, 0);
-  }
-  const va = toVector3(a, new THREE.Vector3());
-  const vb = toVector3(b, new THREE.Vector3());
-  return va.add(vb);
-}
-
-function multiplyScalarsOrVectors(a, b) {
-  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
-  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
-  if (!aIsVector && !bIsVector) {
-    return toNumber(a, 0) * toNumber(b, 0);
-  }
-  const va = toVector3(a, new THREE.Vector3());
-  const vb = toVector3(b, new THREE.Vector3());
-  if (!bIsVector) {
-    return va.multiplyScalar(toNumber(b, 1));
-  }
-  if (!aIsVector) {
-    return vb.multiplyScalar(toNumber(a, 1));
-  }
-  return new THREE.Vector3(va.x * vb.x, va.y * vb.y, va.z * vb.z);
-}
-
-function subtractScalarsOrVectors(a, b) {
-  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
-  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
-  if (!aIsVector && !bIsVector) {
-    return toNumber(a, 0) - toNumber(b, 0);
-  }
-  const va = toVector3(a, new THREE.Vector3());
-  const vb = toVector3(b, new THREE.Vector3());
-  return va.sub(vb);
-}
-
-function divideScalarsOrVectors(a, b) {
-  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
-  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
-  if (!aIsVector && !bIsVector) {
-    return toNumber(a, 0) / toNumber(b, 1);
-  }
-  if (aIsVector && !bIsVector) {
-    const divisor = toNumber(b, 1);
-    const vector = toVector3(a, new THREE.Vector3());
-    if (divisor === 0) {
-      return new THREE.Vector3();
-    }
-    return vector.divideScalar(divisor);
-  }
-  const va = toVector3(a, new THREE.Vector3());
-  const vb = toVector3(b, new THREE.Vector3(1, 1, 1));
-  const safeComponent = (value, divisor) => (divisor === 0 ? 0 : value / divisor);
-  return new THREE.Vector3(
-    safeComponent(va.x, vb.x),
-    safeComponent(va.y, vb.y),
-    safeComponent(va.z, vb.z)
-  );
-}
-
 function collectNumericValues(input) {
   const numbers = [];
   const stack = [input];
@@ -257,6 +194,7 @@ function collectNumericValues(input) {
 }
 
 registerMathDomainComponents({ register, toNumber });
+registerMathOperatorComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
@@ -319,81 +257,6 @@ register([
 });
 
 register([
-  '{a0d62394-a118-422d-abb3-6af115c75b25}',
-  'addition',
-  'add',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { A: 'a', B: 'b' },
-    outputs: { R: 'result', result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const left = inputs.a;
-    const right = inputs.b;
-    const result = addScalarsOrVectors(left, right);
-    return { result };
-  }
-});
-
-register([
-  '{b8963bb1-aa57-476e-a20e-ed6cf635a49c}',
-  'multiplication',
-  'multiply',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { A: 'a', B: 'b' },
-    outputs: { R: 'result', result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const left = inputs.a;
-    const right = inputs.b;
-    const result = multiplyScalarsOrVectors(left, right);
-    return { result };
-  }
-});
-
-register([
-  '{2c56ab33-c7cc-4129-886c-d5856b714010}',
-  '{9c007a04-d0d9-48e4-9da3-9ba142bc4d46}',
-  'subtraction',
-  'a-b',
-  'minus',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { A: 'a', B: 'b' },
-    outputs: { R: 'result', result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const left = inputs.a;
-    const right = inputs.b;
-    const result = subtractScalarsOrVectors(left, right);
-    return { result };
-  }
-});
-
-register([
-  '{9c85271f-89fa-4e9f-9f4a-d75802120ccc}',
-  'division',
-  'divide',
-  'a/b',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { A: 'a', B: 'b' },
-    outputs: { R: 'result', result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const left = inputs.a;
-    const right = inputs.b;
-    const result = divideScalarsOrVectors(left, right);
-    return { result };
-  }
-});
-
-register([
   '{0d1e2027-f153-460d-84c0-f9af431b08cb}',
   'maximum',
   'max',
@@ -424,39 +287,6 @@ register([
     const a = toNumber(inputs.a, Number.POSITIVE_INFINITY);
     const b = toNumber(inputs.b, Number.POSITIVE_INFINITY);
     return { result: Math.min(a, b) };
-  }
-});
-
-register([
-  '{28124995-cf99-4298-b6f4-c75a8e379f18}',
-  'absolute',
-  'abs',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { x: 'value', X: 'value', Value: 'value' },
-    outputs: { y: 'result', Y: 'result', Result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const value = toNumber(inputs.value, 0);
-    return { result: Math.abs(value) };
-  }
-});
-
-register([
-  '{78fed580-851b-46fe-af2f-6519a9d378e0}',
-  'power',
-  'pow',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { A: 'a', B: 'b' },
-    outputs: { R: 'result', result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const base = toNumber(inputs.a, 0);
-    const exponent = toNumber(inputs.b, 1);
-    return { result: Math.pow(base, exponent) };
   }
 });
 
