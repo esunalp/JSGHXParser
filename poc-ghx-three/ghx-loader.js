@@ -1,22 +1,4 @@
-const KNOWN_COMPONENT_GUIDS = new Set([
-  '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', // Number Slider
-  '{56f1d440-0b71-44de-93d5-3c96bf53b78f}', // Box
-  '{59e0b89a-e487-49f8-bab8-b5bab16be14c}', // Panel
-]);
-
-const PARAMETER_LIKE_GUIDS = new Set([
-  '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', // Number Slider
-  '{59e0b89a-e487-49f8-bab8-b5bab16be14c}', // Panel
-]);
-
-const SLIDER_GUIDS = new Set(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}']);
-
-const SLIDER_DEFAULTS = {
-  value: 1,
-  min: 0,
-  max: 10,
-  step: 0.01,
-};
+import { COMPLEX_COMPONENTS } from './component-metadata.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
@@ -25,6 +7,67 @@ function normalizeGuid(guid) {
   return trimmed.startsWith('{') && trimmed.endsWith('}')
     ? trimmed.toLowerCase()
     : `{${trimmed.toLowerCase()}}`;
+}
+
+function addGuid(set, guid) {
+  const normalized = normalizeGuid(guid);
+  if (normalized) {
+    set.add(normalized);
+  }
+}
+
+const KNOWN_COMPONENT_GUIDS = new Set();
+const PARAMETER_LIKE_GUIDS = new Set();
+const SLIDER_GUIDS = new Set();
+const KNOWN_COMPONENT_NAMES = new Set();
+const COMPONENT_METADATA = new Map();
+
+function addKnownName(name) {
+  if (!name) return;
+  KNOWN_COMPONENT_NAMES.add(String(name).toLowerCase());
+}
+
+function registerComponentMetadata(list) {
+  if (!Array.isArray(list)) return;
+  for (const component of list) {
+    if (!component) continue;
+    addGuid(KNOWN_COMPONENT_GUIDS, component.guid);
+    const normalizedGuid = normalizeGuid(component.guid);
+    if (normalizedGuid) {
+      COMPONENT_METADATA.set(normalizedGuid, component);
+    }
+    addKnownName(component.name);
+    addKnownName(component.nickname);
+  }
+}
+
+addGuid(KNOWN_COMPONENT_GUIDS, '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}'); // Number Slider
+addGuid(KNOWN_COMPONENT_GUIDS, '{56f1d440-0b71-44de-93d5-3c96bf53b78f}'); // Box
+addGuid(KNOWN_COMPONENT_GUIDS, '{59e0b89a-e487-49f8-bab8-b5bab16be14c}'); // Panel
+
+addGuid(PARAMETER_LIKE_GUIDS, '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}'); // Number Slider
+addGuid(PARAMETER_LIKE_GUIDS, '{59e0b89a-e487-49f8-bab8-b5bab16be14c}'); // Panel
+
+addGuid(SLIDER_GUIDS, '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}');
+
+addKnownName('Number Slider');
+addKnownName('Slider');
+addKnownName('Box');
+addKnownName('Panel');
+
+registerComponentMetadata(COMPLEX_COMPONENTS);
+
+const SLIDER_DEFAULTS = {
+  value: 1,
+  min: 0,
+  max: 10,
+  step: 0.01,
+};
+
+function getComponentMetadataByGuid(guid) {
+  const normalized = normalizeGuid(guid);
+  if (!normalized) return undefined;
+  return COMPONENT_METADATA.get(normalized);
 }
 
 function toNumber(value) {
@@ -323,6 +366,11 @@ export async function parseGHX(file) {
       descriptor.guid = normalizeGuid(descriptor.guid);
     }
 
+    const componentMeta = getComponentMetadataByGuid(descriptor.guid);
+    if (componentMeta) {
+      descriptor.meta = { ...descriptor.meta, component: componentMeta };
+    }
+
     const containerChunk = chunk.querySelector('chunk[name="Container"]');
     const nodeId = descriptor.id;
     const containerItems = getItemsElement(containerChunk);
@@ -393,7 +441,7 @@ export async function parseGHX(file) {
     const isKnown =
       detectSliders(info) ||
       (guidKey && KNOWN_COMPONENT_GUIDS.has(guidKey)) ||
-      nameKey === 'box';
+      (nameKey && KNOWN_COMPONENT_NAMES.has(nameKey));
     if (!isKnown) {
       unknownNodes.push({ id: descriptor.id, name: descriptor.name, guid: descriptor.guid });
     }
