@@ -1,0 +1,3478 @@
+export const VECTOR_COMPONENTS = [
+  {
+    "category": "Vector",
+    "subcategory": "Colour",
+    "name": "Multiplication",
+    "nickname": "Mul",
+    "guid": "035bf8a7-b9e0-4e37-b031-4567bc60d047",
+    "description": "Perform colour multiplication.",
+    "inputs": [
+      {
+        "name": "Colour A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First colour"
+      },
+      {
+        "name": "Colour B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Tensor Display",
+    "nickname": "FTensor",
+    "guid": "08619b6d-f9c4-4cb2-adcd-90959f08dc0d",
+    "description": "Display the tensor vectors of a field section",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Section",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle describing section"
+      },
+      {
+        "name": "Samples",
+        "nickname": "N",
+        "access": "item",
+        "description": "Section sample count indicator"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Numbers to Points",
+    "nickname": "Num2Pt",
+    "guid": "0ae07da9-951b-4b9b-98ca-d312c252374d",
+    "description": "Convert a list of numbers to a list of points",
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Numbers to merge into points"
+      },
+      {
+        "name": "Mask",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mask for coordinate composition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Ordered list of points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Colour",
+    "name": "Subtraction",
+    "nickname": "Sub",
+    "guid": "0c80d9c0-d8b3-4817-b8e1-6214d443704b",
+    "description": "Perform colour subtraction.",
+    "inputs": [
+      {
+        "name": "Colour A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First colour"
+      },
+      {
+        "name": "Colour B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Hexagonal",
+    "nickname": "HexGrid",
+    "guid": "125dc122-8544-4617-945e-bb9a0c101c50",
+    "description": "2D grid with hexagonal cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of hexagon radius"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x directions"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid centers"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Angle",
+    "nickname": "Angle",
+    "guid": "152a264e-fc74-40e5-88cc-d1a681cd09c3",
+    "description": "Compute the angle between two vectors.",
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle (in radians) between vectors"
+      },
+      {
+        "name": "Reflex",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reflex angle (in radians) between vectors"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "XY Plane",
+    "nickname": "XY",
+    "guid": "17b7152b-d30d-4d50-b9ef-c9fe25576fc2",
+    "description": "World XY plane.",
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World XY plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Text Tag 3D",
+    "nickname": "Tag",
+    "guid": "18564c36-5652-4c63-bb6f-f0e1273666dd",
+    "description": "Represents a list of 3D text tags in a Rhino viewport",
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location and orientation of text tag"
+      },
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "The text to display"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of text"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Optional colour of tag"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Rectangular",
+    "nickname": "RecGrid",
+    "guid": "1a25aae0-0b56-497a-85b2-cc5bf7e4b96b",
+    "description": "2D grid with rectangular cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size X",
+        "nickname": "Sx",
+        "access": "item",
+        "description": "Size of grid cells in base plane x-direction"
+      },
+      {
+        "name": "Size Y",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Size of grid cells in base plane y-direction"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "item",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Align Planes",
+    "nickname": "Align",
+    "guid": "2318aee8-01fe-4ea8-9524-6966023fc622",
+    "description": "Align planes by minimizing their serial rotation.",
+    "inputs": [
+      {
+        "name": "Planes",
+        "nickname": "P",
+        "access": "list",
+        "description": "Planes to align"
+      },
+      {
+        "name": "Master",
+        "nickname": "M",
+        "access": "item",
+        "description": "Optional master plane (if omitted the first plane in P is the master plane)."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Planes",
+        "nickname": "P",
+        "access": "list",
+        "description": "Aligned planes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Point Cylindrical",
+    "nickname": "Pt",
+    "guid": "23603075-be64-4d86-9294-c3c125a12104",
+    "description": "Create a point from cylindrical {angle,radius,elevation} coordinates.",
+    "inputs": [
+      {
+        "name": "Base plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane defining cylindrical coordinate space"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle in radians for P(x,y) rotation"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of cylinder"
+      },
+      {
+        "name": "Elevation",
+        "nickname": "E",
+        "access": "item",
+        "description": "Elevation of point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Cylindrical point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Cross Product",
+    "nickname": "XProd",
+    "guid": "2a5cfb31-028a-4b34-b4e1-9b20ae15312e",
+    "description": "Compute vector cross product.",
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Cross product vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Divide",
+    "nickname": "VDiv",
+    "guid": "310e1065-d03a-4858-bcd1-809d39c042af",
+    "description": "Perform vector-scalar division.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Denominator"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Divided vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Fit",
+    "nickname": "PlFit",
+    "guid": "33bfc73c-19b2-480b-81e6-f3523a012ea6",
+    "description": "Fit a plane through a set of points.",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "dx",
+        "access": "item",
+        "description": "Maximum deviation between points and plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Construct Point",
+    "nickname": "Pt",
+    "guid": "3581f42a-9592-4549-bd6b-1c0fc39d067b",
+    "description": "Construct a point from {xyz} coordinates.",
+    "inputs": [
+      {
+        "name": "X coordinate",
+        "nickname": "X",
+        "access": "item",
+        "description": "{x} coordinate"
+      },
+      {
+        "name": "Y coordinate",
+        "nickname": "Y",
+        "access": "item",
+        "description": "{y} coordinate"
+      },
+      {
+        "name": "Z coordinate",
+        "nickname": "Z",
+        "access": "item",
+        "description": "{z} coordinate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Offset",
+    "nickname": "Pl Offset",
+    "guid": "3a0c7bda-3d22-4588-8bab-03f57a52a6ea",
+    "description": "Offset a plane.",
+    "inputs": [
+      {
+        "name": "Base Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for offset"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Offset distance (along base plane z-axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Offset plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Deconstruct Plane",
+    "nickname": "DePlane",
+    "guid": "3cd2949b-4ea8-4ffb-a70c-5c380f9f46ea",
+    "description": "Deconstruct a plane into its component parts.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to deconstruct"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin point"
+      },
+      {
+        "name": "X-Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "X-Axis vector"
+      },
+      {
+        "name": "Y-Axis",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Y-Axis vector"
+      },
+      {
+        "name": "Z-Axis",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Z-Axis vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Square",
+    "nickname": "SqGrid",
+    "guid": "40efea60-1902-4c28-8020-27abbb7a1449",
+    "description": "2D grid with square cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of grid cells"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Dot Product",
+    "nickname": "DProd",
+    "guid": "43b9ea8f-f772-40f2-9880-011a9c3cbbb0",
+    "description": "Compute vector dot product.",
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize input"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Dot product",
+        "nickname": "D",
+        "access": "item",
+        "description": "Vector dot product"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Closest Points",
+    "nickname": "CPs",
+    "guid": "446014c4-c11c-45a7-8839-c45dc60950d6",
+    "description": "Find closest points in a point collection.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cloud of points to search"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of closest points to find"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closest Point",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point in [C] closest to [P]"
+      },
+      {
+        "name": "CP Index",
+        "nickname": "i",
+        "access": "list",
+        "description": "Index of closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "list",
+        "description": "Distance between [P] and [C](i)"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Text Tag",
+    "nickname": "Tag",
+    "guid": "4b3d38d3-0620-42e5-9ae8-0d4d9ad914cd",
+    "description": "Represents a list of text tags in a Rhino viewport",
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location of text tag"
+      },
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "The text to display"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Spin Force",
+    "nickname": "FSpin",
+    "guid": "4b59e893-d4ee-4e31-ae24-a489611d1088",
+    "description": "Create a field due to a spin force",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Center and orientation of spin disc"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Strength of spin force at center of disc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius unit of spin disc"
+      },
+      {
+        "name": "Decay",
+        "nickname": "D",
+        "access": "item",
+        "description": "Decay of spin force"
+      },
+      {
+        "name": "Bounds",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounds for the field"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field due to vector force"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Sort Points",
+    "nickname": "Sort Pt",
+    "guid": "4e86ba36-05e2-4cc0-a0f5-3ad57c91f04e",
+    "description": "Sort points by Euclidean coordinates (first x, then y, then z)",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to sort"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Sorted points"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Point index map"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Project Point",
+    "nickname": "Project",
+    "guid": "5184b8cb-b71e-4def-a590-cd2c9bc58906",
+    "description": "Project a point onto a collection of shapes",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to project"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Projection direction"
+      },
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Geometry to project onto"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projected point"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of object that was projected onto"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Scalar Display",
+    "nickname": "FScalar",
+    "guid": "55f9ce6a-490c-4f25-a536-a3d47b794752",
+    "description": "Display the scalar values of a field section",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Section",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle describing section"
+      },
+      {
+        "name": "Samples",
+        "nickname": "N",
+        "access": "item",
+        "description": "Section sample count indicator"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Display",
+        "nickname": "D",
+        "access": "item",
+        "description": "Section display mesh"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector XYZ",
+    "nickname": "Vec",
+    "guid": "56b92eab-d121-43f7-94d3-6cd8f0ddead8",
+    "description": "Create a vector from {xyz} components.",
+    "inputs": [
+      {
+        "name": "X component",
+        "nickname": "X",
+        "access": "item",
+        "description": "Vector {x} component"
+      },
+      {
+        "name": "Y component",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Vector {y} component"
+      },
+      {
+        "name": "Z component",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Vector {z} component"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector construct"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Closest Point",
+    "nickname": "CP",
+    "guid": "571ca323-6e55-425a-bf9e-ee103c7ba4b9",
+    "description": "Find closest point in a point collection.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cloud of points to search"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closest Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point in [C] closest to [P]"
+      },
+      {
+        "name": "CP Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Index of closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between [P] and [C](i)"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Sort Along Curve",
+    "nickname": "AlongCrv",
+    "guid": "59aaebf8-6654-46b7-8386-89223c773978",
+    "description": "Sort points along a curve",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to sort"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to sort along"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Sorted points"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Point index map"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Solar Incidence",
+    "nickname": "Solar",
+    "guid": "59e1f848-38d4-4cbf-ad7f-40ffc52acdf5",
+    "description": "Gets the solar incidence vector for a certain time and place",
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location on Earth"
+      },
+      {
+        "name": "Time",
+        "nickname": "T",
+        "access": "item",
+        "description": "Time and date for solar incidence computation"
+      },
+      {
+        "name": "Orientation",
+        "nickname": "P",
+        "access": "item",
+        "description": "Local plane (X=East, Y=North)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Solar incidence vector"
+      },
+      {
+        "name": "Elevation",
+        "nickname": "E",
+        "access": "item",
+        "description": "Angle between horizon and solar vector"
+      },
+      {
+        "name": "Horizon",
+        "nickname": "H",
+        "access": "item",
+        "description": "True if sun is above the horizon"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Colour suggestion"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Direction Display",
+    "nickname": "FDir",
+    "guid": "5ba20fab-6d71-48ea-a98f-cb034db6bbdc",
+    "description": "Display the force directions of a field section",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Section",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle describing section"
+      },
+      {
+        "name": "Samples",
+        "nickname": "N",
+        "access": "item",
+        "description": "Section sample count indicator"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Display",
+        "nickname": "D",
+        "access": "item",
+        "description": "Section display mesh"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Coordinates",
+    "nickname": "PlCoord",
+    "guid": "5f127fa4-ca61-418e-bb2d-e3739d900f1f",
+    "description": "Get the coordinates of a point in a plane axis system.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Input point"
+      },
+      {
+        "name": "System",
+        "nickname": "S",
+        "access": "item",
+        "description": "Local coordinate system"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X coordinate",
+        "nickname": "X",
+        "access": "item",
+        "description": "Point {x} coordinate"
+      },
+      {
+        "name": "Y coordinate",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Point {y} coordinate"
+      },
+      {
+        "name": "Z coordinate",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Point {z} coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "To Polar",
+    "nickname": "Polar",
+    "guid": "61647ba2-31eb-4921-9632-df81e3286f7d",
+    "description": "Convert a 3D point to plane polar coordinates.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "3D point to transcribe"
+      },
+      {
+        "name": "System",
+        "nickname": "S",
+        "access": "item",
+        "description": "Plane defining polar coordinate space"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Phi",
+        "nickname": "P",
+        "access": "item",
+        "description": "Planar angle in radians (counter-clockwise starting at the plane X-axis)"
+      },
+      {
+        "name": "Theta",
+        "nickname": "T",
+        "access": "item",
+        "description": "Vertical angle in radians"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Distance from system origin to point"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Mass Addition",
+    "nickname": "MassAdd",
+    "guid": "63f79e72-36c0-4489-a0c2-9ded0b9ca41f",
+    "description": "Perform mass addition on a collection of vectors.",
+    "inputs": [
+      {
+        "name": "Vectors",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vectors to add"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize vectors prior to addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Total vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of sum vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Multiply",
+    "nickname": "VMul",
+    "guid": "63fff845-7c61-4dfb-ba12-44d481b4bf0f",
+    "description": "Perform vector-scalar multiplication.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Multiplication factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Multiplied vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Radial",
+    "nickname": "RadGrid",
+    "guid": "66eedc35-187d-4dab-b49b-408491b1255f",
+    "description": "2D radial grid",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between concentric grid loops"
+      },
+      {
+        "name": "Extent R",
+        "nickname": "Er",
+        "access": "item",
+        "description": "Number of grid cells in radial direction"
+      },
+      {
+        "name": "Extent P",
+        "nickname": "Ep",
+        "access": "item",
+        "description": "Number of grid cells in polar direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid nodes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Deconstruct Point",
+    "nickname": "DePoint",
+    "guid": "670fcdba-da07-4eb4-b1c1-bfa0729d767d",
+    "description": "Deconstruct a point into its component parts.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Input point"
+      },
+      {
+        "name": "System",
+        "nickname": "S",
+        "access": "item",
+        "description": "Local coordinate system"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X coordinate",
+        "nickname": "X",
+        "access": "item",
+        "description": "Point {x} coordinate"
+      },
+      {
+        "name": "Y coordinate",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Point {y} coordinate"
+      },
+      {
+        "name": "Z coordinate",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Point {z} coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector Length",
+    "nickname": "VLen",
+    "guid": "675e31bf-1775-48d7-bb8d-76b77786dd53",
+    "description": "Compute the length (amplitude) of a vector.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Cull Duplicates",
+    "nickname": "CullPt",
+    "guid": "6eaffbb2-3392-441a-8556-2dc126aa8910",
+    "description": "Cull points that are coincident within tolerance",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to operate on"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Proximity tolerance distance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Culled points"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Index map of culled points"
+      },
+      {
+        "name": "Valence",
+        "nickname": "V",
+        "access": "list",
+        "description": "Number of input points represented by this output point"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Amplitude",
+    "nickname": "Amp",
+    "guid": "6ec39468-dae7-4ffa-a766-f2ab22a2c62e",
+    "description": "Set the amplitude (length) of a vector.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Amplitude",
+        "nickname": "A",
+        "access": "item",
+        "description": "Amplitude (length) value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Resulting vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Square",
+    "nickname": "SqGrid",
+    "guid": "717a1e25-a075-4530-bc80-d43ecc2500d9",
+    "description": "2D grid with square cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of grid cells"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "item",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Origin",
+    "nickname": "Pl Origin",
+    "guid": "75eec078-a905-47a1-b0d2-0934182b1e3d",
+    "description": "Change the origin point of a plane",
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "New origin point of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Radial",
+    "nickname": "RadGrid",
+    "guid": "773183d0-8c00-4fe4-a38c-f8d2408b7415",
+    "description": "2D radial grid",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between concentric grid loops"
+      },
+      {
+        "name": "Extent R",
+        "nickname": "Er",
+        "access": "item",
+        "description": "Number of grid cells in radial direction"
+      },
+      {
+        "name": "Extent P",
+        "nickname": "Ep",
+        "access": "item",
+        "description": "Number of grid cells in polar direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid nodes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit X",
+    "nickname": "X",
+    "guid": "79f9fbb3-8f1d-4d9a-88a9-f7961b1012cd",
+    "description": "Unit vector parallel to the world {x} axis.",
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {x} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Point Groups",
+    "nickname": "PGroups",
+    "guid": "81f6afc9-22d9-49f0-8579-1fd7e0df6fa6",
+    "description": "Create groups from nearby points",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to group"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance threshold for group inclusion"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Groups",
+        "nickname": "G",
+        "access": "tree",
+        "description": "Point groups"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "tree",
+        "description": "Group indices"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Triangular",
+    "nickname": "TriGrid",
+    "guid": "86a9944b-dea5-4126-9433-9e95ff07927a",
+    "description": "2D grid with triangular cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of triangle edges"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x directions"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid centers"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Construct Point",
+    "nickname": "Pt",
+    "guid": "8a5aae11-8775-4ee5-b4fc-db3a1bd89c2f",
+    "description": "Construct a point from individual coordinates.",
+    "inputs": [
+      {
+        "name": "X coordinate",
+        "nickname": "X",
+        "access": "item",
+        "description": "{x} coordinate"
+      },
+      {
+        "name": "Y coordinate",
+        "nickname": "Y",
+        "access": "item",
+        "description": "{y} coordinate"
+      },
+      {
+        "name": "Z coordinate",
+        "nickname": "Z",
+        "access": "item",
+        "description": "{z} coordinate"
+      },
+      {
+        "name": "System",
+        "nickname": "S",
+        "access": "item",
+        "description": "Coordinate system for point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Colour",
+    "name": "Blend Colours",
+    "nickname": "BlendCol",
+    "guid": "8b4da37d-1124-436a-9de2-952e4224a220",
+    "description": "Interpolate (blend) between two colours.",
+    "inputs": [
+      {
+        "name": "Colour A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First colour"
+      },
+      {
+        "name": "Colour B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second colour"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Interpolation factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Interpolated colour"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "XZ Plane",
+    "nickname": "XZ",
+    "guid": "8cc3a196-f6a0-49ea-9ed9-0cb343a3ae64",
+    "description": "World XZ plane.",
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World XZ plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Line Charge",
+    "nickname": "LCharge",
+    "guid": "8cc9eb88-26a7-4baa-a896-13e5fc12416a",
+    "description": "Create a field due to a line charge",
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Geometry of line segment charge"
+      },
+      {
+        "name": "Charge",
+        "nickname": "C",
+        "access": "item",
+        "description": "Charge of point object"
+      },
+      {
+        "name": "Bounds",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounds for the field"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field due to line charge"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Grid Hexagonal [OBSOLETE]",
+    "nickname": "HexGrid",
+    "guid": "8ce6a747-6d36-4bd4-8af0-9a1081df417d",
+    "description": "Generate a hexagonal grid of points.",
+    "inputs": [
+      {
+        "name": "Base plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of point grid"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius (in grid cells) of the grid."
+      },
+      {
+        "name": "Grid Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Grid",
+        "nickname": "G",
+        "access": "list",
+        "description": "Resulting point grid"
+      },
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cell outlines of the grid"
+      },
+      {
+        "name": "Centers",
+        "nickname": "M",
+        "access": "list",
+        "description": "Center plane for each cell"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Pull Point",
+    "nickname": "Pull",
+    "guid": "902289da-28dc-454b-98d4-b8f8aa234516",
+    "description": "Pull a point to a variety of geometry.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Geometry that pulls"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closest Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on [G] closest to [P]"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between [P] and its projection onto [G]"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Z",
+    "nickname": "Z",
+    "guid": "9103c240-a6a9-4223-9b42-dbd19bf38e2b",
+    "description": "Unit vector parallel to the world {z} axis.",
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {z} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector 2Pt",
+    "nickname": "Vec2Pt",
+    "guid": "934ede4a-924a-4973-bb05-0dc4b36fae75",
+    "description": "Create a vector between two points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Base point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Tip point"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Distance",
+    "nickname": "Dist",
+    "guid": "93b8e93d-f932-402c-b435-84be04d87666",
+    "description": "Compute Euclidean distance between two point coordinates.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Grid Rectangular [OBSOLETE]",
+    "nickname": "RecGrid",
+    "guid": "99f1e47c-978d-468f-bb3d-a3df44552a8e",
+    "description": "Generate a rectangular grid.",
+    "inputs": [
+      {
+        "name": "Base plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of point grid"
+      },
+      {
+        "name": "X count",
+        "nickname": "X",
+        "access": "item",
+        "description": "Number of steps along the plane X direction"
+      },
+      {
+        "name": "Y count",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Number of steps along the plane Y direction"
+      },
+      {
+        "name": "Grid Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Grid",
+        "nickname": "G",
+        "access": "list",
+        "description": "Resulting point grid"
+      },
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Centers",
+        "nickname": "M",
+        "access": "list",
+        "description": "Grid cell centers"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Deconstruct",
+    "nickname": "pDecon",
+    "guid": "9abae6b7-fa1d-448c-9209-4a8155345841",
+    "description": "Deconstruct a point into its component parts.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Input point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X component",
+        "nickname": "X",
+        "access": "item",
+        "description": "Point {x} component"
+      },
+      {
+        "name": "Y component",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Point {y} component"
+      },
+      {
+        "name": "Z component",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Point {z} component"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Barycentric",
+    "nickname": "BCentric",
+    "guid": "9adffd61-f5d1-4e9e-9572-e8d9145730dc",
+    "description": "Create a point from barycentric {u,v,w} coordinates",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First anchor point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second anchor point"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third anchor point"
+      },
+      {
+        "name": "Coordinate U",
+        "nickname": "U",
+        "access": "item",
+        "description": "First barycentric coordinate"
+      },
+      {
+        "name": "Coordinate V",
+        "nickname": "V",
+        "access": "item",
+        "description": "Second barycentric coordinate"
+      },
+      {
+        "name": "Coordinate W",
+        "nickname": "W",
+        "access": "item",
+        "description": "Third barycentric coordinate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Barycentric point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Adjust Plane",
+    "nickname": "PAdjust",
+    "guid": "9ce34996-d8c6-40d3-b442-1a7c8c093614",
+    "description": "Adjust a plane to match a new normal direction",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to adjust"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "New plane z-axis direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Adjusted plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Point Polar",
+    "nickname": "Pt",
+    "guid": "a435f5c8-28a2-43e8-a52a-0b6e73c2e300",
+    "description": "Create a point from polar {phi,theta,offset} coordinates.",
+    "inputs": [
+      {
+        "name": "Base plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane defining polar coordinate space"
+      },
+      {
+        "name": "XY angle",
+        "nickname": "xy",
+        "access": "item",
+        "description": "Angle in radians for P(x,y) rotation"
+      },
+      {
+        "name": "Z angle",
+        "nickname": "z",
+        "access": "item",
+        "description": "Angle in radians for P(z) rotation"
+      },
+      {
+        "name": "Offset",
+        "nickname": "d",
+        "access": "item",
+        "description": "Offset distance for point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Polar point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Deconstruct Vector",
+    "nickname": "DeVec",
+    "guid": "a50fcd4a-cf42-4c3f-8616-022761e6cc93",
+    "description": "Deconstruct a vector into its component parts.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Input vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X component",
+        "nickname": "X",
+        "access": "item",
+        "description": "Vector {x} component"
+      },
+      {
+        "name": "Y component",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Vector {y} component"
+      },
+      {
+        "name": "Z component",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Vector {z} component"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Evaluate Field",
+    "nickname": "EvF",
+    "guid": "a7c9f738-f8bd-4f64-8e7f-33341183e493",
+    "description": "Evaluate a field at a point",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to evaluate at"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tensor",
+        "nickname": "T",
+        "access": "item",
+        "description": "Field tensor at sample location"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Field strength at sample location"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Point Oriented",
+    "nickname": "Pt",
+    "guid": "aa333235-5922-424c-9002-1e0b866a854b",
+    "description": "Create a point from plane {u,v,w} coordinates.",
+    "inputs": [
+      {
+        "name": "Base plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane defining coordinate space"
+      },
+      {
+        "name": "U component",
+        "nickname": "U",
+        "access": "item",
+        "description": "U parameter on plane"
+      },
+      {
+        "name": "V component",
+        "nickname": "V",
+        "access": "item",
+        "description": "V parameter on plane"
+      },
+      {
+        "name": "W component",
+        "nickname": "W",
+        "access": "item",
+        "description": "W parameter on plane (elevation)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Oriented point coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Field Line",
+    "nickname": "FLine",
+    "guid": "add6be3e-c57f-4740-96e4-5680abaa9169",
+    "description": "Compute the field line through a certain point",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to start from"
+      },
+      {
+        "name": "Steps",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of samples"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Accuracy hint (will only be loosely obeyed)"
+      },
+      {
+        "name": "Method",
+        "nickname": "M",
+        "access": "item",
+        "description": "Solver (1=Euler, 2=RK2, 3=RK3, 4=RK4)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve approximation of field line through P"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Closest Point",
+    "nickname": "CP",
+    "guid": "b075c065-efda-4c9f-9cc9-288362b1b4b9",
+    "description": "Find the closest point on a plane.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sample point"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projected point"
+      },
+      {
+        "name": "UV Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinates of projected point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Signed distance between point and plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Break Field",
+    "nickname": "BreakF",
+    "guid": "b27d53bc-e713-475d-81fd-71cdd8de2e58",
+    "description": "Break a field into individual elements",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to break"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Fields",
+        "nickname": "F",
+        "access": "list",
+        "description": "Elemental fields"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Angle",
+    "nickname": "Angle",
+    "guid": "b464fccb-50e7-41bd-9789-8438db9bea9f",
+    "description": "Compute the angle between two vectors.",
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for 2D angle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle (in radians) between vectors"
+      },
+      {
+        "name": "Reflex",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reflex angle (in radians) between vectors"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Rotate",
+    "nickname": "VRot",
+    "guid": "b6d7ba20-cf74-4191-a756-2216a36e30a7",
+    "description": "Rotate a vector around an axis.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector to rotate"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Rotation axis"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle (in radians)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Rotated vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Mass Addition",
+    "nickname": "MassAdd",
+    "guid": "b7f1178f-4222-47fd-9766-5d06e869362b",
+    "description": "Perform mass addition on a collection of vectors.",
+    "inputs": [
+      {
+        "name": "Vectors",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vectors to add"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize vectors prior to addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Total vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Construct Plane",
+    "nickname": "Pl",
+    "guid": "bc3e379e-7206-4e7b-b63a-ff61f4b38a3e",
+    "description": "Construct a plane from an origin point and {x}, {y} axes.",
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      },
+      {
+        "name": "X-Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "X-Axis direction of plane"
+      },
+      {
+        "name": "Y-Axis",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Y-Axis direction of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Constructed plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Perpendicular Display",
+    "nickname": "FPerp",
+    "guid": "bf106e4c-68f4-476f-b05b-9c15fb50e078",
+    "description": "Display the perpendicularity of a field through a section",
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Section",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle describing section"
+      },
+      {
+        "name": "Samples",
+        "nickname": "N",
+        "access": "item",
+        "description": "Section sample count indicator"
+      },
+      {
+        "name": "Positive Colour",
+        "nickname": "C+",
+        "access": "item",
+        "description": "Colour for positive (straight up) forces"
+      },
+      {
+        "name": "Negative Colour",
+        "nickname": "C-",
+        "access": "item",
+        "description": "Colour for negative (straight down) forces"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Display",
+        "nickname": "D",
+        "access": "item",
+        "description": "Section display mesh"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Flip Plane",
+    "nickname": "PFlip",
+    "guid": "c73e1ed0-82a2-40b0-b4df-8f10e445d60b",
+    "description": "Flip or swap the axes of a plane",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to adjust"
+      },
+      {
+        "name": "Reverse X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Reverse the x-axis direction"
+      },
+      {
+        "name": "Reverse Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Reverse the y-axis direction"
+      },
+      {
+        "name": "Swap axes",
+        "nickname": "S",
+        "access": "item",
+        "description": "Swap the x and y axis directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Flipped plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate Geometry",
+    "nickname": "PopGeo",
+    "guid": "c8cb6a5c-2ffd-4095-ba2a-5c35015e09e4",
+    "description": "Populate generic geometry with points",
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to populate (curves, surfaces, breps and meshes only)"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane 3Pt",
+    "nickname": "Pl 3Pt",
+    "guid": "c98a6015-7a2f-423c-bc66-bdc505249b45",
+    "description": "Create a plane through three points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Origin point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "X-direction point"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Orientation point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Line + Pt",
+    "nickname": "LnPt",
+    "guid": "ccc3f2ff-c9f6-45f8-aa30-8a924a9bda36",
+    "description": "Create a plane from a line and a point.",
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line constraint. Plane origin will be at line startpoint. Plane x-axis will be parallel to line direction."
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on plane. Point must not be co-linear with line."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Pull Point",
+    "nickname": "Pull",
+    "guid": "cf3a0865-4882-46bd-91a1-d512acf95be4",
+    "description": "Pull a point to a variety of geometry.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Geometry that pulls"
+      },
+      {
+        "name": "Closest",
+        "nickname": "C",
+        "access": "item",
+        "description": "Only return the closest pull"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closest Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on [G] closest to [P]"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between [P] and its projection onto [G]"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Normal",
+    "nickname": "Pl",
+    "guid": "cfb6b17f-ca82-4f5d-b604-d4f69f569de3",
+    "description": "Create a plane perpendicular to a vector.",
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      },
+      {
+        "name": "Z-Axis",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Z-Axis direction of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Point Charge",
+    "nickname": "PCharge",
+    "guid": "cffdbaf3-8d33-4b38-9cad-c264af9fc3f4",
+    "description": "Create a field due to a point charge",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Location of point charge"
+      },
+      {
+        "name": "Charge",
+        "nickname": "C",
+        "access": "item",
+        "description": "Charge of point object"
+      },
+      {
+        "name": "Decay",
+        "nickname": "D",
+        "access": "item",
+        "description": "Decay of charge potential"
+      },
+      {
+        "name": "Bounds",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounds for the field"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field due to point charge"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Points to Numbers",
+    "nickname": "Pt2Num",
+    "guid": "d24169cc-9922-4923-92bc-b9222efc413f",
+    "description": "Convert a list of points to a list of numbers",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to parse"
+      },
+      {
+        "name": "Mask",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mask for coordinate extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Ordered list of coordinates"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Vector Force",
+    "nickname": "FVector",
+    "guid": "d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9",
+    "description": "Create a field due to a vector force",
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Geometry of line segment charge"
+      },
+      {
+        "name": "Bounds",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounds for the field"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field due to vector force"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Vector",
+    "nickname": "Unit",
+    "guid": "d2da1306-259a-4994-85a4-672d8a4c7805",
+    "description": "Unitize vector.",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Unit vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Y",
+    "nickname": "Y",
+    "guid": "d3d195ea-2d59-4ffa-90b1-8b7ff3369f69",
+    "description": "Unit vector parallel to the world {y} axis.",
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {y} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Reverse",
+    "nickname": "Rev",
+    "guid": "d5788074-d75d-4021-b1a3-0bf992928584",
+    "description": "Reverse a vector (multiply by -1).",
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Reversed vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Line + Line",
+    "nickname": "LnLn",
+    "guid": "d788ad7f-6d68-4106-8b2f-9e55e6e107c0",
+    "description": "Create a plane from two line segments.",
+    "inputs": [
+      {
+        "name": "Line A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First line constraint. Plane origin will be at line start."
+      },
+      {
+        "name": "Line B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second line constraint. Line B should be co-planar with but not parallel to Line A."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Merge Fields",
+    "nickname": "MergeF",
+    "guid": "d9a6fbd2-2e9f-472e-8147-33bf0233a115",
+    "description": "Merge a collection of fields into one",
+    "inputs": [
+      {
+        "name": "Fields",
+        "nickname": "F",
+        "access": "list",
+        "description": "Fields to merge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Merged field"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate 3D",
+    "nickname": "Pop3D",
+    "guid": "e202025b-dc8e-4c51-ae19-4415b172886f",
+    "description": "Populate a 3-Dimensional region with points",
+    "inputs": [
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Box that defines the 3D region for point insertion"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate 2D",
+    "nickname": "Pop2D",
+    "guid": "e2d958e8-9f08-44f7-bf47-a684882d0b2a",
+    "description": "Populate a 2-Dimensional region with points",
+    "inputs": [
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle that defines the 2D region for point insertion"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Align Plane",
+    "nickname": "Align",
+    "guid": "e76040ec-3b91-41e1-8e00-c74c23b89391",
+    "description": "Perform minimal rotation to align a plane with a guide vector",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to straighten"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Straightening guide direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Straightened plane"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Text Tag 3D",
+    "nickname": "Tag",
+    "guid": "ebf4d987-09b9-4825-a735-cac3d4770c19",
+    "description": "Represents a list of 3D text tags in a Rhino viewport",
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location and orientation of text tag"
+      },
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "The text to display"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of text"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Freeform Cloud",
+    "nickname": "FFCloud",
+    "guid": "f08233f1-9772-4514-8965-bde4948503df",
+    "description": "Distribution of points on any object",
+    "inputs": [
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometric guide (Curves, Breps or Meshes only)"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of particles to distribute"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Particle cloud"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Rotate Plane",
+    "nickname": "PRot",
+    "guid": "f6f14b09-6497-4564-8403-09e4eb5a6b82",
+    "description": "Perform plane rotation around plane z-axis",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to rotate"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation (counter clockwise) around plane z-axis in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rotated plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "YZ Plane",
+    "nickname": "YZ",
+    "guid": "fad344bc-09b1-4855-a2e6-437ef5715fe3",
+    "description": "World YZ plane.",
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World YZ plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Addition",
+    "nickname": "VAdd",
+    "guid": "fb012ef9-4734-4049-84a0-b92b85bb09da",
+    "description": "Perform vector-vector addition.",
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Sum vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Sum vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Spherical Cloud",
+    "nickname": "SphCloud",
+    "guid": "fd68754e-6c60-44b2-9927-0a58146e0250",
+    "description": "Distribution of points on a sphere",
+    "inputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of sphere"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of sphere"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of particles to distribute"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Particle cloud"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Particle normals"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Rectangular",
+    "nickname": "RecGrid",
+    "guid": "fdedcd0a-ad40-4307-959d-d2891e2f533e",
+    "description": "2D grid with rectangular cells",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size X",
+        "nickname": "Sx",
+        "access": "item",
+        "description": "Size of grid cells in base plane x-direction"
+      },
+      {
+        "name": "Size Y",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Size of grid cells in base plane y-direction"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  }
+];
