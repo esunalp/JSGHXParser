@@ -1,4 +1,4 @@
-import * as THREE from 'https://unpkg.com/three@0.159.0/build/three.module.js';
+import * as THREE from './vendor/three.module.js';
 
 const entries = new Map();
 
