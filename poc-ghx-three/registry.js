@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { registerMathDomainComponents } from './registry-components-maths.js';
 
 const entries = new Map();
 
@@ -254,6 +255,8 @@ function collectNumericValues(input) {
   }
   return numbers;
 }
+
+registerMathDomainComponents({ register, toNumber });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
