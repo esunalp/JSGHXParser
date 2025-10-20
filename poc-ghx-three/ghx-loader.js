@@ -1,4 +1,5 @@
 import { COMPLEX_COMPONENTS } from './component-metadata-complex.js?version=6';
+import { CURVE_COMPONENTS } from './component-metadata-curve.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
@@ -56,6 +57,7 @@ addKnownName('Box');
 addKnownName('Panel');
 
 registerComponentMetadata(COMPLEX_COMPONENTS);
+registerComponentMetadata(CURVE_COMPONENTS);
 
 const SLIDER_DEFAULTS = {
   value: 1,
