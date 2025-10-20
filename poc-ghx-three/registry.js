@@ -224,22 +224,6 @@ register(['{56f1d440-0b71-44de-93d5-3c96bf53b78f}', 'box'], {
 });
 
 register([
-  '{56b92eab-d121-43f7-94d3-6cd8f0ddead8}',
-  'vector xyz',
-], {
-  type: 'vector',
-  pinMap: {
-    inputs: { X: 'x', Y: 'y', Z: 'z' },
-    outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
-  },
-  eval: ({ inputs }) => {
-    const vector = toVector3({ x: inputs.x, y: inputs.y, z: inputs.z }, new THREE.Vector3());
-    const length = vector.length();
-    return { vector, length };
-  }
-});
-
-register([
   '{0d1e2027-f153-460d-84c0-f9af431b08cb}',
   'maximum',
   'max',
