@@ -3,6 +3,7 @@ import { CURVE_COMPONENTS } from './component-metadata-curve.js?version=6';
 import { DISPLAY_COMPONENTS } from './component-metadata-display.js?version=6';
 import { INTERSECT_COMPONENTS } from './component-metadata-intersect.js?version=6';
 import { MATHS_COMPONENTS } from './component-metadata-maths.js?version=6';
+import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
@@ -64,6 +65,7 @@ registerComponentMetadata(CURVE_COMPONENTS);
 registerComponentMetadata(DISPLAY_COMPONENTS);
 registerComponentMetadata(INTERSECT_COMPONENTS);
 registerComponentMetadata(MATHS_COMPONENTS);
+registerComponentMetadata(MESH_COMPONENTS);
 
 const SLIDER_DEFAULTS = {
   value: 1,
