@@ -171,7 +171,44 @@
         statusEl.textContent = payload.message;
       });
 
-      statusEl.textContent = 'Skeleton geladen. Mock-graph volgt in volgende stap.';
+      const mockGraph = {
+        nodes: [
+          {
+            id: 'slider-width',
+            name: 'Breedte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Breedte', min: 0.5, max: 5, step: 0.1, value: 2 },
+          },
+          {
+            id: 'slider-height',
+            name: 'Hoogte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Hoogte', min: 0.5, max: 5, step: 0.1, value: 1.5 },
+          },
+          {
+            id: 'slider-depth',
+            name: 'Diepte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Diepte', min: 0.5, max: 5, step: 0.1, value: 3 },
+          },
+          {
+            id: 'box-node',
+            name: 'Box',
+            guid: '{56F1D440-0B71-44DE-93D5-3C96BF53B78F}',
+            inputs: { W: 1, H: 1, D: 1 },
+          },
+        ],
+        wires: [
+          { from: { node: 'slider-width', pin: 'value' }, to: { node: 'box-node', pin: 'W' } },
+          { from: { node: 'slider-height', pin: 'value' }, to: { node: 'box-node', pin: 'H' } },
+          { from: { node: 'slider-depth', pin: 'value' }, to: { node: 'box-node', pin: 'D' } },
+        ],
+      };
+
+      engine.loadGraph(mockGraph);
+      engine.evaluate();
+
+      statusEl.textContent = 'Mock-graph actief: pas sliders aan om de box te wijzigen.';
 
       fileInput.addEventListener('change', () => {
         statusEl.textContent = 'GHX-inlezen is nog niet geïmplementeerd in deze stap.';
