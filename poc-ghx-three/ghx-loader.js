@@ -7,6 +7,7 @@ import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=6';
 import { PARAMS_COMPONENTS } from './component-metadata-params.js?version=6';
 import { SCALAR_COMPONENTS } from './component-metadata-scalar.js?version=6';
 import { SETS_COMPONENTS } from './component-metadata-sets.js?version=6';
+import { SURFACE_COMPONENTS } from './component-metadata-surface.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
@@ -75,6 +76,7 @@ registerComponentMetadata(MESH_COMPONENTS);
 registerComponentMetadata(PARAMS_COMPONENTS);
 registerComponentMetadata(SCALAR_COMPONENTS);
 registerComponentMetadata(SETS_COMPONENTS);
+registerComponentMetadata(SURFACE_COMPONENTS);
 
 const SLIDER_DEFAULTS = {
   value: 1,
