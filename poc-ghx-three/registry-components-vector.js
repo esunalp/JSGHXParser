@@ -87,6 +87,50 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 })
     return numbers;
   }
 
+  function toBooleanFlag(value, fallback = false) {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) {
+        return fallback;
+      }
+      if (['true', 'yes', 'y', '1', 'on'].includes(normalized)) {
+        return true;
+      }
+      if (['false', 'no', 'n', '0', 'off'].includes(normalized)) {
+        return false;
+      }
+      const numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return numeric !== 0;
+      }
+      return true;
+    }
+    if (Array.isArray(value)) {
+      if (!value.length) {
+        return fallback;
+      }
+      return toBooleanFlag(value[value.length - 1], fallback);
+    }
+    if (typeof value === 'object') {
+      if ('value' in value) {
+        return toBooleanFlag(value.value, fallback);
+      }
+      if ('values' in value) {
+        return toBooleanFlag(value.values, fallback);
+      }
+    }
+    return Boolean(value);
+  }
+
   function collectPoints(input) {
     const points = [];
 
@@ -134,6 +178,251 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 })
 
     visit(input);
     return points;
+  }
+
+  function collectVectors(input) {
+    const vectors = [];
+
+    function visit(value) {
+      if (value === undefined || value === null) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          visit(item);
+        }
+        return;
+      }
+      if (value?.isVector3) {
+        vectors.push(value.clone());
+        return;
+      }
+      if (typeof value === 'object') {
+        if ('vector' in value) {
+          visit(value.vector);
+          return;
+        }
+        if ('value' in value) {
+          visit(value.value);
+          return;
+        }
+        if ('direction' in value) {
+          visit(value.direction);
+          return;
+        }
+        if ('normal' in value) {
+          visit(value.normal);
+          return;
+        }
+        if ('vectors' in value) {
+          visit(value.vectors);
+          return;
+        }
+        if ('values' in value) {
+          visit(value.values);
+          return;
+        }
+        if ('x' in value || 'y' in value || 'z' in value) {
+          vectors.push(toVector3(value, new THREE.Vector3()));
+          return;
+        }
+      }
+    }
+
+    visit(input);
+    return vectors;
+  }
+
+  function sumVectors(vectors) {
+    const total = new THREE.Vector3();
+    for (const vector of vectors) {
+      total.add(vector);
+    }
+    return total;
+  }
+
+  function normalizeVector(vector) {
+    const length = vector.length();
+    if (length < EPSILON) {
+      return new THREE.Vector3(0, 0, 0);
+    }
+    return vector.clone().divideScalar(length);
+  }
+
+  function computeAngleInfo(vectorA, vectorB, orientationNormal = null) {
+    const a = vectorA.clone();
+    const b = vectorB.clone();
+    const lengthA = a.length();
+    const lengthB = b.length();
+    if (lengthA < EPSILON || lengthB < EPSILON) {
+      return { angle: 0, reflex: 0 };
+    }
+    const normA = a.divideScalar(lengthA);
+    const normB = b.divideScalar(lengthB);
+    const dot = THREE.MathUtils.clamp(normA.dot(normB), -1, 1);
+    const cross = normA.clone().cross(normB);
+    let sinValue = cross.length();
+    if (orientationNormal) {
+      const orientation = cross.dot(orientationNormal);
+      if (Math.abs(orientation) < EPSILON) {
+        sinValue = 0;
+      } else if (orientation < 0) {
+        sinValue = -sinValue;
+      }
+    }
+    let orientedAngle = Math.atan2(sinValue, dot);
+    if (orientedAngle < 0) {
+      orientedAngle += Math.PI * 2;
+    }
+    const angle = orientedAngle > Math.PI ? (Math.PI * 2 - orientedAngle) : orientedAngle;
+    return { angle, reflex: orientedAngle };
+  }
+
+  function ensureDate(value, fallback = new Date()) {
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime()) ? new Date(fallback.getTime()) : new Date(value.getTime());
+    }
+    if (typeof value === 'number') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? new Date(fallback.getTime()) : date;
+    }
+    if (typeof value === 'string') {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? new Date(fallback.getTime()) : date;
+    }
+    if (Array.isArray(value)) {
+      if (!value.length) {
+        return new Date(fallback.getTime());
+      }
+      return ensureDate(value[0], fallback);
+    }
+    if (value && typeof value === 'object') {
+      if ('date' in value) {
+        return ensureDate(value.date, fallback);
+      }
+      if ('time' in value) {
+        return ensureDate(value.time, fallback);
+      }
+      const year = toNumber(value.year, Number.NaN);
+      const month = toNumber(value.month ?? value.mon, Number.NaN);
+      const day = toNumber(value.day ?? value.date, Number.NaN);
+      const hour = toNumber(value.hour ?? value.hours ?? value.h, Number.NaN);
+      const minute = toNumber(value.minute ?? value.minutes ?? value.min, Number.NaN);
+      const second = toNumber(value.second ?? value.seconds ?? value.sec, Number.NaN);
+      if (Number.isFinite(year) && Number.isFinite(month) && Number.isFinite(day)) {
+        const constructed = new Date(Date.UTC(year, Number(month) - 1, day));
+        if (Number.isFinite(hour)) constructed.setUTCHours(hour);
+        if (Number.isFinite(minute)) constructed.setUTCMinutes(minute);
+        if (Number.isFinite(second)) constructed.setUTCSeconds(second);
+        return constructed;
+      }
+    }
+    return new Date(fallback.getTime());
+  }
+
+  function ensureGeoLocation(value) {
+    const fallback = { latitude: 0, longitude: 0, timezoneHours: 0 };
+    if (!value) {
+      return fallback;
+    }
+    if (Array.isArray(value)) {
+      if (value.length >= 2) {
+        const latitude = toNumber(value[0], Number.NaN);
+        const longitude = toNumber(value[1], Number.NaN);
+        return {
+          latitude: Number.isFinite(latitude) ? latitude : fallback.latitude,
+          longitude: Number.isFinite(longitude) ? longitude : fallback.longitude,
+          timezoneHours: fallback.timezoneHours,
+        };
+      }
+      if (value.length === 1) {
+        return ensureGeoLocation(value[0]);
+      }
+      return fallback;
+    }
+    if (typeof value === 'string') {
+      const parts = value.split(/[,;\s]+/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length >= 2) {
+        const latitude = toNumber(parts[0], Number.NaN);
+        const longitude = toNumber(parts[1], Number.NaN);
+        return {
+          latitude: Number.isFinite(latitude) ? latitude : fallback.latitude,
+          longitude: Number.isFinite(longitude) ? longitude : fallback.longitude,
+          timezoneHours: fallback.timezoneHours,
+        };
+      }
+      return fallback;
+    }
+    if (typeof value === 'object') {
+      if ('location' in value) {
+        return ensureGeoLocation(value.location);
+      }
+      const latitude = toNumber(value.latitude ?? value.lat ?? value.y ?? value.north, Number.NaN);
+      const longitude = toNumber(value.longitude ?? value.lon ?? value.lng ?? value.x ?? value.east, Number.NaN);
+      let timezoneHours = toNumber(value.timezone ?? value.offset ?? value.utcOffset ?? value.gmt, Number.NaN);
+      if (!Number.isFinite(timezoneHours) && Number.isFinite(value.timezoneHours)) {
+        timezoneHours = toNumber(value.timezoneHours, Number.NaN);
+      }
+      return {
+        latitude: Number.isFinite(latitude) ? latitude : fallback.latitude,
+        longitude: Number.isFinite(longitude) ? longitude : fallback.longitude,
+        timezoneHours: Number.isFinite(timezoneHours) ? timezoneHours : fallback.timezoneHours,
+      };
+    }
+    return fallback;
+  }
+
+  function computeSolarPosition(date, latitude, longitude, timezoneHours = 0) {
+    const rad = Math.PI / 180;
+    const year = date.getUTCFullYear();
+    const startOfYear = Date.UTC(year, 0, 1);
+    const dayOfYear = Math.floor((date.getTime() - startOfYear) / 86400000) + 1;
+    const fractionalHour = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+    const gamma = (2 * Math.PI / 365) * (dayOfYear - 1 + (fractionalHour - 12) / 24);
+    const eqtime = 229.18 * (
+      0.000075 +
+      0.001868 * Math.cos(gamma) -
+      0.032077 * Math.sin(gamma) -
+      0.014615 * Math.cos(2 * gamma) -
+      0.040849 * Math.sin(2 * gamma)
+    );
+    const decl =
+      0.006918 -
+      0.399912 * Math.cos(gamma) +
+      0.070257 * Math.sin(gamma) -
+      0.006758 * Math.cos(2 * gamma) +
+      0.000907 * Math.sin(2 * gamma) -
+      0.002697 * Math.cos(3 * gamma) +
+      0.00148 * Math.sin(3 * gamma);
+    const timeOffset = eqtime + 4 * longitude - 60 * timezoneHours;
+    const trueSolarMinutes = fractionalHour * 60 + timeOffset;
+    const hourAngle = trueSolarMinutes / 4 - 180;
+    const hourAngleRad = hourAngle * rad;
+    const latRad = latitude * rad;
+    const cosZenith = THREE.MathUtils.clamp(
+      Math.sin(latRad) * Math.sin(decl) + Math.cos(latRad) * Math.cos(decl) * Math.cos(hourAngleRad),
+      -1,
+      1,
+    );
+    const zenith = Math.acos(cosZenith);
+    const elevation = Math.PI / 2 - zenith;
+    let azimuth = Math.atan2(
+      Math.sin(hourAngleRad),
+      Math.cos(hourAngleRad) * Math.sin(latRad) - Math.tan(decl) * Math.cos(latRad),
+    );
+    azimuth += Math.PI;
+    azimuth = (azimuth % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    return { elevation, azimuth };
+  }
+
+  function solarColourFromElevation(elevation) {
+    const clamped = THREE.MathUtils.clamp((elevation + Math.PI / 2) / Math.PI, 0, 1);
+    const color = new THREE.Color();
+    const hue = THREE.MathUtils.lerp(0.07, 0.14, clamped);
+    const saturation = THREE.MathUtils.lerp(0.9, 0.4, clamped);
+    const lightness = THREE.MathUtils.lerp(0.3, 0.7, clamped);
+    color.setHSL(hue, saturation, lightness);
+    return `#${color.getHexString()}`;
   }
   function ensureUnitVector(vector, fallback) {
     const candidate = toVector3(vector, fallback.clone());
@@ -1072,5 +1361,476 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 })
       return { tags: [tag] };
     },
   });
-}
+
+  // Vector subcategory components
+  register([
+    '{152a264e-fc74-40e5-88cc-d1a681cd09c3}',
+    'angle',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { A: 'a', a: 'a', 'Vector A': 'a', B: 'b', b: 'b', 'Vector B': 'b' },
+      outputs: { A: 'angle', angle: 'angle', R: 'reflex', reflex: 'reflex' },
+    },
+    eval: ({ inputs }) => {
+      const vectorA = toVector3(inputs.a, new THREE.Vector3());
+      const vectorB = toVector3(inputs.b, new THREE.Vector3());
+      const { angle, reflex } = computeAngleInfo(vectorA, vectorB);
+      return { angle, reflex };
+    },
+  });
+
+  register([
+    '{b464fccb-50e7-41bd-9789-8438db9bea9f}',
+    'angle plane',
+    'angle (plane)',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        A: 'a', a: 'a', 'Vector A': 'a',
+        B: 'b', b: 'b', 'Vector B': 'b',
+        P: 'plane', p: 'plane', Plane: 'plane', plane: 'plane',
+      },
+      outputs: { A: 'angle', angle: 'angle', R: 'reflex', reflex: 'reflex' },
+    },
+    eval: ({ inputs }) => {
+      const vectorA = toVector3(inputs.a, new THREE.Vector3());
+      const vectorB = toVector3(inputs.b, new THREE.Vector3());
+      const plane = ensurePlane(inputs.plane);
+      const { angle, reflex } = computeAngleInfo(vectorA, vectorB, plane.zAxis.clone().normalize());
+      return { angle, reflex };
+    },
+  });
+
+  register([
+    '{2a5cfb31-028a-4b34-b4e1-9b20ae15312e}',
+    'cross product',
+    'vector cross product',
+    'xprod',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        A: 'a', a: 'a', 'Vector A': 'a',
+        B: 'b', b: 'b', 'Vector B': 'b',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const vectorA = toVector3(inputs.a, new THREE.Vector3());
+      const vectorB = toVector3(inputs.b, new THREE.Vector3());
+      const result = vectorA.clone().cross(vectorB);
+      const length = result.length();
+      const shouldUnitize = toBooleanFlag(inputs.unitize, false);
+      const vector = shouldUnitize && length > EPSILON ? result.divideScalar(length) : result;
+      return { vector, length };
+    },
+  });
+
+  register([
+    '{fb012ef9-4734-4049-84a0-b92b85bb09da}',
+    'vector addition',
+    'addition',
+    'vadd',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        A: 'a', a: 'a', 'Vector A': 'a',
+        B: 'b', b: 'b', 'Vector B': 'b',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const vectorA = toVector3(inputs.a, new THREE.Vector3());
+      const vectorB = toVector3(inputs.b, new THREE.Vector3());
+      const result = vectorA.clone().add(vectorB);
+      const length = result.length();
+      const shouldUnitize = toBooleanFlag(inputs.unitize, false);
+      const vector = shouldUnitize && length > EPSILON ? result.divideScalar(length) : result;
+      return { vector, length };
+    },
+  });
+
+  register([
+    '{310e1065-d03a-4858-bcd1-809d39c042af}',
+    'vector divide',
+    'divide',
+    'vdiv',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', vector: 'vector', 'Vector': 'vector', F: 'factor', f: 'factor', Factor: 'factor' },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const base = toVector3(inputs.vector, new THREE.Vector3());
+      const factor = toNumber(inputs.factor, 1);
+      if (!Number.isFinite(factor) || Math.abs(factor) < EPSILON) {
+        return { vector: new THREE.Vector3(), length: 0 };
+      }
+      const vector = base.divideScalar(factor);
+      return { vector, length: vector.length() };
+    },
+  });
+
+  register([
+    '{63fff845-7c61-4dfb-ba12-44d481b4bf0f}',
+    'vector multiply',
+    'multiply',
+    'vmul',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', vector: 'vector', 'Vector': 'vector', F: 'factor', f: 'factor', Factor: 'factor' },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const base = toVector3(inputs.vector, new THREE.Vector3());
+      const factor = toNumber(inputs.factor, 1);
+      const vector = base.multiplyScalar(factor);
+      return { vector, length: vector.length() };
+    },
+  });
+
+  register([
+    '{63f79e72-36c0-4489-a0c2-9ded0b9ca41f}',
+    'vector mass addition',
+    'mass addition',
+    'massadd',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        V: 'vectors', v: 'vectors', vectors: 'vectors', Vectors: 'vectors',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const vectors = collectVectors(inputs.vectors);
+      const sum = sumVectors(vectors);
+      const length = sum.length();
+      const shouldUnitize = toBooleanFlag(inputs.unitize, false);
+      const vector = shouldUnitize && length > EPSILON ? sum.divideScalar(length) : sum;
+      return { vector, length };
+    },
+  });
+
+  register([
+    '{b7f1178f-4222-47fd-9766-5d06e869362b}',
+    'vector mass addition (unit)',
+    'mass addition unit',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        V: 'vectors', v: 'vectors', vectors: 'vectors', Vectors: 'vectors',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const vectors = collectVectors(inputs.vectors);
+      const sum = sumVectors(vectors);
+      const length = sum.length();
+      const shouldUnitize = toBooleanFlag(inputs.unitize, false);
+      const vector = shouldUnitize && length > EPSILON ? sum.divideScalar(length) : sum;
+      return { vector };
+    },
+  });
+
+  register([
+    '{43b9ea8f-f772-40f2-9880-011a9c3cbbb0}',
+    'dot product',
+    'vector dot product',
+    'dprod',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        A: 'a', a: 'a', 'Vector A': 'a',
+        B: 'b', b: 'b', 'Vector B': 'b',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { D: 'dot', dot: 'dot', 'Dot product': 'dot' },
+    },
+    eval: ({ inputs }) => {
+      const vectorA = toVector3(inputs.a, new THREE.Vector3());
+      const vectorB = toVector3(inputs.b, new THREE.Vector3());
+      if (toBooleanFlag(inputs.unitize, false)) {
+        if (vectorA.lengthSq() > EPSILON) vectorA.normalize();
+        if (vectorB.lengthSq() > EPSILON) vectorB.normalize();
+      }
+      return { dot: vectorA.dot(vectorB) };
+    },
+  });
+
+  register([
+    '{675e31bf-1775-48d7-bb8d-76b77786dd53}',
+    'vector length',
+    'vlen',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', v: 'vector', vector: 'vector', Vector: 'vector' },
+      outputs: { L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      return { length: vector.length() };
+    },
+  });
+
+  register([
+    '{6ec39468-dae7-4ffa-a766-f2ab22a2c62e}',
+    'amplitude',
+    'vector amplitude',
+    'amp',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', vector: 'vector', Vector: 'vector', A: 'amplitude', a: 'amplitude', Amplitude: 'amplitude' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      const target = toNumber(inputs.amplitude, vector.length());
+      if (vector.lengthSq() < EPSILON || !Number.isFinite(target)) {
+        return { vector: new THREE.Vector3() };
+      }
+      const scaled = vector.clone().setLength(target);
+      return { vector: scaled };
+    },
+  });
+
+  register([
+    '{59e1f848-38d4-4cbf-ad7f-40ffc52acdf5}',
+    'solar incidence',
+    'solar vector',
+    'solar',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        L: 'location', l: 'location', location: 'location', Location: 'location',
+        T: 'time', t: 'time', time: 'time', Time: 'time',
+        P: 'orientation', p: 'orientation', Orientation: 'orientation', plane: 'orientation', Plane: 'orientation',
+      },
+      outputs: {
+        D: 'direction', direction: 'direction',
+        E: 'elevation', elevation: 'elevation',
+        H: 'horizon', horizon: 'horizon',
+        C: 'colour', colour: 'colour', color: 'colour', Colour: 'colour',
+      },
+    },
+    eval: ({ inputs }) => {
+      const location = ensureGeoLocation(inputs.location);
+      const date = ensureDate(inputs.time);
+      const timezoneHours = Number.isFinite(location.timezoneHours)
+        ? location.timezoneHours
+        : -date.getTimezoneOffset() / 60;
+      const { elevation, azimuth } = computeSolarPosition(
+        date,
+        location.latitude,
+        location.longitude,
+        timezoneHours,
+      );
+      const plane = ensurePlane(inputs.orientation);
+      const cosElevation = Math.cos(elevation);
+      const east = cosElevation * Math.sin(azimuth);
+      const north = cosElevation * Math.cos(azimuth);
+      const up = Math.sin(elevation);
+      const direction = plane.xAxis.clone().multiplyScalar(east)
+        .add(plane.yAxis.clone().multiplyScalar(north))
+        .add(plane.zAxis.clone().multiplyScalar(up));
+      if (direction.lengthSq() > EPSILON) {
+        direction.normalize();
+      } else {
+        direction.set(0, 0, 0);
+      }
+      const horizon = elevation > 0;
+      const colour = solarColourFromElevation(elevation);
+      return { direction, elevation, horizon, colour };
+    },
+  });
+
+  register([
+    '{934ede4a-924a-4973-bb05-0dc4b36fae75}',
+    'vector 2pt',
+    'vector two point',
+    'vec2pt',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        A: 'a', a: 'a', 'Point A': 'a',
+        B: 'b', b: 'b', 'Point B': 'b',
+        U: 'unitize', u: 'unitize', Unitize: 'unitize', unitize: 'unitize',
+      },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const pointA = toVector3(inputs.a, new THREE.Vector3());
+      const pointB = toVector3(inputs.b, new THREE.Vector3());
+      const result = pointB.clone().sub(pointA);
+      const length = result.length();
+      const shouldUnitize = toBooleanFlag(inputs.unitize, false);
+      const vector = shouldUnitize && length > EPSILON ? result.divideScalar(length) : result;
+      return { vector, length };
+    },
+  });
+
+  register([
+    '{a50fcd4a-cf42-4c3f-8616-022761e6cc93}',
+    'deconstruct vector',
+    'devec',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', v: 'vector', vector: 'vector', Vector: 'vector' },
+      outputs: { X: 'x', x: 'x', Y: 'y', y: 'y', Z: 'z', z: 'z' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      return { x: vector.x, y: vector.y, z: vector.z };
+    },
+  });
+
+  register([
+    '{d2da1306-259a-4994-85a4-672d8a4c7805}',
+    'unit vector',
+    'unitize vector',
+    'unit',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', v: 'vector', vector: 'vector', Vector: 'vector' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      return { vector: normalizeVector(vector) };
+    },
+  });
+
+  register([
+    '{d5788074-d75d-4021-b1a3-0bf992928584}',
+    'vector reverse',
+    'reverse',
+    'rev',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { V: 'vector', v: 'vector', vector: 'vector', Vector: 'vector' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      return { vector: vector.multiplyScalar(-1) };
+    },
+  });
+
+  register([
+    '{b6d7ba20-cf74-4191-a756-2216a36e30a7}',
+    'vector rotate',
+    'rotate',
+    'vrot',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        V: 'vector', v: 'vector', vector: 'vector', Vector: 'vector',
+        X: 'axis', x: 'axis', Axis: 'axis', axis: 'axis',
+        A: 'angle', a: 'angle', Angle: 'angle', angle: 'angle',
+      },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const vector = toVector3(inputs.vector, new THREE.Vector3());
+      const axis = ensureUnitVector(inputs.axis ?? new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1));
+      const angle = toNumber(inputs.angle, 0);
+      if (axis.lengthSq() < EPSILON) {
+        return { vector };
+      }
+      const quaternion = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+      const rotated = vector.clone().applyQuaternion(quaternion);
+      return { vector: rotated };
+    },
+  });
+
+  register([
+    '{79f9fbb3-8f1d-4d9a-88a9-f7961b1012cd}',
+    'unit x',
+    'unit vector x',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { F: 'factor', f: 'factor', Factor: 'factor', factor: 'factor' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const factor = toNumber(inputs.factor, 1);
+      return { vector: new THREE.Vector3(factor, 0, 0) };
+    },
+  });
+
+  register([
+    '{d3d195ea-2d59-4ffa-90b1-8b7ff3369f69}',
+    'unit y',
+    'unit vector y',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { F: 'factor', f: 'factor', Factor: 'factor', factor: 'factor' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const factor = toNumber(inputs.factor, 1);
+      return { vector: new THREE.Vector3(0, factor, 0) };
+    },
+  });
+
+  register([
+    '{9103c240-a6a9-4223-9b42-dbd19bf38e2b}',
+    'unit z',
+    'unit vector z',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: { F: 'factor', f: 'factor', Factor: 'factor', factor: 'factor' },
+      outputs: { V: 'vector', vector: 'vector' },
+    },
+    eval: ({ inputs }) => {
+      const factor = toNumber(inputs.factor, 1);
+      return { vector: new THREE.Vector3(0, 0, factor) };
+    },
+  });
+
+  register([
+    '{56b92eab-d121-43f7-94d3-6cd8f0ddead8}',
+    'vector xyz',
+    'vec',
+  ], {
+    type: 'vector',
+    pinMap: {
+      inputs: {
+        X: 'x', x: 'x', 'X component': 'x',
+        Y: 'y', y: 'y', 'Y component': 'y',
+        Z: 'z', z: 'z', 'Z component': 'z',
+      },
+      outputs: { V: 'vector', vector: 'vector', L: 'length', length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const x = toNumber(inputs.x, 0);
+      const y = toNumber(inputs.y, 0);
+      const z = toNumber(inputs.z, 0);
+      const vector = new THREE.Vector3(x, y, z);
+      return { vector, length: vector.length() };
+    },
+  });
+  }
 
