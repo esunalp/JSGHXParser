@@ -180,8 +180,8 @@ Een registry‑entry ziet er zo uit:
 - [ ] `ui.js` voor dynamische slider‑UI bouwen.
 
 ### Mock Graph (direct zichtbaar)
-- [ ] Mock graph met 3 sliders (W/H/D) → Box aan `engine.loadGraph()` toevoegen.
-- [ ] Live evaluatie en render controleren.
+- [x] Mock graph met 3 sliders (W/H/D) → Box aan `engine.loadGraph()` toevoegen.
+- [x] Live evaluatie en render controleren.
 
 ### GHX Parser (eerste iteratie)
 - [ ] `ghx-loader.js` basis: DOMParser, nodes detecteren op `GUID`/`Name`.
