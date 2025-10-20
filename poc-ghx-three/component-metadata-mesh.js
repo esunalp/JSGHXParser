@@ -1,0 +1,2592 @@
+export const MESH_COMPONENTS = [
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Inclusion",
+    "nickname": "MInc",
+    "guid": "01e3991d-18bd-474f-9fbd-076a8700159f",
+    "description": "Test a point for Mesh inclusion",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for inclusion test (only closed meshes will be considered)"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Strict",
+        "nickname": "S",
+        "access": "item",
+        "description": "If true, then the inclusion is strict"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "I",
+        "access": "item",
+        "description": "Inside flag for point inclusion"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Depth",
+    "nickname": "MDepth",
+    "guid": "07a3b2a0-c4d0-4638-9044-39ac4681e782",
+    "description": "Validate the depth of a mesh.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for inclusion test (only closed meshes will be considered)"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "Min",
+        "access": "item",
+        "description": "Minimum valid mesh depth."
+      },
+      {
+        "name": "Maximum",
+        "nickname": "Max",
+        "access": "item",
+        "description": "Maximum valid mesh depth."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Coloured mesh"
+      },
+      {
+        "name": "Valid",
+        "nickname": "V",
+        "access": "item",
+        "description": "True if mesh does not exceed limits"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Boundaries",
+    "nickname": "FaceB",
+    "guid": "08d45f16-c708-4ede-8fd3-b70a0a7abd8f",
+    "description": "Convert all mesh faces to polylines",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face boundary extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boundaries",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boundary polylines for each mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Sphere",
+    "nickname": "MSphere",
+    "guid": "0a391eac-5048-443c-9c1b-f592299b6dd6",
+    "description": "Create a mesh sphere.",
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of mesh sphere"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of faces around sphere"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of faces from pole to pole"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh sphere"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Boundaries",
+    "nickname": "FaceB",
+    "guid": "0b4ac802-fc4a-4201-9c66-0078b837c1eb",
+    "description": "Convert all mesh faces to polylines",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face boundary extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boundaries",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boundary polylines for each mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Occlusion",
+    "nickname": "Occ",
+    "guid": "1583bd7e-4ab7-4439-b922-d6f8cd63c399",
+    "description": "Solve occlusion for a collection of view rays and obstructions.",
+    "inputs": [
+      {
+        "name": "Samples",
+        "nickname": "S",
+        "access": "list",
+        "description": "Sample points for occlusion testing"
+      },
+      {
+        "name": "Obstructions",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstructing geometry"
+      },
+      {
+        "name": "Rays",
+        "nickname": "R",
+        "access": "list",
+        "description": "View rays"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Hits",
+        "nickname": "H",
+        "access": "list",
+        "description": "Number of occluded rays per sample."
+      },
+      {
+        "name": "Occlusion",
+        "nickname": "O",
+        "access": "tree",
+        "description": "Occlusion topology for every individual sample."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Facet Dome",
+    "nickname": "Facet",
+    "guid": "190c0070-8cbf-4347-94c2-d84bbb488d55",
+    "description": "Create a facetted dome",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points on dome that describe the facet centers"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounding box for facet boundary"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional radius for facets"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Complete facet pattern"
+      },
+      {
+        "name": "Dome",
+        "nickname": "D",
+        "access": "item",
+        "description": "dome surface"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Quad Remesh",
+    "nickname": "QRMesh",
+    "guid": "1a17d3f0-c8f8-4ee9-8dab-ea1c29db6a49",
+    "description": "Perform quad-remeshing on a shape.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to operate on"
+      },
+      {
+        "name": "Guides",
+        "nickname": "G",
+        "access": "list",
+        "description": "Guide curves"
+      },
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Remeshing settings"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Quad result",
+        "nickname": "Q",
+        "access": "item",
+        "description": "Resulting mesh with quad faces only."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Settings (Quality)",
+    "nickname": "Smooth",
+    "guid": "1b0ee096-cc76-4847-8941-04a9e256de76",
+    "description": "Represents 'Smooth & slower' mesh settings.",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Smooth mesh settings"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Quad",
+    "nickname": "Quad",
+    "guid": "1cb59c86-7f6b-4e52-9a0c-6441850e9520",
+    "description": "Create a mesh quad.",
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face corner"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face corner"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face corner"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Index of fourth face corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Quadrangular mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Delaunay Mesh",
+    "nickname": "Del",
+    "guid": "1eb4f6ff-3547-4184-bead-1b01e7cfd668",
+    "description": "Delaunay triangulation",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for triangulate"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Delete Vertices",
+    "nickname": "DeleteV",
+    "guid": "23d715f7-4bc6-4e69-b76d-7c04ca2ebf5f",
+    "description": "Delete vertices from a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for vertex deletion"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "List of all vertex indices to delete"
+      },
+      {
+        "name": "Shrink",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shrink quads, if true, quads will become triangles if possible"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with all indexed vertices removed"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Settings (Speed)",
+    "nickname": "Jagged",
+    "guid": "255ca3e9-2c1e-443a-a404-e76b5c63f4cb",
+    "description": "Represents 'Jagged & faster' mesh settings.",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Coarse mesh settings"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Box",
+    "nickname": "MBox",
+    "guid": "2696bd14-3fb5-4750-827f-86df6c31d664",
+    "description": "Create a mesh box.",
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base box"
+      },
+      {
+        "name": "X Count",
+        "nickname": "X",
+        "access": "item",
+        "description": "Face count in {x} direction"
+      },
+      {
+        "name": "Y Count",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Face count in {y} direction"
+      },
+      {
+        "name": "Z Count",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Face count in {z} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "The 3D mesh box"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Edges",
+    "nickname": "MEdges",
+    "guid": "2b9bf01d-5fe5-464c-b0b3-b469eb5f2efb",
+    "description": "Get all the edges of a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for edge extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Naked Edges",
+        "nickname": "E1",
+        "access": "list",
+        "description": "Edges with valence 1 (a single adjacent face)"
+      },
+      {
+        "name": "Interior Edges",
+        "nickname": "E2",
+        "access": "list",
+        "description": "Edges with valence 2 (two adjacent faces)"
+      },
+      {
+        "name": "Non-Manifold Edges",
+        "nickname": "E3",
+        "access": "list",
+        "description": "Edges with valence 3 or higher"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Mesh Split Plane",
+    "nickname": "MSplit",
+    "guid": "330eb9c9-0098-4375-9078-e00a419d49fb",
+    "description": "Split a mesh with an infinite plane.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to split"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Splitting plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Above",
+        "nickname": "A",
+        "access": "list",
+        "description": "Pieces above the plane."
+      },
+      {
+        "name": "Below",
+        "nickname": "B",
+        "access": "list",
+        "description": "Pieces below the plane."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Triangulate",
+    "nickname": "Tri",
+    "guid": "3fba11d5-b30a-4146-8d80-d591e7a0a287",
+    "description": "Triangulate all quads in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to triangulate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with only triangle faces"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of quads that were triangulated"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Substrate",
+    "nickname": "Substrate",
+    "guid": "415750fd-c0ec-4411-84d0-01f28ab23066",
+    "description": "Substrate algorithm inspired by Jared Tarbell (Complexification.net)",
+    "inputs": [
+      {
+        "name": "Border",
+        "nickname": "B",
+        "access": "item",
+        "description": "Border for substrate"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of lines in substrate"
+      },
+      {
+        "name": "Angles",
+        "nickname": "A",
+        "access": "list",
+        "description": "Base angles (in radians) in substrate"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Angular deviation (in radians) of new lines"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for solution"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Substrate",
+        "nickname": "S",
+        "access": "list",
+        "description": "Substrate diagram"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Proximity 2D",
+    "nickname": "Prox",
+    "guid": "458ed0e0-19a3-419b-8ead-f524925b8a35",
+    "description": "Search for two-dimensional proximity within a point list",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If null, the best fit plane is used"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Maximum number of closest points to find"
+      },
+      {
+        "name": "Min Radius",
+        "nickname": "R-",
+        "access": "item",
+        "description": "Optional minimum search radius."
+      },
+      {
+        "name": "Max Radius",
+        "nickname": "R+",
+        "access": "item",
+        "description": "Optional maximum search radius."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Links",
+        "nickname": "L",
+        "access": "tree",
+        "description": "Proximity links"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Proximity topology"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Unweld Mesh",
+    "nickname": "Unweld",
+    "guid": "47814a17-ca9e-4305-9400-3a9c8d71c19d",
+    "description": "Unweld (split) creases in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to unweld"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Unweld angle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Unwelded mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Flip Mesh",
+    "nickname": "FlipM",
+    "guid": "47fbc929-e88a-4a13-882e-dad84763256d",
+    "description": "Flip the normal vectors of a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to flip"
+      },
+      {
+        "name": "Vertex Normals",
+        "nickname": "Vn",
+        "access": "item",
+        "description": "Flip all vertex normals"
+      },
+      {
+        "name": "Face Normals",
+        "nickname": "Fn",
+        "access": "item",
+        "description": "Flip all face normals"
+      },
+      {
+        "name": "Face Orientation",
+        "nickname": "Fo",
+        "access": "item",
+        "description": "Reverse all face orientations"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Flipped mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Blur Mesh",
+    "nickname": "MBlur",
+    "guid": "48a9fa10-8d3c-4767-aca6-81232271f6e0",
+    "description": "Blur the colours on a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to blur"
+      },
+      {
+        "name": "Iterations",
+        "nickname": "I",
+        "access": "item",
+        "description": "Number of consecutive blurring iterations"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with blurred vertex colours"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Settings (Custom)",
+    "nickname": "Custom Mesh Settings",
+    "guid": "4a0180e5-d8f9-46e7-bd34-ced804601462",
+    "description": "Represents custom mesh settings.",
+    "inputs": [
+      {
+        "name": "Stitch Seams",
+        "nickname": "Stitch",
+        "access": "item",
+        "description": "Edges of adjacent faces are matched up if True."
+      },
+      {
+        "name": "Simple Planes",
+        "nickname": "Planes",
+        "access": "item",
+        "description": "Planar faces are meshed with a minimum amount of triangles."
+      },
+      {
+        "name": "Refine",
+        "nickname": "Refine",
+        "access": "item",
+        "description": "Refine the initial grid if it exceeds tolerance accuracy."
+      },
+      {
+        "name": "Min Count",
+        "nickname": "Min",
+        "access": "item",
+        "description": "Minimum number of quads in the initial grid per face."
+      },
+      {
+        "name": "Max Count",
+        "nickname": "Max",
+        "access": "item",
+        "description": "Maximum number of quads in the initial grid per face."
+      },
+      {
+        "name": "Aspect Ratio",
+        "nickname": "Aspect",
+        "access": "item",
+        "description": "Maximum aspect ratio of quads in the initial grid."
+      },
+      {
+        "name": "Max Distance",
+        "nickname": "Max Dist",
+        "access": "item",
+        "description": "Maximum allowed distance between center of edges and underlying surface."
+      },
+      {
+        "name": "Max Angle",
+        "nickname": "Max Angle",
+        "access": "item",
+        "description": "Maximum allowed angle (in degrees) between the normals of two adjacent quads."
+      },
+      {
+        "name": "Min Edge",
+        "nickname": "Min Edge",
+        "access": "item",
+        "description": "Minimum allowed edge length."
+      },
+      {
+        "name": "Max Edge",
+        "nickname": "Max Edge",
+        "access": "item",
+        "description": "Maximum allowed edge length."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Smooth mesh settings"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Mesh Join",
+    "nickname": "MJoin",
+    "guid": "4bc9dbbf-fec8-4348-a3af-e33e7edc8e7b",
+    "description": "Join a set of meshes into a single mesh",
+    "inputs": [
+      {
+        "name": "Meshes",
+        "nickname": "M",
+        "access": "list",
+        "description": "Meshes to join"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh join result"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Disjoint Mesh",
+    "nickname": "Disjoint",
+    "guid": "4dce5963-dc1a-4710-8991-9437ea23888d",
+    "description": "Split a mesh into disjoint pieces.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to split"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Meshes",
+        "nickname": "M",
+        "access": "list",
+        "description": "Disjoint pieces"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Cull Faces",
+    "nickname": "CullF",
+    "guid": "57edd208-760a-4f0f-87e6-ca1bbd74133b",
+    "description": "Cull faces from a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face culling"
+      },
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Face culling pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with all indicated faces removed"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Mesh Surface",
+    "nickname": "Mesh UV",
+    "guid": "58cf422f-19f7-42f7-9619-fc198c51c657",
+    "description": "Create a Surface UV mesh",
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface geometry"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of quads in U direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of quads in V direction"
+      },
+      {
+        "name": "Overhang",
+        "nickname": "H",
+        "access": "item",
+        "description": "Allow faces to overhang trims"
+      },
+      {
+        "name": "Equalize",
+        "nickname": "Q",
+        "access": "item",
+        "description": "Equalize span length"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "UV Mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Triangle",
+    "nickname": "Triangle",
+    "guid": "5a4ddedd-5af9-49e5-bace-12910a8b9366",
+    "description": "Create a mesh triangle.",
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face corner"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face corner"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Triangular mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Mesh Brep",
+    "nickname": "Mesh",
+    "guid": "60e7defa-8b21-4ee1-99aa-a9223d6134ff",
+    "description": "Create a mesh that approximates Brep geometry",
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep geometry"
+      },
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Settings to be used by meshing algorithm"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh approximation"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Sphere Ex",
+    "nickname": "MSphereEx",
+    "guid": "76f85ee4-5a88-4511-8ba7-30df07e50533",
+    "description": "Create a mesh sphere from square patches.",
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of mesh sphere"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of faces along each patch edge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh sphere"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Cell",
+    "nickname": "VCell",
+    "guid": "7b181be1-30e7-4a97-915a-1b461741aef8",
+    "description": "Compute a single 3D Voronoi cell",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Seed point for voronoi cell"
+      },
+      {
+        "name": "Neighbours",
+        "nickname": "N",
+        "access": "list",
+        "description": "Neighbour points"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional cell boundary"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cell",
+        "nickname": "C",
+        "access": "item",
+        "description": "Voronoi 3D cell"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "QuadTree",
+    "nickname": "QT",
+    "guid": "8102032b-9699-4949-ab12-3017a31d1062",
+    "description": "A two-dimensional quadtree structure",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If omitted, the best fit plane is used"
+      },
+      {
+        "name": "Square",
+        "nickname": "S",
+        "access": "item",
+        "description": "Square leafs"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Permitted content per leaf"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Quads",
+        "nickname": "Q",
+        "access": "tree",
+        "description": "Quad tree leaves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points per quad"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "TriRemesh",
+    "nickname": "TriRemesh",
+    "guid": "866222ee-6093-4af8-8944-2f9264885385",
+    "description": "Convert a Brep or Mesh into a mesh of near equilateral triangles",
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "Geometry",
+        "access": "item",
+        "description": "Initial Mesh, Brep, Surface or Curve to remesh"
+      },
+      {
+        "name": "Target",
+        "nickname": "Target",
+        "access": "item",
+        "description": "Optional different target mesh to pull to. If none given, initial mesh is used."
+      },
+      {
+        "name": "Sharp",
+        "nickname": "Sharp",
+        "access": "item",
+        "description": "Preserve sharp features"
+      },
+      {
+        "name": "Features",
+        "nickname": "Features",
+        "access": "list",
+        "description": "Optional additional curves or points to preserve"
+      },
+      {
+        "name": "Length",
+        "nickname": "Length",
+        "access": "item",
+        "description": "Target edge length"
+      },
+      {
+        "name": "Iterations",
+        "nickname": "Iters",
+        "access": "item",
+        "description": "Number of remeshing steps to perform"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Triangulation",
+        "nickname": "T",
+        "access": "item",
+        "description": "Remeshed result"
+      },
+      {
+        "name": "Dual",
+        "nickname": "D",
+        "access": "item",
+        "description": "Dual Ngon mesh"
+      },
+      {
+        "name": "Creases",
+        "nickname": "C",
+        "access": "list",
+        "description": "Edge lines of sharp features"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Plane",
+    "nickname": "MPlane",
+    "guid": "8adbf481-7589-4a40-b490-006531ea001d",
+    "description": "Create a mesh plane.",
+    "inputs": [
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Rectangle describing boundary of plane"
+      },
+      {
+        "name": "Width count",
+        "nickname": "W",
+        "access": "item",
+        "description": "Number of faces along {x} direction"
+      },
+      {
+        "name": "Height count",
+        "nickname": "H",
+        "access": "item",
+        "description": "Number of faces along {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh plane"
+      },
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of mesh plane"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Quadrangulate",
+    "nickname": "Quad",
+    "guid": "9266a2bb-918f-4675-9c91-f67d0dd33eac",
+    "description": "Quadrangulate as many triangles as possible in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to quadrangulate"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle threshold. Triangles that exceed this kink-angle will not be merged."
+      },
+      {
+        "name": "Ratio",
+        "nickname": "R",
+        "access": "item",
+        "description": "Ratio threshold. Quads that have a ratio (shortest diagonal/longest diagonal) that exceed the threshold, will not be considered."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Quadrangulated mesh (not all triangles are guaranteed to be converted)."
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of triangles that were quadrangulated"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Convex Hull",
+    "nickname": "Hull",
+    "guid": "9d0c5284-ea24-4f9f-a183-ef57fc48b5b8",
+    "description": "Compute the planar, convex hull for a collection of points",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for convex hull solution"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Hull",
+        "nickname": "H",
+        "access": "item",
+        "description": "Convex hull in base plane space"
+      },
+      {
+        "name": "Hull(z)",
+        "nickname": "Hz",
+        "access": "item",
+        "description": "Convex hull in world space"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Indices of points on convex hull"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Groups",
+    "nickname": "VorGroup",
+    "guid": "9d4854fe-70db-4863-967b-4120d0b6d2e4",
+    "description": "Compute a custom set of nested voronoi diagrams.",
+    "inputs": [
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Diagram boundary"
+      },
+      {
+        "name": "Generation 1",
+        "nickname": "G1",
+        "access": "list",
+        "description": "Points in generation 1"
+      },
+      {
+        "name": "Generation 2",
+        "nickname": "G2",
+        "access": "list",
+        "description": "Points in generation 2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Diagram 1",
+        "nickname": "D1",
+        "access": "list",
+        "description": "Voronoi diagram for generation 1"
+      },
+      {
+        "name": "Diagram 2",
+        "nickname": "D2",
+        "access": "list",
+        "description": "Voronoi diagram for generation 2"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Cull Vertices",
+    "nickname": "CullV",
+    "guid": "9d50bf9b-46bc-403a-9ec9-1052f51dd6b6",
+    "description": "Cull vertices from a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for vertex culling"
+      },
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Vertex culling pattern"
+      },
+      {
+        "name": "Shrink",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shrink quads, if true, quads will become triangles if possible"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with all indicated vertices removed"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Weld Mesh",
+    "nickname": "Weld",
+    "guid": "9f6d85c9-1143-4538-bca7-69dcb11a74ef",
+    "description": "Weld (merge) creases in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to weld"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Weld angle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Welded mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi",
+    "nickname": "Voronoi",
+    "guid": "a4011be0-1c91-45bd-8280-17dd3a9f46f1",
+    "description": "Planar voronoi diagram for a collection of points",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional cell radius"
+      },
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional containment boundary for diagram."
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the voronoi diagram."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Closest Point",
+    "nickname": "MeshCP",
+    "guid": "a559fee2-4b76-4370-8042-c7440cd75049",
+    "description": "Finds the closest point on a mesh",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to search for closest point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Location on mesh closest to search point"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Face index of closest point"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mesh parameter for closest point"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "OcTree",
+    "nickname": "OcT",
+    "guid": "a59a68ad-fdd6-41dd-88f0-d7a6fb8d2e16",
+    "description": "A three-dimensional oc-tree structure",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Square",
+        "nickname": "S",
+        "access": "item",
+        "description": "Square leafs"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Permitted content per leaf"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boxes",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Oc-tree leave boxes"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points per box"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Exposure",
+    "nickname": "Exposure",
+    "guid": "a78e3fbc-d199-4bd9-8df0-fc4c2743eb31",
+    "description": "Solve mesh exposure for a collection of energy rays and obstructions.",
+    "inputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Mesh for exposure solution"
+      },
+      {
+        "name": "Obstructions",
+        "nickname": "O",
+        "access": "list",
+        "description": "Optional additional obstructing geometry"
+      },
+      {
+        "name": "Rays",
+        "nickname": "R",
+        "access": "list",
+        "description": "Light ray directions"
+      },
+      {
+        "name": "Energy",
+        "nickname": "E",
+        "access": "list",
+        "description": "Optional Energy values for each ray"
+      },
+      {
+        "name": "Lambert",
+        "nickname": "L",
+        "access": "item",
+        "description": "If true, Lambertian shading will be applied,"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Exposure",
+        "nickname": "E",
+        "access": "list",
+        "description": "Combined exposure for every individual mesh vertex."
+      },
+      {
+        "name": "Range",
+        "nickname": "R",
+        "access": "item",
+        "description": "Exposure Range for the entire mesh."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Face",
+    "nickname": "DeFace",
+    "guid": "aab142b1-b870-46de-8e86-654c9a554d90",
+    "description": "Deconstruct a mesh face into its four corner indices.",
+    "inputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Mesh face"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face vertex"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face vertex"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face vertex"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Index of fourth face vertex (identical to C if face is a triangle)"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Groups",
+    "nickname": "VorGroup",
+    "guid": "ab454a50-debf-46d1-9bd1-82648416a802",
+    "description": "Compute a custom set of nested voronoi diagrams.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane for diagram"
+      },
+      {
+        "name": "Generation 1",
+        "nickname": "G1",
+        "access": "list",
+        "description": "Points in generation 1"
+      },
+      {
+        "name": "Generation 2",
+        "nickname": "G2",
+        "access": "list",
+        "description": "Points in generation 2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Diagram 1",
+        "nickname": "D1",
+        "access": "list",
+        "description": "Voronoi diagram for generation 1 points"
+      },
+      {
+        "name": "Diagram 2",
+        "nickname": "D2",
+        "access": "list",
+        "description": "Voronoi diagram for generation 2 points"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Eval",
+    "nickname": "MEval",
+    "guid": "b2dc090f-b022-4264-8889-87e22979336e",
+    "description": "Evaluate a mesh at a given parameter",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mesh parameter for evaluation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at mesh parameter"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal vector at mesh parameter"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Colour at mesh parameter"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Mesh",
+    "nickname": "DeMesh",
+    "guid": "ba2d8f57-0738-42b4-b5a5-fe4d853517eb",
+    "description": "Deconstruct a mesh into its component parts.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Mesh vertices"
+      },
+      {
+        "name": "Faces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Mesh faces"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Mesh vertex colours"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Mesh normals"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi 3D",
+    "nickname": "Voronoi\u00b3",
+    "guid": "ba9bb57a-61cf-4207-a1c4-994e371ba4f9",
+    "description": "Volumetric voronoi diagram for a collection of points",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional diagram boundary"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the 3D Voronoi diagram"
+      },
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "list",
+        "description": "List of boolean values indicating for each cell whether it is part of the original boundary"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Mesh Shadow",
+    "nickname": "MShadow",
+    "guid": "c3dce3e8-c9cc-413c-a93f-732434282fdd",
+    "description": "Compute the shadow outline for a mesh object",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for shadow casting"
+      },
+      {
+        "name": "Light",
+        "nickname": "L",
+        "access": "item",
+        "description": "Direction of light rays"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane that receives the shadows"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Outlines",
+        "nickname": "O",
+        "access": "list",
+        "description": "Shadow contours"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Simple Mesh",
+    "nickname": "SMesh",
+    "guid": "c3f9cea5-6fd4-4db5-959b-08cd08ed9fe1",
+    "description": "Create a mesh that represents a Brep as simply as possible",
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to mesh, only breps with triangle or quad faces are supported."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall(t) Custom",
+    "nickname": "MetaBall(t)",
+    "guid": "c4373505-a4cf-4992-8db1-fd6e6bb5850d",
+    "description": "2D Metaball isosurface by threshold and custom charge values",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Charge",
+        "nickname": "C",
+        "access": "list",
+        "description": "Point charges (positive values only)"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Threshold",
+        "nickname": "T",
+        "access": "item",
+        "description": "Isocurve threshold value"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for default accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurves"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall(t)",
+    "nickname": "MetaBall(t)",
+    "guid": "c48cf4d4-432c-41b6-b77a-77650479a31f",
+    "description": "2D Metaball isosurface by threshold",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Threshold",
+        "nickname": "T",
+        "access": "item",
+        "description": "Isocurve threshold value"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for default accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurves"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Unify Mesh",
+    "nickname": "UniM",
+    "guid": "ca6a48f4-b681-4989-b0c1-301a2929a84c",
+    "description": "Unify the normals of a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to unify"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Unified mesh"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of faces that were flipped"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Normals",
+    "nickname": "FaceN",
+    "guid": "cb4ca22c-3419-4962-a078-ad4ff7f1f929",
+    "description": "Extract the normals and center points of all faces in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for normal and center point extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Centers",
+        "nickname": "C",
+        "access": "list",
+        "description": "Center-points of all faces"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Normal vectors for all faces"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Delete Faces",
+    "nickname": "DeleteF",
+    "guid": "d0f1311b-8287-4484-b2ea-1475c6770926",
+    "description": "Delete faces from a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face deletion"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "List of all face indices to delete"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh with all indexed faces removed"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Colours",
+    "nickname": "MCol",
+    "guid": "d2cedf38-1149-4adc-8dbf-b06571cb5106",
+    "description": "Assign a repeating colour pattern to a mesh object.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Colour pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Coloured mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Circles",
+    "nickname": "FaceC",
+    "guid": "d8cf1555-a0d5-43cb-8a10-46f8c014db3a",
+    "description": "Solve the circumscribed circles for all mesh faces",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for normal and center point extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Centers",
+        "nickname": "C",
+        "access": "list",
+        "description": "Circum-circles for all mesh triangles (quads are skipped)"
+      },
+      {
+        "name": "Ratio",
+        "nickname": "R",
+        "access": "list",
+        "description": "Ratio of triangles; altitude / longest edge. (quads are skipped)"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Delaunay Edges",
+    "nickname": "Con",
+    "guid": "db2a4d25-23fa-4887-8983-ee5293cc82c0",
+    "description": "Delaunay connectivity",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for triangulate"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Connectivity",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Topological Connectivity diagram"
+      },
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edges of the connectivity diagram"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Align Vertices",
+    "nickname": "AlignVert",
+    "guid": "db661dd7-63a4-44c6-91f2-6faab2471383",
+    "description": "Align nearby vertices in a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to align"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Alignment tolerance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Aligned mesh"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of aligned vertices"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall",
+    "nickname": "MetaBall",
+    "guid": "dc934310-67eb-4d1d-8607-7cc62a501dd9",
+    "description": "2D Metaball isocurve through point",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Point",
+        "nickname": "X",
+        "access": "item",
+        "description": "Isocurve intersection"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for adaptive accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurve"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Plane",
+    "nickname": "MPlane",
+    "guid": "dd8d834f-40f1-4a84-8e4b-9fa8efe7be41",
+    "description": "Create a mesh plane.",
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Width",
+        "nickname": "W",
+        "access": "item",
+        "description": "Domain of width"
+      },
+      {
+        "name": "Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Domain of height"
+      },
+      {
+        "name": "Width count",
+        "nickname": "Cw",
+        "access": "item",
+        "description": "Number of faces along {x} direction"
+      },
+      {
+        "name": "Height count",
+        "nickname": "Ch",
+        "access": "item",
+        "description": "Number of faces along {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh plane"
+      },
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of mesh plane"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Construct Mesh",
+    "nickname": "ConMesh",
+    "guid": "e2c0f9db-a862-4bd9-810c-ef2610e7a56f",
+    "description": "Construct a mesh from vertices, faces and optional colours.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertices of mesh object"
+      },
+      {
+        "name": "Faces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Faces of mesh object"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Optional vertex colours"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Constructed mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Smooth Mesh",
+    "nickname": "MSmooth",
+    "guid": "e45aa4a0-e40d-421c-a335-5185dd131836",
+    "description": "Smooth the vertices of a mesh",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to smooth"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Smoothing strength (0.0=none, 1.0=max)"
+      },
+      {
+        "name": "Skip Naked",
+        "nickname": "N",
+        "access": "item",
+        "description": "Skip naked vertices"
+      },
+      {
+        "name": "Iterations",
+        "nickname": "I",
+        "access": "item",
+        "description": "Number of successive smoothing steps"
+      },
+      {
+        "name": "Limit",
+        "nickname": "L",
+        "access": "item",
+        "description": "Optional maximum displacement per point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Smoothed mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Proximity 3D",
+    "nickname": "Prox",
+    "guid": "e504d619-4467-437a-92fa-c6822d16b066",
+    "description": "Search for three-dimensional proximity within a point list",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Maximum number of closest points to find"
+      },
+      {
+        "name": "Min Radius",
+        "nickname": "R-",
+        "access": "item",
+        "description": "Optional minimum search radius."
+      },
+      {
+        "name": "Max Radius",
+        "nickname": "R+",
+        "access": "item",
+        "description": "Optional maximum search radius."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Links",
+        "nickname": "L",
+        "access": "tree",
+        "description": "Proximity links"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Proximity topology"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Spray",
+    "nickname": "MSpray",
+    "guid": "edcf10e1-02a0-48a4-ae2d-70c50d903dc8",
+    "description": "Assign colours to a mesh based on spray points.",
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Spray points"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Colours of spray points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Sprayed mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi",
+    "nickname": "Voronoi",
+    "guid": "ee9261ab-75a4-478f-b483-a50b755b07fd",
+    "description": "Planar voronoi diagram for a collection of points",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional cell radius"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional containment box for diagram."
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the voronoi diagram."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Quad Remesh Settings",
+    "nickname": "QRSettings",
+    "guid": "f562505b-4c49-49d1-932d-c8804b3fcec6",
+    "description": "Create setting for Quad-remeshing.",
+    "inputs": [
+      {
+        "name": "Target Count",
+        "nickname": "Tc",
+        "access": "item",
+        "description": "Number of quads to aim for in the result."
+      },
+      {
+        "name": "Adaptive Size",
+        "nickname": "As",
+        "access": "item",
+        "description": "A number in the range [0, 100] controlling how the quad sizes change depending on curvature."
+      },
+      {
+        "name": "Adaptive Count",
+        "nickname": "Ac",
+        "access": "item",
+        "description": "True if the number of quads is allowed to be higher for high-curvature areas."
+      },
+      {
+        "name": "Hard Edges",
+        "nickname": "He",
+        "access": "item",
+        "description": "Detect and retain hard edges in the input mesh."
+      },
+      {
+        "name": "Seam Edges",
+        "nickname": "Se",
+        "access": "item",
+        "description": "Detect and retain brep-face boundary edges (0=Off, 1=Smart, 2=Strict)."
+      },
+      {
+        "name": "Symmetry",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Symmetry axis (0=none, 1=X, 2=Y, 3=Z)."
+      },
+      {
+        "name": "Guide Curves",
+        "nickname": "Gc",
+        "access": "item",
+        "description": "Guide curve influence. (0=approximate, 1=edge-ring, 2=edge-loop)."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Quad-remesher settings"
+      }
+    ]
+  }
+];
