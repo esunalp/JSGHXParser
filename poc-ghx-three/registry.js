@@ -190,6 +190,71 @@ function multiplyScalarsOrVectors(a, b) {
   return new THREE.Vector3(va.x * vb.x, va.y * vb.y, va.z * vb.z);
 }
 
+function subtractScalarsOrVectors(a, b) {
+  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
+  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
+  if (!aIsVector && !bIsVector) {
+    return toNumber(a, 0) - toNumber(b, 0);
+  }
+  const va = toVector3(a, new THREE.Vector3());
+  const vb = toVector3(b, new THREE.Vector3());
+  return va.sub(vb);
+}
+
+function divideScalarsOrVectors(a, b) {
+  const aIsVector = a?.isVector3 || (a && typeof a === 'object' && 'x' in a && 'y' in a && 'z' in a);
+  const bIsVector = b?.isVector3 || (b && typeof b === 'object' && 'x' in b && 'y' in b && 'z' in b);
+  if (!aIsVector && !bIsVector) {
+    return toNumber(a, 0) / toNumber(b, 1);
+  }
+  if (aIsVector && !bIsVector) {
+    const divisor = toNumber(b, 1);
+    const vector = toVector3(a, new THREE.Vector3());
+    if (divisor === 0) {
+      return new THREE.Vector3();
+    }
+    return vector.divideScalar(divisor);
+  }
+  const va = toVector3(a, new THREE.Vector3());
+  const vb = toVector3(b, new THREE.Vector3(1, 1, 1));
+  const safeComponent = (value, divisor) => (divisor === 0 ? 0 : value / divisor);
+  return new THREE.Vector3(
+    safeComponent(va.x, vb.x),
+    safeComponent(va.y, vb.y),
+    safeComponent(va.z, vb.z)
+  );
+}
+
+function collectNumericValues(input) {
+  const numbers = [];
+  const stack = [input];
+  while (stack.length) {
+    const current = stack.pop();
+    if (current === undefined || current === null) continue;
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        stack.push(item);
+      }
+      continue;
+    }
+    if (current?.isVector3) {
+      numbers.push(current.length());
+      continue;
+    }
+    if (typeof current === 'object') {
+      if (typeof current.value !== 'undefined') {
+        stack.push(current.value);
+        continue;
+      }
+    }
+    const numeric = Number(current);
+    if (Number.isFinite(numeric)) {
+      numbers.push(numeric);
+    }
+  }
+  return numbers;
+}
+
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
   pinMap: {
@@ -283,6 +348,182 @@ register([
     const right = inputs.b;
     const result = multiplyScalarsOrVectors(left, right);
     return { result };
+  }
+});
+
+register([
+  '{2c56ab33-c7cc-4129-886c-d5856b714010}',
+  '{9c007a04-d0d9-48e4-9da3-9ba142bc4d46}',
+  'subtraction',
+  'a-b',
+  'minus',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { A: 'a', B: 'b' },
+    outputs: { R: 'result', result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const left = inputs.a;
+    const right = inputs.b;
+    const result = subtractScalarsOrVectors(left, right);
+    return { result };
+  }
+});
+
+register([
+  '{9c85271f-89fa-4e9f-9f4a-d75802120ccc}',
+  'division',
+  'divide',
+  'a/b',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { A: 'a', B: 'b' },
+    outputs: { R: 'result', result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const left = inputs.a;
+    const right = inputs.b;
+    const result = divideScalarsOrVectors(left, right);
+    return { result };
+  }
+});
+
+register([
+  '{0d1e2027-f153-460d-84c0-f9af431b08cb}',
+  'maximum',
+  'max',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { A: 'a', B: 'b' },
+    outputs: { R: 'result', result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const a = toNumber(inputs.a, Number.NEGATIVE_INFINITY);
+    const b = toNumber(inputs.b, Number.NEGATIVE_INFINITY);
+    return { result: Math.max(a, b) };
+  }
+});
+
+register([
+  '{57308b30-772d-4919-ac67-e86c18f3a996}',
+  'minimum',
+  'min',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { A: 'a', B: 'b' },
+    outputs: { R: 'result', result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const a = toNumber(inputs.a, Number.POSITIVE_INFINITY);
+    const b = toNumber(inputs.b, Number.POSITIVE_INFINITY);
+    return { result: Math.min(a, b) };
+  }
+});
+
+register([
+  '{28124995-cf99-4298-b6f4-c75a8e379f18}',
+  'absolute',
+  'abs',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { x: 'value', X: 'value', Value: 'value' },
+    outputs: { y: 'result', Y: 'result', Result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const value = toNumber(inputs.value, 0);
+    return { result: Math.abs(value) };
+  }
+});
+
+register([
+  '{78fed580-851b-46fe-af2f-6519a9d378e0}',
+  'power',
+  'pow',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { A: 'a', B: 'b' },
+    outputs: { R: 'result', result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const base = toNumber(inputs.a, 0);
+    const exponent = toNumber(inputs.b, 1);
+    return { result: Math.pow(base, exponent) };
+  }
+});
+
+register([
+  '{ad476cb7-b6d1-41c8-986b-0df243a64146}',
+  'square root',
+  'sqrt',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { x: 'value', X: 'value', Value: 'value' },
+    outputs: { y: 'result', Y: 'result', Result: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const value = toNumber(inputs.value, 0);
+    return { result: Math.sqrt(value) };
+  }
+});
+
+register([
+  '{a50c4a3b-0177-4c91-8556-db95de6c56c8}',
+  'round',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { x: 'value', Number: 'value', X: 'value' },
+    outputs: { N: 'nearest', nearest: 'nearest', F: 'floor', floor: 'floor', C: 'ceiling', ceiling: 'ceiling' },
+  },
+  eval: ({ inputs }) => {
+    const value = toNumber(inputs.value, 0);
+    return {
+      nearest: Math.round(value),
+      floor: Math.floor(value),
+      ceiling: Math.ceil(value),
+    };
+  }
+});
+
+register([
+  '{0d2ccfb3-9d41-4759-9452-da6a522c3eaa}',
+  'pi',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { N: 'factor', Factor: 'factor' },
+    outputs: { y: 'result', Y: 'result', Output: 'result' },
+  },
+  eval: ({ inputs }) => {
+    const factor = toNumber(inputs.factor, 1);
+    return { result: Math.PI * factor };
+  }
+});
+
+register([
+  '{7986486c-621a-48fb-8f27-a28a22c91cc9}',
+  'average',
+  'avr',
+], {
+  type: 'math',
+  pinMap: {
+    inputs: { I: 'values', Input: 'values' },
+    outputs: { AM: 'mean', 'Arithmetic mean': 'mean' },
+  },
+  eval: ({ inputs }) => {
+    const numbers = collectNumericValues(inputs.values);
+    if (!numbers.length) {
+      return { mean: 0 };
+    }
+    const total = numbers.reduce((sum, value) => sum + value, 0);
+    return { mean: total / numbers.length };
   }
 });
 
