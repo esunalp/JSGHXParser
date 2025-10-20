@@ -4,6 +4,7 @@ import { DISPLAY_COMPONENTS } from './component-metadata-display.js?version=6';
 import { INTERSECT_COMPONENTS } from './component-metadata-intersect.js?version=6';
 import { MATHS_COMPONENTS } from './component-metadata-maths.js?version=6';
 import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=6';
+import { PARAMS_COMPONENTS } from './component-metadata-params.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
@@ -40,6 +41,9 @@ function registerComponentMetadata(list) {
     const normalizedGuid = normalizeGuid(component.guid);
     if (normalizedGuid) {
       COMPONENT_METADATA.set(normalizedGuid, component);
+      if (component.category?.toLowerCase?.() === 'params') {
+        PARAMETER_LIKE_GUIDS.add(normalizedGuid);
+      }
     }
     addKnownName(component.name);
     addKnownName(component.nickname);
@@ -66,6 +70,7 @@ registerComponentMetadata(DISPLAY_COMPONENTS);
 registerComponentMetadata(INTERSECT_COMPONENTS);
 registerComponentMetadata(MATHS_COMPONENTS);
 registerComponentMetadata(MESH_COMPONENTS);
+registerComponentMetadata(PARAMS_COMPONENTS);
 
 const SLIDER_DEFAULTS = {
   value: 1,
