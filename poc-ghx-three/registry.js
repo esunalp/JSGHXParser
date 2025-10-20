@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js';
+import { registerVectorPointComponents } from './registry-components-vector.js';
 
 const entries = new Map();
 
@@ -195,6 +196,7 @@ function collectNumericValues(input) {
 
 registerMathDomainComponents({ register, toNumber });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
+registerVectorPointComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
@@ -218,25 +220,6 @@ register(['{56f1d440-0b71-44de-93d5-3c96bf53b78f}', 'box'], {
     const depth = toNumber(inputs.depth, 1) || 1;
     const geometry = new THREE.BoxGeometry(width, height, depth);
     return { geometry };
-  }
-});
-
-register([
-  '{3581f42a-9592-4549-bd6b-1c0fc39d067b}',
-  '{8a5aae11-8775-4ee5-b4fc-db3a1bd89c2f}',
-  'construct point',
-  'point xyz',
-], {
-  type: 'point',
-  pinMap: {
-    inputs: { X: 'x', Y: 'y', Z: 'z' },
-    outputs: { Pt: 'point', P: 'point', point: 'point' },
-  },
-  eval: ({ inputs }) => {
-    const x = toNumber(inputs.x, 0);
-    const y = toNumber(inputs.y, 0);
-    const z = toNumber(inputs.z, 0);
-    return { point: new THREE.Vector3(x, y, z) };
   }
 });
 
