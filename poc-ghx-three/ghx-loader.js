@@ -1,6 +1,12 @@
 const KNOWN_COMPONENT_GUIDS = new Set([
   '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', // Number Slider
   '{56f1d440-0b71-44de-93d5-3c96bf53b78f}', // Box
+  '{59e0b89a-e487-49f8-bab8-b5bab16be14c}', // Panel
+]);
+
+const PARAMETER_LIKE_GUIDS = new Set([
+  '{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', // Number Slider
+  '{59e0b89a-e487-49f8-bab8-b5bab16be14c}', // Panel
 ]);
 
 const SLIDER_GUIDS = new Set(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}']);
@@ -19,6 +25,107 @@ function normalizeGuid(guid) {
   return trimmed.startsWith('{') && trimmed.endsWith('}')
     ? trimmed.toLowerCase()
     : `{${trimmed.toLowerCase()}}`;
+}
+
+function toNumber(value) {
+  if (value === null || value === undefined) return undefined;
+  const normalized = String(value).replace(',', '.').trim();
+  if (!normalized) return undefined;
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? undefined : numeric;
+}
+
+function getDirectChildElements(parent, tagName) {
+  if (!parent) return [];
+  const wanted = tagName?.toLowerCase?.();
+  return Array.from(parent.children ?? []).filter((child) => child.tagName?.toLowerCase?.() === wanted);
+}
+
+function getDirectChildChunks(parent, name) {
+  return getDirectChildElements(parent, 'chunk').filter((child) => {
+    if (!name) return true;
+    const childName = child.getAttribute('name');
+    return childName && childName.toLowerCase() === name.toLowerCase();
+  });
+}
+
+function getItemsElement(chunk) {
+  if (!chunk) return null;
+  return getDirectChildElements(chunk, 'items')[0] ?? null;
+}
+
+function readItem(itemsElement, itemName) {
+  if (!itemsElement) return null;
+  const targetName = itemName?.toLowerCase?.();
+  const items = Array.from(itemsElement.children ?? []);
+  for (const item of items) {
+    if (item.tagName?.toLowerCase?.() !== 'item') continue;
+    const nameAttr = item.getAttribute('name');
+    if (!nameAttr || nameAttr.toLowerCase() !== targetName) continue;
+    const text = item.textContent?.trim();
+    if (text !== undefined) {
+      return text;
+    }
+  }
+  return null;
+}
+
+function readItems(itemsElement, itemName) {
+  if (!itemsElement) return [];
+  const targetName = itemName?.toLowerCase?.();
+  const result = [];
+  const items = Array.from(itemsElement.children ?? []);
+  for (const item of items) {
+    if (item.tagName?.toLowerCase?.() !== 'item') continue;
+    const nameAttr = item.getAttribute('name');
+    if (!nameAttr || nameAttr.toLowerCase() !== targetName) continue;
+    const text = item.textContent?.trim();
+    if (text) {
+      result.push(text);
+    }
+  }
+  return result;
+}
+
+function parsePersistentValue(paramChunk) {
+  if (!paramChunk) return undefined;
+  const item = paramChunk.querySelector('chunk[name="PersistentData"] chunk[name="Item"] > items > item');
+  if (!item) return undefined;
+  const typeName = item.getAttribute('type_name')?.toLowerCase?.() ?? '';
+  const rawText = item.textContent?.trim();
+  if (!rawText) return undefined;
+  if (typeName.startsWith('gh_double') || typeName.startsWith('gh_single') || typeName.startsWith('gh_int')) {
+    const numeric = toNumber(rawText);
+    if (numeric !== undefined) return numeric;
+  }
+  if (typeName === 'gh_bool') {
+    return rawText.toLowerCase() === 'true';
+  }
+  return rawText;
+}
+
+function parseParamChunk(paramChunk) {
+  const info = {
+    index: Number(paramChunk.getAttribute('index')),
+    name: null,
+    nickName: null,
+    instanceGuid: null,
+    description: null,
+    sources: [],
+    defaultValue: undefined,
+  };
+
+  const items = getItemsElement(paramChunk);
+  if (items) {
+    info.instanceGuid = readItem(items, 'InstanceGuid');
+    info.name = readItem(items, 'Name');
+    info.nickName = readItem(items, 'NickName');
+    info.description = readItem(items, 'Description');
+    info.sources = readItems(items, 'Source');
+  }
+
+  info.defaultValue = parsePersistentValue(paramChunk);
+  return info;
 }
 
 function getFirstText(root, selectors) {
@@ -160,6 +267,17 @@ function detectSliders(node) {
   return name.includes('slider');
 }
 
+function pickPinName(info, fallbackPrefix, fallbackIndex) {
+  if (!info) return `${fallbackPrefix}${fallbackIndex}`;
+  if (info.nickName) return info.nickName;
+  if (info.name) return info.name;
+  if (info.description) return info.description;
+  if (info.index !== undefined && info.index !== null && Number.isFinite(info.index)) {
+    return `${fallbackPrefix}${info.index}`;
+  }
+  return `${fallbackPrefix}${fallbackIndex}`;
+}
+
 function buildNodeDescriptor(nodeInfo) {
   const { id, guid, name, chunk } = nodeInfo;
   const descriptor = {
@@ -195,6 +313,8 @@ export async function parseGHX(file) {
 
   const nodes = [];
   const unknownNodes = [];
+  const outputLookup = new Map();
+  const pendingConnections = [];
 
   objectChunks.forEach((chunk, index) => {
     const info = describeObjectChunk(chunk, index);
@@ -202,6 +322,70 @@ export async function parseGHX(file) {
     if (descriptor.guid) {
       descriptor.guid = normalizeGuid(descriptor.guid);
     }
+
+    const containerChunk = chunk.querySelector('chunk[name="Container"]');
+    const nodeId = descriptor.id;
+    const containerItems = getItemsElement(containerChunk);
+
+    if (containerItems) {
+      const userText = readItem(containerItems, 'UserText');
+      if (userText !== null && userText !== undefined) {
+        descriptor.meta = { ...descriptor.meta, userText, value: userText };
+      }
+    }
+
+    const outputChunks = getDirectChildChunks(containerChunk, 'param_output');
+    if (outputChunks.length) {
+      outputChunks.forEach((outputChunk, outputIndex) => {
+        const paramInfo = parseParamChunk(outputChunk);
+        const pinName = pickPinName(paramInfo, 'out', outputIndex);
+        if (descriptor.outputs[pinName] === undefined) {
+          descriptor.outputs[pinName] = null;
+        }
+
+        const normalizedParamGuid = normalizeGuid(paramInfo.instanceGuid);
+        if (normalizedParamGuid) {
+          outputLookup.set(normalizedParamGuid, { node: nodeId, pin: pinName });
+        }
+        if (outputIndex === 0) {
+          outputLookup.set(nodeId, { node: nodeId, pin: pinName });
+        }
+      });
+    }
+
+    const inputChunks = getDirectChildChunks(containerChunk, 'param_input');
+    if (inputChunks.length) {
+      inputChunks.forEach((inputChunk, inputIndex) => {
+        const paramInfo = parseParamChunk(inputChunk);
+        const pinName = pickPinName(paramInfo, 'in', inputIndex);
+
+        if (paramInfo.defaultValue !== undefined && descriptor.inputs[pinName] === undefined) {
+          descriptor.inputs[pinName] = paramInfo.defaultValue;
+        }
+
+        if (paramInfo.sources?.length) {
+          const normalizedSources = paramInfo.sources.map((source) => normalizeGuid(source)).filter(Boolean);
+          if (normalizedSources.length) {
+            pendingConnections.push({
+              targetNode: nodeId,
+              targetPin: pinName,
+              sources: normalizedSources,
+            });
+          }
+        }
+      });
+    }
+
+    if (!outputChunks.length) {
+      if (detectSliders(info)) {
+        descriptor.outputs.value = null;
+        outputLookup.set(nodeId, { node: nodeId, pin: 'value' });
+      } else if (PARAMETER_LIKE_GUIDS.has(descriptor.guid)) {
+        descriptor.outputs.value = null;
+        outputLookup.set(nodeId, { node: nodeId, pin: 'value' });
+      }
+    }
+
     nodes.push(descriptor);
 
     const guidKey = descriptor.guid ?? '';
@@ -224,7 +408,35 @@ export async function parseGHX(file) {
   }
 
   const wires = [];
-  console.info('parseGHX: Wires worden in deze iteratie overgeslagen.');
+  const unresolved = [];
+
+  pendingConnections.forEach((connection) => {
+    connection.sources.forEach((sourceGuid) => {
+      const mapping = outputLookup.get(sourceGuid);
+      if (!mapping) {
+        unresolved.push({
+          sourceGuid,
+          targetNode: connection.targetNode,
+          targetPin: connection.targetPin,
+        });
+        return;
+      }
+      wires.push({
+        from: { node: mapping.node, pin: mapping.pin },
+        to: { node: connection.targetNode, pin: connection.targetPin },
+      });
+    });
+  });
+
+  if (unresolved.length) {
+    const preview = unresolved.slice(0, 10);
+    const remaining = unresolved.length - preview.length;
+    if (remaining > 0) {
+      console.warn('parseGHX: Kon niet alle verbindingen herleiden', preview, `(+${remaining} extra)`);
+    } else {
+      console.warn('parseGHX: Kon niet alle verbindingen herleiden', preview);
+    }
+  }
 
   return { nodes, wires };
 }
