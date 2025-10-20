@@ -76,11 +76,12 @@ Een registry‑entry ziet er zo uit:
 ---
 
 ## GHX Parser (eerste iteratie)
-- **DOMParser** parseert XML string → document.
-- Zoek **Object/Chunk**‑entries met `GUID` en `Name` items.
-- Sliders detecteren op naam (\"Number Slider\") of bekende GUIDs.
-- Default slider‑range: `min=0, max=10, step=0.01, value=1` (wordt vervangen door echte waarden zodra GHX‑voorbeeld binnen is).
-- Wires: placeholder (lege set) in POC; echte mapping volgt na analyse van jouw GHX.
+- [x] **DOMParser** parseert XML string → document.
+- [x] Zoek **Object/Chunk**‑entries met `GUID` en `Name` items.
+- [x] Sliders detecteren op naam ("Number Slider") of bekende GUIDs + lees `Value/Min/Max/Step` uit bijhorende chunks.
+- [x] Default slider‑range vervangen door echte waarden uit GHX (fallback naar `min=0, max=10, step=0.01, value=1`).
+- [ ] Wires: placeholder (lege set) in POC; echte mapping volgt na analyse van jouw GHX.
+- [ ] Koppelen van overige componenten aan registry.
 
 **Benodigde voorbeelddata**
 - Minimum: GHX met **Number Slider(s) → Box**.
