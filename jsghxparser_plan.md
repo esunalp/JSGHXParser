@@ -191,10 +191,10 @@ Een registry‑entry ziet er zo uit:
 - [x] Wires voorlopig overslaan of mocken; engine mag niet crashen.
 
 ### Integratie met echte GHX
-- [ ] Voorbeeld‑GHX (Number Slider → Box) ontvangen en lokaal testen.
-- [ ] Juiste XML‑paden voor nodes/params/wires vastleggen.
-- [ ] Slider‑ranges/waarde uit `PersistentData` (of equivalent) uitlezen.
-- [ ] Wire‑mapping implementeren (`from {node,pin}` → `to {node,pin}`).
+- [x] Voorbeeld‑GHX (Number Slider → Box) ontvangen en lokaal testen. (`poc-ghx-three/brugtest.ghx` geladen als sanity check in de browser.)
+- [x] Juiste XML‑paden voor nodes/params/wires vastleggen. (`ghx-loader.js` leest nu GUIDs, param-chunks en container-structuur rechtstreeks uit de Grasshopper-export.)
+- [x] Slider‑ranges/waarde uit `PersistentData` (of equivalent) uitlezen. (`parseSliderMeta` verzamelt waarden uit Slider/PersistentData-chunks plus veilige defaults.)
+- [x] Wire‑mapping implementeren (`from {node,pin}` → `to {node,pin}`). (Output GUID→pin lookup + pending source-resolutie in `parseGHX()`.)
 - [ ] Parser‑unitchecks op 2–3 varianten (Rhino 6/7 verschillen indien nodig).
 
 ### Registry uitbreiden (minimale keten)
