@@ -1,4 +1,4 @@
-import { COMPLEX_COMPONENTS } from './component-metadata.js?version=6';
+import { COMPLEX_COMPONENTS } from './component-metadata-complex.js?version=6';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
