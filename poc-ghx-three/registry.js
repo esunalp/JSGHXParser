@@ -1,14 +1,25 @@
 import * as THREE from 'three';
-import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js?version=7';
-import { registerVectorPlaneComponents, registerVectorPointComponents } from './registry-components-vector.js?version=7';
-import {
-  registerCurveAnalysisComponents,
-  registerCurveDivisionComponents,
-  registerCurvePrimitiveComponents,
-  registerCurveSplineComponents,
-  registerCurveUtilComponents,
-} from './registry-components-curve.js?version=7';
-import { registerSurfacePrimitiveComponents } from './registry-components-surface.js?version=7';
+import { withVersion } from './version.js';
+
+const versionedImport = (path) => import(withVersion(path));
+
+const [
+  { registerMathDomainComponents, registerMathOperatorComponents },
+  { registerVectorPlaneComponents, registerVectorPointComponents },
+  {
+    registerCurveAnalysisComponents,
+    registerCurveDivisionComponents,
+    registerCurvePrimitiveComponents,
+    registerCurveSplineComponents,
+    registerCurveUtilComponents,
+  },
+  { registerSurfacePrimitiveComponents },
+] = await Promise.all([
+  versionedImport('./registry-components-maths.js'),
+  versionedImport('./registry-components-vector.js'),
+  versionedImport('./registry-components-curve.js'),
+  versionedImport('./registry-components-surface.js'),
+]);
 
 const entries = new Map();
 

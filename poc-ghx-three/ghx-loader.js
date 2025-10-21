@@ -1,15 +1,34 @@
-import { COMPLEX_COMPONENTS } from './component-metadata-complex.js?version=7';
-import { CURVE_COMPONENTS } from './component-metadata-curve.js?version=7';
-import { DISPLAY_COMPONENTS } from './component-metadata-display.js?version=7';
-import { INTERSECT_COMPONENTS } from './component-metadata-intersect.js?version=7';
-import { MATHS_COMPONENTS } from './component-metadata-maths.js?version=7';
-import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=7';
-import { PARAMS_COMPONENTS } from './component-metadata-params.js?version=7';
-import { SCALAR_COMPONENTS } from './component-metadata-scalar.js?version=7';
-import { SETS_COMPONENTS } from './component-metadata-sets.js?version=7';
-import { SURFACE_COMPONENTS } from './component-metadata-surface.js?version=7';
-import { TRANSFORM_COMPONENTS } from './component-metadata-transform.js?version=7';
-import { VECTOR_COMPONENTS } from './component-metadata-vector.js?version=7';
+import { withVersion } from './version.js';
+
+const versionedImport = (path) => import(withVersion(path));
+
+const [
+  { COMPLEX_COMPONENTS },
+  { CURVE_COMPONENTS },
+  { DISPLAY_COMPONENTS },
+  { INTERSECT_COMPONENTS },
+  { MATHS_COMPONENTS },
+  { MESH_COMPONENTS },
+  { PARAMS_COMPONENTS },
+  { SCALAR_COMPONENTS },
+  { SETS_COMPONENTS },
+  { SURFACE_COMPONENTS },
+  { TRANSFORM_COMPONENTS },
+  { VECTOR_COMPONENTS },
+] = await Promise.all([
+  versionedImport('./component-metadata-complex.js'),
+  versionedImport('./component-metadata-curve.js'),
+  versionedImport('./component-metadata-display.js'),
+  versionedImport('./component-metadata-intersect.js'),
+  versionedImport('./component-metadata-maths.js'),
+  versionedImport('./component-metadata-mesh.js'),
+  versionedImport('./component-metadata-params.js'),
+  versionedImport('./component-metadata-scalar.js'),
+  versionedImport('./component-metadata-sets.js'),
+  versionedImport('./component-metadata-surface.js'),
+  versionedImport('./component-metadata-transform.js'),
+  versionedImport('./component-metadata-vector.js'),
+]);
 
 function normalizeGuid(guid) {
   if (!guid) return null;
