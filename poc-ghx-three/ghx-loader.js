@@ -296,6 +296,10 @@ function parseSliderMeta(objectChunk, fallbackName) {
 
 function describeObjectChunk(chunk, index) {
   const allGuidElements = Array.from(chunk.querySelectorAll('guid'));
+  const chunkItems = getItemsElement(chunk);
+  const containerChunk = chunk.querySelector('chunk[name="Container"]');
+  const containerItems = getItemsElement(containerChunk);
+
   let instanceGuid = null;
   let componentGuid = null;
 
@@ -322,11 +326,24 @@ function describeObjectChunk(chunk, index) {
     ]);
   }
 
-  if (!componentGuid) {
-    const chunkItems = getItemsElement(chunk);
-    if (chunkItems) {
-      componentGuid = readItem(chunkItems, 'GUID');
-    }
+  if (!instanceGuid && chunkItems) {
+    instanceGuid =
+      readItem(chunkItems, 'InstanceGuid') ??
+      readItem(chunkItems, 'InstanceID') ??
+      readItem(chunkItems, 'ID') ??
+      instanceGuid;
+  }
+
+  if (!instanceGuid && containerItems) {
+    instanceGuid =
+      readItem(containerItems, 'InstanceGuid') ??
+      readItem(containerItems, 'InstanceID') ??
+      readItem(containerItems, 'ID') ??
+      instanceGuid;
+  }
+
+  if (!componentGuid && chunkItems) {
+    componentGuid = readItem(chunkItems, 'GUID');
   }
 
   const normalizedComponentGuid = normalizeGuid(componentGuid);
@@ -344,14 +361,12 @@ function describeObjectChunk(chunk, index) {
     'Onbekende node';
 
   if (name === 'Object' || name === 'Onbekende node') {
-    const chunkItems = getItemsElement(chunk);
     if (chunkItems) {
       const itemName = readItem(chunkItems, 'Name');
       const itemNick = readItem(chunkItems, 'NickName');
       name = itemNick || itemName || name;
     }
     if (name === 'Object' || name === 'Onbekende node') {
-      const containerItems = getItemsElement(chunk.querySelector('chunk[name="Container"]'));
       if (containerItems) {
         const containerNick = readItem(containerItems, 'NickName');
         const containerName = readItem(containerItems, 'Name');
@@ -365,6 +380,7 @@ function describeObjectChunk(chunk, index) {
     guid: normalizedComponentGuid,
     name,
     chunk,
+    instanceGuid: normalizedInstanceGuid,
   };
 }
 
@@ -495,10 +511,18 @@ export async function parseGHX(file) {
     if (!outputChunks.length) {
       if (detectSliders(info)) {
         descriptor.outputs.value = null;
-        outputLookup.set(nodeId, { node: nodeId, pin: 'value' });
+        const mapping = { node: nodeId, pin: 'value' };
+        outputLookup.set(nodeId, mapping);
+        if (info.instanceGuid) {
+          outputLookup.set(info.instanceGuid, mapping);
+        }
       } else if (PARAMETER_LIKE_GUIDS.has(descriptor.guid)) {
         descriptor.outputs.value = null;
-        outputLookup.set(nodeId, { node: nodeId, pin: 'value' });
+        const mapping = { node: nodeId, pin: 'value' };
+        outputLookup.set(nodeId, mapping);
+        if (info.instanceGuid) {
+          outputLookup.set(info.instanceGuid, mapping);
+        }
       }
     }
 
