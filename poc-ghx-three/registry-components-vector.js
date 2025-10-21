@@ -235,6 +235,178 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     return vectors;
   }
 
+  function ensureColor(value, fallback = new THREE.Color(1, 1, 1)) {
+    const fallbackColor = fallback?.isColor ? fallback : new THREE.Color().set(fallback ?? 0xffffff);
+    const color = new THREE.Color();
+
+    if (value === undefined || value === null) {
+      color.copy(fallbackColor);
+      return color;
+    }
+
+    if (value?.isColor) {
+      return value.clone();
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length >= 3) {
+        const r = THREE.MathUtils.clamp(toNumber(value[0], fallbackColor.r), 0, 1);
+        const g = THREE.MathUtils.clamp(toNumber(value[1], fallbackColor.g), 0, 1);
+        const b = THREE.MathUtils.clamp(toNumber(value[2], fallbackColor.b), 0, 1);
+        color.setRGB(r, g, b);
+        return color;
+      }
+      if (value.length === 1) {
+        return ensureColor(value[0], fallbackColor);
+      }
+    }
+
+    if (typeof value === 'object') {
+      if ('color' in value) {
+        return ensureColor(value.color, fallbackColor);
+      }
+      if ('value' in value) {
+        return ensureColor(value.value, fallbackColor);
+      }
+      if ('r' in value || 'g' in value || 'b' in value) {
+        const r = THREE.MathUtils.clamp(toNumber(value.r ?? value.red, fallbackColor.r), 0, 1);
+        const g = THREE.MathUtils.clamp(toNumber(value.g ?? value.green, fallbackColor.g), 0, 1);
+        const b = THREE.MathUtils.clamp(toNumber(value.b ?? value.blue, fallbackColor.b), 0, 1);
+        color.setRGB(r, g, b);
+        return color;
+      }
+      if ('hex' in value) {
+        try {
+          color.set(value.hex);
+          return color;
+        } catch (error) {
+          // ignore and fall back
+        }
+      }
+    }
+
+    try {
+      color.set(value);
+      return color;
+    } catch (error) {
+      color.copy(fallbackColor);
+      return color;
+    }
+  }
+
+  function normalizeBoundsVectors(minVec, maxVec) {
+    const min = new THREE.Vector3(
+      Math.min(minVec.x, maxVec.x),
+      Math.min(minVec.y, maxVec.y),
+      Math.min(minVec.z, maxVec.z),
+    );
+    const max = new THREE.Vector3(
+      Math.max(minVec.x, maxVec.x),
+      Math.max(minVec.y, maxVec.y),
+      Math.max(minVec.z, maxVec.z),
+    );
+    return { min, max };
+  }
+
+  function ensureBounds(input) {
+    if (input === undefined || input === null) {
+      return null;
+    }
+    if (input?.isBox3) {
+      return normalizeBoundsVectors(
+        input.min ?? new THREE.Vector3(),
+        input.max ?? new THREE.Vector3(1, 1, 1),
+      );
+    }
+    if (Array.isArray(input)) {
+      if (input.length >= 2) {
+        const min = toVector3(input[0], new THREE.Vector3());
+        const max = toVector3(input[1], min.clone());
+        return normalizeBoundsVectors(min, max);
+      }
+      if (input.length === 1) {
+        return ensureBounds(input[0]);
+      }
+    }
+    if (typeof input === 'object') {
+      if ('bounds' in input) {
+        return ensureBounds(input.bounds);
+      }
+      if ('min' in input || 'max' in input || 'minimum' in input || 'maximum' in input) {
+        const min = toVector3(input.min ?? input.minimum ?? input.lower ?? new THREE.Vector3(), new THREE.Vector3());
+        const max = toVector3(input.max ?? input.maximum ?? input.upper ?? min.clone(), min.clone());
+        return normalizeBoundsVectors(min, max);
+      }
+      if ('center' in input || 'size' in input || 'extent' in input || 'extents' in input) {
+        const center = toVector3(input.center ?? input.origin ?? new THREE.Vector3(), new THREE.Vector3());
+        let sizeValue = input.size ?? input.extents ?? input.extent ?? 0;
+        let sx = toNumber(sizeValue?.x ?? sizeValue?.width ?? sizeValue?.w ?? sizeValue?.[0], Number.NaN);
+        let sy = toNumber(sizeValue?.y ?? sizeValue?.height ?? sizeValue?.h ?? sizeValue?.[1], Number.NaN);
+        let sz = toNumber(sizeValue?.z ?? sizeValue?.depth ?? sizeValue?.d ?? sizeValue?.[2], Number.NaN);
+        if (!Number.isFinite(sx)) sx = toNumber(sizeValue, 1);
+        if (!Number.isFinite(sy)) sy = sx;
+        if (!Number.isFinite(sz)) sz = sx;
+        const half = new THREE.Vector3(Math.abs(sx) / 2, Math.abs(sy) / 2, Math.abs(sz) / 2);
+        return normalizeBoundsVectors(center.clone().sub(half), center.clone().add(half));
+      }
+    }
+    if (typeof input === 'number') {
+      const half = Math.abs(input) / 2;
+      return normalizeBoundsVectors(
+        new THREE.Vector3(-half, -half, -half),
+        new THREE.Vector3(half, half, half),
+      );
+    }
+    return null;
+  }
+
+  function mergeBounds(boundsA, boundsB) {
+    if (!boundsA && !boundsB) {
+      return null;
+    }
+    if (!boundsA) {
+      return {
+        min: boundsB.min.clone(),
+        max: boundsB.max.clone(),
+      };
+    }
+    if (!boundsB) {
+      return {
+        min: boundsA.min.clone(),
+        max: boundsA.max.clone(),
+      };
+    }
+    return {
+      min: new THREE.Vector3(
+        Math.min(boundsA.min.x, boundsB.min.x),
+        Math.min(boundsA.min.y, boundsB.min.y),
+        Math.min(boundsA.min.z, boundsB.min.z),
+      ),
+      max: new THREE.Vector3(
+        Math.max(boundsA.max.x, boundsB.max.x),
+        Math.max(boundsA.max.y, boundsB.max.y),
+        Math.max(boundsA.max.z, boundsB.max.z),
+      ),
+    };
+  }
+
+  function pointInBounds(point, bounds) {
+    if (!bounds) {
+      return true;
+    }
+    if (!point) {
+      return false;
+    }
+    return (
+      point.x >= bounds.min.x - EPSILON &&
+      point.x <= bounds.max.x + EPSILON &&
+      point.y >= bounds.min.y - EPSILON &&
+      point.y <= bounds.max.y + EPSILON &&
+      point.z >= bounds.min.z - EPSILON &&
+      point.z <= bounds.max.z + EPSILON
+    );
+  }
+
   function sumVectors(vectors) {
     const total = new THREE.Vector3();
     for (const vector of vectors) {
@@ -795,6 +967,489 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
       accumulated += length;
     }
     return bestParameter;
+  }
+
+  function planeCoordinates(point, plane) {
+    const relative = point.clone().sub(plane.origin);
+    return {
+      u: relative.dot(plane.xAxis),
+      v: relative.dot(plane.yAxis),
+      w: relative.dot(plane.zAxis),
+    };
+  }
+
+  function ensureSection(sectionInput) {
+    if (sectionInput === undefined || sectionInput === null) {
+      const plane = defaultPlane();
+      return {
+        plane,
+        center: plane.origin.clone(),
+        width: 10,
+        height: 10,
+      };
+    }
+
+    if (Array.isArray(sectionInput)) {
+      if (sectionInput.length >= 3 && isPlaneLike(sectionInput[0])) {
+        const plane = ensurePlane(sectionInput[0]);
+        const width = Math.max(EPSILON, Math.abs(toNumber(sectionInput[1], 10)));
+        const height = Math.max(EPSILON, Math.abs(toNumber(sectionInput[2], width)));
+        return {
+          plane,
+          center: plane.origin.clone(),
+          width,
+          height,
+        };
+      }
+      if (sectionInput.length >= 2) {
+        const planeCandidate = sectionInput[2];
+        const plane = isPlaneLike(planeCandidate) ? ensurePlane(planeCandidate) : defaultPlane();
+        const width = Math.max(EPSILON, Math.abs(toNumber(sectionInput[0], 10)));
+        const height = Math.max(EPSILON, Math.abs(toNumber(sectionInput[1], width)));
+        return {
+          plane,
+          center: plane.origin.clone(),
+          width,
+          height,
+        };
+      }
+      if (sectionInput.length === 1) {
+        return ensureSection(sectionInput[0]);
+      }
+    }
+
+    const plane = ensurePlane(sectionInput?.plane ?? sectionInput);
+    const center = toVector3(sectionInput?.center ?? sectionInput?.origin ?? plane.origin, plane.origin.clone());
+    let width = toNumber(
+      sectionInput?.width ??
+        sectionInput?.w ??
+        sectionInput?.size?.width ??
+        sectionInput?.size?.x ??
+        sectionInput?.extentX ??
+        sectionInput?.dimensions?.x,
+      Number.NaN,
+    );
+    let height = toNumber(
+      sectionInput?.height ??
+        sectionInput?.h ??
+        sectionInput?.size?.height ??
+        sectionInput?.size?.y ??
+        sectionInput?.extentY ??
+        sectionInput?.dimensions?.y,
+      Number.NaN,
+    );
+
+    if (!Number.isFinite(width)) {
+      const fallback = toNumber(sectionInput?.size ?? sectionInput?.radius ?? sectionInput?.diameter ?? 10, 10);
+      width = Number.isFinite(fallback) ? fallback : 10;
+    }
+
+    if (!Number.isFinite(height)) {
+      const fallback = toNumber(sectionInput?.size ?? sectionInput?.radius ?? sectionInput?.diameter ?? width, width);
+      height = Number.isFinite(fallback) ? fallback : width;
+    }
+
+    return {
+      plane: createPlaneInstance(plane, center),
+      center,
+      width: Math.max(EPSILON, Math.abs(width)),
+      height: Math.max(EPSILON, Math.abs(height)),
+    };
+  }
+
+  function resolveSampleCounts(samplesInput) {
+    if (samplesInput === undefined || samplesInput === null) {
+      return { x: 10, y: 10 };
+    }
+    if (Array.isArray(samplesInput)) {
+      if (!samplesInput.length) {
+        return { x: 10, y: 10 };
+      }
+      if (samplesInput.length === 1) {
+        const count = Math.max(2, Math.round(toNumber(samplesInput[0], 10)));
+        return { x: count, y: count };
+      }
+      const x = Math.max(2, Math.round(toNumber(samplesInput[0], 10)));
+      const y = Math.max(2, Math.round(toNumber(samplesInput[1], x)));
+      return { x, y };
+    }
+    if (typeof samplesInput === 'object') {
+      const resolvedX = Math.max(
+        2,
+        Math.round(
+          toNumber(
+            samplesInput.x ?? samplesInput.u ?? samplesInput.width ?? samplesInput.columns ?? samplesInput.count,
+            10,
+          ),
+        ),
+      );
+      const resolvedY = Math.max(
+        2,
+        Math.round(
+          toNumber(
+            samplesInput.y ?? samplesInput.v ?? samplesInput.height ?? samplesInput.rows ?? samplesInput.count,
+            resolvedX,
+          ),
+        ),
+      );
+      return { x: resolvedX, y: resolvedY };
+    }
+    const count = Math.max(2, Math.round(toNumber(samplesInput, 10)));
+    return { x: count, y: count };
+  }
+
+  function createSectionGrid(section, sampleCounts) {
+    const xCount = Math.max(2, Math.round(sampleCounts?.x ?? sampleCounts?.width ?? sampleCounts?.columns ?? 10));
+    const yCount = Math.max(2, Math.round(sampleCounts?.y ?? sampleCounts?.height ?? sampleCounts?.rows ?? sampleCounts?.x ?? 10));
+    const points = [];
+    for (let j = 0; j < yCount; j += 1) {
+      const v = yCount === 1 ? 0.5 : j / (yCount - 1);
+      const offsetV = (v - 0.5) * section.height;
+      for (let i = 0; i < xCount; i += 1) {
+        const u = xCount === 1 ? 0.5 : i / (xCount - 1);
+        const offsetU = (u - 0.5) * section.width;
+        const point = section.center.clone();
+        point.add(section.plane.xAxis.clone().multiplyScalar(offsetU));
+        point.add(section.plane.yAxis.clone().multiplyScalar(offsetV));
+        points.push(point);
+      }
+    }
+    return { points, xCount, yCount };
+  }
+
+  function defaultFieldEvaluation() {
+    return {
+      vector: new THREE.Vector3(),
+      strength: 0,
+      scalar: 0,
+      tensor: {
+        direction: new THREE.Vector3(),
+        magnitude: 0,
+        contributions: [],
+      },
+    };
+  }
+
+  function isField(candidate) {
+    return Boolean(candidate && typeof candidate.evaluate === 'function' && candidate.type === 'field');
+  }
+
+  function createField(influences = [], options = {}) {
+    const normalizedInfluences = [];
+    for (const influence of influences) {
+      if (!influence || typeof influence.evaluate !== 'function') {
+        continue;
+      }
+      normalizedInfluences.push({
+        type: influence.type ?? 'custom',
+        evaluate: influence.evaluate,
+        bounds: influence.bounds ? ensureBounds(influence.bounds) : null,
+        params: influence.params ? { ...influence.params } : {},
+        metadata: influence.metadata ? { ...influence.metadata } : {},
+      });
+    }
+
+    const fieldBounds = options.bounds ? ensureBounds(options.bounds) : null;
+    const metadata = { ...(options.metadata ?? {}) };
+
+    return {
+      type: 'field',
+      influences: normalizedInfluences,
+      bounds: fieldBounds,
+      metadata,
+      evaluate(pointInput) {
+        if (pointInput === undefined || pointInput === null) {
+          return defaultFieldEvaluation();
+        }
+        const point = toVector3(pointInput, new THREE.Vector3());
+        if (fieldBounds && !pointInBounds(point, fieldBounds)) {
+          return defaultFieldEvaluation();
+        }
+        const totalVector = new THREE.Vector3();
+        const contributions = [];
+        let aggregatedStrength = 0;
+
+        for (const influence of normalizedInfluences) {
+          if (influence.bounds && !pointInBounds(point, influence.bounds)) {
+            continue;
+          }
+          let influenceResult = null;
+          try {
+            influenceResult = influence.evaluate(point);
+          } catch (error) {
+            influenceResult = null;
+          }
+          if (!influenceResult) {
+            continue;
+          }
+          const vector = influenceResult.vector?.clone?.() ?? new THREE.Vector3();
+          const strengthCandidate = influenceResult.strength ?? influenceResult.scalar ?? influenceResult.magnitude ?? vector.length();
+          const strength = Number.isFinite(strengthCandidate) ? strengthCandidate : vector.length();
+          totalVector.add(vector);
+          if (Number.isFinite(strength)) {
+            aggregatedStrength += strength;
+          }
+          contributions.push({
+            type: influence.type,
+            vector: vector.clone(),
+            strength: Number.isFinite(strength) ? strength : vector.length(),
+          });
+        }
+
+        const magnitude = totalVector.length();
+        const direction = magnitude > EPSILON ? totalVector.clone().divideScalar(magnitude) : new THREE.Vector3(0, 0, 0);
+        const strength = aggregatedStrength > 0 ? aggregatedStrength : magnitude;
+
+        return {
+          vector: totalVector.clone(),
+          strength,
+          scalar: strength,
+          tensor: {
+            direction,
+            magnitude,
+            contributions,
+          },
+        };
+      },
+    };
+  }
+
+  function collectFields(input) {
+    const fields = [];
+
+    function visit(value) {
+      if (value === undefined || value === null) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          visit(entry);
+        }
+        return;
+      }
+      if (isField(value)) {
+        fields.push(value);
+        return;
+      }
+      if (typeof value === 'object') {
+        if ('field' in value) {
+          visit(value.field);
+          return;
+        }
+        if ('fields' in value) {
+          visit(value.fields);
+          return;
+        }
+        if (typeof value.evaluate === 'function') {
+          const bounds = ensureBounds(value.bounds);
+          const influence = {
+            type: value.type ?? 'custom',
+            bounds,
+            evaluate: (point) => value.evaluate(point),
+            params: value.params ? { ...value.params } : {},
+            metadata: value.metadata ? { ...value.metadata } : {},
+          };
+          fields.push(createField([influence], { bounds, metadata: influence.metadata }));
+        }
+      }
+    }
+
+    visit(input);
+    return fields;
+  }
+
+  function evaluateFieldAtPoint(field, point) {
+    const fallback = defaultFieldEvaluation();
+    if (!field || typeof field.evaluate !== 'function') {
+      return fallback;
+    }
+    if (point === undefined || point === null) {
+      return fallback;
+    }
+    try {
+      const evaluation = field.evaluate(point);
+      if (!evaluation) {
+        return fallback;
+      }
+      const vector = evaluation.vector?.clone?.() ?? new THREE.Vector3();
+      const strength = Number.isFinite(evaluation.strength)
+        ? evaluation.strength
+        : Number.isFinite(evaluation.scalar)
+          ? evaluation.scalar
+          : vector.length();
+      const magnitude = vector.length();
+      const direction = magnitude > EPSILON ? vector.clone().divideScalar(magnitude) : new THREE.Vector3(0, 0, 0);
+      const tensor = evaluation.tensor
+        ? {
+            direction: evaluation.tensor.direction?.clone?.() ?? direction.clone(),
+            magnitude: Number.isFinite(evaluation.tensor.magnitude) ? evaluation.tensor.magnitude : magnitude,
+            contributions: Array.isArray(evaluation.tensor.contributions)
+              ? evaluation.tensor.contributions.map((entry) => ({
+                type: entry.type ?? 'contribution',
+                vector: entry.vector?.clone?.() ?? new THREE.Vector3(),
+                strength: Number.isFinite(entry.strength)
+                  ? entry.strength
+                  : entry.vector?.length?.() ?? 0,
+              }))
+              : [],
+          }
+        : {
+            direction,
+            magnitude,
+            contributions: [],
+          };
+      return {
+        vector,
+        strength,
+        scalar: Number.isFinite(evaluation.scalar) ? evaluation.scalar : strength,
+        tensor,
+      };
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function createFieldDisplayMesh(field, sectionInput, samplesInput, mode, options = {}) {
+    const section = ensureSection(sectionInput);
+    const sampleCounts = resolveSampleCounts(samplesInput);
+    const grid = createSectionGrid(section, sampleCounts);
+    if (!grid.points.length) {
+      return null;
+    }
+
+    const evaluations = grid.points.map((point) => evaluateFieldAtPoint(field, point));
+    const strengthValues = evaluations.map((entry) => {
+      if (!entry) return 0;
+      if (Number.isFinite(entry.strength)) return entry.strength;
+      if (Number.isFinite(entry.scalar)) return entry.scalar;
+      return entry.vector?.length?.() ?? 0;
+    });
+
+    let minStrength = Number.POSITIVE_INFINITY;
+    let maxStrength = Number.NEGATIVE_INFINITY;
+    for (const value of strengthValues) {
+      if (value < minStrength) minStrength = value;
+      if (value > maxStrength) maxStrength = value;
+    }
+    if (!Number.isFinite(minStrength)) minStrength = 0;
+    if (!Number.isFinite(maxStrength)) maxStrength = minStrength;
+
+    const vertexCount = grid.points.length;
+    const positions = new Float32Array(vertexCount * 3);
+    const colors = new Float32Array(vertexCount * 3);
+    const color = new THREE.Color();
+    const baseColor = ensureColor(options.baseColor ?? '#666666', new THREE.Color(0.4, 0.4, 0.4));
+    const positiveColour = ensureColor(options.positiveColor ?? '#ff7043', new THREE.Color(1, 0.45, 0.26));
+    const negativeColour = ensureColor(options.negativeColor ?? '#4fc3f7', new THREE.Color(0.31, 0.76, 0.97));
+    const normal = section.plane.zAxis.clone().normalize();
+    const sampleScale = Math.max(sampleCounts.x, sampleCounts.y, 2);
+    const vectorScale = options.vectorScale ?? (Math.min(section.width, section.height) / sampleScale) * 0.35;
+
+    for (let index = 0; index < vertexCount; index += 1) {
+      const basePoint = grid.points[index];
+      const evaluation = evaluations[index] ?? defaultFieldEvaluation();
+      const strength = Number.isFinite(strengthValues[index]) ? strengthValues[index] : 0;
+      const normalizedStrength = maxStrength > minStrength
+        ? THREE.MathUtils.clamp((strength - minStrength) / (maxStrength - minStrength || 1), 0, 1)
+        : 0;
+      const vector = evaluation.vector?.clone?.() ?? new THREE.Vector3();
+      const magnitude = vector.length();
+      let position = basePoint.clone();
+
+      switch (mode) {
+        case 'tensor': {
+          if (magnitude > EPSILON) {
+            const scaledVector = vector.clone();
+            const limit = Math.max(vectorScale, EPSILON);
+            const scaledLength = Math.min(magnitude * vectorScale, limit * 5);
+            scaledVector.setLength(scaledLength);
+            position = basePoint.clone().add(scaledVector);
+          }
+          color.setHSL(
+            THREE.MathUtils.lerp(0.6, 0.05, normalizedStrength),
+            0.8,
+            THREE.MathUtils.lerp(0.35, 0.65, normalizedStrength),
+          );
+          break;
+        }
+        case 'direction': {
+          if (magnitude > EPSILON) {
+            const dir = vector.clone().divideScalar(magnitude);
+            color.setRGB(
+              THREE.MathUtils.clamp((dir.x + 1) / 2, 0, 1),
+              THREE.MathUtils.clamp((dir.y + 1) / 2, 0, 1),
+              THREE.MathUtils.clamp((dir.z + 1) / 2, 0, 1),
+            );
+          } else {
+            color.copy(baseColor);
+          }
+          break;
+        }
+        case 'perpendicular': {
+          const component = vector.dot(normal);
+          const intensity = magnitude > EPSILON ? THREE.MathUtils.clamp(Math.abs(component) / magnitude, 0, 1) : 0;
+          if (component >= 0) {
+            color.copy(positiveColour).lerp(baseColor, 1 - intensity);
+          } else {
+            color.copy(negativeColour).lerp(baseColor, 1 - intensity);
+          }
+          break;
+        }
+        default: {
+          color.setHSL(
+            THREE.MathUtils.lerp(0.6, 0.05, normalizedStrength),
+            0.8,
+            THREE.MathUtils.lerp(0.35, 0.65, normalizedStrength),
+          );
+          break;
+        }
+      }
+
+      positions[index * 3 + 0] = position.x;
+      positions[index * 3 + 1] = position.y;
+      positions[index * 3 + 2] = position.z;
+
+      colors[index * 3 + 0] = color.r;
+      colors[index * 3 + 1] = color.g;
+      colors[index * 3 + 2] = color.b;
+    }
+
+    const indices = [];
+    for (let y = 0; y < grid.yCount - 1; y += 1) {
+      for (let x = 0; x < grid.xCount - 1; x += 1) {
+        const a = y * grid.xCount + x;
+        const b = a + 1;
+        const c = a + grid.xCount;
+        const d = c + 1;
+        indices.push(a, b, d, a, d, c);
+      }
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setIndex(indices);
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geometry.computeVertexNormals();
+
+    const material = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      flatShading: mode !== 'tensor',
+      transparent: options.transparent ?? false,
+      opacity: options.opacity ?? 1,
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = options.name ?? `field-${mode}-display`;
+    mesh.userData = {
+      type: 'field-display',
+      mode,
+      section,
+      samples: sampleCounts,
+      evaluations,
+    };
+
+    return mesh;
   }
 
   function unionFind(size) {
@@ -1537,6 +2192,431 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
       },
     });
   }
+
+  // Field subcategory components
+  register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
+    type: 'display',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        S: 'section', section: 'section', Section: 'section',
+        N: 'samples', samples: 'samples', Samples: 'samples',
+      },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'tensor', { name: 'tensor-display' });
+      return mesh ? { mesh } : {};
+    },
+  });
+
+  register(['{4b59e893-d4ee-4e31-ae24-a489611d1088}', 'spin force', 'fspin'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        P: 'plane', plane: 'plane', Plane: 'plane',
+        S: 'strength', strength: 'strength', Strength: 'strength',
+        R: 'radius', radius: 'radius', Radius: 'radius',
+        D: 'decay', decay: 'decay', Decay: 'decay',
+        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+      },
+      outputs: { F: 'field', field: 'field', Field: 'field' },
+    },
+    eval: ({ inputs }) => {
+      const plane = ensurePlane(inputs.plane);
+      const planeData = createPlaneInstance(plane);
+      const strength = toNumber(inputs.strength, 1);
+      const radius = Math.max(EPSILON, Math.abs(toNumber(inputs.radius, 5)));
+      const decay = Math.max(0, toNumber(inputs.decay, 1));
+      const bounds = ensureBounds(inputs.bounds);
+
+      const influence = {
+        type: 'spin',
+        bounds,
+        params: { plane: planeData, strength, radius, decay },
+        evaluate: (point) => {
+          const coords = planeCoordinates(point, planeData);
+          const radial = planeData.xAxis.clone().multiplyScalar(coords.u).add(planeData.yAxis.clone().multiplyScalar(coords.v));
+          const radialLength = radial.length();
+          if (radialLength < EPSILON) {
+            return { vector: new THREE.Vector3(), strength: 0 };
+          }
+          const normal = planeData.zAxis.clone().normalize();
+          let tangent = normal.clone().cross(radial);
+          if (tangent.lengthSq() < EPSILON) {
+            tangent = planeData.xAxis.clone();
+          }
+          tangent.normalize();
+          const normalizedDistance = radialLength / radius;
+          const decayPower = decay > 0 ? decay : 1;
+          const falloff = 1 / (1 + Math.pow(normalizedDistance, decayPower));
+          const verticalFalloff = 1 / (1 + Math.abs(coords.w) / (radius || 1));
+          const magnitude = strength * falloff * verticalFalloff;
+          return {
+            vector: tangent.multiplyScalar(magnitude),
+            strength: Math.abs(magnitude),
+          };
+        },
+      };
+
+      const field = createField([influence], { bounds, metadata: { type: 'spin' } });
+      return { field };
+    },
+  });
+
+  register(['{55f9ce6a-490c-4f25-a536-a3d47b794752}', 'scalar display', 'fscalar'], {
+    type: 'display',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        S: 'section', section: 'section', Section: 'section',
+        N: 'samples', samples: 'samples', Samples: 'samples',
+      },
+      outputs: { D: 'display', display: 'display', Display: 'display' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'scalar', { name: 'scalar-display' });
+      if (!mesh) {
+        return { display: null };
+      }
+      return { display: mesh, mesh };
+    },
+  });
+
+  register(['{5ba20fab-6d71-48ea-a98f-cb034db6bbdc}', 'direction display', 'fdir'], {
+    type: 'display',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        S: 'section', section: 'section', Section: 'section',
+        N: 'samples', samples: 'samples', Samples: 'samples',
+      },
+      outputs: { D: 'display', display: 'display', Display: 'display' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'direction', { name: 'direction-display' });
+      if (!mesh) {
+        return { display: null };
+      }
+      return { display: mesh, mesh };
+    },
+  });
+
+  register(['{8cc9eb88-26a7-4baa-a896-13e5fc12416a}', 'line charge', 'lcharge'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        L: 'line', line: 'line', Line: 'line',
+        C: 'charge', charge: 'charge', Charge: 'charge',
+        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+      },
+      outputs: { F: 'field', field: 'field', Field: 'field' },
+    },
+    eval: ({ inputs }) => {
+      const line = ensureLine(inputs.line);
+      const charge = toNumber(inputs.charge, 1);
+      const bounds = ensureBounds(inputs.bounds);
+      const lineData = {
+        start: line.start.clone(),
+        end: line.end.clone(),
+        direction: line.direction.clone(),
+      };
+      const lengthSq = lineData.direction.lengthSq();
+      const unitDir = lengthSq > EPSILON ? lineData.direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
+
+      const influence = {
+        type: 'line-charge',
+        bounds,
+        params: { line: lineData, charge },
+        evaluate: (point) => {
+          const ap = point.clone().sub(lineData.start);
+          const denom = lengthSq > EPSILON ? lengthSq : 1;
+          let t = denom ? ap.dot(lineData.direction) / denom : 0;
+          t = THREE.MathUtils.clamp(t, 0, 1);
+          const closest = lineData.start.clone().add(lineData.direction.clone().multiplyScalar(t));
+          const offset = point.clone().sub(closest);
+          let distance = offset.length();
+          let direction = offset;
+          if (distance < EPSILON) {
+            direction = unitDir.clone().cross(new THREE.Vector3(0, 0, 1));
+            if (direction.lengthSq() < EPSILON) {
+              direction = unitDir.clone().cross(new THREE.Vector3(0, 1, 0));
+            }
+            if (direction.lengthSq() < EPSILON) {
+              direction = new THREE.Vector3(0, 0, 1);
+            }
+            direction.normalize();
+            distance = EPSILON;
+          } else {
+            direction = direction.clone().normalize();
+          }
+          const magnitude = charge / (1 + distance);
+          return { vector: direction.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+        },
+      };
+
+      const field = createField([influence], { bounds, metadata: { type: 'line-charge' } });
+      return { field };
+    },
+  });
+
+  register(['{a7c9f738-f8bd-4f64-8e7f-33341183e493}', 'evaluate field', 'evf'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        P: 'point', point: 'point', Point: 'point',
+      },
+      outputs: { T: 'tensor', tensor: 'tensor', S: 'strength', strength: 'strength', Strength: 'strength' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      if (inputs.point === undefined || inputs.point === null) {
+        return { tensor: defaultFieldEvaluation().tensor, strength: 0 };
+      }
+      const samplePoint = toVector3(inputs.point, new THREE.Vector3());
+      const evaluation = evaluateFieldAtPoint(field, samplePoint);
+      return { tensor: evaluation.tensor, strength: evaluation.strength };
+    },
+  });
+
+  register(['{add6be3e-c57f-4740-96e4-5680abaa9169}', 'field line', 'fline'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        P: 'point', point: 'point', Point: 'point',
+        N: 'steps', steps: 'steps', Steps: 'steps',
+        A: 'stepSize', accuracy: 'stepSize', Accuracy: 'stepSize',
+        M: 'method', method: 'method', Method: 'method',
+      },
+      outputs: { C: 'curve', curve: 'curve', Curve: 'curve', P: 'points', points: 'points', Points: 'points' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      if (!field) {
+        return { curve: null, points: [] };
+      }
+      const start = toVector3(inputs.point, new THREE.Vector3());
+      const steps = Math.max(1, Math.round(toNumber(inputs.steps, 50)));
+      const stepSize = Math.max(EPSILON, Math.abs(toNumber(inputs.stepSize, 0.5)));
+      const methodRaw = Math.round(toNumber(inputs.method, 4));
+      const method = THREE.MathUtils.clamp(methodRaw, 1, 4);
+
+      function normalizedDirection(point) {
+        const evaluation = evaluateFieldAtPoint(field, point);
+        const vector = evaluation.vector.clone();
+        const length = vector.length();
+        if (length < EPSILON) {
+          return new THREE.Vector3();
+        }
+        return vector.divideScalar(length);
+      }
+
+      const points = [start.clone()];
+      let current = start.clone();
+
+      for (let index = 0; index < steps; index += 1) {
+        let delta = new THREE.Vector3();
+        switch (method) {
+          case 1: {
+            delta = normalizedDirection(current).multiplyScalar(stepSize);
+            break;
+          }
+          case 2: {
+            const k1 = normalizedDirection(current).multiplyScalar(stepSize / 2);
+            const mid = current.clone().add(k1);
+            const k2 = normalizedDirection(mid).multiplyScalar(stepSize);
+            delta = k2;
+            break;
+          }
+          case 3: {
+            const k1 = normalizedDirection(current).multiplyScalar(stepSize);
+            const predictor = current.clone().add(k1);
+            const k2 = normalizedDirection(predictor).multiplyScalar(stepSize);
+            delta = k1.add(k2).multiplyScalar(0.5);
+            break;
+          }
+          default: {
+            const k1 = normalizedDirection(current);
+            const k2 = normalizedDirection(current.clone().add(k1.clone().multiplyScalar(stepSize / 2)));
+            const k3 = normalizedDirection(current.clone().add(k2.clone().multiplyScalar(stepSize / 2)));
+            const k4 = normalizedDirection(current.clone().add(k3.clone().multiplyScalar(stepSize)));
+            delta = k1
+              .clone()
+              .add(k2.clone().multiplyScalar(2))
+              .add(k3.clone().multiplyScalar(2))
+              .add(k4)
+              .multiplyScalar(stepSize / 6);
+            break;
+          }
+        }
+
+        if (delta.lengthSq() < EPSILON) {
+          break;
+        }
+        current = current.clone().add(delta);
+        points.push(current.clone());
+      }
+
+      const curve = points.length > 1 ? new THREE.CatmullRomCurve3(points) : null;
+      return { curve, points };
+    },
+  });
+
+  register(['{b27d53bc-e713-475d-81fd-71cdd8de2e58}', 'break field', 'breakf'], {
+    type: 'field',
+    pinMap: {
+      inputs: { F: 'field', field: 'field', Field: 'field' },
+      outputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      if (!field) {
+        return { fields: [] };
+      }
+      const parts = field.influences?.map?.((influence) => createField([influence], {
+        bounds: mergeBounds(field.bounds ?? null, influence.bounds ?? null),
+        metadata: influence.metadata ?? {},
+      })) ?? [];
+      return { fields: parts };
+    },
+  });
+
+  register(['{bf106e4c-68f4-476f-b05b-9c15fb50e078}', 'perpendicular display', 'fperp'], {
+    type: 'display',
+    pinMap: {
+      inputs: {
+        F: 'field', field: 'field', Field: 'field',
+        S: 'section', section: 'section', Section: 'section',
+        N: 'samples', samples: 'samples', Samples: 'samples',
+        'C+': 'positiveColor', Cplus: 'positiveColor', positive: 'positiveColor',
+        'C-': 'negativeColor', Cminus: 'negativeColor', negative: 'negativeColor',
+      },
+      outputs: { D: 'display', display: 'display', Display: 'display' },
+    },
+    eval: ({ inputs }) => {
+      const [field] = collectFields(inputs.field);
+      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'perpendicular', {
+        name: 'perpendicular-display',
+        positiveColor: inputs.positiveColor,
+        negativeColor: inputs.negativeColor,
+      });
+      if (!mesh) {
+        return { display: null };
+      }
+      return { display: mesh, mesh };
+    },
+  });
+
+  register(['{cffdbaf3-8d33-4b38-9cad-c264af9fc3f4}', 'point charge', 'pcharge'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        P: 'point', point: 'point', Point: 'point',
+        C: 'charge', charge: 'charge', Charge: 'charge',
+        D: 'decay', decay: 'decay', Decay: 'decay',
+        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+      },
+      outputs: { F: 'field', field: 'field', Field: 'field' },
+    },
+    eval: ({ inputs }) => {
+      const position = toVector3(inputs.point, new THREE.Vector3());
+      const charge = toNumber(inputs.charge, 1);
+      const decay = Math.max(0, toNumber(inputs.decay, 2));
+      const bounds = ensureBounds(inputs.bounds);
+
+      const influence = {
+        type: 'point-charge',
+        bounds,
+        params: { position, charge, decay },
+        evaluate: (point) => {
+          const direction = point.clone().sub(position);
+          let distance = direction.length();
+          if (distance < EPSILON) {
+            distance = EPSILON;
+          }
+          const normalized = direction.divideScalar(distance);
+          const falloffPower = decay > 0 ? decay : 1;
+          const magnitude = charge / (1 + Math.pow(distance, falloffPower));
+          return { vector: normalized.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+        },
+      };
+
+      const field = createField([influence], { bounds, metadata: { type: 'point-charge' } });
+      return { field };
+    },
+  });
+
+  register(['{d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9}', 'vector force', 'fvector'], {
+    type: 'field',
+    pinMap: {
+      inputs: {
+        L: 'line', line: 'line', Line: 'line',
+        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+      },
+      outputs: { F: 'field', field: 'field', Field: 'field' },
+    },
+    eval: ({ inputs }) => {
+      const line = ensureLine(inputs.line);
+      const bounds = ensureBounds(inputs.bounds);
+      const direction = line.direction.clone();
+      const length = direction.length();
+      const unitDir = length > EPSILON ? direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
+      const lengthSq = direction.lengthSq();
+
+      const influence = {
+        type: 'vector-force',
+        bounds,
+        params: { line: { start: line.start.clone(), end: line.end.clone(), direction: direction.clone() } },
+        evaluate: (point) => {
+          const ap = point.clone().sub(line.start);
+          const denom = lengthSq > EPSILON ? lengthSq : 1;
+          let t = denom ? ap.dot(direction) / denom : 0;
+          t = THREE.MathUtils.clamp(t, 0, 1);
+          const closest = line.start.clone().add(direction.clone().multiplyScalar(t));
+          const distance = point.distanceTo(closest);
+          const falloff = 1 / (1 + distance);
+          const magnitude = (length > EPSILON ? length : 1) * falloff;
+          return { vector: unitDir.clone().multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+        },
+      };
+
+      const field = createField([influence], { bounds, metadata: { type: 'vector-force' } });
+      return { field };
+    },
+  });
+
+  register(['{d9a6fbd2-2e9f-472e-8147-33bf0233a115}', 'merge fields', 'mergef'], {
+    type: 'field',
+    pinMap: {
+      inputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
+      outputs: { F: 'field', field: 'field', Field: 'field' },
+    },
+    eval: ({ inputs }) => {
+      const fields = collectFields(inputs.fields);
+      if (!fields.length) {
+        return { field: null };
+      }
+      const influences = [];
+      let combinedBounds = null;
+      for (const entry of fields) {
+        combinedBounds = mergeBounds(combinedBounds, entry.bounds ?? null);
+        if (Array.isArray(entry.influences)) {
+          for (const influence of entry.influences) {
+            influences.push(influence);
+          }
+        }
+      }
+      if (!influences.length) {
+        return { field: null };
+      }
+      const field = createField(influences, { bounds: combinedBounds });
+      return { field };
+    },
+  });
 
   if (!includePointComponents) {
     return;
