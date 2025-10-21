@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js';
-import { registerVectorPlaneComponents, registerVectorPointComponents } from './registry-components-vector.js';
+import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js?version=7';
+import { registerVectorPlaneComponents, registerVectorPointComponents } from './registry-components-vector.js?version=7';
 import {
   registerCurveAnalysisComponents,
   registerCurveDivisionComponents,
   registerCurvePrimitiveComponents,
   registerCurveSplineComponents,
   registerCurveUtilComponents,
-} from './registry-components-curve.js';
-import { registerSurfacePrimitiveComponents } from './registry-components-surface.js';
+} from './registry-components-curve.js?version=7';
+import { registerSurfacePrimitiveComponents } from './registry-components-surface.js?version=7';
 
 const entries = new Map();
 
