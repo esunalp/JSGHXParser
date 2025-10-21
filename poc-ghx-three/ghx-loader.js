@@ -1,15 +1,15 @@
-import { COMPLEX_COMPONENTS } from './component-metadata-complex.js?version=6';
-import { CURVE_COMPONENTS } from './component-metadata-curve.js?version=6';
-import { DISPLAY_COMPONENTS } from './component-metadata-display.js?version=6';
-import { INTERSECT_COMPONENTS } from './component-metadata-intersect.js?version=6';
-import { MATHS_COMPONENTS } from './component-metadata-maths.js?version=6';
-import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=6';
-import { PARAMS_COMPONENTS } from './component-metadata-params.js?version=6';
-import { SCALAR_COMPONENTS } from './component-metadata-scalar.js?version=6';
-import { SETS_COMPONENTS } from './component-metadata-sets.js?version=6';
-import { SURFACE_COMPONENTS } from './component-metadata-surface.js?version=6';
-import { TRANSFORM_COMPONENTS } from './component-metadata-transform.js?version=6';
-import { VECTOR_COMPONENTS } from './component-metadata-vector.js?version=6';
+import { COMPLEX_COMPONENTS } from './component-metadata-complex.js?version=7';
+import { CURVE_COMPONENTS } from './component-metadata-curve.js?version=7';
+import { DISPLAY_COMPONENTS } from './component-metadata-display.js?version=7';
+import { INTERSECT_COMPONENTS } from './component-metadata-intersect.js?version=7';
+import { MATHS_COMPONENTS } from './component-metadata-maths.js?version=7';
+import { MESH_COMPONENTS } from './component-metadata-mesh.js?version=7';
+import { PARAMS_COMPONENTS } from './component-metadata-params.js?version=7';
+import { SCALAR_COMPONENTS } from './component-metadata-scalar.js?version=7';
+import { SETS_COMPONENTS } from './component-metadata-sets.js?version=7';
+import { SURFACE_COMPONENTS } from './component-metadata-surface.js?version=7';
+import { TRANSFORM_COMPONENTS } from './component-metadata-transform.js?version=7';
+import { VECTOR_COMPONENTS } from './component-metadata-vector.js?version=7';
 
 function normalizeGuid(guid) {
   if (!guid) return null;
