@@ -6,6 +6,7 @@ import {
   registerCurveDivisionComponents,
   registerCurvePrimitiveComponents,
   registerCurveSplineComponents,
+  registerCurveUtilComponents,
 } from './registry-components-curve.js';
 
 const entries = new Map();
@@ -208,6 +209,7 @@ registerCurvePrimitiveComponents({ register, toNumber, toVector3 });
 registerCurveDivisionComponents({ register, toNumber, toVector3 });
 registerCurveSplineComponents({ register, toNumber, toVector3 });
 registerCurveAnalysisComponents({ register, toNumber, toVector3 });
+registerCurveUtilComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
