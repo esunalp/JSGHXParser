@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { registerMathDomainComponents, registerMathOperatorComponents } from './registry-components-maths.js';
 import { registerVectorPlaneComponents, registerVectorPointComponents } from './registry-components-vector.js';
 import {
+  registerCurveAnalysisComponents,
   registerCurveDivisionComponents,
   registerCurvePrimitiveComponents,
   registerCurveSplineComponents,
@@ -206,6 +207,7 @@ registerVectorPlaneComponents({ register, toNumber, toVector3 });
 registerCurvePrimitiveComponents({ register, toNumber, toVector3 });
 registerCurveDivisionComponents({ register, toNumber, toVector3 });
 registerCurveSplineComponents({ register, toNumber, toVector3 });
+registerCurveAnalysisComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
