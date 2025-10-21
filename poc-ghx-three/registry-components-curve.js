@@ -1970,3 +1970,1484 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
 
   registerTangentArcs();
 }
+
+export function registerCurveSplineComponents({ register, toNumber, toVector3 }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register curve spline components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register curve spline components.');
+  }
+  if (typeof toVector3 !== 'function') {
+    throw new Error('toVector3 function is required to register curve spline components.');
+  }
+
+  const EPSILON = 1e-9;
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function clamp01(value) {
+    return clamp(value, 0, 1);
+  }
+
+  function ensureNumber(value, fallback = 0) {
+    return toNumber(value, fallback);
+  }
+
+  function ensurePoint(value, fallback = new THREE.Vector3()) {
+    return toVector3(value, fallback.clone());
+  }
+
+  function ensureBoolean(value, fallback = false) {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      if (!value.length) return fallback;
+      return ensureBoolean(value[0], fallback);
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value)) return fallback;
+      return value !== 0;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return fallback;
+      if (['true', 'yes', 'on', '1'].includes(normalized)) return true;
+      if (['false', 'no', 'off', '0'].includes(normalized)) return false;
+      return fallback;
+    }
+    return Boolean(value);
+  }
+
+  function ensureArray(input) {
+    if (input === undefined || input === null) {
+      return [];
+    }
+    if (Array.isArray(input)) {
+      return input;
+    }
+    return [input];
+  }
+
+  function collectPoints(input) {
+    const result = [];
+
+    function visit(value) {
+      if (value === undefined || value === null) {
+        return;
+      }
+      if (value.isVector3) {
+        result.push(value.clone());
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          visit(entry);
+        }
+        return;
+      }
+      if (typeof value === 'object') {
+        if ('point' in value) {
+          visit(value.point);
+          return;
+        }
+        if ('points' in value) {
+          visit(value.points);
+          return;
+        }
+        if ('position' in value) {
+          visit(value.position);
+          return;
+        }
+        if ('x' in value || 'y' in value || 'z' in value) {
+          const point = toVector3(value, null);
+          if (point) {
+            result.push(point);
+          }
+          return;
+        }
+      }
+    }
+
+    visit(input);
+    return result;
+  }
+
+  function computePolylineLength(points) {
+    if (!points || points.length < 2) {
+      return 0;
+    }
+    let length = 0;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      length += points[i].distanceTo(points[i + 1]);
+    }
+    return length;
+  }
+
+  function createDomain(start = 0, end = 1) {
+    const min = Math.min(start, end);
+    const max = Math.max(start, end);
+    const span = end - start;
+    const length = max - min;
+    const center = (start + end) / 2;
+    return { start, end, min, max, span, length, center, dimension: 1 };
+  }
+
+  function convertVector(value) {
+    if (!value) {
+      return null;
+    }
+    if (value.isVector3) {
+      return value.clone();
+    }
+    if (Array.isArray(value)) {
+      const [x, y, z] = value;
+      return new THREE.Vector3(ensureNumber(x, 0), ensureNumber(y, 0), ensureNumber(z, 0));
+    }
+    if (typeof value === 'object') {
+      return toVector3(value, new THREE.Vector3());
+    }
+    if (typeof value === 'number') {
+      return new THREE.Vector3(0, 0, ensureNumber(value, 0));
+    }
+    return null;
+  }
+
+  function createCurveFromPath(path, { segments = 64, closed = false, type = 'curve' } = {}) {
+    if (!path) {
+      return null;
+    }
+    const safeSegments = Math.max(segments, 8);
+    const spaced = path.getSpacedPoints(safeSegments);
+    const points = spaced.map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
+    let length = 0;
+    if (typeof path.getLength === 'function') {
+      length = path.getLength();
+    } else {
+      length = computePolylineLength(points);
+    }
+    const curve = {
+      type,
+      path,
+      points,
+      segments: safeSegments,
+      length,
+      closed,
+      domain: createDomain(0, 1),
+    };
+    curve.getPointAt = (t) => {
+      const clamped = clamp01(t);
+      if (typeof path.getPointAt === 'function') {
+        const pt = path.getPointAt(clamped);
+        return new THREE.Vector3(pt.x, pt.y, pt.z ?? 0);
+      }
+      const pt = path.getPoint(clamped);
+      return new THREE.Vector3(pt.x, pt.y, pt.z ?? 0);
+    };
+    curve.getTangentAt = (t) => {
+      if (typeof path.getTangentAt === 'function') {
+        const tangent = path.getTangentAt(clamp01(t));
+        return new THREE.Vector3(tangent.x, tangent.y, tangent.z ?? 0).normalize();
+      }
+      const delta = 1e-3;
+      const p0 = curve.getPointAt(clamp01(t - delta));
+      const p1 = curve.getPointAt(clamp01(t + delta));
+      return p1.clone().sub(p0).normalize();
+    };
+    return curve;
+  }
+
+  function createCurveFromPoints(pointsInput, { closed = false, curveType = 'centripetal', tension = 0.5, samples } = {}) {
+    const points = collectPoints(pointsInput);
+    if (points.length === 0) {
+      return null;
+    }
+    if (points.length === 1) {
+      const point = points[0];
+      const path = new THREE.LineCurve3(point.clone(), point.clone());
+      return createCurveFromPath(path, { segments: 1, closed, type: 'curve-point' });
+    }
+    if (points.length === 2) {
+      const path = new THREE.LineCurve3(points[0].clone(), points[1].clone());
+      return createCurveFromPath(path, { segments: samples ?? 8, closed, type: 'polyline' });
+    }
+    const path = new THREE.CatmullRomCurve3(points.map((pt) => pt.clone()), closed, curveType, tension);
+    return createCurveFromPath(path, { segments: samples ?? (points.length * 8), closed, type: 'curve' });
+  }
+
+  function sampleCurvePoints(curve, segments = 32) {
+    if (!curve) {
+      return [];
+    }
+    if (curve.path?.getSpacedPoints) {
+      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
+    }
+    if (curve.points && Array.isArray(curve.points)) {
+      if (curve.points.length === segments + 1) {
+        return curve.points.map((pt) => pt.clone());
+      }
+      const result = [];
+      for (let i = 0; i <= segments; i += 1) {
+        const t = i / segments;
+        result.push(curvePointAt(curve, t));
+      }
+      return result;
+    }
+    return [];
+  }
+
+  function curvePointAt(curve, t) {
+    if (!curve) {
+      return null;
+    }
+    if (typeof curve.getPointAt === 'function') {
+      return curve.getPointAt(t);
+    }
+    if (curve.path?.getPointAt) {
+      const pt = curve.path.getPointAt(clamp01(t));
+      return new THREE.Vector3(pt.x, pt.y, pt.z ?? 0);
+    }
+    if (curve.points?.length) {
+      const points = curve.points;
+      if (points.length === 1) {
+        return points[0].clone();
+      }
+      const scaled = clamp01(t) * (points.length - 1);
+      const index = Math.floor(scaled);
+      const alpha = scaled - index;
+      const current = points[index];
+      const next = points[Math.min(index + 1, points.length - 1)];
+      return current.clone().lerp(next, alpha);
+    }
+    return null;
+  }
+
+  function curveTangentAt(curve, t) {
+    if (!curve) {
+      return new THREE.Vector3(1, 0, 0);
+    }
+    if (typeof curve.getTangentAt === 'function') {
+      return curve.getTangentAt(t);
+    }
+    if (curve.path?.getTangentAt) {
+      const tangent = curve.path.getTangentAt(clamp01(t));
+      return new THREE.Vector3(tangent.x, tangent.y, tangent.z ?? 0).normalize();
+    }
+    const delta = 1e-3;
+    const p0 = curvePointAt(curve, clamp01(t - delta));
+    const p1 = curvePointAt(curve, clamp01(t + delta));
+    if (!p0 || !p1) {
+      return new THREE.Vector3(1, 0, 0);
+    }
+    const tangent = p1.clone().sub(p0);
+    if (tangent.lengthSq() < EPSILON) {
+      return new THREE.Vector3(1, 0, 0);
+    }
+    return tangent.normalize();
+  }
+
+  function defaultPlane() {
+    return {
+      origin: new THREE.Vector3(0, 0, 0),
+      xAxis: new THREE.Vector3(1, 0, 0),
+      yAxis: new THREE.Vector3(0, 1, 0),
+      zAxis: new THREE.Vector3(0, 0, 1),
+    };
+  }
+
+  function normalizeVector(vector, fallback = new THREE.Vector3(1, 0, 0)) {
+    const candidate = vector.clone();
+    if (candidate.lengthSq() < EPSILON) {
+      return fallback.clone();
+    }
+    return candidate.normalize();
+  }
+
+  function orthogonalVector(vector) {
+    const absX = Math.abs(vector.x);
+    const absY = Math.abs(vector.y);
+    const absZ = Math.abs(vector.z);
+    if (absX <= absY && absX <= absZ) {
+      return new THREE.Vector3(0, -vector.z, vector.y).normalize();
+    }
+    if (absY <= absX && absY <= absZ) {
+      return new THREE.Vector3(-vector.z, 0, vector.x).normalize();
+    }
+    return new THREE.Vector3(-vector.y, vector.x, 0).normalize();
+  }
+
+  function normalizePlaneAxes(origin, xAxis, yAxis, zAxis) {
+    const z = normalizeVector(zAxis, new THREE.Vector3(0, 0, 1));
+    const x = normalizeVector(xAxis, new THREE.Vector3(1, 0, 0));
+    let y = yAxis.clone();
+    if (y.lengthSq() < EPSILON) {
+      y = z.clone().cross(x);
+    }
+    y.normalize();
+    const orthogonalX = y.clone().cross(z).normalize();
+    const orthogonalY = z.clone().cross(orthogonalX).normalize();
+    return {
+      origin: origin.clone(),
+      xAxis: orthogonalX,
+      yAxis: orthogonalY,
+      zAxis: z,
+    };
+  }
+
+  function ensurePlane(input) {
+    if (!input) {
+      return defaultPlane();
+    }
+    if (Array.isArray(input)) {
+      const points = collectPoints(input);
+      if (points.length >= 3) {
+        const origin = points[0];
+        const xAxis = normalizeVector(points[1].clone().sub(points[0]), new THREE.Vector3(1, 0, 0));
+        const normal = normalizeVector(points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])), new THREE.Vector3(0, 0, 1));
+        const yAxis = normal.clone().cross(xAxis).normalize();
+        return normalizePlaneAxes(origin, xAxis, yAxis, normal);
+      }
+    }
+    if (typeof input === 'object') {
+      if (input.origin && input.xAxis && input.yAxis && input.zAxis) {
+        return normalizePlaneAxes(ensurePoint(input.origin, new THREE.Vector3()), ensurePoint(input.xAxis, new THREE.Vector3(1, 0, 0)), ensurePoint(input.yAxis, new THREE.Vector3(0, 1, 0)), ensurePoint(input.zAxis, new THREE.Vector3(0, 0, 1)));
+      }
+      if (input.origin && input.normal) {
+        const origin = ensurePoint(input.origin, new THREE.Vector3());
+        const normal = normalizeVector(ensurePoint(input.normal, new THREE.Vector3(0, 0, 1)), new THREE.Vector3(0, 0, 1));
+        const xAxis = orthogonalVector(normal);
+        const yAxis = normal.clone().cross(xAxis).normalize();
+        return normalizePlaneAxes(origin, xAxis, yAxis, normal);
+      }
+    }
+    return defaultPlane();
+  }
+
+  function planeCoordinates(point, plane) {
+    const relative = ensurePoint(point, plane.origin.clone()).clone().sub(plane.origin);
+    return {
+      x: relative.dot(plane.xAxis),
+      y: relative.dot(plane.yAxis),
+      z: relative.dot(plane.zAxis),
+    };
+  }
+
+  function applyPlane(plane, x, y, z = 0) {
+    const result = plane.origin.clone();
+    result.add(plane.xAxis.clone().multiplyScalar(x));
+    result.add(plane.yAxis.clone().multiplyScalar(y));
+    result.add(plane.zAxis.clone().multiplyScalar(z));
+    return result;
+  }
+
+  function ensureCircle(input) {
+    if (!input) {
+      return null;
+    }
+    if (Array.isArray(input)) {
+      return ensureCircle(input[0]);
+    }
+    if (input.circle) {
+      return ensureCircle(input.circle);
+    }
+    const plane = ensurePlane(input.plane);
+    const center = ensurePoint(input.center ?? input.origin ?? input.point ?? input.position ?? plane.origin, plane.origin.clone());
+    let radius = ensureNumber(input.radius ?? (input.diameter ? ensureNumber(input.diameter, 0) / 2 : undefined), Number.NaN);
+    if (!Number.isFinite(radius) || radius <= 0) {
+      if (input.points) {
+        const points = collectPoints(input.points);
+        if (points.length) {
+          radius = points.reduce((max, pt) => Math.max(max, pt.distanceTo(center)), 0);
+        }
+      }
+    }
+    if (!Number.isFinite(radius) || radius <= EPSILON) {
+      radius = 1;
+    }
+    return { type: 'circle', plane, center, radius, shape: input.shape, segments: input.segments ?? 64 };
+  }
+
+  function intersectCircleCenters2D(centerA, radiusA, centerB, radiusB) {
+    const dx = centerB.x - centerA.x;
+    const dy = centerB.y - centerA.y;
+    const distSq = dx * dx + dy * dy;
+    const dist = Math.sqrt(distSq);
+    if (distSq < EPSILON) {
+      return [];
+    }
+    if (dist > radiusA + radiusB || dist < Math.abs(radiusA - radiusB)) {
+      return [];
+    }
+    const a = (radiusA * radiusA - radiusB * radiusB + distSq) / (2 * dist);
+    const hSq = Math.max(radiusA * radiusA - a * a, 0);
+    const h = Math.sqrt(hSq);
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const baseX = centerA.x + a * ux;
+    const baseY = centerA.y + a * uy;
+    const offsetX = -uy * h;
+    const offsetY = ux * h;
+    const result = [{ x: baseX + offsetX, y: baseY + offsetY }];
+    if (h > EPSILON) {
+      result.push({ x: baseX - offsetX, y: baseY - offsetY });
+    }
+    return result;
+  }
+
+  function tangentCirclesWithRadius(circleAInput, circleBInput, radiusInput) {
+    const circleA = ensureCircle(circleAInput);
+    const circleB = ensureCircle(circleBInput);
+    if (!circleA || !circleB) {
+      return [];
+    }
+    const radius = Math.max(ensureNumber(radiusInput, (circleA.radius + circleB.radius) / 2 || 1), EPSILON);
+    const plane = circleA.plane ?? circleB.plane ?? defaultPlane();
+    const centerA = planeCoordinates(circleA.center, plane);
+    const centerB = planeCoordinates(circleB.center, plane);
+    const candidates = intersectCircleCenters2D(centerA, circleA.radius + radius, centerB, circleB.radius + radius);
+    return candidates.map((candidate) => {
+      const center = applyPlane(plane, candidate.x, candidate.y, 0);
+      const shape = new THREE.Shape();
+      shape.absarc(0, 0, radius, 0, Math.PI * 2, false);
+      return {
+        type: 'circle',
+        plane,
+        center,
+        radius,
+        shape,
+        segments: 128,
+      };
+    });
+  }
+
+  function ensureCurve(input) {
+    if (!input) {
+      return null;
+    }
+    if (Array.isArray(input)) {
+      if (input.length === 0) {
+        return null;
+      }
+      if (input.length === 1) {
+        return ensureCurve(input[0]);
+      }
+      const points = collectPoints(input);
+      if (points.length >= 2) {
+        return createCurveFromPoints(points);
+      }
+    }
+    if (input.curve) {
+      return ensureCurve(input.curve);
+    }
+    if (input.path && typeof input.path.getPointAt === 'function') {
+      return createCurveFromPath(input.path, { segments: input.segments ?? 64, closed: Boolean(input.closed), type: input.type ?? 'curve' });
+    }
+    if (input.points && Array.isArray(input.points)) {
+      return createCurveFromPoints(input.points, { closed: Boolean(input.closed) });
+    }
+    if (input.shape?.getPoints) {
+      const segments = input.segments ?? 64;
+      const pts2d = input.shape.getPoints(Math.max(segments, 8));
+      const points = pts2d.map((pt) => new THREE.Vector3(pt.x, pt.y, 0));
+      return createCurveFromPoints(points, { closed: true, samples: segments });
+    }
+    if (input.center && input.radius) {
+      const circle = ensureCircle(input);
+      const shape = circle.shape ?? (() => {
+        const s = new THREE.Shape();
+        s.absarc(0, 0, circle.radius, 0, Math.PI * 2, false);
+        return s;
+      })();
+      const path = new THREE.CurvePath();
+      path.add(new THREE.EllipseCurve(0, 0, circle.radius, circle.radius, 0, Math.PI * 2, false, 0));
+      const curve = createCurveFromPath(path, { segments: circle.segments ?? 128, closed: true, type: 'circle' });
+      curve.center = circle.center.clone();
+      curve.radius = circle.radius;
+      curve.plane = circle.plane;
+      curve.shape = shape;
+      return curve;
+    }
+    if (input.start && input.end) {
+      const start = ensurePoint(input.start, new THREE.Vector3());
+      const end = ensurePoint(input.end, new THREE.Vector3(1, 0, 0));
+      const path = new THREE.LineCurve3(start, end);
+      return createCurveFromPath(path, { segments: input.segments ?? 8, closed: false, type: 'polyline' });
+    }
+    if (input.isBufferGeometry || input.isGeometry || input.isMesh) {
+      const geometry = input.isMesh ? input.geometry : input;
+      if (!geometry) {
+        return null;
+      }
+      const position = geometry.getAttribute?.('position');
+      if (!position) {
+        return null;
+      }
+      const points = [];
+      for (let i = 0; i < position.count; i += 1) {
+        points.push(new THREE.Vector3(position.getX(i), position.getY(i), position.getZ(i)));
+      }
+      if (!points.length) {
+        return null;
+      }
+      return createCurveFromPoints(points);
+    }
+    if (input.type && input.points && input.points.length) {
+      return createCurveFromPoints(input.points);
+    }
+    return null;
+  }
+
+  function ensureDomain(input) {
+    if (!input) {
+      return createDomain(0, 1);
+    }
+    if (Array.isArray(input)) {
+      if (input.length >= 2) {
+        const start = ensureNumber(input[0], 0);
+        const end = ensureNumber(input[1], 1);
+        return createDomain(start, end);
+      }
+      if (input.length === 1) {
+        return ensureDomain(input[0]);
+      }
+      return createDomain(0, 1);
+    }
+    if (typeof input === 'object') {
+      if (typeof input.start !== 'undefined' && typeof input.end !== 'undefined') {
+        return createDomain(ensureNumber(input.start, 0), ensureNumber(input.end, 1));
+      }
+      if (typeof input.min !== 'undefined' && typeof input.max !== 'undefined') {
+        return createDomain(ensureNumber(input.min, 0), ensureNumber(input.max, 1));
+      }
+      if (typeof input.t0 !== 'undefined' && typeof input.t1 !== 'undefined') {
+        return createDomain(ensureNumber(input.t0, 0), ensureNumber(input.t1, 1));
+      }
+    }
+    const numeric = ensureNumber(input, Number.NaN);
+    if (Number.isFinite(numeric)) {
+      return createDomain(numeric, numeric);
+    }
+    return createDomain(0, 1);
+  }
+
+  function ensureUV(input) {
+    if (!input) {
+      return { u: 0, v: 0 };
+    }
+    if (Array.isArray(input)) {
+      const [u, v] = input;
+      return { u: ensureNumber(u, 0), v: ensureNumber(v, 0) };
+    }
+    if (typeof input === 'object') {
+      return {
+        u: ensureNumber(input.u ?? input.x ?? input.U ?? input[0], 0),
+        v: ensureNumber(input.v ?? input.y ?? input.V ?? input[1], 0),
+      };
+    }
+    const numeric = ensureNumber(input, 0);
+    return { u: numeric, v: numeric };
+  }
+
+  function ensureSurfaceEvaluator(surfaceInput) {
+    if (!surfaceInput) {
+      return null;
+    }
+    if (surfaceInput.surface) {
+      return ensureSurfaceEvaluator(surfaceInput.surface);
+    }
+    if (typeof surfaceInput.getPoint === 'function') {
+      return {
+        domainU: surfaceInput.domainU ?? surfaceInput.domain?.u ?? createDomain(0, 1),
+        domainV: surfaceInput.domainV ?? surfaceInput.domain?.v ?? createDomain(0, 1),
+        evaluate: (u, v) => {
+          const target = new THREE.Vector3();
+          surfaceInput.getPoint(u, v, target);
+          return target;
+        },
+      };
+    }
+    if (typeof surfaceInput.evaluate === 'function') {
+      return {
+        domainU: surfaceInput.domainU ?? surfaceInput.domain?.u ?? createDomain(0, 1),
+        domainV: surfaceInput.domainV ?? surfaceInput.domain?.v ?? createDomain(0, 1),
+        evaluate: (u, v) => {
+          const result = surfaceInput.evaluate(u, v);
+          return ensurePoint(result, new THREE.Vector3());
+        },
+      };
+    }
+    if (surfaceInput.points && Array.isArray(surfaceInput.points) && surfaceInput.points.length) {
+      const rows = surfaceInput.points.length;
+      const cols = Array.isArray(surfaceInput.points[0]) ? surfaceInput.points[0].length : 0;
+      if (rows && cols) {
+        const grid = surfaceInput.points.map((row) => row.map((pt) => ensurePoint(pt, new THREE.Vector3())));
+        return {
+          domainU: createDomain(0, 1),
+          domainV: createDomain(0, 1),
+          evaluate: (u, v) => {
+            const uClamped = clamp01(u);
+            const vClamped = clamp01(v);
+            const uScaled = uClamped * (cols - 1);
+            const vScaled = vClamped * (rows - 1);
+            const i0 = Math.floor(uScaled);
+            const i1 = Math.min(i0 + 1, cols - 1);
+            const j0 = Math.floor(vScaled);
+            const j1 = Math.min(j0 + 1, rows - 1);
+            const fu = uScaled - i0;
+            const fv = vScaled - j0;
+            const p00 = grid[j0][i0];
+            const p01 = grid[j0][i1];
+            const p10 = grid[j1][i0];
+            const p11 = grid[j1][i1];
+            const a = p00.clone().lerp(p01, fu);
+            const b = p10.clone().lerp(p11, fu);
+            return a.lerp(b, fv);
+          },
+        };
+      }
+    }
+    return null;
+  }
+
+  function sampleIsoCurve(surfaceEvaluator, direction, coordinate, segments = 32) {
+    if (!surfaceEvaluator) {
+      return null;
+    }
+    const { domainU, domainV } = surfaceEvaluator;
+    const points = [];
+    for (let i = 0; i <= segments; i += 1) {
+      const t = i / segments;
+      let u = domainU.start + (domainU.end - domainU.start) * t;
+      let v = domainV.start + (domainV.end - domainV.start) * t;
+      if (direction === 'u') {
+        v = clamp(domainV.start + (domainV.end - domainV.start) * clamp01(coordinate), domainV.min, domainV.max);
+      } else {
+        u = clamp(domainU.start + (domainU.end - domainU.start) * clamp01(coordinate), domainU.min, domainU.max);
+      }
+      const point = surfaceEvaluator.evaluate(u, v);
+      points.push(point);
+    }
+    return createCurveFromPoints(points, { closed: false });
+  }
+
+  function createHermitePath(points, tangents, { closed = false } = {}) {
+    if (points.length < 2) {
+      return null;
+    }
+    const path = new THREE.CurvePath();
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const p0 = points[i];
+      const p1 = points[i + 1];
+      const t0 = tangents[i] ?? p1.clone().sub(p0);
+      const t1 = tangents[i + 1] ?? t0.clone();
+      const control0 = p0.clone().add(t0.clone().multiplyScalar(1 / 3));
+      const control1 = p1.clone().sub(t1.clone().multiplyScalar(1 / 3));
+      const segment = new THREE.CubicBezierCurve3(p0.clone(), control0, control1, p1.clone());
+      path.add(segment);
+    }
+    if (closed) {
+      const p0 = points[points.length - 1];
+      const p1 = points[0];
+      const t0 = tangents[points.length - 1] ?? p1.clone().sub(p0);
+      const t1 = tangents[0] ?? tangents[points.length - 1] ?? t0.clone();
+      const control0 = p0.clone().add(t0.clone().multiplyScalar(1 / 3));
+      const control1 = p1.clone().sub(t1.clone().multiplyScalar(1 / 3));
+      path.add(new THREE.CubicBezierCurve3(p0.clone(), control0, control1, p1.clone()));
+    }
+    return path;
+  }
+
+  function createInterpolatedCurve({
+    points: pointsInput,
+    degree = 3,
+    periodic = false,
+    knotStyle = 2,
+    startTangent,
+    endTangent,
+    tangents,
+    closed = false,
+  }) {
+    const points = collectPoints(pointsInput);
+    if (points.length < 2) {
+      return null;
+    }
+    const catmullConfig = (() => {
+      const style = Math.round(ensureNumber(knotStyle, 2));
+      if (style === 0) return { type: 'catmullrom', tension: 0 };
+      if (style === 1) return { type: 'chordal', tension: 0 };
+      return { type: 'centripetal', tension: 0 };
+    })();
+    if (tangents && tangents.length) {
+      const tangentVectors = [];
+      for (let i = 0; i < points.length; i += 1) {
+        const tangent = tangents[i] ?? tangents[tangents.length - 1];
+        if (tangent) {
+          tangentVectors.push(convertVector(tangent) ?? new THREE.Vector3());
+        } else {
+          const prev = points[Math.max(i - 1, 0)];
+          const next = points[Math.min(i + 1, points.length - 1)];
+          tangentVectors.push(next.clone().sub(prev).multiplyScalar(0.5));
+        }
+      }
+      const path = createHermitePath(points, tangentVectors, { closed: periodic || closed });
+      return createCurveFromPath(path, { segments: points.length * 16, closed: periodic || closed });
+    }
+
+    const augmentedPoints = points.map((pt) => pt.clone());
+    if (startTangent) {
+      const tangent = convertVector(startTangent);
+      if (tangent) {
+        const scale = points[0].distanceTo(points[1] ?? points[0]) || 1;
+        augmentedPoints.unshift(points[0].clone().sub(tangent.clone().normalize().multiplyScalar(scale * 0.3)));
+      }
+    }
+    if (endTangent) {
+      const tangent = convertVector(endTangent);
+      if (tangent) {
+        const last = points[points.length - 1];
+        const prev = points[points.length - 2] ?? last;
+        const scale = last.distanceTo(prev) || 1;
+        augmentedPoints.push(last.clone().add(tangent.clone().normalize().multiplyScalar(scale * 0.3)));
+      }
+    }
+    const path = new THREE.CatmullRomCurve3(augmentedPoints, periodic || closed, catmullConfig.type, catmullConfig.tension || (degree <= 2 ? 1 : 0.5));
+    return createCurveFromPath(path, { segments: augmentedPoints.length * 8, closed: periodic || closed });
+  }
+
+  function curveSummary(curve) {
+    if (!curve) {
+      return {};
+    }
+    return { curve, length: curve.length, domain: curve.domain };
+  }
+
+  function registerCircleFitObsolete() {
+    register('{0a80e903-e15b-4992-9675-19b2c488e853}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'circleA', B: 'circleB', R: 'radius' },
+        outputs: { A: 'fitA', B: 'fitB' },
+      },
+      eval: ({ inputs }) => {
+        const solutions = tangentCirclesWithRadius(inputs.circleA, inputs.circleB, inputs.radius);
+        if (!solutions.length) {
+          return {};
+        }
+        const [first, second] = solutions;
+        return { fitA: first, fitB: second ?? first };
+      },
+    });
+  }
+
+  function registerTweenCurve() {
+    register('{139619d2-8b18-47b6-b3b9-bf4fec0d6eb1}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'curveA', B: 'curveB', F: 'factor' },
+        outputs: { T: 'tween' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = ensureCurve(inputs.curveA);
+        const curveB = ensureCurve(inputs.curveB);
+        if (!curveA || !curveB) {
+          return {};
+        }
+        const factor = clamp01(ensureNumber(inputs.factor, 0.5));
+        const segments = Math.max(curveA.points?.length ?? 0, curveB.points?.length ?? 0, 32) - 1;
+        const count = Math.max(segments, 16);
+        const pointsA = sampleCurvePoints(curveA, count);
+        const pointsB = sampleCurvePoints(curveB, count);
+        const points = [];
+        const limit = Math.min(pointsA.length, pointsB.length);
+        for (let i = 0; i < limit; i += 1) {
+          points.push(pointsA[i].clone().lerp(pointsB[i], factor));
+        }
+        const tween = createCurveFromPoints(points, { closed: curveA.closed && curveB.closed });
+        return { tween };
+      },
+    });
+  }
+
+  function registerBlendCurvePoint() {
+    register('{14cf43b6-5eb9-460f-899c-bdece732213a}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'curveA', B: 'curveB', P: 'point', C: 'continuity' },
+        outputs: { B: 'blend' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = ensureCurve(inputs.curveA);
+        const curveB = ensureCurve(inputs.curveB);
+        if (!curveA || !curveB) {
+          return {};
+        }
+        const endA = curvePointAt(curveA, 1) ?? ensurePoint(inputs.point, new THREE.Vector3());
+        const startB = curvePointAt(curveB, 0) ?? ensurePoint(inputs.point, new THREE.Vector3());
+        const anchor = ensurePoint(inputs.point, endA.clone().lerp(startB, 0.5));
+        const continuity = Math.max(1, Math.round(ensureNumber(inputs.continuity, 1)));
+        const tangentA = curveTangentAt(curveA, 1);
+        const tangentB = curveTangentAt(curveB, 0).multiplyScalar(-1);
+        const distanceA = Math.max(endA.distanceTo(anchor), EPSILON);
+        const distanceB = Math.max(startB.distanceTo(anchor), EPSILON);
+        const scaleA = distanceA / (continuity + 1);
+        const scaleB = distanceB / (continuity + 1);
+        const controlA1 = endA.clone().add(tangentA.clone().multiplyScalar(scaleA));
+        const controlA2 = anchor.clone().sub(tangentA.clone().multiplyScalar(scaleA * 0.5));
+        const controlB1 = anchor.clone().add(tangentB.clone().multiplyScalar(scaleB * 0.5));
+        const controlB2 = startB.clone().sub(tangentB.clone().multiplyScalar(scaleB));
+        const path = new THREE.CurvePath();
+        path.add(new THREE.CubicBezierCurve3(endA.clone(), controlA1, controlA2, anchor.clone()));
+        path.add(new THREE.CubicBezierCurve3(anchor.clone(), controlB1, controlB2, startB.clone()));
+        const blend = createCurveFromPath(path, { segments: 64, closed: false });
+        return { blend };
+      },
+    });
+  }
+
+  function registerNurbsCurvePWK() {
+    register('{1f8e1ff7-8278-4421-b39d-350e71d85d37}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { P: 'points', W: 'weights', K: 'knots' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const weights = ensureArray(inputs.weights).map((value) => ensureNumber(value, 1));
+        const curve = createInterpolatedCurve({ points, degree: 3, periodic: false, knotStyle: ensureNumber(inputs.knots?.style ?? inputs.knotStyle, 2) });
+        if (curve) {
+          curve.weights = weights;
+          curve.knots = ensureArray(inputs.knots).map((value) => ensureNumber(value, 0));
+        }
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerIsoCurve(guid) {
+    register(guid, {
+      type: 'curve',
+      pinMap: {
+        inputs: { S: 'surface', uv: 'uv' },
+        outputs: { U: 'uCurve', V: 'vCurve' },
+      },
+      eval: ({ inputs }) => {
+        const evaluator = ensureSurfaceEvaluator(inputs.surface);
+        if (!evaluator) {
+          return {};
+        }
+        const { u, v } = ensureUV(inputs.uv);
+        const uCurve = sampleIsoCurve(evaluator, 'u', v, 64);
+        const vCurve = sampleIsoCurve(evaluator, 'v', u, 64);
+        return { uCurve, vCurve };
+      },
+    });
+  }
+
+  function createCatenaryPoints(start, end, length, gravity) {
+    const direction = end.clone().sub(start);
+    const span = direction.length();
+    if (span < EPSILON) {
+      return [start.clone(), end.clone()];
+    }
+    const gravityDir = gravity.lengthSq() < EPSILON ? new THREE.Vector3(0, -1, 0) : gravity.clone().normalize();
+    const horizontal = direction.clone().normalize();
+    const binormal = horizontal.clone().cross(gravityDir).normalize();
+    const vertical = binormal.clone().cross(horizontal).normalize();
+    const extraLength = Math.max(length - span, 0);
+    const sag = extraLength / 2;
+    const midPoint = start.clone().add(direction.clone().multiplyScalar(0.5)).add(vertical.clone().multiplyScalar(-sag));
+    return [start.clone(), midPoint, end.clone()];
+  }
+
+  function registerCatenary() {
+    register('{275671d4-3e87-40bd-8aff-8e6a5fdbb892}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'pointA', B: 'pointB', L: 'length', G: 'gravity' },
+        outputs: { C: 'catenary' },
+      },
+      eval: ({ inputs }) => {
+        const pointA = ensurePoint(inputs.pointA, new THREE.Vector3());
+        const pointB = ensurePoint(inputs.pointB, new THREE.Vector3(1, 0, 0));
+        const minLength = pointA.distanceTo(pointB);
+        const length = Math.max(ensureNumber(inputs.length, minLength), minLength);
+        const gravity = convertVector(inputs.gravity) ?? new THREE.Vector3(0, -1, 0);
+        const points = createCatenaryPoints(pointA, pointB, length, gravity);
+        const curve = createCurveFromPoints(points, { samples: 64 });
+        return { catenary: curve };
+      },
+    });
+  }
+
+  function registerMatchCurve() {
+    register('{282bf4eb-668a-4a2c-81af-2432ac863ddd}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'curveA', B: 'curveB', C: 'continuity' },
+        outputs: { M: 'match' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = ensureCurve(inputs.curveA);
+        const curveB = ensureCurve(inputs.curveB);
+        if (!curveA || !curveB) {
+          return {};
+        }
+        const continuity = Math.max(1, Math.round(ensureNumber(inputs.continuity, 1)));
+        const start = curvePointAt(curveA, 0);
+        const end = curvePointAt(curveB, 1);
+        const tangentStart = curveTangentAt(curveA, 0);
+        const tangentEnd = curveTangentAt(curveB, 1);
+        const controlA = start.clone().add(tangentStart.clone().multiplyScalar(continuity));
+        const controlB = end.clone().sub(tangentEnd.clone().multiplyScalar(continuity));
+        const path = new THREE.CubicBezierCurve3(start.clone(), controlA, controlB, end.clone());
+        const match = createCurveFromPath(path, { segments: 64, closed: false });
+        return { match };
+      },
+    });
+  }
+
+  function registerInterpolate() {
+    register('{2b2a4145-3dff-41d4-a8de-1ea9d29eef33}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', D: 'degree', P: 'periodic', K: 'knotStyle' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const periodic = ensureBoolean(inputs.periodic, false);
+        const degree = Math.max(1, Math.round(ensureNumber(inputs.degree, 3)));
+        const knotStyle = ensureNumber(inputs.knotStyle, 2);
+        const curve = createInterpolatedCurve({ points, degree, periodic, knotStyle, closed: periodic });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerBezierSpan() {
+    register('{30ce59ce-22a1-49ee-9e21-e6d16b3684a8}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'start', At: 'startTangent', B: 'end', Bt: 'endTangent' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const start = ensurePoint(inputs.start, new THREE.Vector3());
+        const end = ensurePoint(inputs.end, new THREE.Vector3(1, 0, 0));
+        const tangentStart = convertVector(inputs.startTangent) ?? end.clone().sub(start);
+        const tangentEnd = convertVector(inputs.endTangent) ?? end.clone().sub(start);
+        const control1 = start.clone().add(tangentStart.clone().multiplyScalar(1 / 3));
+        const control2 = end.clone().sub(tangentEnd.clone().multiplyScalar(1 / 3));
+        const path = new THREE.CubicBezierCurve3(start.clone(), control1, control2, end.clone());
+        const curve = createCurveFromPath(path, { segments: 64, closed: false });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerSwingArc() {
+    register('{3edc4fbd-24c6-43de-aaa8-5bdf0704373d}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { C: 'centers', P: 'plane', R: 'radius' },
+        outputs: { A: 'curveA', B: 'curveB', C: 'circles' },
+      },
+      eval: ({ inputs }) => {
+        const centers = collectPoints(inputs.centers);
+        if (centers.length < 2) {
+          return {};
+        }
+        const radius = Math.max(ensureNumber(inputs.radius, centers[0].distanceTo(centers[1]) || 1), EPSILON);
+        const plane = ensurePlane(inputs.plane ?? { origin: centers[0], normal: new THREE.Vector3(0, 0, 1) });
+        const circles = centers.map((center) => ({
+          type: 'circle',
+          plane,
+          center: center.clone(),
+          radius,
+          segments: 128,
+          shape: (() => {
+            const shape = new THREE.Shape();
+            shape.absarc(0, 0, radius, 0, Math.PI * 2, false);
+            return shape;
+          })(),
+        }));
+        const curveA = createCurveFromPoints(centers, { curveType: 'chordal', samples: centers.length * 8 });
+        const mirrored = centers.map((pt) => {
+          const coords = planeCoordinates(pt, plane);
+          return applyPlane(plane, coords.x, coords.y, -coords.z);
+        });
+        const curveB = createCurveFromPoints(mirrored.reverse(), { curveType: 'catmullrom', samples: centers.length * 8 });
+        return { curveA, curveB, circles };
+      },
+    });
+  }
+
+  function registerSubCurve() {
+    register('{429cbba9-55ee-4e84-98ea-876c44db879a}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { C: 'curve', D: 'domain' },
+        outputs: { C: 'subCurve' },
+      },
+      eval: ({ inputs }) => {
+        const curve = ensureCurve(inputs.curve);
+        if (!curve) {
+          return {};
+        }
+        const domain = ensureDomain(inputs.domain);
+        const start = clamp01(domain.start ?? domain.min ?? 0);
+        const end = clamp01(domain.end ?? domain.max ?? 1);
+        const segments = 64;
+        const points = [];
+        for (let i = 0; i <= segments; i += 1) {
+          const t = start + (end - start) * (i / segments);
+          const point = curvePointAt(curve, t);
+          if (point) {
+            points.push(point);
+          }
+        }
+        const subCurve = createCurveFromPoints(points, { samples: segments });
+        return { subCurve };
+      },
+    });
+  }
+
+  function registerInterpolateWithTangents(guid, { includeDegree }) {
+    register(guid, {
+      type: 'curve',
+      pinMap: {
+        inputs: includeDegree
+          ? { V: 'points', D: 'degree', Ts: 'startTangent', Te: 'endTangent', K: 'knotStyle' }
+          : { V: 'points', Ts: 'startTangent', Te: 'endTangent', K: 'knotStyle' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const degree = includeDegree ? Math.max(1, Math.round(ensureNumber(inputs.degree, 3))) : 3;
+        const knotStyle = ensureNumber(inputs.knotStyle, 2);
+        const curve = createInterpolatedCurve({
+          points,
+          degree,
+          knotStyle,
+          startTangent: inputs.startTangent,
+          endTangent: inputs.endTangent,
+        });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerBlendCurve() {
+    register('{5909dbcb-4950-4ce4-9433-7cf9e62ee011}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'curveA', B: 'curveB', Fa: 'factorA', Fb: 'factorB', C: 'continuity' },
+        outputs: { B: 'blend' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = ensureCurve(inputs.curveA);
+        const curveB = ensureCurve(inputs.curveB);
+        if (!curveA || !curveB) {
+          return {};
+        }
+        const factorA = clamp01(ensureNumber(inputs.factorA, 0.5));
+        const factorB = clamp01(ensureNumber(inputs.factorB, 0.5));
+        const segments = 64;
+        const points = [];
+        for (let i = 0; i <= segments; i += 1) {
+          const t = i / segments;
+          const pointA = curvePointAt(curveA, t) ?? curvePointAt(curveA, clamp01(t * factorA));
+          const pointB = curvePointAt(curveB, t) ?? curvePointAt(curveB, clamp01(t * factorB));
+          if (pointA && pointB) {
+            const weight = clamp01((1 - t) * factorA + t * factorB);
+            points.push(pointA.clone().lerp(pointB, weight));
+          }
+        }
+        const blend = createCurveFromPoints(points, { samples: segments });
+        return { blend };
+      },
+    });
+  }
+
+  function registerKinkyCurve() {
+    register('{6f0993e8-5f2f-4fc0-bd73-b84bc240e78e}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', D: 'degree', A: 'angle' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const angleThreshold = ensureNumber(inputs.angle, Math.PI / 6);
+        const filtered = [points[0].clone()];
+        for (let i = 1; i < points.length - 1; i += 1) {
+          const prev = points[i - 1];
+          const current = points[i];
+          const next = points[i + 1];
+          const v1 = current.clone().sub(prev).normalize();
+          const v2 = next.clone().sub(current).normalize();
+          const angle = Math.acos(clamp(v1.dot(v2), -1, 1));
+          filtered.push(current.clone());
+          if (angle > angleThreshold) {
+            filtered.push(current.clone());
+          }
+        }
+        filtered.push(points[points.length - 1].clone());
+        const curve = createCurveFromPoints(filtered, { curveType: 'chordal', samples: filtered.length * 8 });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerPolyArcDetailed() {
+    register('{7159ef59-e4ef-44b8-8cb2-91231e278292}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', T: 'tangent', C: 'closed' },
+        outputs: { Crv: 'polyArc' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const closed = ensureBoolean(inputs.closed, false);
+        const tangent = convertVector(inputs.tangent);
+        const augmented = points.map((pt) => pt.clone());
+        if (tangent) {
+          const offset = tangent.clone().normalize().multiplyScalar(points[0].distanceTo(points[1] ?? points[0]) * 0.5);
+          augmented.unshift(points[0].clone().sub(offset));
+        }
+        const curve = createCurveFromPoints(augmented, { curveType: 'catmullrom', samples: augmented.length * 8, closed });
+        return { polyArc: curve };
+      },
+    });
+  }
+
+  function registerPolyLine() {
+    register('{71b5b089-500a-4ea6-81c5-2f960441a0e8}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', C: 'closed' },
+        outputs: { Pl: 'polyline' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const closed = ensureBoolean(inputs.closed, false);
+        if (closed && points.length >= 2) {
+          points.push(points[0].clone());
+        }
+        const polyline = createCurveFromPoints(points, { curveType: 'chordal', samples: points.length - 1 });
+        return { polyline };
+      },
+    });
+  }
+
+  function registerCatenaryEx() {
+    register('{769f9064-17f5-4c4a-921f-c3a0ee05ba3a}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { A: 'pointA', B: 'pointB', L: 'length', W: 'weights', G: 'gravity' },
+        outputs: { C: 'catenary', S: 'segments' },
+      },
+      eval: ({ inputs }) => {
+        const pointA = ensurePoint(inputs.pointA, new THREE.Vector3());
+        const pointB = ensurePoint(inputs.pointB, new THREE.Vector3(1, 0, 0));
+        const minLength = pointA.distanceTo(pointB);
+        const length = Math.max(ensureNumber(inputs.length, minLength), minLength);
+        const weights = ensureArray(inputs.weights).map((value) => Math.max(ensureNumber(value, 1), 0));
+        const gravity = convertVector(inputs.gravity) ?? new THREE.Vector3(0, -1, 0);
+        const weightFactor = weights.length ? weights.reduce((sum, value) => sum + value, 0) / weights.length : 1;
+        const adjustedLength = length + weightFactor * 0.25;
+        const points = createCatenaryPoints(pointA, pointB, adjustedLength, gravity);
+        const curve = createCurveFromPoints(points, { samples: 64 });
+        const segments = sampleCurvePoints(curve, 32);
+        return { catenary: curve, segments };
+      },
+    });
+  }
+
+  function registerKnotVector() {
+    register('{846470bd-4918-4d00-9388-7e022b2cba73}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { N: 'count', D: 'degree', P: 'periodic' },
+        outputs: { K: 'knots' },
+      },
+      eval: ({ inputs }) => {
+        const count = Math.max(2, Math.round(ensureNumber(inputs.count, 4)));
+        const degree = Math.max(1, Math.round(ensureNumber(inputs.degree, 3)));
+        const periodic = ensureBoolean(inputs.periodic, false);
+        const knotCount = count + degree + (periodic ? 1 : 1);
+        const knots = [];
+        if (periodic) {
+          for (let i = 0; i < knotCount; i += 1) {
+            knots.push(i / (knotCount - 1));
+          }
+        } else {
+          for (let i = 0; i < knotCount; i += 1) {
+            if (i <= degree) {
+              knots.push(0);
+            } else if (i >= count) {
+              knots.push(1);
+            } else {
+              knots.push((i - degree) / (count - degree));
+            }
+          }
+        }
+        return { knots };
+      },
+    });
+  }
+
+  function registerPolyArcSimple() {
+    register('{a5e4f966-417e-465d-afa9-f6607afea056}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points' },
+        outputs: { Crv: 'polyArc' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const curve = createCurveFromPoints(points, { curveType: 'centripetal', samples: points.length * 8 });
+        return { polyArc: curve };
+      },
+    });
+  }
+
+  function registerGeodesic() {
+    register('{ce5963b4-1cea-4f71-acd2-a3c28ab85662}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { S: 'surface', Surface: 'surface', Start: 'start', s: 'start', E: 'end', end: 'end' },
+        outputs: { G: 'geodesic' },
+      },
+      eval: ({ inputs }) => {
+        const evaluator = ensureSurfaceEvaluator(inputs.surface);
+        const start = ensurePoint(inputs.start, new THREE.Vector3());
+        const end = ensurePoint(inputs.end, new THREE.Vector3(1, 0, 0));
+        if (!evaluator) {
+          const path = new THREE.LineCurve3(start, end);
+          return { geodesic: createCurveFromPath(path, { segments: 32 }) };
+        }
+        const segments = 64;
+        const points = [];
+        for (let i = 0; i <= segments; i += 1) {
+          const t = i / segments;
+          const u = evaluator.domainU.start + (evaluator.domainU.end - evaluator.domainU.start) * t;
+          const v = evaluator.domainV.start + (evaluator.domainV.end - evaluator.domainV.start) * t;
+          const blendPoint = start.clone().lerp(end, t);
+          const surfacePoint = evaluator.evaluate(u, v);
+          points.push(blendPoint.clone().lerp(surfacePoint, 0.5));
+        }
+        const curve = createCurveFromPoints(points, { samples: segments });
+        return { geodesic: curve };
+      },
+    });
+  }
+
+  function registerConnectCurves() {
+    register('{d0a1b843-873d-4d1d-965c-b5423b35f327}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { C: 'curves', curves: 'curves', G: 'continuity', L: 'close', B: 'bulge' },
+        outputs: { C: 'curve' },
+      },
+      eval: ({ inputs }) => {
+        const curves = ensureArray(inputs.curves).map((entry) => ensureCurve(entry)).filter(Boolean);
+        if (!curves.length) {
+          return {};
+        }
+        const continuity = Math.max(0, Math.round(ensureNumber(inputs.continuity, 0)));
+        const closed = ensureBoolean(inputs.close, false);
+        const bulge = ensureNumber(inputs.bulge, 0.5);
+        const path = new THREE.CurvePath();
+        const addCurvePoints = (curve) => {
+          if (curve.path?.curves) {
+            for (const segment of curve.path.curves) {
+              path.add(segment.clone());
+            }
+          } else {
+            const points = sampleCurvePoints(curve, 32);
+            for (let i = 0; i < points.length - 1; i += 1) {
+              path.add(new THREE.LineCurve3(points[i].clone(), points[i + 1].clone()));
+            }
+          }
+        };
+        addCurvePoints(curves[0]);
+        for (let i = 1; i < curves.length; i += 1) {
+          const prev = curves[i - 1];
+          const next = curves[i];
+          const start = curvePointAt(prev, 1);
+          const end = curvePointAt(next, 0);
+          if (start && end && start.distanceToSquared(end) > EPSILON) {
+            const tangentPrev = curveTangentAt(prev, 1);
+            const tangentNext = curveTangentAt(next, 0).multiplyScalar(-1);
+            if (continuity === 0) {
+              path.add(new THREE.LineCurve3(start.clone(), end.clone()));
+            } else {
+              const controlA = start.clone().add(tangentPrev.clone().multiplyScalar(bulge));
+              const controlB = end.clone().add(tangentNext.clone().multiplyScalar(bulge));
+              path.add(new THREE.CubicBezierCurve3(start.clone(), controlA, controlB, end.clone()));
+            }
+          }
+          addCurvePoints(next);
+        }
+        if (closed) {
+          const start = curvePointAt(curves[0], 0);
+          const end = curvePointAt(curves[curves.length - 1], 1);
+          if (start && end && start.distanceToSquared(end) > EPSILON) {
+            path.add(new THREE.LineCurve3(end.clone(), start.clone()));
+          }
+        }
+        const curve = createCurveFromPath(path, { segments: curves.length * 32, closed });
+        return { curve };
+      },
+    });
+  }
+
+  function registerNurbsCurveSimple() {
+    register('{dde71aef-d6ed-40a6-af98-6b0673983c82}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', D: 'degree', P: 'periodic' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const degree = Math.max(1, Math.round(ensureNumber(inputs.degree, 3)));
+        const periodic = ensureBoolean(inputs.periodic, false);
+        const curve = createInterpolatedCurve({ points, degree, periodic, knotStyle: 2, closed: periodic });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerInterpolateDuplicate() {
+    register('{f5ea9d41-f062-487e-8dbf-7666ca53fbcd}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', D: 'degree', P: 'periodic' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const degree = Math.max(1, Math.round(ensureNumber(inputs.degree, 3)));
+        const periodic = ensureBoolean(inputs.periodic, false);
+        const curve = createInterpolatedCurve({ points, degree, periodic, knotStyle: 2, closed: periodic });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerTangentCurve() {
+    register('{f73498c5-178b-4e09-ad61-73d172fa6e56}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { V: 'points', T: 'tangents', B: 'blend', D: 'degree' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        if (points.length < 2) {
+          return {};
+        }
+        const blend = clamp01(ensureNumber(inputs.blend, 0.5));
+        const tangents = ensureArray(inputs.tangents).map((entry, index) => {
+          const vector = convertVector(entry) ?? new THREE.Vector3();
+          return vector.multiplyScalar(blend || 1);
+        });
+        const curve = createInterpolatedCurve({ points, tangents, degree: Math.max(1, Math.round(ensureNumber(inputs.degree, 3))) });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  function registerCurveOnSurface() {
+    register('{ffe2dbed-9b5d-4f91-8fe3-10c8961ac2f8}', {
+      type: 'curve',
+      pinMap: {
+        inputs: { S: 'surface', uv: 'uvs', C: 'closed' },
+        outputs: { C: 'curve', L: 'length', D: 'domain' },
+      },
+      eval: ({ inputs }) => {
+        const evaluator = ensureSurfaceEvaluator(inputs.surface);
+        const uvEntries = ensureArray(inputs.uvs).map((entry) => ensureUV(entry));
+        if (!evaluator || !uvEntries.length) {
+          return {};
+        }
+        const closed = ensureBoolean(inputs.closed, false);
+        const points = uvEntries.map(({ u, v }) => {
+          const uu = evaluator.domainU.start + (evaluator.domainU.end - evaluator.domainU.start) * clamp01(u);
+          const vv = evaluator.domainV.start + (evaluator.domainV.end - evaluator.domainV.start) * clamp01(v);
+          return evaluator.evaluate(uu, vv);
+        });
+        if (closed && points.length) {
+          points.push(points[0].clone());
+        }
+        const curve = createCurveFromPoints(points, { samples: points.length * 8, closed });
+        return curveSummary(curve);
+      },
+    });
+  }
+
+  registerCircleFitObsolete();
+  registerTweenCurve();
+  registerBlendCurvePoint();
+  registerNurbsCurvePWK();
+  registerIsoCurve('{21ca41ee-bc18-4ac8-ba20-713e7edf541e}');
+  registerIsoCurve('{d1d57181-d594-41e8-8efb-041e29f8a5ca}');
+  registerCatenary();
+  registerMatchCurve();
+  registerInterpolate();
+  registerBezierSpan();
+  registerSwingArc();
+  registerSubCurve();
+  registerInterpolateWithTangents('{50870118-be51-4872-ab3c-410d79f2356e}', { includeDegree: true });
+  registerInterpolateWithTangents('{75eb156d-d023-42f9-a85e-2f2456b8bcce}', { includeDegree: false });
+  registerInterpolateWithTangents('{e8e00fbb-9710-4cfa-a60f-2aae50b79d06}', { includeDegree: true });
+  registerBlendCurve();
+  registerKinkyCurve();
+  registerPolyArcDetailed();
+  registerPolyLine();
+  registerCatenaryEx();
+  registerKnotVector();
+  registerPolyArcSimple();
+  registerGeodesic();
+  registerConnectCurves();
+  registerNurbsCurveSimple();
+  registerInterpolateDuplicate();
+  registerTangentCurve();
+  registerCurveOnSurface();
+}
