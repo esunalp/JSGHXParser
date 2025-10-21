@@ -151,11 +151,23 @@
     </script>
 
     <script type="module">
-      import { initScene } from './three-scene.js?version=7';
-      import { createEngine } from './engine.js?version=7';
-      import { defaultRegistry } from './registry.js?version=7';
-      import { createSliderUI } from './ui.js?version=7';
-      import { parseGHX } from './ghx-loader.js?version=7';
+      import { withVersion } from './version.js';
+
+      const versionedImport = (path) => import(withVersion(path));
+
+      const [
+        { initScene },
+        { createEngine },
+        { defaultRegistry },
+        { createSliderUI },
+        { parseGHX },
+      ] = await Promise.all([
+        versionedImport('./three-scene.js'),
+        versionedImport('./engine.js'),
+        versionedImport('./registry.js'),
+        versionedImport('./ui.js'),
+        versionedImport('./ghx-loader.js'),
+      ]);
 
       const canvas = document.getElementById('viewport');
       const statusEl = document.getElementById('status');
