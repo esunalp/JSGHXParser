@@ -303,10 +303,17 @@ function describeObjectChunk(chunk, index) {
     ]);
   }
 
+  if (!componentGuid) {
+    const chunkItems = getItemsElement(chunk);
+    if (chunkItems) {
+      componentGuid = readItem(chunkItems, 'GUID');
+    }
+  }
+
   const normalizedComponentGuid = normalizeGuid(componentGuid);
   const normalizedInstanceGuid = normalizeGuid(instanceGuid);
 
-  const name =
+  let name =
     getFirstText(chunk, [
       'string[name="NickName"]',
       'string[name="Name"]',
@@ -316,6 +323,23 @@ function describeObjectChunk(chunk, index) {
     ]) ||
     chunk.getAttribute('name') ||
     'Onbekende node';
+
+  if (name === 'Object' || name === 'Onbekende node') {
+    const chunkItems = getItemsElement(chunk);
+    if (chunkItems) {
+      const itemName = readItem(chunkItems, 'Name');
+      const itemNick = readItem(chunkItems, 'NickName');
+      name = itemNick || itemName || name;
+    }
+    if (name === 'Object' || name === 'Onbekende node') {
+      const containerItems = getItemsElement(chunk.querySelector('chunk[name="Container"]'));
+      if (containerItems) {
+        const containerNick = readItem(containerItems, 'NickName');
+        const containerName = readItem(containerItems, 'Name');
+        name = containerNick || containerName || name;
+      }
+    }
+  }
 
   return {
     id: normalizedInstanceGuid ?? `node-${index + 1}`,
