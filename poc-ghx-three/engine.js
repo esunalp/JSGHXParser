@@ -1,3 +1,7 @@
+import { withVersion } from './version.js';
+
+const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
+
 function normalizeGraph(graph) {
   const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const wires = Array.isArray(graph?.wires) ? graph.wires : [];
@@ -99,6 +103,65 @@ function resolveInputs(node, inputIndex, outputs) {
     result[pin] = value;
   }
   return result;
+}
+
+function isRenderableCandidate(value) {
+  return Boolean(value?.isMesh || value?.isBufferGeometry || value?.isGeometry);
+}
+
+function extractRenderable(value, visited = new Set()) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === 'object' || typeof value === 'function') {
+    if (visited.has(value)) {
+      return null;
+    }
+    visited.add(value);
+  }
+
+  if (isRenderableCandidate(value)) {
+    return value;
+  }
+
+  if (value && typeof value === 'object') {
+    if (value.mesh || value.geom || value.geometry) {
+      const direct = value.mesh ?? value.geom ?? value.geometry;
+      const directRenderable = extractRenderable(direct, visited);
+      if (directRenderable) {
+        return directRenderable;
+      }
+    }
+
+    if (isSurfaceDefinition(value)) {
+      const surfaceGeometry = surfaceToGeometry(value);
+      if (surfaceGeometry) {
+        return surfaceGeometry;
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const renderable = extractRenderable(entry, visited);
+      if (renderable) {
+        return renderable;
+      }
+    }
+    return null;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const key of Object.keys(value)) {
+      const renderable = extractRenderable(value[key], visited);
+      if (renderable) {
+        return renderable;
+      }
+    }
+  }
+
+  return null;
 }
 
 class Engine {
@@ -206,9 +269,12 @@ class Engine {
       outputs.set(nodeId, result);
       this.nodeOutputs.set(nodeId, result);
 
-      const meshCandidate = result.mesh ?? result.geom ?? result.geometry;
-      if (meshCandidate) {
-        this.updateMesh?.(meshCandidate);
+      let renderable = result.mesh ?? result.geom ?? result.geometry;
+      if (!renderable) {
+        renderable = extractRenderable(result);
+      }
+      if (renderable) {
+        this.updateMesh?.(renderable);
       }
     }
 
