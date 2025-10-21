@@ -146,6 +146,10 @@ class Engine {
     this.nodeStates.clear();
     this.nodeOutputs.clear();
 
+    if (typeof this.updateMesh === 'function') {
+      this.updateMesh(null);
+    }
+
     for (const node of normalized.nodes) {
       if (!node?.id) continue;
       this.nodeById.set(node.id, node);
