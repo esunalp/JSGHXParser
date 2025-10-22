@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-export function registerVectorComponents({ register, toNumber, toVector3 }) {
+function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register vector point components.');
   }
@@ -2770,16 +2770,36 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
     });
   }
 
-  registerNumbersToPoints();
-  registerTextTagComponents();
-  registerPointConstructionComponents();
-  registerPointAnalysisComponents();
-  registerPointConversionComponents();
-  registerPointProjectionComponents();
-  registerPlaneComponents();
-  registerGridComponents();
-  registerVectorComputationComponents();
+  return {
+    registerPointCategory() {
+      registerNumbersToPoints();
+      registerTextTagComponents();
+      registerPointConstructionComponents();
+      registerPointAnalysisComponents();
+      registerPointConversionComponents();
+      registerPointProjectionComponents();
+      registerGridComponents();
+    },
+    registerPlaneCategory() {
+      registerPlaneComponents();
+    },
+    registerVectorCategory() {
+      registerVectorComputationComponents();
+    },
+  };
 }
 
-export const registerVectorPointComponents = registerVectorComponents;
-export const registerVectorPlaneComponents = registerVectorComponents;
+export function registerVectorPointComponents(deps) {
+  const { registerPointCategory } = createVectorComponentRegistrar(deps);
+  registerPointCategory();
+}
+
+export function registerVectorPlaneComponents(deps) {
+  const { registerPlaneCategory } = createVectorComponentRegistrar(deps);
+  registerPlaneCategory();
+}
+
+export function registerVectorVectorComponents(deps) {
+  const { registerVectorCategory } = createVectorComponentRegistrar(deps);
+  registerVectorCategory();
+}
