@@ -16,6 +16,7 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     includePointComponents = true,
     includePlaneComponents = false,
     includeVectorComponents = true,
+    includeColourComponents = true,
   } = options;
 
   const EPSILON = 1e-9;
@@ -2198,6 +2199,82 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     });
   }
 
+  if (includeColourComponents) {
+    const clamp01 = (value) => THREE.MathUtils.clamp(value, 0, 1);
+
+    register([
+      '{035bf8a7-b9e0-4e37-b031-4567bc60d047}',
+      'colour multiplication',
+      'color multiplication',
+      'mul',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA', a: 'colourA', 'Colour A': 'colourA', 'Color A': 'colourA',
+          B: 'colourB', b: 'colourB', 'Colour B': 'colourB', 'Color B': 'colourB',
+        },
+        outputs: { C: 'colour', colour: 'colour', Colour: 'colour', color: 'colour', Color: 'colour' },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(inputs.colourA, new THREE.Color(0, 0, 0));
+        const colourB = ensureColor(inputs.colourB, new THREE.Color(1, 1, 1));
+        const colour = colourA.clone().multiply(colourB);
+        return { colour };
+      },
+    });
+
+    register([
+      '{0c80d9c0-d8b3-4817-b8e1-6214d443704b}',
+      'colour subtraction',
+      'color subtraction',
+      'sub',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA', a: 'colourA', 'Colour A': 'colourA', 'Color A': 'colourA',
+          B: 'colourB', b: 'colourB', 'Colour B': 'colourB', 'Color B': 'colourB',
+        },
+        outputs: { C: 'colour', colour: 'colour', Colour: 'colour', color: 'colour', Color: 'colour' },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(inputs.colourA, new THREE.Color(0, 0, 0));
+        const colourB = ensureColor(inputs.colourB, new THREE.Color(0, 0, 0));
+        const colour = new THREE.Color(
+          clamp01(colourA.r - colourB.r),
+          clamp01(colourA.g - colourB.g),
+          clamp01(colourA.b - colourB.b),
+        );
+        return { colour };
+      },
+    });
+
+    register([
+      '{8b4da37d-1124-436a-9de2-952e4224a220}',
+      'blend colours',
+      'blend colors',
+      'blendcol',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA', a: 'colourA', 'Colour A': 'colourA', 'Color A': 'colourA',
+          B: 'colourB', b: 'colourB', 'Colour B': 'colourB', 'Color B': 'colourB',
+          F: 'factor', f: 'factor', Factor: 'factor', factor: 'factor',
+        },
+        outputs: { C: 'colour', colour: 'colour', Colour: 'colour', color: 'colour', Color: 'colour' },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(inputs.colourA, new THREE.Color(0, 0, 0));
+        const colourB = ensureColor(inputs.colourB, new THREE.Color(1, 1, 1));
+        const factor = THREE.MathUtils.clamp(toNumber(inputs.factor, 0.5), 0, 1);
+        const colour = colourA.clone().lerp(colourB, factor);
+        return { colour };
+      },
+    });
+  }
+
   if (includeFieldComponents) {
     // Field subcategory components
     register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
@@ -3650,6 +3727,7 @@ export function registerVectorFieldComponents({ register, toNumber, toVector3 })
     includePointComponents: false,
     includePlaneComponents: false,
     includeVectorComponents: false,
+    includeColourComponents: false,
   });
 }
 
@@ -3665,6 +3743,7 @@ export function registerVectorVectorComponents({ register, toNumber, toVector3 }
     includePointComponents: true,
     includePlaneComponents: false,
     includeVectorComponents: true,
+    includeColourComponents: false,
   });
 }
 
@@ -3674,5 +3753,6 @@ export function registerVectorPlaneComponents({ register, toNumber, toVector3 })
     includePointComponents: false,
     includePlaneComponents: true,
     includeVectorComponents: false,
+    includeColourComponents: false,
   });
 }
