@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 const REGISTER_SURFACE_FREEFORM_ONLY = Symbol('register-surface-freeform-only');
 const REGISTER_SURFACE_ANALYSIS_ONLY = Symbol('register-surface-analysis-only');
+const REGISTER_SURFACE_SUBD_ONLY = Symbol('register-surface-subd-only');
 
 export function registerSurfacePrimitiveComponents({
   register,
@@ -12,7 +13,8 @@ export function registerSurfacePrimitiveComponents({
 }) {
   const freeformOnly = mode === REGISTER_SURFACE_FREEFORM_ONLY;
   const analysisOnly = mode === REGISTER_SURFACE_ANALYSIS_ONLY;
-  const shouldRegisterFreeform = includeFreeform && !analysisOnly;
+  const subdOnly = mode === REGISTER_SURFACE_SUBD_ONLY;
+  const shouldRegisterFreeform = includeFreeform && !analysisOnly && !subdOnly;
   if (typeof register !== 'function') {
     throw new Error('register function is required to register surface primitive components.');
   }
@@ -24,6 +26,11 @@ export function registerSurfacePrimitiveComponents({
 
   if (analysisOnly) {
     registerAnalysisComponents();
+    return;
+  }
+
+  if (subdOnly) {
+    registerSubDComponents();
     return;
   }
 
@@ -3572,6 +3579,1299 @@ export function registerSurfacePrimitiveComponents({
     });
   }
 
+  const SUBD_DEFAULT_TOLERANCE = 1e-6;
+  const SUBD_DEFAULT_PIPE_SEGMENTS = 8;
+
+  function parseEdgeTagValue(value, fallback = 'smooth') {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) {
+        return fallback;
+      }
+      if (['crease', 'sharp', 'hard', 'c'].includes(normalized)) {
+        return 'crease';
+      }
+      if (['smooth', 'soft', 's'].includes(normalized)) {
+        return 'smooth';
+      }
+      return normalized;
+    }
+    if (typeof value === 'number') {
+      return value !== 0 ? 'crease' : 'smooth';
+    }
+    if (typeof value === 'object') {
+      if ('tag' in value) {
+        return parseEdgeTagValue(value.tag, fallback);
+      }
+      if ('value' in value) {
+        return parseEdgeTagValue(value.value, fallback);
+      }
+      if ('type' in value) {
+        return parseEdgeTagValue(value.type, fallback);
+      }
+    }
+    return fallback;
+  }
+
+  function parseVertexTagValue(value, fallback = 'smooth') {
+    if (value === undefined || value === null) {
+      return fallback;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) {
+        return fallback;
+      }
+      if (['smooth', 's'].includes(normalized)) {
+        return 'smooth';
+      }
+      if (['crease', 'c', 'sharp'].includes(normalized)) {
+        return 'crease';
+      }
+      if (['corner', 'l'].includes(normalized)) {
+        return 'corner';
+      }
+      if (['dart', 'd'].includes(normalized)) {
+        return 'dart';
+      }
+      return normalized;
+    }
+    if (typeof value === 'number') {
+      const rounded = Math.round(value);
+      if (rounded === 1) {
+        return 'crease';
+      }
+      if (rounded === 2) {
+        return 'corner';
+      }
+      if (rounded === 3) {
+        return 'dart';
+      }
+      return 'smooth';
+    }
+    if (typeof value === 'object') {
+      if ('tag' in value) {
+        return parseVertexTagValue(value.tag, fallback);
+      }
+      if ('value' in value) {
+        return parseVertexTagValue(value.value, fallback);
+      }
+      if ('type' in value) {
+        return parseVertexTagValue(value.type, fallback);
+      }
+    }
+    return fallback;
+  }
+
+  function createEdgeKey(a, b) {
+    const first = Math.min(a, b);
+    const second = Math.max(a, b);
+    return `${first}|${second}`;
+  }
+
+  function createVertexKey(point) {
+    const vector = cloneVector(point, new THREE.Vector3());
+    const precision = 6;
+    return [vector.x, vector.y, vector.z]
+      .map((value) => Number.parseFloat(value).toFixed(precision))
+      .join('|');
+  }
+
+  function createEdgeCoordinateKey(pointA, pointB) {
+    const keyA = createVertexKey(pointA);
+    const keyB = createVertexKey(pointB);
+    return [keyA, keyB].sort().join('->');
+  }
+
+  function cloneVector(value, fallback = new THREE.Vector3()) {
+    return ensurePoint(value, fallback.clone());
+  }
+
+  function collectIndices(input) {
+    const indices = [];
+    function visit(value) {
+      if (value === undefined || value === null) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        for (const entry of value) {
+          visit(entry);
+        }
+        return;
+      }
+      if (typeof value === 'object') {
+        if ('value' in value) {
+          visit(value.value);
+          return;
+        }
+        if ('id' in value) {
+          visit(value.id);
+          return;
+        }
+        if ('index' in value) {
+          visit(value.index);
+          return;
+        }
+      }
+      const numeric = ensureNumeric(value, Number.NaN);
+      if (Number.isFinite(numeric)) {
+        indices.push(Math.round(numeric));
+      }
+    }
+    visit(input);
+    return indices;
+  }
+
+  function computeFaceCentroid(vertexIds, vertices) {
+    if (!vertexIds.length) {
+      return new THREE.Vector3();
+    }
+    const centroid = new THREE.Vector3();
+    vertexIds.forEach((id) => {
+      const vertex = vertices[id];
+      if (vertex) {
+        centroid.add(vertex.point);
+      }
+    });
+    centroid.multiplyScalar(1 / vertexIds.length);
+    return centroid;
+  }
+
+  function buildEdgesForFaces(faces, vertices, existingTags = new Map()) {
+    const edgesMap = new Map();
+    faces.forEach((face) => {
+      const ids = face.vertices ?? [];
+      for (let i = 0; i < ids.length; i += 1) {
+        const a = ids[i];
+        const b = ids[(i + 1) % ids.length];
+        if (a === undefined || b === undefined) {
+          continue;
+        }
+        const key = createEdgeKey(a, b);
+        if (!edgesMap.has(key)) {
+          edgesMap.set(key, {
+            id: edgesMap.size,
+            vertices: [a, b],
+            faces: [],
+            tag: existingTags.get(key) ?? 'smooth',
+          });
+        }
+        const edge = edgesMap.get(key);
+        if (!edge.faces.includes(face.id)) {
+          edge.faces.push(face.id);
+        }
+      }
+    });
+    return Array.from(edgesMap.values());
+  }
+
+  function createSubDFromPolygons(polygons, { metadata = {}, defaultEdgeTag = 'smooth', defaultVertexTag = 'smooth' } = {}) {
+    if (!Array.isArray(polygons) || !polygons.length) {
+      return {
+        type: 'subd',
+        vertices: [],
+        edges: [],
+        faces: [],
+        metadata: { ...metadata },
+      };
+    }
+    const toleranceSq = SUBD_DEFAULT_TOLERANCE * SUBD_DEFAULT_TOLERANCE;
+    const vertices = [];
+    const vertexLookup = [];
+    function getVertexId(point) {
+      for (let i = 0; i < vertices.length; i += 1) {
+        if (vertices[i].point.distanceToSquared(point) <= toleranceSq) {
+          return vertices[i].id;
+        }
+      }
+      const id = vertices.length;
+      const entry = {
+        id,
+        point: point.clone(),
+        tag: defaultVertexTag,
+      };
+      vertices.push(entry);
+      vertexLookup[id] = entry;
+      return id;
+    }
+    const faces = [];
+    polygons.forEach((polygon, faceIndex) => {
+      if (!Array.isArray(polygon) || polygon.length < 3) {
+        return;
+      }
+      const vertexIds = polygon.map((point) => getVertexId(cloneVector(point)));
+      const face = {
+        id: faces.length,
+        vertices: vertexIds,
+        edges: [],
+        centroid: computeFaceCentroid(vertexIds, vertexLookup),
+      };
+      faces.push(face);
+    });
+    const edges = buildEdgesForFaces(faces, vertexLookup);
+    edges.forEach((edge) => {
+      edge.tag = edge.tag ?? defaultEdgeTag;
+    });
+    faces.forEach((face) => {
+      const ids = face.vertices ?? [];
+      const faceEdges = [];
+      for (let i = 0; i < ids.length; i += 1) {
+        const a = ids[i];
+        const b = ids[(i + 1) % ids.length];
+        const key = createEdgeKey(a, b);
+        const edge = edges.find((entry) => createEdgeKey(entry.vertices[0], entry.vertices[1]) === key);
+        if (edge) {
+          faceEdges.push(edge.id);
+        }
+      }
+      face.edges = faceEdges;
+    });
+    return {
+      type: 'subd',
+      vertices: vertices.map((vertex) => ({
+        id: vertex.id,
+        point: vertex.point.clone(),
+        tag: vertex.tag ?? defaultVertexTag,
+      })),
+      edges: edges.map((edge) => ({
+        id: edge.id,
+        vertices: edge.vertices.slice(),
+        faces: edge.faces.slice(),
+        tag: parseEdgeTagValue(edge.tag, defaultEdgeTag),
+      })),
+      faces: faces.map((face) => ({
+        id: face.id,
+        vertices: face.vertices.slice(),
+        edges: face.edges.slice(),
+        centroid: face.centroid.clone(),
+      })),
+      metadata: { ...metadata },
+    };
+  }
+
+  function cloneSubD(subd) {
+    if (!subd || subd.type !== 'subd') {
+      return null;
+    }
+    return {
+      type: 'subd',
+      vertices: (subd.vertices ?? []).map((vertex, index) => ({
+        id: index,
+        point: cloneVector(vertex.point ?? vertex.position ?? vertex),
+        tag: parseVertexTagValue(vertex.tag ?? vertex.type ?? 'smooth'),
+      })),
+      edges: (subd.edges ?? []).map((edge, index) => ({
+        id: index,
+        vertices: Array.isArray(edge.vertices) ? edge.vertices.map((value) => Number(value)) : [],
+        faces: Array.isArray(edge.faces) ? edge.faces.map((value) => Number(value)) : [],
+        tag: parseEdgeTagValue(edge.tag ?? edge.type ?? 'smooth'),
+      })),
+      faces: (subd.faces ?? []).map((face, index) => ({
+        id: index,
+        vertices: Array.isArray(face.vertices) ? face.vertices.map((value) => Number(value)) : [],
+        edges: Array.isArray(face.edges) ? face.edges.map((value) => Number(value)) : [],
+        centroid: cloneVector(face.centroid ?? new THREE.Vector3()),
+      })),
+      metadata: { ...(subd.metadata ?? {}) },
+    };
+  }
+
+  function normalizeSubD(subd) {
+    if (!subd) {
+      return null;
+    }
+    if (subd.type === 'subd' && Array.isArray(subd.vertices) && Array.isArray(subd.faces)) {
+      const cloned = cloneSubD(subd);
+      const facePolygons = cloned.faces.map((face) => face.vertices.map((id) => cloned.vertices[id]?.point ?? new THREE.Vector3()));
+      const normalized = createSubDFromPolygons(facePolygons, { metadata: { ...(cloned.metadata ?? {}) } });
+      const edgeTagMap = new Map();
+      (subd.edges ?? []).forEach((edge) => {
+        if (!Array.isArray(edge.vertices) || edge.vertices.length < 2) {
+          return;
+        }
+        const a = subd.vertices?.[edge.vertices[0]];
+        const b = subd.vertices?.[edge.vertices[1]];
+        if (!a || !b) {
+          return;
+        }
+        const key = createEdgeCoordinateKey(a.point ?? a.position ?? a, b.point ?? b.position ?? b);
+        edgeTagMap.set(key, parseEdgeTagValue(edge.tag ?? 'smooth'));
+      });
+      normalized.edges.forEach((edge) => {
+        const start = normalized.vertices[edge.vertices[0]];
+        const end = normalized.vertices[edge.vertices[1]];
+        if (!start || !end) {
+          return;
+        }
+        const key = createEdgeCoordinateKey(start.point, end.point);
+        if (edgeTagMap.has(key)) {
+          edge.tag = edgeTagMap.get(key);
+        }
+      });
+      const vertexTagMap = new Map();
+      (subd.vertices ?? []).forEach((vertex) => {
+        const key = createVertexKey(vertex.point ?? vertex.position ?? vertex);
+        vertexTagMap.set(key, parseVertexTagValue(vertex.tag ?? 'smooth'));
+      });
+      normalized.vertices.forEach((vertex) => {
+        const key = createVertexKey(vertex.point);
+        if (vertexTagMap.has(key)) {
+          vertex.tag = vertexTagMap.get(key);
+        }
+      });
+      normalized.metadata = { ...(cloned.metadata ?? {}) };
+      return normalized;
+    }
+    if (subd.subd) {
+      return normalizeSubD(subd.subd);
+    }
+    return null;
+  }
+
+  function ensureSubD(input) {
+    if (!input) {
+      return null;
+    }
+    if (input.type === 'subd' || input.subd) {
+      return normalizeSubD(input);
+    }
+    const meshSubD = createSubDFromMesh(input);
+    if (meshSubD) {
+      return meshSubD;
+    }
+    return null;
+  }
+
+  function applyEdgeTags(subd, ids, tag) {
+    if (!subd) {
+      return null;
+    }
+    const normalized = normalizeSubD(subd);
+    if (!normalized) {
+      return null;
+    }
+    const tagValue = parseEdgeTagValue(tag, 'smooth');
+    const idSet = new Set(ids);
+    normalized.edges.forEach((edge, index) => {
+      if (idSet.has(index) || idSet.has(edge.id)) {
+        edge.tag = tagValue;
+      }
+    });
+    return normalized;
+  }
+
+  function applyVertexTags(subd, ids, tag) {
+    if (!subd) {
+      return null;
+    }
+    const normalized = normalizeSubD(subd);
+    if (!normalized) {
+      return null;
+    }
+    const tagValue = parseVertexTagValue(tag, 'smooth');
+    const idSet = new Set(ids);
+    normalized.vertices.forEach((vertex, index) => {
+      if (idSet.has(index) || idSet.has(vertex.id)) {
+        vertex.tag = tagValue;
+      }
+    });
+    return normalized;
+  }
+
+  function subdFacesToPolygons(subd) {
+    if (!subd) {
+      return [];
+    }
+    const normalized = normalizeSubD(subd);
+    if (!normalized) {
+      return [];
+    }
+    return normalized.faces.map((face) => face.vertices.map((id) => normalized.vertices[id]?.point.clone() ?? new THREE.Vector3()));
+  }
+
+  function computeSubDBox(subd) {
+    const normalized = normalizeSubD(subd);
+    if (!normalized || !normalized.vertices.length) {
+      return null;
+    }
+    const points = normalized.vertices.map((vertex) => vertex.point.clone());
+    const box3 = new THREE.Box3();
+    box3.setFromPoints(points);
+    if (!Number.isFinite(box3.min.x) || !Number.isFinite(box3.max.x)) {
+      return null;
+    }
+    return createBoxDataFromPlaneExtents({ plane: defaultPlane(), min: box3.min, max: box3.max });
+  }
+
+  function mergeSubDs(subdA, subdB) {
+    const polygons = [...subdFacesToPolygons(subdA), ...subdFacesToPolygons(subdB)];
+    return createSubDFromPolygons(polygons, {
+      metadata: {
+        merged: true,
+        sources: [subdA?.metadata ?? null, subdB?.metadata ?? null].filter(Boolean),
+      },
+    });
+  }
+
+  function subtractSubD(base, subtractor) {
+    const baseNormalized = normalizeSubD(base);
+    if (!baseNormalized) {
+      return null;
+    }
+    const subtractBox = computeSubDBox(subtractor);
+    if (!subtractBox) {
+      return cloneSubD(baseNormalized);
+    }
+    const polygons = [];
+    baseNormalized.faces.forEach((face) => {
+      const centroid = face.centroid ?? computeFaceCentroid(face.vertices, baseNormalized.vertices);
+      const include = !computeBoxInclusion(subtractBox, centroid, { strict: false });
+      if (include) {
+        const polygon = face.vertices.map((id) => baseNormalized.vertices[id]?.point.clone() ?? new THREE.Vector3());
+        polygons.push(polygon);
+      }
+    });
+    return createSubDFromPolygons(polygons, {
+      metadata: {
+        difference: true,
+        source: baseNormalized.metadata ?? null,
+        subtract: subtractor?.metadata ?? null,
+      },
+    });
+  }
+
+  function intersectSubDs(subdA, subdB) {
+    const boxA = computeSubDBox(subdA);
+    const boxB = computeSubDBox(subdB);
+    if (!boxA || !boxB) {
+      return mergeSubDs(subdA, subdB);
+    }
+    const combinedA = new THREE.Box3(boxA.box3?.min ?? boxA.localMin, boxA.box3?.max ?? boxA.localMax);
+    const combinedB = new THREE.Box3(boxB.box3?.min ?? boxB.localMin, boxB.box3?.max ?? boxB.localMax);
+    const intersection = combinedA.clone().intersect(combinedB);
+    if (intersection.isEmpty()) {
+      return createSubDFromPolygons([], { metadata: { empty: true } });
+    }
+    const plane = defaultPlane();
+    return createSubDFromPolygons([
+      [
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.min.z),
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.min.z),
+      ],
+      [
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.max.z),
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.max.z),
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.max.z),
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.max.z),
+      ],
+      [
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.max.z),
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.max.z),
+      ],
+      [
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.min.z),
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.max.z),
+        applyPlane(plane, intersection.max.x, intersection.min.y, intersection.max.z),
+      ],
+      [
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.min.z),
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.min.z),
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.max.z),
+        applyPlane(plane, intersection.max.x, intersection.max.y, intersection.max.z),
+      ],
+      [
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.min.z),
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.min.z),
+        applyPlane(plane, intersection.min.x, intersection.min.y, intersection.max.z),
+        applyPlane(plane, intersection.min.x, intersection.max.y, intersection.max.z),
+      ],
+    ], {
+      metadata: {
+        intersection: true,
+        sources: [subdA?.metadata ?? null, subdB?.metadata ?? null].filter(Boolean),
+      },
+    });
+  }
+
+  function collectVertexNeighbors(subd) {
+    const neighbors = new Map();
+    (subd.edges ?? []).forEach((edge) => {
+      const [a, b] = edge.vertices ?? [];
+      if (!Number.isFinite(a) || !Number.isFinite(b)) {
+        return;
+      }
+      if (!neighbors.has(a)) {
+        neighbors.set(a, new Set());
+      }
+      if (!neighbors.has(b)) {
+        neighbors.set(b, new Set());
+      }
+      neighbors.get(a).add(b);
+      neighbors.get(b).add(a);
+    });
+    return neighbors;
+  }
+
+  function smoothSubD(subd, steps = 0) {
+    const normalized = normalizeSubD(subd);
+    if (!normalized || steps <= 0) {
+      return normalized;
+    }
+    const result = cloneSubD(normalized);
+    const neighbors = collectVertexNeighbors(result);
+    for (let step = 0; step < steps; step += 1) {
+      const newPositions = result.vertices.map((vertex) => vertex.point.clone());
+      result.vertices.forEach((vertex, index) => {
+        const adjacency = neighbors.get(index);
+        const isBoundary = (result.edges ?? []).some((edge) => {
+          if (!edge.vertices.includes(index)) {
+            return false;
+          }
+          return edge.tag === 'crease' || edge.faces.length <= 1;
+        });
+        if (vertex.tag === 'corner' || vertex.tag === 'dart' || isBoundary || !adjacency || !adjacency.size) {
+          return;
+        }
+        const average = new THREE.Vector3();
+        adjacency.forEach((neighborId) => {
+          const neighbor = result.vertices[neighborId];
+          if (neighbor) {
+            average.add(neighbor.point);
+          }
+        });
+        average.multiplyScalar(1 / adjacency.size);
+        newPositions[index] = vertex.point.clone().lerp(average, 0.5);
+      });
+      result.vertices.forEach((vertex, index) => {
+        vertex.point.copy(newPositions[index]);
+      });
+    }
+    return result;
+  }
+
+  function edgeToLineSegment(edge, vertices) {
+    if (!edge || !Array.isArray(edge.vertices) || edge.vertices.length < 2) {
+      return null;
+    }
+    const start = vertices[edge.vertices[0]]?.point ?? new THREE.Vector3();
+    const end = vertices[edge.vertices[1]]?.point ?? new THREE.Vector3(1, 0, 0);
+    const direction = end.clone().sub(start);
+    const length = direction.length();
+    const safeDirection = length > EPSILON ? direction.clone().divideScalar(length) : new THREE.Vector3(1, 0, 0);
+    return {
+      type: 'line',
+      start: start.clone(),
+      end: end.clone(),
+      length,
+      direction: safeDirection,
+    };
+  }
+
+  function edgeToPolyline(edge, vertices) {
+    if (!edge || !Array.isArray(edge.vertices) || edge.vertices.length < 2) {
+      return null;
+    }
+    const points = edge.vertices.map((id) => vertices[id]?.point.clone() ?? new THREE.Vector3());
+    return {
+      type: 'polyline',
+      points,
+      closed: false,
+      length: computePolylineLength(points, false),
+      tag: edge.tag ?? 'smooth',
+    };
+  }
+
+  function createMeshFromSubD(subd, { triangulate = true, metadata = {} } = {}) {
+    const normalized = normalizeSubD(subd);
+    if (!normalized) {
+      return null;
+    }
+    const vertices = normalized.vertices.map((vertex) => vertex.point.clone());
+    const faces = [];
+    normalized.faces.forEach((face) => {
+      if (!face.vertices || face.vertices.length < 3) {
+        return;
+      }
+      if (!triangulate) {
+        faces.push(face.vertices.slice());
+        return;
+      }
+      for (let i = 1; i < face.vertices.length - 1; i += 1) {
+        faces.push([face.vertices[0], face.vertices[i], face.vertices[i + 1]]);
+      }
+    });
+    let geometry = null;
+    if (vertices.length) {
+      const positionArray = new Float32Array(vertices.length * 3);
+      vertices.forEach((vertex, index) => {
+        positionArray[index * 3] = vertex.x;
+        positionArray[index * 3 + 1] = vertex.y;
+        positionArray[index * 3 + 2] = vertex.z;
+      });
+      geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+      if (faces.length) {
+        const indexArray = new Uint32Array(faces.length * 3);
+        faces.forEach((face, faceIndex) => {
+          indexArray[faceIndex * 3] = face[0];
+          indexArray[faceIndex * 3 + 1] = face[1];
+          indexArray[faceIndex * 3 + 2] = face[2];
+        });
+        geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
+        geometry.computeVertexNormals();
+      }
+    }
+    return {
+      type: 'mesh',
+      vertices,
+      faces,
+      geometry,
+      metadata: { ...metadata, source: 'subd' },
+    };
+  }
+
+  function createControlPolygonFromSubD(subd) {
+    const normalized = normalizeSubD(subd);
+    if (!normalized) {
+      return null;
+    }
+    const edges = normalized.edges.map((edge) => ({
+      id: edge.id,
+      line: edgeToLineSegment(edge, normalized.vertices),
+      tag: edge.tag,
+    }));
+    return {
+      type: 'mesh',
+      edges,
+      vertices: normalized.vertices.map((vertex) => vertex.point.clone()),
+      metadata: { ...(normalized.metadata ?? {}), controlPolygon: true },
+    };
+  }
+
+  function isMeshCandidate(input) {
+    if (!input || typeof input !== 'object') {
+      return false;
+    }
+    if (input.type === 'mesh') {
+      return true;
+    }
+    if (input.isBufferGeometry || input.isGeometry) {
+      return true;
+    }
+    if (Array.isArray(input.vertices) && Array.isArray(input.faces)) {
+      return true;
+    }
+    if (input.geometry) {
+      return isMeshCandidate(input.geometry);
+    }
+    return false;
+  }
+
+  function extractMeshPolygons(input) {
+    if (!input) {
+      return [];
+    }
+    if (input.type === 'mesh' && Array.isArray(input.vertices) && Array.isArray(input.faces)) {
+      return input.faces.map((face) => face.map((id) => cloneVector(input.vertices[id])));
+    }
+    if (input.geometry) {
+      return extractMeshPolygons(input.geometry);
+    }
+    if (input.isBufferGeometry && input.attributes?.position) {
+      const position = input.attributes.position;
+      const points = [];
+      for (let i = 0; i < position.count; i += 1) {
+        points.push(new THREE.Vector3(position.getX(i), position.getY(i), position.getZ(i)));
+      }
+      const polygons = [];
+      if (input.index) {
+        const indexArray = input.index.array;
+        for (let i = 0; i < indexArray.length; i += 3) {
+          polygons.push([
+            points[indexArray[i]].clone(),
+            points[indexArray[i + 1]].clone(),
+            points[indexArray[i + 2]].clone(),
+          ]);
+        }
+      } else {
+        for (let i = 0; i < points.length; i += 3) {
+          polygons.push([
+            points[i].clone(),
+            points[i + 1] ? points[i + 1].clone() : points[i].clone(),
+            points[i + 2] ? points[i + 2].clone() : points[i].clone(),
+          ]);
+        }
+      }
+      return polygons;
+    }
+    if (input.isGeometry && Array.isArray(input.faces) && Array.isArray(input.vertices)) {
+      return input.faces.map((face) => {
+        const ids = [face.a, face.b, face.c].filter((id) => Number.isFinite(id));
+        return ids.map((id) => cloneVector(input.vertices[id]));
+      });
+    }
+    if (Array.isArray(input)) {
+      return input
+        .map((face) => (Array.isArray(face) ? face.map((pt) => cloneVector(pt)) : null))
+        .filter(Boolean);
+    }
+    return [];
+  }
+
+  function createSubDFromMesh(input, options = {}) {
+    if (!isMeshCandidate(input)) {
+      return null;
+    }
+    const polygons = extractMeshPolygons(input);
+    if (!polygons.length) {
+      return null;
+    }
+    const subd = createSubDFromPolygons(polygons, options);
+    return subd;
+  }
+
+  function createSubDBox(boxInput, { density = 1, creases = false } = {}) {
+    const box = ensureBoxData(boxInput);
+    if (!box) {
+      return null;
+    }
+    const plane = box.plane ?? defaultPlane();
+    const localMin = box.localMin ?? new THREE.Vector3();
+    const localMax = box.localMax ?? new THREE.Vector3(1, 1, 1);
+    const segments = Math.max(1, Math.round(density));
+    const xs = [];
+    const ys = [];
+    const zs = [];
+    for (let i = 0; i <= segments; i += 1) {
+      const t = i / segments;
+      xs.push(localMin.x + (localMax.x - localMin.x) * t);
+      ys.push(localMin.y + (localMax.y - localMin.y) * t);
+      zs.push(localMin.z + (localMax.z - localMin.z) * t);
+    }
+    function toWorld(x, y, z) {
+      return applyPlane(plane, x, y, z);
+    }
+    const polygons = [];
+    for (let iy = 0; iy < ys.length - 1; iy += 1) {
+      for (let ix = 0; ix < xs.length - 1; ix += 1) {
+        polygons.push([
+          toWorld(xs[ix], ys[iy], localMin.z),
+          toWorld(xs[ix + 1], ys[iy], localMin.z),
+          toWorld(xs[ix + 1], ys[iy + 1], localMin.z),
+          toWorld(xs[ix], ys[iy + 1], localMin.z),
+        ]);
+        polygons.push([
+          toWorld(xs[ix], ys[iy], localMax.z),
+          toWorld(xs[ix + 1], ys[iy], localMax.z),
+          toWorld(xs[ix + 1], ys[iy + 1], localMax.z),
+          toWorld(xs[ix], ys[iy + 1], localMax.z),
+        ]);
+      }
+    }
+    for (let iz = 0; iz < zs.length - 1; iz += 1) {
+      for (let ix = 0; ix < xs.length - 1; ix += 1) {
+        polygons.push([
+          toWorld(xs[ix], localMin.y, zs[iz]),
+          toWorld(xs[ix + 1], localMin.y, zs[iz]),
+          toWorld(xs[ix + 1], localMin.y, zs[iz + 1]),
+          toWorld(xs[ix], localMin.y, zs[iz + 1]),
+        ]);
+        polygons.push([
+          toWorld(xs[ix], localMax.y, zs[iz]),
+          toWorld(xs[ix + 1], localMax.y, zs[iz]),
+          toWorld(xs[ix + 1], localMax.y, zs[iz + 1]),
+          toWorld(xs[ix], localMax.y, zs[iz + 1]),
+        ]);
+      }
+    }
+    for (let iz = 0; iz < zs.length - 1; iz += 1) {
+      for (let iy = 0; iy < ys.length - 1; iy += 1) {
+        polygons.push([
+          toWorld(localMin.x, ys[iy], zs[iz]),
+          toWorld(localMin.x, ys[iy + 1], zs[iz]),
+          toWorld(localMin.x, ys[iy + 1], zs[iz + 1]),
+          toWorld(localMin.x, ys[iy], zs[iz + 1]),
+        ]);
+        polygons.push([
+          toWorld(localMax.x, ys[iy], zs[iz]),
+          toWorld(localMax.x, ys[iy + 1], zs[iz]),
+          toWorld(localMax.x, ys[iy + 1], zs[iz + 1]),
+          toWorld(localMax.x, ys[iy], zs[iz + 1]),
+        ]);
+      }
+    }
+    const subd = createSubDFromPolygons(polygons, {
+      metadata: {
+        type: 'box',
+        density: segments,
+        creases,
+      },
+    });
+    if (creases) {
+      const idSet = new Set();
+      subd.edges.forEach((edge) => {
+        if (edge.faces.length <= 1) {
+          idSet.add(edge.id);
+        }
+      });
+      idSet.forEach((edgeId) => {
+        const edge = subd.edges[edgeId];
+        if (edge) {
+          edge.tag = 'crease';
+        }
+      });
+    }
+    return subd;
+  }
+
+  function collectPipePath(curveInput, segments = 16) {
+    const sample = sampleCurvePoints(curveInput, segments);
+    if (!sample.points.length) {
+      return null;
+    }
+    return sample;
+  }
+
+  function determineNodeSizeMap(points, nodeSizeInput, sizePointsInput) {
+    const defaultRadius = Math.max(Math.abs(ensureNumeric(nodeSizeInput, 1)), EPSILON);
+    const map = new Map();
+    points.forEach((point, index) => {
+      map.set(index, defaultRadius);
+    });
+    const explicitSizes = ensureArray(nodeSizeInput);
+    const sizePoints = ensureArray(sizePointsInput);
+    if (explicitSizes.length && sizePoints.length && explicitSizes.length === sizePoints.length) {
+      const tolerance = SUBD_DEFAULT_TOLERANCE * SUBD_DEFAULT_TOLERANCE;
+      sizePoints.forEach((sizePoint, index) => {
+        const point = cloneVector(sizePoint);
+        let bestIndex = -1;
+        let bestDistance = Number.POSITIVE_INFINITY;
+        points.forEach((candidate, candidateIndex) => {
+          const distance = candidate.distanceToSquared(point);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = candidateIndex;
+          }
+        });
+        if (bestIndex >= 0 && bestDistance <= tolerance) {
+          const value = ensureNumeric(explicitSizes[index], defaultRadius);
+          map.set(bestIndex, Math.max(Math.abs(value), EPSILON));
+        }
+      });
+    }
+    return { map, defaultRadius };
+  }
+
+  function createPipeSubD(curvesInput, options = {}) {
+    const curves = ensureArray(curvesInput);
+    const polygons = [];
+    const metadata = { type: 'pipe', options };
+    for (const curve of curves) {
+      const sample = collectPipePath(curve, options.segments ?? DEFAULT_CURVE_SEGMENTS);
+      if (!sample) {
+        continue;
+      }
+      const frames = createFramesAlongPath(sample.points, sample.points.length >= 2 ? {
+        origin: sample.points[0],
+        xAxis: new THREE.Vector3(1, 0, 0),
+        yAxis: new THREE.Vector3(0, 1, 0),
+        zAxis: new THREE.Vector3(0, 0, 1),
+      } : defaultPlane(), { closed: sample.closed });
+      const nodeData = determineNodeSizeMap(sample.points, options.nodeSize ?? options.radius ?? 1, options.sizePoints);
+      const segments = Math.max(3, Math.round(options.circleSegments ?? SUBD_DEFAULT_PIPE_SEGMENTS));
+      const ringPoints = [];
+      for (let i = 0; i < sample.points.length; i += 1) {
+        const frame = frames[i] ?? frames[frames.length - 1];
+        const radius = nodeData.map.get(i) ?? nodeData.defaultRadius;
+        const circle = [];
+        for (let segment = 0; segment < segments; segment += 1) {
+          const angle = (segment / segments) * Math.PI * 2;
+          const offset = frame.xAxis.clone().multiplyScalar(Math.cos(angle) * radius)
+            .add(frame.yAxis.clone().multiplyScalar(Math.sin(angle) * radius));
+          circle.push(sample.points[i].clone().add(offset));
+        }
+        ringPoints.push(circle);
+      }
+      for (let i = 0; i < ringPoints.length - 1; i += 1) {
+        const ringA = ringPoints[i];
+        const ringB = ringPoints[i + 1];
+        for (let segment = 0; segment < segments; segment += 1) {
+          const next = (segment + 1) % segments;
+          polygons.push([
+            ringA[segment],
+            ringA[next],
+            ringB[next],
+            ringB[segment],
+          ]);
+        }
+      }
+      if (options.caps && options.caps > 0 && ringPoints.length) {
+        const startRing = ringPoints[0];
+        const endRing = ringPoints[ringPoints.length - 1];
+        const startCenter = sample.points[0].clone();
+        const endCenter = sample.points[sample.points.length - 1].clone();
+        const startPolygon = startRing.slice().reverse();
+        const endPolygon = endRing.slice();
+        polygons.push(startPolygon);
+        polygons.push(endPolygon);
+        polygons.push(startRing.map((pt) => startCenter.clone()));
+        polygons.push(endRing.map((pt) => endCenter.clone()));
+      }
+    }
+    if (!polygons.length) {
+      return null;
+    }
+    return createSubDFromPolygons(polygons, { metadata });
+  }
+
+  function registerSubDComponents() {
+    register('{048b219e-284a-49f2-ae40-a60465b08447}', {
+      type: 'subd',
+      pinMap: {
+        inputs: {
+          S: 'subd', SubD: 'subd', subd: 'subd',
+          T: 'tag', Tag: 'tag', tag: 'tag', 'Edge Tag': 'tag', edgeTag: 'tag',
+          E: 'edgeIds', 'Edge IDs': 'edgeIds', edgeIds: 'edgeIds',
+        },
+        outputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+      },
+      eval: ({ inputs }) => {
+        const base = ensureSubD(inputs.subd);
+        if (!base) {
+          return {};
+        }
+        const ids = collectIndices(inputs.edgeIds);
+        if (!ids.length) {
+          return { subd: base };
+        }
+        const updated = applyEdgeTags(base, ids, inputs.tag ?? 'smooth');
+        return updated ? { subd: updated } : { subd: base };
+      },
+    });
+
+    register('{10487e4e-a405-48b5-b188-5a8a6328418b}', {
+      type: 'subd',
+      pinMap: {
+        inputs: {
+          B: 'box', Box: 'box', box: 'box',
+          D: 'density', Density: 'density', density: 'density',
+          C: 'crease', Creases: 'crease', creases: 'crease',
+        },
+        outputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+      },
+      eval: ({ inputs }) => {
+        const density = Math.max(1, Math.round(ensureNumeric(inputs.density, 1)));
+        const creases = ensureBoolean(inputs.crease, false);
+        const subd = createSubDBox(inputs.box, { density, creases });
+        return subd ? { subd } : {};
+      },
+    });
+
+    register('{2183c4c6-b5b3-45d2-9261-2096c9357f92}', {
+      type: 'subd',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+        outputs: {
+          L: 'lines', Line: 'lines', lines: 'lines',
+          E: 'edges', Edge: 'edges', edges: 'edges',
+          T: 'tags', Tag: 'tags', tags: 'tags',
+          I: 'ids', Id: 'ids', ids: 'ids',
+        },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return { lines: [], edges: [], tags: [], ids: [] };
+        }
+        const lines = [];
+        const curves = [];
+        const tags = [];
+        const ids = [];
+        (subd.edges ?? []).forEach((edge) => {
+          const line = edgeToLineSegment(edge, subd.vertices);
+          const curve = edgeToPolyline(edge, subd.vertices);
+          if (line) {
+            lines.push(line);
+          }
+          if (curve) {
+            curves.push(curve);
+          }
+          tags.push(edge.tag ?? 'smooth');
+          ids.push(edge.id);
+        });
+        return { lines, edges: curves, tags, ids };
+      },
+    });
+
+    register('{264b4aa6-4915-4a67-86a7-22a5c4acf565}', {
+      type: 'subd',
+      pinMap: {
+        inputs: {
+          A: 'subdA', 'SubD A': 'subdA', subdA: 'subdA',
+          B: 'subdB', 'SubD B': 'subdB', subdB: 'subdB',
+          O: 'option', Option: 'option', option: 'option', 'Boolean Option': 'option',
+          S: 'smoothing', Smoothing: 'smoothing', smoothing: 'smoothing',
+        },
+        outputs: { F: 'subd', Fuse: 'subd', subd: 'subd' },
+      },
+      eval: ({ inputs }) => {
+        const a = ensureSubD(inputs.subdA);
+        const b = ensureSubD(inputs.subdB);
+        if (!a && !b) {
+          return {};
+        }
+        const option = Math.max(0, Math.min(3, Math.round(ensureNumeric(inputs.option, 0)))) || 0;
+        let result = null;
+        if (option === 0) {
+          result = mergeSubDs(a ?? b, b ?? a);
+        } else if (option === 1) {
+          result = intersectSubDs(a ?? b, b ?? a);
+        } else if (option === 2) {
+          result = subtractSubD(a ?? b, b ?? null) ?? a ?? b;
+        } else if (option === 3) {
+          result = subtractSubD(b ?? a, a ?? null) ?? b ?? a;
+        }
+        const smoothing = Math.max(0, Math.round(ensureNumeric(inputs.smoothing, 0)));
+        const fused = smoothing > 0 ? smoothSubD(result, smoothing) : result;
+        return fused ? { subd: fused } : {};
+      },
+    });
+
+    function registerMultiPipe(guid, pinMapInputs) {
+      register(guid, {
+        type: 'subd',
+        pinMap: {
+          inputs: pinMapInputs,
+          outputs: { P: 'subd', Pipe: 'subd', subd: 'subd' },
+        },
+        eval: ({ inputs }) => {
+          const curves = ensureArray(inputs.curves);
+          if (!curves.length) {
+            return {};
+          }
+          const options = {
+            nodeSize: inputs.nodeSize,
+            sizePoints: inputs.sizePoints,
+            endOffset: ensureNumeric(inputs.endOffset, 0),
+            strutSize: ensureNumeric(inputs.strutSize, 1),
+            segment: ensureNumeric(inputs.segment, 0),
+            kinkAngle: ensureNumeric(inputs.kinkAngle, 0),
+            cubeFit: ensureNumeric(inputs.cubeFit, 0),
+            caps: ensureNumeric(inputs.caps, 0),
+          };
+          const subd = createPipeSubD(curves, options);
+          return subd ? { subd } : {};
+        },
+      });
+    }
+
+    registerMultiPipe('{4bfe1bf6-fbc9-4ad2-bf28-a7402e1392ee}', {
+      Curves: 'curves', C: 'curves', curves: 'curves',
+      NodeSize: 'nodeSize', N: 'nodeSize', nodeSize: 'nodeSize',
+      SizePoints: 'sizePoints', SP: 'sizePoints', sizePoints: 'sizePoints',
+      EndOffset: 'endOffset', E: 'endOffset', endOffset: 'endOffset',
+      StrutSize: 'strutSize', SS: 'strutSize', strutSize: 'strutSize',
+      Segment: 'segment', S: 'segment', segment: 'segment',
+      KinkAngle: 'kinkAngle', KA: 'kinkAngle', kinkAngle: 'kinkAngle',
+      CubeFit: 'cubeFit', CF: 'cubeFit', cubeFit: 'cubeFit',
+      Caps: 'caps', cap: 'caps', caps: 'caps',
+    });
+
+    registerMultiPipe('{f1b75016-5818-4ece-be56-065253a2357d}', {
+      C: 'curves', Curves: 'curves', curves: 'curves',
+      N: 'nodeSize', NodeSize: 'nodeSize', nodeSize: 'nodeSize',
+      SP: 'sizePoints', SizePoints: 'sizePoints', sizePoints: 'sizePoints',
+      E: 'endOffset', EndOffset: 'endOffset', endOffset: 'endOffset',
+      SS: 'strutSize', StrutSize: 'strutSize', strutSize: 'strutSize',
+      S: 'segment', Segment: 'segment', segment: 'segment',
+      KA: 'kinkAngle', KinkAngle: 'kinkAngle', kinkAngle: 'kinkAngle',
+      CF: 'cubeFit', CubeFit: 'cubeFit', cubeFit: 'cubeFit',
+      Caps: 'caps', cap: 'caps', caps: 'caps',
+    });
+
+    register('{83c81431-17bc-4bff-bb85-be0a846bd044}', {
+      type: 'subd',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+        outputs: {
+          P: 'points', Point: 'points', points: 'points',
+          C: 'counts', Count: 'counts', counts: 'counts',
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          V: 'vertices', Vertices: 'vertices', vertices: 'vertices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return { points: [], counts: [], edges: [], vertices: [] };
+        }
+        const points = [];
+        const counts = [];
+        const edges = [];
+        const vertices = [];
+        subd.faces.forEach((face) => {
+          points.push(face.centroid.clone());
+          counts.push(face.vertices.length);
+          edges.push(face.edges.slice());
+          vertices.push(face.vertices.slice());
+        });
+        return { points, counts, edges, vertices };
+      },
+    });
+
+    register('{855a2c73-31c0-41d2-b061-57d54229d11b}', {
+      type: 'subd',
+      pinMap: {
+        inputs: {
+          M: 'mesh', Mesh: 'mesh', mesh: 'mesh',
+          Cr: 'creases', Creases: 'creases', creases: 'creases',
+          Co: 'corners', Corners: 'corners', corners: 'corners',
+          I: 'interpolate', Interpolate: 'interpolate', interpolate: 'interpolate',
+        },
+        outputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+      },
+      eval: ({ inputs }) => {
+        const subd = createSubDFromMesh(inputs.mesh, {
+          metadata: {
+            interpolate: ensureBoolean(inputs.interpolate, false),
+          },
+        });
+        if (!subd) {
+          return {};
+        }
+        if (ensureBoolean(inputs.creases, false)) {
+          subd.edges.forEach((edge) => {
+            if (edge.faces.length <= 1) {
+              edge.tag = 'crease';
+            }
+          });
+        }
+        if (ensureBoolean(inputs.corners, false)) {
+          const boundaryVertices = new Set();
+          subd.edges.forEach((edge) => {
+            if (edge.faces.length <= 1) {
+              edge.vertices.forEach((id) => boundaryVertices.add(id));
+            }
+          });
+          subd.vertices.forEach((vertex) => {
+            if (boundaryVertices.has(vertex.id)) {
+              vertex.tag = 'corner';
+            }
+          });
+        }
+        return { subd };
+      },
+    });
+
+    register('{954a8963-bb2c-4847-9012-69ff34acddd5}', {
+      type: 'subd',
+      pinMap: {
+        inputs: {
+          S: 'subd', SubD: 'subd', subd: 'subd',
+          T: 'tag', Tag: 'tag', tag: 'tag', 'Vertex Tag': 'tag', vertexTag: 'tag',
+          V: 'vertexIds', 'Vertex IDs': 'vertexIds', vertexIds: 'vertexIds',
+        },
+        outputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+      },
+      eval: ({ inputs }) => {
+        const base = ensureSubD(inputs.subd);
+        if (!base) {
+          return {};
+        }
+        const ids = collectIndices(inputs.vertexIds);
+        if (!ids.length) {
+          return { subd: base };
+        }
+        const updated = applyVertexTags(base, ids, inputs.tag ?? 'smooth');
+        return updated ? { subd: updated } : { subd: base };
+      },
+    });
+
+    register('{c0b3c6e9-d05d-4c51-a0df-1ce2678c7a33}', {
+      type: 'mesh',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd', D: 'density', Density: 'density', density: 'density' },
+        outputs: { M: 'mesh', Mesh: 'mesh', mesh: 'mesh' },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return {};
+        }
+        const mesh = createMeshFromSubD(subd, {
+          metadata: { density: Math.max(0, Math.round(ensureNumeric(inputs.density, 0))) },
+        });
+        return mesh ? { mesh } : {};
+      },
+    });
+
+    register('{c1a57c2a-11c5-4f77-851e-0a7dffef848e}', {
+      type: 'mesh',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+        outputs: { M: 'mesh', Mesh: 'mesh', mesh: 'mesh' },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return {};
+        }
+        const mesh = createControlPolygonFromSubD(subd);
+        return mesh ? { mesh } : {};
+      },
+    });
+
+    register('{cd9efa8f-0084-4d52-ab13-ad88ff22dc46}', {
+      type: 'subd',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+        outputs: {
+          P: 'points', Point: 'points', points: 'points',
+          I: 'ids', Id: 'ids', ids: 'ids',
+        },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return { points: [], ids: [] };
+        }
+        const points = subd.vertices.map((vertex) => vertex.point.clone());
+        const ids = subd.vertices.map((vertex) => vertex.id);
+        return { points, ids };
+      },
+    });
+
+    register('{fc8ad805-2cbf-4447-b41b-50c0be591fcd}', {
+      type: 'subd',
+      pinMap: {
+        inputs: { S: 'subd', SubD: 'subd', subd: 'subd' },
+        outputs: {
+          P: 'points', Point: 'points', points: 'points',
+          I: 'ids', Id: 'ids', ids: 'ids',
+          T: 'tags', Tag: 'tags', tags: 'tags',
+        },
+      },
+      eval: ({ inputs }) => {
+        const subd = ensureSubD(inputs.subd);
+        if (!subd) {
+          return { points: [], ids: [], tags: [] };
+        }
+        const points = subd.vertices.map((vertex) => vertex.point.clone());
+        const ids = subd.vertices.map((vertex) => vertex.id);
+        const tags = subd.vertices.map((vertex) => vertex.tag ?? 'smooth');
+        return { points, ids, tags };
+      },
+    });
+  }
+
   function registerFreeformComponents() {
     register('{45f19d16-1c9f-4b0f-a9a6-45a77f3d206c}', {
       type: 'surface',
@@ -4889,4 +6189,8 @@ export function registerSurfaceFreeformComponents(args) {
 
 export function registerSurfaceAnalysisComponents(args) {
   registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_ANALYSIS_ONLY });
+}
+
+export function registerSurfaceSubDComponents(args) {
+  registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_SUBD_ONLY });
 }
