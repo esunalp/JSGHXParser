@@ -248,6 +248,7 @@ registerSurfaceFreeformComponents({ register, toNumber, toVector3 });
 registerSurfaceUtilComponents({ register, toNumber, toVector3 });
 registerTransformEuclideanComponents({ register, toNumber, toVector3 });
 registerTransformAffineComponents({ register, toNumber, toVector3 });
+registerTransformMorphComponents({ register, toNumber, toVector3 });
 registerTransformUtilComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
