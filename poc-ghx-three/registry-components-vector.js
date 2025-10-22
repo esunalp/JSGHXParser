@@ -11,7 +11,11 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     throw new Error('toVector3 function is required to register vector point components.');
   }
 
-  const { includePointComponents = true, includePlaneComponents = false } = options;
+  const {
+    includeFieldComponents = true,
+    includePointComponents = true,
+    includePlaneComponents = false,
+  } = options;
 
   const EPSILON = 1e-9;
 
@@ -2193,430 +2197,432 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     });
   }
 
-  // Field subcategory components
-  register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
-    type: 'display',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        S: 'section', section: 'section', Section: 'section',
-        N: 'samples', samples: 'samples', Samples: 'samples',
-      },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'tensor', { name: 'tensor-display' });
-      return mesh ? { mesh } : {};
-    },
-  });
-
-  register(['{4b59e893-d4ee-4e31-ae24-a489611d1088}', 'spin force', 'fspin'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        P: 'plane', plane: 'plane', Plane: 'plane',
-        S: 'strength', strength: 'strength', Strength: 'strength',
-        R: 'radius', radius: 'radius', Radius: 'radius',
-        D: 'decay', decay: 'decay', Decay: 'decay',
-        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
-      },
-      outputs: { F: 'field', field: 'field', Field: 'field' },
-    },
-    eval: ({ inputs }) => {
-      const plane = ensurePlane(inputs.plane);
-      const planeData = createPlaneInstance(plane);
-      const strength = toNumber(inputs.strength, 1);
-      const radius = Math.max(EPSILON, Math.abs(toNumber(inputs.radius, 5)));
-      const decay = Math.max(0, toNumber(inputs.decay, 1));
-      const bounds = ensureBounds(inputs.bounds);
-
-      const influence = {
-        type: 'spin',
-        bounds,
-        params: { plane: planeData, strength, radius, decay },
-        evaluate: (point) => {
-          const coords = planeCoordinates(point, planeData);
-          const radial = planeData.xAxis.clone().multiplyScalar(coords.u).add(planeData.yAxis.clone().multiplyScalar(coords.v));
-          const radialLength = radial.length();
-          if (radialLength < EPSILON) {
-            return { vector: new THREE.Vector3(), strength: 0 };
-          }
-          const normal = planeData.zAxis.clone().normalize();
-          let tangent = normal.clone().cross(radial);
-          if (tangent.lengthSq() < EPSILON) {
-            tangent = planeData.xAxis.clone();
-          }
-          tangent.normalize();
-          const normalizedDistance = radialLength / radius;
-          const decayPower = decay > 0 ? decay : 1;
-          const falloff = 1 / (1 + Math.pow(normalizedDistance, decayPower));
-          const verticalFalloff = 1 / (1 + Math.abs(coords.w) / (radius || 1));
-          const magnitude = strength * falloff * verticalFalloff;
-          return {
-            vector: tangent.multiplyScalar(magnitude),
-            strength: Math.abs(magnitude),
-          };
+  if (includeFieldComponents) {
+    // Field subcategory components
+    register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
+      type: 'display',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', samples: 'samples', Samples: 'samples',
         },
-      };
-
-      const field = createField([influence], { bounds, metadata: { type: 'spin' } });
-      return { field };
-    },
-  });
-
-  register(['{55f9ce6a-490c-4f25-a536-a3d47b794752}', 'scalar display', 'fscalar'], {
-    type: 'display',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        S: 'section', section: 'section', Section: 'section',
-        N: 'samples', samples: 'samples', Samples: 'samples',
       },
-      outputs: { D: 'display', display: 'display', Display: 'display' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'scalar', { name: 'scalar-display' });
-      if (!mesh) {
-        return { display: null };
-      }
-      return { display: mesh, mesh };
-    },
-  });
-
-  register(['{5ba20fab-6d71-48ea-a98f-cb034db6bbdc}', 'direction display', 'fdir'], {
-    type: 'display',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        S: 'section', section: 'section', Section: 'section',
-        N: 'samples', samples: 'samples', Samples: 'samples',
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'tensor', { name: 'tensor-display' });
+        return mesh ? { mesh } : {};
       },
-      outputs: { D: 'display', display: 'display', Display: 'display' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'direction', { name: 'direction-display' });
-      if (!mesh) {
-        return { display: null };
-      }
-      return { display: mesh, mesh };
-    },
-  });
+    });
 
-  register(['{8cc9eb88-26a7-4baa-a896-13e5fc12416a}', 'line charge', 'lcharge'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        L: 'line', line: 'line', Line: 'line',
-        C: 'charge', charge: 'charge', Charge: 'charge',
-        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+    register(['{4b59e893-d4ee-4e31-ae24-a489611d1088}', 'spin force', 'fspin'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          P: 'plane', plane: 'plane', Plane: 'plane',
+          S: 'strength', strength: 'strength', Strength: 'strength',
+          R: 'radius', radius: 'radius', Radius: 'radius',
+          D: 'decay', decay: 'decay', Decay: 'decay',
+          B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+        },
+        outputs: { F: 'field', field: 'field', Field: 'field' },
       },
-      outputs: { F: 'field', field: 'field', Field: 'field' },
-    },
-    eval: ({ inputs }) => {
-      const line = ensureLine(inputs.line);
-      const charge = toNumber(inputs.charge, 1);
-      const bounds = ensureBounds(inputs.bounds);
-      const lineData = {
-        start: line.start.clone(),
-        end: line.end.clone(),
-        direction: line.direction.clone(),
-      };
-      const lengthSq = lineData.direction.lengthSq();
-      const unitDir = lengthSq > EPSILON ? lineData.direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        const planeData = createPlaneInstance(plane);
+        const strength = toNumber(inputs.strength, 1);
+        const radius = Math.max(EPSILON, Math.abs(toNumber(inputs.radius, 5)));
+        const decay = Math.max(0, toNumber(inputs.decay, 1));
+        const bounds = ensureBounds(inputs.bounds);
 
-      const influence = {
-        type: 'line-charge',
-        bounds,
-        params: { line: lineData, charge },
-        evaluate: (point) => {
-          const ap = point.clone().sub(lineData.start);
-          const denom = lengthSq > EPSILON ? lengthSq : 1;
-          let t = denom ? ap.dot(lineData.direction) / denom : 0;
-          t = THREE.MathUtils.clamp(t, 0, 1);
-          const closest = lineData.start.clone().add(lineData.direction.clone().multiplyScalar(t));
-          const offset = point.clone().sub(closest);
-          let distance = offset.length();
-          let direction = offset;
-          if (distance < EPSILON) {
-            direction = unitDir.clone().cross(new THREE.Vector3(0, 0, 1));
-            if (direction.lengthSq() < EPSILON) {
-              direction = unitDir.clone().cross(new THREE.Vector3(0, 1, 0));
+        const influence = {
+          type: 'spin',
+          bounds,
+          params: { plane: planeData, strength, radius, decay },
+          evaluate: (point) => {
+            const coords = planeCoordinates(point, planeData);
+            const radial = planeData.xAxis.clone().multiplyScalar(coords.u).add(planeData.yAxis.clone().multiplyScalar(coords.v));
+            const radialLength = radial.length();
+            if (radialLength < EPSILON) {
+              return { vector: new THREE.Vector3(), strength: 0 };
             }
-            if (direction.lengthSq() < EPSILON) {
-              direction = new THREE.Vector3(0, 0, 1);
+            const normal = planeData.zAxis.clone().normalize();
+            let tangent = normal.clone().cross(radial);
+            if (tangent.lengthSq() < EPSILON) {
+              tangent = planeData.xAxis.clone();
             }
-            direction.normalize();
-            distance = EPSILON;
-          } else {
-            direction = direction.clone().normalize();
-          }
-          const magnitude = charge / (1 + distance);
-          return { vector: direction.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+            tangent.normalize();
+            const normalizedDistance = radialLength / radius;
+            const decayPower = decay > 0 ? decay : 1;
+            const falloff = 1 / (1 + Math.pow(normalizedDistance, decayPower));
+            const verticalFalloff = 1 / (1 + Math.abs(coords.w) / (radius || 1));
+            const magnitude = strength * falloff * verticalFalloff;
+            return {
+              vector: tangent.multiplyScalar(magnitude),
+              strength: Math.abs(magnitude),
+            };
+          },
+        };
+
+        const field = createField([influence], { bounds, metadata: { type: 'spin' } });
+        return { field };
+      },
+    });
+
+    register(['{55f9ce6a-490c-4f25-a536-a3d47b794752}', 'scalar display', 'fscalar'], {
+      type: 'display',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', samples: 'samples', Samples: 'samples',
         },
-      };
-
-      const field = createField([influence], { bounds, metadata: { type: 'line-charge' } });
-      return { field };
-    },
-  });
-
-  register(['{a7c9f738-f8bd-4f64-8e7f-33341183e493}', 'evaluate field', 'evf'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        P: 'point', point: 'point', Point: 'point',
+        outputs: { D: 'display', display: 'display', Display: 'display' },
       },
-      outputs: { T: 'tensor', tensor: 'tensor', S: 'strength', strength: 'strength', Strength: 'strength' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      if (inputs.point === undefined || inputs.point === null) {
-        return { tensor: defaultFieldEvaluation().tensor, strength: 0 };
-      }
-      const samplePoint = toVector3(inputs.point, new THREE.Vector3());
-      const evaluation = evaluateFieldAtPoint(field, samplePoint);
-      return { tensor: evaluation.tensor, strength: evaluation.strength };
-    },
-  });
-
-  register(['{add6be3e-c57f-4740-96e4-5680abaa9169}', 'field line', 'fline'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        P: 'point', point: 'point', Point: 'point',
-        N: 'steps', steps: 'steps', Steps: 'steps',
-        A: 'stepSize', accuracy: 'stepSize', Accuracy: 'stepSize',
-        M: 'method', method: 'method', Method: 'method',
-      },
-      outputs: { C: 'curve', curve: 'curve', Curve: 'curve', P: 'points', points: 'points', Points: 'points' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      if (!field) {
-        return { curve: null, points: [] };
-      }
-      const start = toVector3(inputs.point, new THREE.Vector3());
-      const steps = Math.max(1, Math.round(toNumber(inputs.steps, 50)));
-      const stepSize = Math.max(EPSILON, Math.abs(toNumber(inputs.stepSize, 0.5)));
-      const methodRaw = Math.round(toNumber(inputs.method, 4));
-      const method = THREE.MathUtils.clamp(methodRaw, 1, 4);
-
-      function normalizedDirection(point) {
-        const evaluation = evaluateFieldAtPoint(field, point);
-        const vector = evaluation.vector.clone();
-        const length = vector.length();
-        if (length < EPSILON) {
-          return new THREE.Vector3();
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'scalar', { name: 'scalar-display' });
+        if (!mesh) {
+          return { display: null };
         }
-        return vector.divideScalar(length);
-      }
-
-      const points = [start.clone()];
-      let current = start.clone();
-
-      for (let index = 0; index < steps; index += 1) {
-        let delta = new THREE.Vector3();
-        switch (method) {
-          case 1: {
-            delta = normalizedDirection(current).multiplyScalar(stepSize);
-            break;
-          }
-          case 2: {
-            const k1 = normalizedDirection(current).multiplyScalar(stepSize / 2);
-            const mid = current.clone().add(k1);
-            const k2 = normalizedDirection(mid).multiplyScalar(stepSize);
-            delta = k2;
-            break;
-          }
-          case 3: {
-            const k1 = normalizedDirection(current).multiplyScalar(stepSize);
-            const predictor = current.clone().add(k1);
-            const k2 = normalizedDirection(predictor).multiplyScalar(stepSize);
-            delta = k1.add(k2).multiplyScalar(0.5);
-            break;
-          }
-          default: {
-            const k1 = normalizedDirection(current);
-            const k2 = normalizedDirection(current.clone().add(k1.clone().multiplyScalar(stepSize / 2)));
-            const k3 = normalizedDirection(current.clone().add(k2.clone().multiplyScalar(stepSize / 2)));
-            const k4 = normalizedDirection(current.clone().add(k3.clone().multiplyScalar(stepSize)));
-            delta = k1
-              .clone()
-              .add(k2.clone().multiplyScalar(2))
-              .add(k3.clone().multiplyScalar(2))
-              .add(k4)
-              .multiplyScalar(stepSize / 6);
-            break;
-          }
-        }
-
-        if (delta.lengthSq() < EPSILON) {
-          break;
-        }
-        current = current.clone().add(delta);
-        points.push(current.clone());
-      }
-
-      const curve = points.length > 1 ? new THREE.CatmullRomCurve3(points) : null;
-      return { curve, points };
-    },
-  });
-
-  register(['{b27d53bc-e713-475d-81fd-71cdd8de2e58}', 'break field', 'breakf'], {
-    type: 'field',
-    pinMap: {
-      inputs: { F: 'field', field: 'field', Field: 'field' },
-      outputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      if (!field) {
-        return { fields: [] };
-      }
-      const parts = field.influences?.map?.((influence) => createField([influence], {
-        bounds: mergeBounds(field.bounds ?? null, influence.bounds ?? null),
-        metadata: influence.metadata ?? {},
-      })) ?? [];
-      return { fields: parts };
-    },
-  });
-
-  register(['{bf106e4c-68f4-476f-b05b-9c15fb50e078}', 'perpendicular display', 'fperp'], {
-    type: 'display',
-    pinMap: {
-      inputs: {
-        F: 'field', field: 'field', Field: 'field',
-        S: 'section', section: 'section', Section: 'section',
-        N: 'samples', samples: 'samples', Samples: 'samples',
-        'C+': 'positiveColor', Cplus: 'positiveColor', positive: 'positiveColor',
-        'C-': 'negativeColor', Cminus: 'negativeColor', negative: 'negativeColor',
+        return { display: mesh, mesh };
       },
-      outputs: { D: 'display', display: 'display', Display: 'display' },
-    },
-    eval: ({ inputs }) => {
-      const [field] = collectFields(inputs.field);
-      const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'perpendicular', {
-        name: 'perpendicular-display',
-        positiveColor: inputs.positiveColor,
-        negativeColor: inputs.negativeColor,
-      });
-      if (!mesh) {
-        return { display: null };
-      }
-      return { display: mesh, mesh };
-    },
-  });
+    });
 
-  register(['{cffdbaf3-8d33-4b38-9cad-c264af9fc3f4}', 'point charge', 'pcharge'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        P: 'point', point: 'point', Point: 'point',
-        C: 'charge', charge: 'charge', Charge: 'charge',
-        D: 'decay', decay: 'decay', Decay: 'decay',
-        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
-      },
-      outputs: { F: 'field', field: 'field', Field: 'field' },
-    },
-    eval: ({ inputs }) => {
-      const position = toVector3(inputs.point, new THREE.Vector3());
-      const charge = toNumber(inputs.charge, 1);
-      const decay = Math.max(0, toNumber(inputs.decay, 2));
-      const bounds = ensureBounds(inputs.bounds);
-
-      const influence = {
-        type: 'point-charge',
-        bounds,
-        params: { position, charge, decay },
-        evaluate: (point) => {
-          const direction = point.clone().sub(position);
-          let distance = direction.length();
-          if (distance < EPSILON) {
-            distance = EPSILON;
-          }
-          const normalized = direction.divideScalar(distance);
-          const falloffPower = decay > 0 ? decay : 1;
-          const magnitude = charge / (1 + Math.pow(distance, falloffPower));
-          return { vector: normalized.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+    register(['{5ba20fab-6d71-48ea-a98f-cb034db6bbdc}', 'direction display', 'fdir'], {
+      type: 'display',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', samples: 'samples', Samples: 'samples',
         },
-      };
-
-      const field = createField([influence], { bounds, metadata: { type: 'point-charge' } });
-      return { field };
-    },
-  });
-
-  register(['{d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9}', 'vector force', 'fvector'], {
-    type: 'field',
-    pinMap: {
-      inputs: {
-        L: 'line', line: 'line', Line: 'line',
-        B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+        outputs: { D: 'display', display: 'display', Display: 'display' },
       },
-      outputs: { F: 'field', field: 'field', Field: 'field' },
-    },
-    eval: ({ inputs }) => {
-      const line = ensureLine(inputs.line);
-      const bounds = ensureBounds(inputs.bounds);
-      const direction = line.direction.clone();
-      const length = direction.length();
-      const unitDir = length > EPSILON ? direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
-      const lengthSq = direction.lengthSq();
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'direction', { name: 'direction-display' });
+        if (!mesh) {
+          return { display: null };
+        }
+        return { display: mesh, mesh };
+      },
+    });
 
-      const influence = {
-        type: 'vector-force',
-        bounds,
-        params: { line: { start: line.start.clone(), end: line.end.clone(), direction: direction.clone() } },
-        evaluate: (point) => {
-          const ap = point.clone().sub(line.start);
-          const denom = lengthSq > EPSILON ? lengthSq : 1;
-          let t = denom ? ap.dot(direction) / denom : 0;
-          t = THREE.MathUtils.clamp(t, 0, 1);
-          const closest = line.start.clone().add(direction.clone().multiplyScalar(t));
-          const distance = point.distanceTo(closest);
-          const falloff = 1 / (1 + distance);
-          const magnitude = (length > EPSILON ? length : 1) * falloff;
-          return { vector: unitDir.clone().multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+    register(['{8cc9eb88-26a7-4baa-a896-13e5fc12416a}', 'line charge', 'lcharge'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          L: 'line', line: 'line', Line: 'line',
+          C: 'charge', charge: 'charge', Charge: 'charge',
+          B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
         },
-      };
+        outputs: { F: 'field', field: 'field', Field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const line = ensureLine(inputs.line);
+        const charge = toNumber(inputs.charge, 1);
+        const bounds = ensureBounds(inputs.bounds);
+        const lineData = {
+          start: line.start.clone(),
+          end: line.end.clone(),
+          direction: line.direction.clone(),
+        };
+        const lengthSq = lineData.direction.lengthSq();
+        const unitDir = lengthSq > EPSILON ? lineData.direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
 
-      const field = createField([influence], { bounds, metadata: { type: 'vector-force' } });
-      return { field };
-    },
-  });
+        const influence = {
+          type: 'line-charge',
+          bounds,
+          params: { line: lineData, charge },
+          evaluate: (point) => {
+            const ap = point.clone().sub(lineData.start);
+            const denom = lengthSq > EPSILON ? lengthSq : 1;
+            let t = denom ? ap.dot(lineData.direction) / denom : 0;
+            t = THREE.MathUtils.clamp(t, 0, 1);
+            const closest = lineData.start.clone().add(lineData.direction.clone().multiplyScalar(t));
+            const offset = point.clone().sub(closest);
+            let distance = offset.length();
+            let direction = offset;
+            if (distance < EPSILON) {
+              direction = unitDir.clone().cross(new THREE.Vector3(0, 0, 1));
+              if (direction.lengthSq() < EPSILON) {
+                direction = unitDir.clone().cross(new THREE.Vector3(0, 1, 0));
+              }
+              if (direction.lengthSq() < EPSILON) {
+                direction = new THREE.Vector3(0, 0, 1);
+              }
+              direction.normalize();
+              distance = EPSILON;
+            } else {
+              direction = direction.clone().normalize();
+            }
+            const magnitude = charge / (1 + distance);
+            return { vector: direction.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+          },
+        };
 
-  register(['{d9a6fbd2-2e9f-472e-8147-33bf0233a115}', 'merge fields', 'mergef'], {
-    type: 'field',
-    pinMap: {
-      inputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
-      outputs: { F: 'field', field: 'field', Field: 'field' },
-    },
-    eval: ({ inputs }) => {
-      const fields = collectFields(inputs.fields);
-      if (!fields.length) {
-        return { field: null };
-      }
-      const influences = [];
-      let combinedBounds = null;
-      for (const entry of fields) {
-        combinedBounds = mergeBounds(combinedBounds, entry.bounds ?? null);
-        if (Array.isArray(entry.influences)) {
-          for (const influence of entry.influences) {
-            influences.push(influence);
+        const field = createField([influence], { bounds, metadata: { type: 'line-charge' } });
+        return { field };
+      },
+    });
+
+    register(['{a7c9f738-f8bd-4f64-8e7f-33341183e493}', 'evaluate field', 'evf'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          P: 'point', point: 'point', Point: 'point',
+        },
+        outputs: { T: 'tensor', tensor: 'tensor', S: 'strength', strength: 'strength', Strength: 'strength' },
+      },
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        if (inputs.point === undefined || inputs.point === null) {
+          return { tensor: defaultFieldEvaluation().tensor, strength: 0 };
+        }
+        const samplePoint = toVector3(inputs.point, new THREE.Vector3());
+        const evaluation = evaluateFieldAtPoint(field, samplePoint);
+        return { tensor: evaluation.tensor, strength: evaluation.strength };
+      },
+    });
+
+    register(['{add6be3e-c57f-4740-96e4-5680abaa9169}', 'field line', 'fline'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          P: 'point', point: 'point', Point: 'point',
+          N: 'steps', steps: 'steps', Steps: 'steps',
+          A: 'stepSize', accuracy: 'stepSize', Accuracy: 'stepSize',
+          M: 'method', method: 'method', Method: 'method',
+        },
+        outputs: { C: 'curve', curve: 'curve', Curve: 'curve', P: 'points', points: 'points', Points: 'points' },
+      },
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        if (!field) {
+          return { curve: null, points: [] };
+        }
+        const start = toVector3(inputs.point, new THREE.Vector3());
+        const steps = Math.max(1, Math.round(toNumber(inputs.steps, 50)));
+        const stepSize = Math.max(EPSILON, Math.abs(toNumber(inputs.stepSize, 0.5)));
+        const methodRaw = Math.round(toNumber(inputs.method, 4));
+        const method = THREE.MathUtils.clamp(methodRaw, 1, 4);
+
+        function normalizedDirection(point) {
+          const evaluation = evaluateFieldAtPoint(field, point);
+          const vector = evaluation.vector.clone();
+          const length = vector.length();
+          if (length < EPSILON) {
+            return new THREE.Vector3();
+          }
+          return vector.divideScalar(length);
+        }
+
+        const points = [start.clone()];
+        let current = start.clone();
+
+        for (let index = 0; index < steps; index += 1) {
+          let delta = new THREE.Vector3();
+          switch (method) {
+            case 1: {
+              delta = normalizedDirection(current).multiplyScalar(stepSize);
+              break;
+            }
+            case 2: {
+              const k1 = normalizedDirection(current).multiplyScalar(stepSize / 2);
+              const mid = current.clone().add(k1);
+              const k2 = normalizedDirection(mid).multiplyScalar(stepSize);
+              delta = k2;
+              break;
+            }
+            case 3: {
+              const k1 = normalizedDirection(current).multiplyScalar(stepSize);
+              const predictor = current.clone().add(k1);
+              const k2 = normalizedDirection(predictor).multiplyScalar(stepSize);
+              delta = k1.add(k2).multiplyScalar(0.5);
+              break;
+            }
+            default: {
+              const k1 = normalizedDirection(current);
+              const k2 = normalizedDirection(current.clone().add(k1.clone().multiplyScalar(stepSize / 2)));
+              const k3 = normalizedDirection(current.clone().add(k2.clone().multiplyScalar(stepSize / 2)));
+              const k4 = normalizedDirection(current.clone().add(k3.clone().multiplyScalar(stepSize)));
+              delta = k1
+                .clone()
+                .add(k2.clone().multiplyScalar(2))
+                .add(k3.clone().multiplyScalar(2))
+                .add(k4)
+                .multiplyScalar(stepSize / 6);
+              break;
+            }
+          }
+
+          if (delta.lengthSq() < EPSILON) {
+            break;
+          }
+          current = current.clone().add(delta);
+          points.push(current.clone());
+        }
+
+        const curve = points.length > 1 ? new THREE.CatmullRomCurve3(points) : null;
+        return { curve, points };
+      },
+    });
+
+    register(['{b27d53bc-e713-475d-81fd-71cdd8de2e58}', 'break field', 'breakf'], {
+      type: 'field',
+      pinMap: {
+        inputs: { F: 'field', field: 'field', Field: 'field' },
+        outputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
+      },
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        if (!field) {
+          return { fields: [] };
+        }
+        const parts = field.influences?.map?.((influence) => createField([influence], {
+          bounds: mergeBounds(field.bounds ?? null, influence.bounds ?? null),
+          metadata: influence.metadata ?? {},
+        })) ?? [];
+        return { fields: parts };
+      },
+    });
+
+    register(['{bf106e4c-68f4-476f-b05b-9c15fb50e078}', 'perpendicular display', 'fperp'], {
+      type: 'display',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', samples: 'samples', Samples: 'samples',
+          'C+': 'positiveColor', Cplus: 'positiveColor', positive: 'positiveColor',
+          'C-': 'negativeColor', Cminus: 'negativeColor', negative: 'negativeColor',
+        },
+        outputs: { D: 'display', display: 'display', Display: 'display' },
+      },
+      eval: ({ inputs }) => {
+        const [field] = collectFields(inputs.field);
+        const mesh = createFieldDisplayMesh(field, inputs.section, inputs.samples, 'perpendicular', {
+          name: 'perpendicular-display',
+          positiveColor: inputs.positiveColor,
+          negativeColor: inputs.negativeColor,
+        });
+        if (!mesh) {
+          return { display: null };
+        }
+        return { display: mesh, mesh };
+      },
+    });
+
+    register(['{cffdbaf3-8d33-4b38-9cad-c264af9fc3f4}', 'point charge', 'pcharge'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          P: 'point', point: 'point', Point: 'point',
+          C: 'charge', charge: 'charge', Charge: 'charge',
+          D: 'decay', decay: 'decay', Decay: 'decay',
+          B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+        },
+        outputs: { F: 'field', field: 'field', Field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const position = toVector3(inputs.point, new THREE.Vector3());
+        const charge = toNumber(inputs.charge, 1);
+        const decay = Math.max(0, toNumber(inputs.decay, 2));
+        const bounds = ensureBounds(inputs.bounds);
+
+        const influence = {
+          type: 'point-charge',
+          bounds,
+          params: { position, charge, decay },
+          evaluate: (point) => {
+            const direction = point.clone().sub(position);
+            let distance = direction.length();
+            if (distance < EPSILON) {
+              distance = EPSILON;
+            }
+            const normalized = direction.divideScalar(distance);
+            const falloffPower = decay > 0 ? decay : 1;
+            const magnitude = charge / (1 + Math.pow(distance, falloffPower));
+            return { vector: normalized.multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+          },
+        };
+
+        const field = createField([influence], { bounds, metadata: { type: 'point-charge' } });
+        return { field };
+      },
+    });
+
+    register(['{d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9}', 'vector force', 'fvector'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          L: 'line', line: 'line', Line: 'line',
+          B: 'bounds', bounds: 'bounds', Bounds: 'bounds',
+        },
+        outputs: { F: 'field', field: 'field', Field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const line = ensureLine(inputs.line);
+        const bounds = ensureBounds(inputs.bounds);
+        const direction = line.direction.clone();
+        const length = direction.length();
+        const unitDir = length > EPSILON ? direction.clone().normalize() : new THREE.Vector3(1, 0, 0);
+        const lengthSq = direction.lengthSq();
+
+        const influence = {
+          type: 'vector-force',
+          bounds,
+          params: { line: { start: line.start.clone(), end: line.end.clone(), direction: direction.clone() } },
+          evaluate: (point) => {
+            const ap = point.clone().sub(line.start);
+            const denom = lengthSq > EPSILON ? lengthSq : 1;
+            let t = denom ? ap.dot(direction) / denom : 0;
+            t = THREE.MathUtils.clamp(t, 0, 1);
+            const closest = line.start.clone().add(direction.clone().multiplyScalar(t));
+            const distance = point.distanceTo(closest);
+            const falloff = 1 / (1 + distance);
+            const magnitude = (length > EPSILON ? length : 1) * falloff;
+            return { vector: unitDir.clone().multiplyScalar(magnitude), strength: Math.abs(magnitude) };
+          },
+        };
+
+        const field = createField([influence], { bounds, metadata: { type: 'vector-force' } });
+        return { field };
+      },
+    });
+
+    register(['{d9a6fbd2-2e9f-472e-8147-33bf0233a115}', 'merge fields', 'mergef'], {
+      type: 'field',
+      pinMap: {
+        inputs: { F: 'fields', fields: 'fields', Fields: 'fields' },
+        outputs: { F: 'field', field: 'field', Field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const fields = collectFields(inputs.fields);
+        if (!fields.length) {
+          return { field: null };
+        }
+        const influences = [];
+        let combinedBounds = null;
+        for (const entry of fields) {
+          combinedBounds = mergeBounds(combinedBounds, entry.bounds ?? null);
+          if (Array.isArray(entry.influences)) {
+            for (const influence of entry.influences) {
+              influences.push(influence);
+            }
           }
         }
-      }
-      if (!influences.length) {
-        return { field: null };
-      }
-      const field = createField(influences, { bounds: combinedBounds });
-      return { field };
-    },
-  });
+        if (!influences.length) {
+          return { field: null };
+        }
+        const field = createField(influences, { bounds: combinedBounds });
+        return { field };
+      },
+    });
+  }
 
   if (!includePointComponents) {
     return;
@@ -3633,8 +3639,17 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
   }
 
 
+export function registerVectorFieldComponents({ register, toNumber, toVector3 }) {
+  return registerVectorPointComponents({ register, toNumber, toVector3 }, {
+    includeFieldComponents: true,
+    includePointComponents: false,
+    includePlaneComponents: false,
+  });
+}
+
 export function registerVectorPlaneComponents({ register, toNumber, toVector3 }) {
   return registerVectorPointComponents({ register, toNumber, toVector3 }, {
+    includeFieldComponents: false,
     includePointComponents: false,
     includePlaneComponents: true,
   });
