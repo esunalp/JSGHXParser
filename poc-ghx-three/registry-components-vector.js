@@ -15,6 +15,7 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     includeFieldComponents = true,
     includePointComponents = true,
     includePlaneComponents = false,
+    includeVectorComponents = true,
   } = options;
 
   const EPSILON = 1e-9;
@@ -3166,6 +3167,10 @@ export function registerVectorPointComponents({ register, toNumber, toVector3 },
     },
   });
 
+  if (!includeVectorComponents) {
+    return;
+  }
+
   // Vector subcategory components
   register([
     '{152a264e-fc74-40e5-88cc-d1a681cd09c3}',
@@ -3644,6 +3649,22 @@ export function registerVectorFieldComponents({ register, toNumber, toVector3 })
     includeFieldComponents: true,
     includePointComponents: false,
     includePlaneComponents: false,
+    includeVectorComponents: false,
+  });
+}
+
+export function registerVectorVectorComponents({ register, toNumber, toVector3 }) {
+  const vectorOnlyRegister = (keys, config) => {
+    if (config?.type === 'vector') {
+      register(keys, config);
+    }
+  };
+
+  return registerVectorPointComponents({ register: vectorOnlyRegister, toNumber, toVector3 }, {
+    includeFieldComponents: false,
+    includePointComponents: true,
+    includePlaneComponents: false,
+    includeVectorComponents: true,
   });
 }
 
@@ -3652,5 +3673,6 @@ export function registerVectorPlaneComponents({ register, toNumber, toVector3 })
     includeFieldComponents: false,
     includePointComponents: false,
     includePlaneComponents: true,
+    includeVectorComponents: false,
   });
 }
