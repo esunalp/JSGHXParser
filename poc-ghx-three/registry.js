@@ -16,7 +16,8 @@ const [
   {
     registerVectorFieldComponents,
     registerVectorPlaneComponents,
-    registerVectorPointComponents
+    registerVectorPointComponents,
+    registerVectorVectorComponents
   },
   {
     registerCurveAnalysisComponents,
@@ -246,7 +247,11 @@ registerMathPolynomialComponents({ register, toNumber });
 registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
 registerVectorFieldComponents({ register, toNumber, toVector3 });
-registerVectorPointComponents({ register, toNumber, toVector3 }, { includeFieldComponents: false });
+registerVectorPointComponents({ register, toNumber, toVector3 }, {
+  includeFieldComponents: false,
+  includeVectorComponents: false,
+});
+registerVectorVectorComponents({ register, toNumber, toVector3 });
 registerVectorPlaneComponents({ register, toNumber, toVector3 });
 registerCurvePrimitiveComponents({ register, toNumber, toVector3 });
 registerCurveDivisionComponents({ register, toNumber, toVector3 });
