@@ -37,6 +37,7 @@ const [
     registerVectorVectorComponents,
     registerVectorPointComponents,
     registerVectorPlaneComponents,
+    registerVectorFieldComponents,
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
@@ -262,6 +263,7 @@ registerTransformUtilComponents({ register, toNumber, toVector3 });
 registerVectorVectorComponents({ register, toNumber, toVector3 });
 registerVectorPointComponents({ register, toNumber, toVector3 });
 registerVectorPlaneComponents({ register, toNumber, toVector3 });
+registerVectorFieldComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',

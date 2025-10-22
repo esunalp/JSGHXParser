@@ -106,7 +106,12 @@ function resolveInputs(node, inputIndex, outputs) {
 }
 
 function isRenderableCandidate(value) {
-  return Boolean(value?.isMesh || value?.isBufferGeometry || value?.isGeometry);
+  return Boolean(
+    value?.isMesh
+    || value?.isBufferGeometry
+    || value?.isGeometry
+    || value?.type === 'field-display'
+  );
 }
 
 function extractRenderable(value, visited = new Set()) {
