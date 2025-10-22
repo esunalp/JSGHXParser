@@ -35,7 +35,6 @@ const [
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
-  versionedImport('./registry-components-vector.js'),
   versionedImport('./registry-components-curve.js'),
   versionedImport('./registry-components-surface.js'),
   versionedImport('./registry-components-transform.js'),
