@@ -4,8 +4,14 @@ import { withVersion } from './version.js';
 const versionedImport = (path) => import(withVersion(path));
 
 const [
-  { registerMathDomainComponents, registerMathOperatorComponents },
-  { registerVectorPlaneComponents, registerVectorPointComponents },
+  { 
+    registerMathDomainComponents, 
+    registerMathOperatorComponents 
+  },
+  { 
+    registerVectorPlaneComponents, 
+    registerVectorPointComponents 
+  },
   {
     registerCurveAnalysisComponents,
     registerCurveDivisionComponents,
@@ -20,7 +26,11 @@ const [
     registerSurfaceSubDComponents,
     registerSurfaceUtilComponents,
   },
-  { registerTransformEuclideanComponents, registerTransformAffineComponents },
+  { 
+    registerTransformEuclideanComponents, 
+    registerTransformAffineComponents, 
+    registerTransformMorphComponents
+  },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-vector.js'),
