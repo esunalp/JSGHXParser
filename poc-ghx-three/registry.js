@@ -4,9 +4,10 @@ import { withVersion } from './version.js';
 const versionedImport = (path) => import(withVersion(path));
 
 const [
-  { 
-    registerMathDomainComponents, 
-    registerMathOperatorComponents 
+  {
+    registerMathDomainComponents,
+    registerMathOperatorComponents,
+    registerMathScriptComponents,
   },
   { 
     registerVectorPlaneComponents, 
@@ -233,6 +234,7 @@ function collectNumericValues(input) {
 }
 
 registerMathDomainComponents({ register, toNumber });
+registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
 registerVectorPointComponents({ register, toNumber, toVector3 });
 registerVectorPlaneComponents({ register, toNumber, toVector3 });
