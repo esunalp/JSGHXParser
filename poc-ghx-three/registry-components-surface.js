@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 
 const REGISTER_SURFACE_FREEFORM_ONLY = Symbol('register-surface-freeform-only');
+const REGISTER_SURFACE_ANALYSIS_ONLY = Symbol('register-surface-analysis-only');
 
 export function registerSurfacePrimitiveComponents({
   register,
@@ -10,9 +11,20 @@ export function registerSurfacePrimitiveComponents({
   includeFreeform = false,
 }) {
   const freeformOnly = mode === REGISTER_SURFACE_FREEFORM_ONLY;
-  const shouldRegisterFreeform = freeformOnly || includeFreeform;
+  const analysisOnly = mode === REGISTER_SURFACE_ANALYSIS_ONLY;
+  const shouldRegisterFreeform = includeFreeform && !analysisOnly;
   if (typeof register !== 'function') {
     throw new Error('register function is required to register surface primitive components.');
+  }
+
+  if (freeformOnly) {
+    registerFreeformComponents();
+    return;
+  }
+
+  if (analysisOnly) {
+    registerAnalysisComponents();
+    return;
   }
 
   if (shouldRegisterFreeform) {
@@ -1547,6 +1559,2019 @@ export function registerSurfacePrimitiveComponents({
     return createPlanarSurfaceFromBounds(basePlane, minX, maxX, minY, maxY);
   }
 
+  function ensureBoxData(boxInput) {
+    if (!boxInput) {
+      return null;
+    }
+    if (boxInput.type === 'box' && boxInput.localMin && boxInput.localMax && boxInput.plane) {
+      const plane = normalizePlaneAxes(
+        ensurePoint(boxInput.plane.origin ?? new THREE.Vector3(), new THREE.Vector3()),
+        ensurePoint(boxInput.plane.xAxis ?? new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0)),
+        ensurePoint(boxInput.plane.yAxis ?? new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0)),
+        ensurePoint(boxInput.plane.zAxis ?? new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1)),
+      );
+      const localMin = ensurePoint(boxInput.localMin, new THREE.Vector3());
+      const localMax = ensurePoint(boxInput.localMax, new THREE.Vector3(1, 1, 1));
+      const size = boxInput.size ?? new THREE.Vector3(
+        Math.abs(localMax.x - localMin.x),
+        Math.abs(localMax.y - localMin.y),
+        Math.abs(localMax.z - localMin.z),
+      );
+      const center = boxInput.center ?? applyPlane(
+        plane,
+        (localMin.x + localMax.x) / 2,
+        (localMin.y + localMax.y) / 2,
+        (localMin.z + localMax.z) / 2,
+      );
+      return { ...boxInput, plane, localMin, localMax, size, center };
+    }
+    if (boxInput.box) {
+      return ensureBoxData(boxInput.box);
+    }
+    if (boxInput.box3) {
+      const plane = boxInput.plane ? ensurePlane(boxInput.plane) : defaultPlane();
+      const min = ensurePoint(boxInput.box3.min ?? boxInput.min ?? new THREE.Vector3(), new THREE.Vector3());
+      const max = ensurePoint(boxInput.box3.max ?? boxInput.max ?? new THREE.Vector3(), new THREE.Vector3(1, 1, 1));
+      return createBoxDataFromPlaneExtents({ plane, min, max });
+    }
+    if (boxInput.isBox3 || (boxInput.min && boxInput.max)) {
+      const min = ensurePoint(boxInput.min ?? new THREE.Vector3(), new THREE.Vector3());
+      const max = ensurePoint(boxInput.max ?? new THREE.Vector3(), new THREE.Vector3(1, 1, 1));
+      return createBoxDataFromPlaneExtents({ plane: defaultPlane(), min, max });
+    }
+    if (boxInput.center && boxInput.size) {
+      const plane = boxInput.plane ? ensurePlane(boxInput.plane) : defaultPlane();
+      const size = ensurePoint(boxInput.size, new THREE.Vector3(1, 1, 1));
+      const half = size.clone().multiplyScalar(0.5);
+      const localMin = new THREE.Vector3(-half.x, -half.y, -half.z);
+      const localMax = new THREE.Vector3(half.x, half.y, half.z);
+      const oriented = normalizePlaneAxes(
+        ensurePoint(boxInput.center, plane.origin.clone()),
+        plane.xAxis.clone(),
+        plane.yAxis.clone(),
+        plane.zAxis.clone(),
+      );
+      return createBoxDataFromPlaneExtents({ plane: oriented, min: localMin, max: localMax });
+    }
+    const points = collectPoints(boxInput);
+    if (points.length) {
+      return createAxisAlignedBoxFromPoints(points);
+    }
+    return null;
+  }
+
+  function computeBoxMetrics(box) {
+    if (!box) {
+      return null;
+    }
+    const plane = box.plane ? normalizePlaneAxes(
+      ensurePoint(box.plane.origin ?? new THREE.Vector3(), new THREE.Vector3()),
+      ensurePoint(box.plane.xAxis ?? new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0)),
+      ensurePoint(box.plane.yAxis ?? new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 1, 0)),
+      ensurePoint(box.plane.zAxis ?? new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1)),
+    ) : defaultPlane();
+    const localMin = box.localMin ?? new THREE.Vector3(
+      box.min?.x ?? 0,
+      box.min?.y ?? 0,
+      box.min?.z ?? 0,
+    );
+    const localMax = box.localMax ?? new THREE.Vector3(
+      box.max?.x ?? 0,
+      box.max?.y ?? 0,
+      box.max?.z ?? 0,
+    );
+    const size = box.size ?? new THREE.Vector3(
+      Math.abs(localMax.x - localMin.x),
+      Math.abs(localMax.y - localMin.y),
+      Math.abs(localMax.z - localMin.z),
+    );
+    const volume = Math.abs(size.x * size.y * size.z);
+    const area = 2 * (size.x * size.y + size.y * size.z + size.x * size.z);
+    const center = box.center ?? applyPlane(
+      plane,
+      (localMin.x + localMax.x) / 2,
+      (localMin.y + localMax.y) / 2,
+      (localMin.z + localMax.z) / 2,
+    );
+    return { plane, localMin, localMax, size, volume, area, center };
+  }
+
+  function computeBoxMoments(box) {
+    const metrics = computeBoxMetrics(box);
+    if (!metrics) {
+      return {
+        volume: 0,
+        area: 0,
+        centroid: new THREE.Vector3(),
+        inertia: new THREE.Vector3(),
+        secondary: new THREE.Vector3(),
+        inertiaError: new THREE.Vector3(),
+        secondaryError: new THREE.Vector3(),
+        gyration: new THREE.Vector3(),
+      };
+    }
+    const { size, volume, area, center } = metrics;
+    const mass = volume;
+    const inertia = new THREE.Vector3(
+      (mass / 12) * (size.y * size.y + size.z * size.z),
+      (mass / 12) * (size.x * size.x + size.z * size.z),
+      (mass / 12) * (size.x * size.x + size.y * size.y),
+    );
+    const gyration = new THREE.Vector3(
+      volume > EPSILON ? Math.sqrt(Math.abs(inertia.x / volume)) : 0,
+      volume > EPSILON ? Math.sqrt(Math.abs(inertia.y / volume)) : 0,
+      volume > EPSILON ? Math.sqrt(Math.abs(inertia.z / volume)) : 0,
+    );
+    return {
+      volume,
+      area,
+      centroid: center.clone(),
+      inertia,
+      secondary: new THREE.Vector3(0, 0, 0),
+      inertiaError: new THREE.Vector3(),
+      secondaryError: new THREE.Vector3(),
+      gyration,
+    };
+  }
+
+  function ensureSurfaceEntries(input) {
+    const entries = [];
+    const visited = new Set();
+    function visit(value) {
+      if (value === undefined || value === null || visited.has(value)) {
+        return;
+      }
+      if (typeof value === 'object') {
+        visited.add(value);
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          visit(item);
+        }
+        return;
+      }
+      if (value.surface && typeof value.surface === 'object') {
+        entries.push({ surface: value.surface, wrapper: value });
+        return;
+      }
+      if (value.surfaces) {
+        visit(value.surfaces);
+        return;
+      }
+      if (value.brep) {
+        visit(value.brep);
+        return;
+      }
+      if (value.breps) {
+        visit(value.breps);
+        return;
+      }
+      if (value.surfaceData) {
+        visit(value.surfaceData);
+        return;
+      }
+      if (value.evaluate || value.getPoint || value.points) {
+        entries.push({ surface: value, wrapper: wrapSurface(value) });
+      }
+    }
+    visit(input);
+    return entries;
+  }
+
+  function sampleSurfaceGrid(surface, segmentsU = 24, segmentsV = 24) {
+    if (!surface) {
+      return [];
+    }
+    const domainU = surface.domainU ?? createDomain(0, 1);
+    const domainV = surface.domainV ?? createDomain(0, 1);
+    const rows = [];
+    for (let iv = 0; iv <= segmentsV; iv += 1) {
+      const fv = segmentsV === 0 ? 0 : iv / segmentsV;
+      const v = domainV.start + (domainV.end - domainV.start) * fv;
+      const row = [];
+      for (let iu = 0; iu <= segmentsU; iu += 1) {
+        const fu = segmentsU === 0 ? 0 : iu / segmentsU;
+        const u = domainU.start + (domainU.end - domainU.start) * fu;
+        const point = evaluateSurfacePoint(surface, u, v);
+        row.push(point ? point.clone() : new THREE.Vector3());
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function triangulateSurfaceGrid(grid) {
+    const rows = grid.length;
+    const cols = rows ? grid[0].length : 0;
+    const triangles = [];
+    if (rows < 2 || cols < 2) {
+      return triangles;
+    }
+    for (let j = 0; j < rows - 1; j += 1) {
+      for (let i = 0; i < cols - 1; i += 1) {
+        const p00 = grid[j][i];
+        const p10 = grid[j][i + 1];
+        const p01 = grid[j + 1][i];
+        const p11 = grid[j + 1][i + 1];
+        triangles.push([p00, p10, p11], [p00, p11, p01]);
+      }
+    }
+    return triangles;
+  }
+
+  function computeTriangleArea(a, b, c) {
+    const ab = b.clone().sub(a);
+    const ac = c.clone().sub(a);
+    return ab.cross(ac).length() * 0.5;
+  }
+
+  function computeTriangleCentroid(a, b, c) {
+    return a.clone().add(b).add(c).multiplyScalar(1 / 3);
+  }
+
+  function estimateSurfaceArea(surface, segmentsU = 24, segmentsV = 24) {
+    if (!surface) {
+      return { area: 0, centroid: new THREE.Vector3(), grid: [] };
+    }
+    const grid = sampleSurfaceGrid(surface, segmentsU, segmentsV);
+    const triangles = triangulateSurfaceGrid(grid);
+    if (!triangles.length) {
+      return { area: 0, centroid: new THREE.Vector3(), grid };
+    }
+    let area = 0;
+    const centroid = new THREE.Vector3();
+    for (const [p0, p1, p2] of triangles) {
+      const triArea = computeTriangleArea(p0, p1, p2);
+      if (!Number.isFinite(triArea) || triArea <= 0) {
+        continue;
+      }
+      area += triArea;
+      centroid.add(computeTriangleCentroid(p0, p1, p2).multiplyScalar(triArea));
+    }
+    if (area > EPSILON) {
+      centroid.multiplyScalar(1 / area);
+    }
+    return { area, centroid, grid };
+  }
+
+  function clampToDomain(value, domain) {
+    if (!domain) {
+      return value;
+    }
+    const min = Number.isFinite(domain.min) ? domain.min : Number.isFinite(domain.start) ? domain.start : 0;
+    const max = Number.isFinite(domain.max) ? domain.max : Number.isFinite(domain.end) ? domain.end : 1;
+    if (min === max) {
+      return min;
+    }
+    return clamp(value, Math.min(min, max), Math.max(min, max));
+  }
+
+  function ensureUVPoint(input, surface) {
+    const domainU = surface?.domainU ?? createDomain(0, 1);
+    const domainV = surface?.domainV ?? createDomain(0, 1);
+    const fallback = {
+      u: (domainU.min + domainU.max) / 2,
+      v: (domainV.min + domainV.max) / 2,
+    };
+    if (input === undefined || input === null) {
+      return fallback;
+    }
+    if (Array.isArray(input)) {
+      if (input.length >= 2) {
+        return {
+          u: ensureNumeric(input[0], fallback.u),
+          v: ensureNumeric(input[1], fallback.v),
+        };
+      }
+      if (input.length === 1) {
+        return ensureUVPoint(input[0], surface);
+      }
+    }
+    if (typeof input === 'object') {
+      if (input.u !== undefined || input.v !== undefined) {
+        return {
+          u: ensureNumeric(input.u ?? input.x ?? fallback.u, fallback.u),
+          v: ensureNumeric(input.v ?? input.y ?? fallback.v, fallback.v),
+        };
+      }
+      if (input.x !== undefined || input.y !== undefined) {
+        return {
+          u: ensureNumeric(input.x, fallback.u),
+          v: ensureNumeric(input.y, fallback.v),
+        };
+      }
+      if (input.uv !== undefined) {
+        return ensureUVPoint(input.uv, surface);
+      }
+      if (input.point !== undefined) {
+        return ensureUVPoint(input.point, surface);
+      }
+    }
+    return fallback;
+  }
+
+  function evaluateSurfaceDerivatives(surface, u, v, deltaScale = 1e-4) {
+    if (!surface) {
+      return null;
+    }
+    const domainU = surface.domainU ?? createDomain(0, 1);
+    const domainV = surface.domainV ?? createDomain(0, 1);
+    const spanU = Math.max(Math.abs(domainU.max - domainU.min), EPSILON);
+    const spanV = Math.max(Math.abs(domainV.max - domainV.min), EPSILON);
+    const stepU = spanU * deltaScale;
+    const stepV = spanV * deltaScale;
+    const uForward = clampToDomain(u + stepU, domainU);
+    const uBackward = clampToDomain(u - stepU, domainU);
+    const vForward = clampToDomain(v + stepV, domainV);
+    const vBackward = clampToDomain(v - stepV, domainV);
+    const point = evaluateSurfacePoint(surface, clampToDomain(u, domainU), clampToDomain(v, domainV)) ?? new THREE.Vector3();
+    const pointForwardU = evaluateSurfacePoint(surface, uForward, v) ?? point.clone();
+    const pointBackwardU = evaluateSurfacePoint(surface, uBackward, v) ?? point.clone();
+    const pointForwardV = evaluateSurfacePoint(surface, u, vForward) ?? point.clone();
+    const pointBackwardV = evaluateSurfacePoint(surface, u, vBackward) ?? point.clone();
+    const tangentU = pointForwardU.clone().sub(pointBackwardU).multiplyScalar(1 / Math.max(Math.abs(uForward - uBackward), EPSILON));
+    const tangentV = pointForwardV.clone().sub(pointBackwardV).multiplyScalar(1 / Math.max(Math.abs(vForward - vBackward), EPSILON));
+    const Suu = pointForwardU.clone().add(pointBackwardU).sub(point.clone().multiplyScalar(2)).multiplyScalar(1 / Math.pow(Math.max(stepU, EPSILON), 2));
+    const Svv = pointForwardV.clone().add(pointBackwardV).sub(point.clone().multiplyScalar(2)).multiplyScalar(1 / Math.pow(Math.max(stepV, EPSILON), 2));
+    const pointForwardUV = evaluateSurfacePoint(surface, uForward, vForward) ?? point.clone();
+    const pointForwardUBackwardV = evaluateSurfacePoint(surface, uForward, vBackward) ?? point.clone();
+    const pointBackwardUForwardV = evaluateSurfacePoint(surface, uBackward, vForward) ?? point.clone();
+    const pointBackwardUV = evaluateSurfacePoint(surface, uBackward, vBackward) ?? point.clone();
+    const Suv = pointForwardUV.clone()
+      .sub(pointForwardUBackwardV)
+      .sub(pointBackwardUForwardV)
+      .add(pointBackwardUV)
+      .multiplyScalar(1 / (4 * Math.max(stepU, EPSILON) * Math.max(stepV, EPSILON)));
+    const normal = tangentU.clone().cross(tangentV);
+    if (normal.lengthSq() <= EPSILON) {
+      const fallbackNormal = surface.plane?.zAxis ?? new THREE.Vector3(0, 0, 1);
+      normal.copy(fallbackNormal).normalize();
+    } else {
+      normal.normalize();
+    }
+    const E = tangentU.dot(tangentU);
+    const F = tangentU.dot(tangentV);
+    const G = tangentV.dot(tangentV);
+    const e = normal.dot(Suu);
+    const f = normal.dot(Suv);
+    const g = normal.dot(Svv);
+    return {
+      point,
+      tangentU,
+      tangentV,
+      normal,
+      Suu,
+      Svv,
+      Suv,
+      firstForm: { E, F, G },
+      secondForm: { e, f, g },
+    };
+  }
+
+  function computeSurfaceCurvatureData(surface, u, v) {
+    const derivatives = evaluateSurfaceDerivatives(surface, u, v);
+    if (!derivatives) {
+      return null;
+    }
+    const { point, tangentU, tangentV, normal, firstForm, secondForm } = derivatives;
+    const { E, F, G } = firstForm;
+    const { e, f, g } = secondForm;
+    const denom = E * G - F * F;
+    let gaussian = 0;
+    let mean = 0;
+    if (Math.abs(denom) > EPSILON) {
+      gaussian = (e * g - f * f) / denom;
+      mean = (E * g - 2 * F * f + G * e) / (2 * denom);
+    }
+    const discriminant = Math.max(mean * mean - gaussian, 0);
+    const sqrtDisc = Math.sqrt(discriminant);
+    const k1 = mean + sqrtDisc;
+    const k2 = mean - sqrtDisc;
+    let dir1 = tangentU.clone().normalize();
+    let dir2 = tangentV.clone().normalize();
+    if (Math.abs(denom) > EPSILON) {
+      const invDenom = 1 / denom;
+      const S11 = (G * e - F * f) * invDenom;
+      const S12 = (G * f - F * g) * invDenom;
+      const S21 = (-F * e + E * f) * invDenom;
+      const S22 = (-F * f + E * g) * invDenom;
+      const eigenDirection = (k) => {
+        let a = S11 - k;
+        let b = S12;
+        let c = S21;
+        let d = S22 - k;
+        if (Math.abs(a) < EPSILON && Math.abs(b) < EPSILON && Math.abs(c) < EPSILON && Math.abs(d) < EPSILON) {
+          return tangentU.clone().normalize();
+        }
+        let vecU = 1;
+        let vecV = 0;
+        if (Math.abs(b) > Math.abs(c)) {
+          if (Math.abs(b) > EPSILON) {
+            vecU = d;
+            vecV = -b;
+          } else {
+            vecU = 1;
+            vecV = 0;
+          }
+        } else if (Math.abs(c) > EPSILON) {
+          vecU = -c;
+          vecV = a;
+        }
+        const direction = tangentU.clone().multiplyScalar(vecU).add(tangentV.clone().multiplyScalar(vecV));
+        if (direction.lengthSq() <= EPSILON) {
+          return tangentU.clone().normalize();
+        }
+        return direction.normalize();
+      };
+      dir1 = eigenDirection(k1);
+      dir2 = eigenDirection(k2);
+    }
+    return {
+      point,
+      normal,
+      tangentU,
+      tangentV,
+      gaussian,
+      mean,
+      principalCurvatures: [
+        { value: k1, direction: dir1 },
+        { value: k2, direction: dir2 },
+      ],
+    };
+  }
+
+  function approximateSurfaceClosestPoint(surface, targetPoint, { segmentsU = 20, segmentsV = 20 } = {}) {
+    if (!surface || !targetPoint) {
+      return null;
+    }
+    const domainU = surface.domainU ?? createDomain(0, 1);
+    const domainV = surface.domainV ?? createDomain(0, 1);
+    let bestU = domainU.min;
+    let bestV = domainV.min;
+    let bestPoint = evaluateSurfacePoint(surface, bestU, bestV) ?? new THREE.Vector3();
+    let bestDistanceSq = bestPoint.distanceToSquared(targetPoint);
+    for (let iv = 0; iv <= segmentsV; iv += 1) {
+      const fv = segmentsV === 0 ? 0 : iv / segmentsV;
+      const v = domainV.start + (domainV.end - domainV.start) * fv;
+      for (let iu = 0; iu <= segmentsU; iu += 1) {
+        const fu = segmentsU === 0 ? 0 : iu / segmentsU;
+        const u = domainU.start + (domainU.end - domainU.start) * fu;
+        const sample = evaluateSurfacePoint(surface, u, v);
+        if (!sample) {
+          continue;
+        }
+        const distSq = sample.distanceToSquared(targetPoint);
+        if (distSq < bestDistanceSq) {
+          bestDistanceSq = distSq;
+          bestPoint = sample.clone();
+          bestU = u;
+          bestV = v;
+        }
+      }
+    }
+    let currentU = bestU;
+    let currentV = bestV;
+    let currentPoint = bestPoint.clone();
+    for (let iteration = 0; iteration < 8; iteration += 1) {
+      const derivatives = evaluateSurfaceDerivatives(surface, currentU, currentV);
+      if (!derivatives) {
+        break;
+      }
+      const diff = currentPoint.clone().sub(targetPoint);
+      const a11 = derivatives.tangentU.dot(derivatives.tangentU) + EPSILON;
+      const a12 = derivatives.tangentU.dot(derivatives.tangentV);
+      const a22 = derivatives.tangentV.dot(derivatives.tangentV) + EPSILON;
+      const b1 = derivatives.tangentU.dot(diff);
+      const b2 = derivatives.tangentV.dot(diff);
+      const denom = a11 * a22 - a12 * a12;
+      if (Math.abs(denom) < EPSILON) {
+        break;
+      }
+      const du = (a12 * b2 - a22 * b1) / denom;
+      const dv = (a12 * b1 - a11 * b2) / denom;
+      currentU = clampToDomain(currentU - du, domainU);
+      currentV = clampToDomain(currentV - dv, domainV);
+      const nextPoint = evaluateSurfacePoint(surface, currentU, currentV);
+      if (!nextPoint) {
+        break;
+      }
+      currentPoint.copy(nextPoint);
+      bestDistanceSq = currentPoint.distanceToSquared(targetPoint);
+      if (Math.abs(du) <= 1e-6 && Math.abs(dv) <= 1e-6) {
+        break;
+      }
+    }
+    const derivatives = evaluateSurfaceDerivatives(surface, currentU, currentV);
+    const normal = derivatives?.normal?.clone() ?? surface.plane?.zAxis?.clone() ?? new THREE.Vector3(0, 0, 1);
+    return {
+      point: currentPoint,
+      u: currentU,
+      v: currentV,
+      distance: Math.sqrt(bestDistanceSq),
+      normal: normal.normalize(),
+    };
+  }
+
+  function createPolylineSignature(points, tolerance = 1e-4) {
+    if (!points || !points.length) {
+      return '';
+    }
+    const scale = 1 / tolerance;
+    const format = (pt) => [
+      Math.round(pt.x * scale),
+      Math.round(pt.y * scale),
+      Math.round(pt.z * scale),
+    ].join(',');
+    const forward = points.map(format).join('|');
+    const reversed = points.slice().reverse().map(format).join('|');
+    return forward < reversed ? forward : reversed;
+  }
+
+  function computeSurfaceEdges(surfaceEntries, { segments = 32 } = {}) {
+    const edgesBySignature = new Map();
+    surfaceEntries.forEach((entry, faceIndex) => {
+      const surface = entry.surface;
+      if (!surface) {
+        return;
+      }
+      const domainU = surface.domainU ?? createDomain(0, 1);
+      const domainV = surface.domainV ?? createDomain(0, 1);
+      const boundaries = [
+        { key: 'u-min', constant: domainU.min, varying: 'v' },
+        { key: 'u-max', constant: domainU.max, varying: 'v' },
+        { key: 'v-min', constant: domainV.min, varying: 'u' },
+        { key: 'v-max', constant: domainV.max, varying: 'u' },
+      ];
+      for (const boundary of boundaries) {
+        const points = [];
+        for (let i = 0; i <= segments; i += 1) {
+          const t = segments === 0 ? 0 : i / segments;
+          const uValue = boundary.varying === 'u'
+            ? domainU.start + (domainU.end - domainU.start) * t
+            : boundary.constant;
+          const vValue = boundary.varying === 'v'
+            ? domainV.start + (domainV.end - domainV.start) * t
+            : boundary.constant;
+          const point = evaluateSurfacePoint(surface, uValue, vValue);
+          if (point) {
+            points.push(point.clone());
+          }
+        }
+        if (points.length >= 2) {
+          const signature = createPolylineSignature(points);
+          const record = {
+            faceIndex,
+            points,
+            boundary: boundary.key,
+          };
+          if (!edgesBySignature.has(signature)) {
+            edgesBySignature.set(signature, []);
+          }
+          edgesBySignature.get(signature).push(record);
+        }
+      }
+    });
+    const edges = [];
+    const naked = [];
+    const interior = [];
+    const nonManifold = [];
+    edgesBySignature.forEach((records, signature) => {
+      if (!records.length) {
+        return;
+      }
+      const sample = records[0];
+      const faces = Array.from(new Set(records.map((record) => record.faceIndex)));
+      const edge = {
+        signature,
+        points: sample.points.map((pt) => pt.clone()),
+        records,
+        faces,
+      };
+      edges.push(edge);
+      if (records.length <= 1) {
+        naked.push(edge);
+      } else if (records.length === 2) {
+        interior.push(edge);
+      } else {
+        nonManifold.push(edge);
+      }
+    });
+    return { edges, naked, interior, nonManifold };
+  }
+
+  function edgeToCurve(edge) {
+    if (!edge) {
+      return null;
+    }
+    return {
+      type: 'polyline',
+      points: edge.points.map((pt) => pt.clone()),
+      closed: false,
+      length: computePolylineLength(edge.points, false),
+      faces: edge.faces.slice(),
+    };
+  }
+
+  function dedupePoints(points, tolerance = 1e-6) {
+    if (!points || !points.length) {
+      return [];
+    }
+    const result = [];
+    const tolSq = tolerance * tolerance;
+    for (const point of points) {
+      const exists = result.some((existing) => existing.distanceToSquared(point) <= tolSq);
+      if (!exists) {
+        result.push(point.clone());
+      }
+    }
+    return result;
+  }
+
+  function computeBoundingBoxForContent(content) {
+    const points = collectPoints(content);
+    if (!points.length) {
+      return null;
+    }
+    return createAxisAlignedBoxFromPoints(points);
+  }
+
+  function estimateGeometryAreaAndCentroid(geometryInput) {
+    if (!geometryInput) {
+      return { area: 0, centroid: new THREE.Vector3(), source: null };
+    }
+    const surfaces = ensureSurfaceEntries(geometryInput);
+    if (surfaces.length) {
+      let totalArea = 0;
+      const centroid = new THREE.Vector3();
+      for (const entry of surfaces) {
+        const { area, centroid: surfaceCentroid } = estimateSurfaceArea(entry.surface);
+        if (area > EPSILON) {
+          totalArea += area;
+          centroid.add(surfaceCentroid.clone().multiplyScalar(area));
+        }
+      }
+      if (totalArea > EPSILON) {
+        centroid.multiplyScalar(1 / totalArea);
+      }
+      return { area: totalArea, centroid, source: surfaces };
+    }
+    const box = ensureBoxData(geometryInput) ?? computeBoundingBoxForContent(geometryInput);
+    if (box) {
+      const metrics = computeBoxMetrics(box);
+      return { area: metrics.area, centroid: metrics.center.clone(), source: box };
+    }
+    return { area: 0, centroid: new THREE.Vector3(), source: null };
+  }
+
+  function estimateGeometryVolumeAndCentroid(geometryInput) {
+    if (!geometryInput) {
+      return { volume: 0, centroid: new THREE.Vector3(), box: null };
+    }
+    const box = ensureBoxData(geometryInput) ?? computeBoundingBoxForContent(geometryInput);
+    if (!box) {
+      return { volume: 0, centroid: new THREE.Vector3(), box: null };
+    }
+    const metrics = computeBoxMetrics(box);
+    return { volume: metrics.volume, centroid: metrics.center.clone(), box };
+  }
+
+  function computeBoxInclusion(box, point, { strict = false, tolerance = 1e-6 } = {}) {
+    if (!box || !point) {
+      return false;
+    }
+    const plane = box.plane ? normalizePlaneAxes(
+      box.plane.origin.clone(),
+      box.plane.xAxis.clone(),
+      box.plane.yAxis.clone(),
+      box.plane.zAxis.clone(),
+    ) : defaultPlane();
+    const coords = planeCoordinates(point, plane);
+    const min = box.localMin ?? new THREE.Vector3(box.min?.x ?? 0, box.min?.y ?? 0, box.min?.z ?? 0);
+    const max = box.localMax ?? new THREE.Vector3(box.max?.x ?? 0, box.max?.y ?? 0, box.max?.z ?? 0);
+    const compare = (value, minValue, maxValue) => {
+      if (strict) {
+        return value > minValue + tolerance && value < maxValue - tolerance;
+      }
+      return value >= minValue - tolerance && value <= maxValue + tolerance;
+    };
+    return compare(coords.x, min.x, max.x)
+      && compare(coords.y, min.y, max.y)
+      && compare(coords.z, min.z, max.z);
+  }
+
+  function computeSurfaceDimensions(surface, segments = 12) {
+    if (!surface) {
+      return { u: 0, v: 0 };
+    }
+    const domainU = surface.domainU ?? createDomain(0, 1);
+    const domainV = surface.domainV ?? createDomain(0, 1);
+    const samples = Math.max(segments, 2);
+    let uTotal = 0;
+    let uCount = 0;
+    let vTotal = 0;
+    let vCount = 0;
+    for (let iv = 0; iv <= samples; iv += 1) {
+      const fv = samples === 0 ? 0 : iv / samples;
+      const v = domainV.start + (domainV.end - domainV.start) * fv;
+      const start = evaluateSurfacePoint(surface, domainU.min, v);
+      const end = evaluateSurfacePoint(surface, domainU.max, v);
+      if (start && end) {
+        uTotal += start.distanceTo(end);
+        uCount += 1;
+      }
+    }
+    for (let iu = 0; iu <= samples; iu += 1) {
+      const fu = samples === 0 ? 0 : iu / samples;
+      const u = domainU.start + (domainU.end - domainU.start) * fu;
+      const start = evaluateSurfacePoint(surface, u, domainV.min);
+      const end = evaluateSurfacePoint(surface, u, domainV.max);
+      if (start && end) {
+        vTotal += start.distanceTo(end);
+        vCount += 1;
+      }
+    }
+    const uDimension = uCount ? uTotal / uCount : 0;
+    const vDimension = vCount ? vTotal / vCount : 0;
+    return { u: uDimension, v: vDimension };
+  }
+
+  function computeSurfaceInflectionCurves(surface, { segmentsU = 24, segmentsV = 24, tolerance = 1e-6 } = {}) {
+    if (!surface) {
+      return [];
+    }
+    const domainU = surface.domainU ?? createDomain(0, 1);
+    const domainV = surface.domainV ?? createDomain(0, 1);
+    const gaussianGrid = [];
+    const uvGrid = [];
+    for (let iv = 0; iv <= segmentsV; iv += 1) {
+      const fv = segmentsV === 0 ? 0 : iv / segmentsV;
+      const v = domainV.start + (domainV.end - domainV.start) * fv;
+      const gaussianRow = [];
+      const uvRow = [];
+      for (let iu = 0; iu <= segmentsU; iu += 1) {
+        const fu = segmentsU === 0 ? 0 : iu / segmentsU;
+        const u = domainU.start + (domainU.end - domainU.start) * fu;
+        const curvature = computeSurfaceCurvatureData(surface, u, v);
+        gaussianRow.push(curvature ? curvature.gaussian : 0);
+        uvRow.push({ u, v });
+      }
+      gaussianGrid.push(gaussianRow);
+      uvGrid.push(uvRow);
+    }
+    const curves = [];
+    const addCurve = (points) => {
+      const valid = points.filter(Boolean);
+      const unique = dedupePoints(valid, tolerance);
+      if (unique.length >= 2) {
+        curves.push({
+          type: 'polyline',
+          points: unique.map((pt) => pt.clone()),
+          closed: false,
+          length: computePolylineLength(unique, false),
+        });
+      }
+    };
+    for (let iv = 0; iv <= segmentsV; iv += 1) {
+      const rowPoints = [];
+      for (let iu = 0; iu < segmentsU; iu += 1) {
+        const g0 = gaussianGrid[iv][iu];
+        const g1 = gaussianGrid[iv][iu + 1];
+        const uv0 = uvGrid[iv][iu];
+        const uv1 = uvGrid[iv][iu + 1];
+        if (!Number.isFinite(g0) || !Number.isFinite(g1)) {
+          continue;
+        }
+        if (Math.abs(g0) <= tolerance) {
+          const point = evaluateSurfacePoint(surface, uv0.u, uv0.v);
+          if (point) {
+            rowPoints.push(point.clone());
+          }
+        }
+        if (g0 * g1 < 0) {
+          const ratio = g0 / (g0 - g1);
+          const u = uv0.u + (uv1.u - uv0.u) * ratio;
+          const v = uv0.v + (uv1.v - uv0.v) * ratio;
+          const point = evaluateSurfacePoint(surface, u, v);
+          if (point) {
+            rowPoints.push(point.clone());
+          }
+        }
+      }
+      if (rowPoints.length >= 2) {
+        addCurve(rowPoints);
+      }
+    }
+    for (let iu = 0; iu <= segmentsU; iu += 1) {
+      const columnPoints = [];
+      for (let iv = 0; iv < segmentsV; iv += 1) {
+        const g0 = gaussianGrid[iv][iu];
+        const g1 = gaussianGrid[iv + 1][iu];
+        const uv0 = uvGrid[iv][iu];
+        const uv1 = uvGrid[iv + 1][iu];
+        if (!Number.isFinite(g0) || !Number.isFinite(g1)) {
+          continue;
+        }
+        if (Math.abs(g0) <= tolerance) {
+          const point = evaluateSurfacePoint(surface, uv0.u, uv0.v);
+          if (point) {
+            columnPoints.push(point.clone());
+          }
+        }
+        if (g0 * g1 < 0) {
+          const ratio = g0 / (g0 - g1);
+          const u = uv0.u + (uv1.u - uv0.u) * ratio;
+          const v = uv0.v + (uv1.v - uv0.v) * ratio;
+          const point = evaluateSurfacePoint(surface, u, v);
+          if (point) {
+            columnPoints.push(point.clone());
+          }
+        }
+      }
+      if (columnPoints.length >= 2) {
+        addCurve(columnPoints);
+      }
+    }
+    const uniqueCurves = [];
+    const signatures = new Set();
+    for (const curve of curves) {
+      const signature = createPolylineSignature(curve.points);
+      if (!signatures.has(signature)) {
+        signatures.add(signature);
+        uniqueCurves.push(curve);
+      }
+    }
+    return uniqueCurves;
+  }
+
+  function evaluateSurfacePlanarity(surface, { tolerance = 1e-4 } = {}) {
+    if (!surface) {
+      return { planar: false, plane: defaultPlane(), deviation: Number.POSITIVE_INFINITY };
+    }
+    const samples = sampleSurfacePoints(surface, 12, 12);
+    const points = dedupePoints(samples, tolerance);
+    if (points.length < 3) {
+      return { planar: true, plane: surface.plane ?? defaultPlane(), deviation: 0 };
+    }
+    let basePlane = null;
+    for (let i = 0; i < points.length - 2 && !basePlane; i += 1) {
+      for (let j = i + 1; j < points.length - 1 && !basePlane; j += 1) {
+        for (let k = j + 1; k < points.length && !basePlane; k += 1) {
+          const normal = points[j].clone().sub(points[i]).cross(points[k].clone().sub(points[i]));
+          if (normal.lengthSq() > EPSILON) {
+            basePlane = planeFromPoints(points[i], points[j], points[k]);
+          }
+        }
+      }
+    }
+    if (!basePlane) {
+      return { planar: true, plane: surface.plane ?? defaultPlane(), deviation: 0 };
+    }
+    const referencePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      basePlane.zAxis.clone(),
+      basePlane.origin.clone(),
+    );
+    let maxDeviation = 0;
+    for (const point of points) {
+      const distance = Math.abs(referencePlane.distanceToPoint(point));
+      if (distance > maxDeviation) {
+        maxDeviation = distance;
+      }
+    }
+    return {
+      planar: maxDeviation <= tolerance,
+      plane: basePlane,
+      deviation: maxDeviation,
+    };
+  }
+
+  function registerAnalysisComponents() {
+    function primarySurfaceEntry(surfaceInput) {
+      const surfaces = ensureSurfaceEntries(surfaceInput);
+      return surfaces.length ? surfaces[0] : null;
+    }
+
+    function evaluateSurfaceSample(surfaceInput, uvInput) {
+      const entry = primarySurfaceEntry(surfaceInput);
+      const surface = entry?.surface ?? null;
+      const uv = ensureUVPoint(uvInput, surface);
+      const fallbackPlane = surface?.plane ?? defaultPlane();
+      if (!surface) {
+        const point = fallbackPlane.origin.clone();
+        const normal = fallbackPlane.zAxis.clone();
+        const tangentU = fallbackPlane.xAxis.clone();
+        const tangentV = fallbackPlane.yAxis.clone();
+        const frame = normalizePlaneAxes(point.clone(), tangentU.clone(), tangentV.clone(), normal.clone());
+        return {
+          entry: null,
+          surface: null,
+          uv,
+          point,
+          normal,
+          tangentU,
+          tangentV,
+          frame,
+          derivatives: null,
+        };
+      }
+      const derivatives = evaluateSurfaceDerivatives(surface, uv.u, uv.v);
+      const point = derivatives?.point?.clone()
+        ?? evaluateSurfacePoint(surface, uv.u, uv.v)
+        ?? fallbackPlane.origin.clone();
+      let normal = derivatives?.normal?.clone() ?? fallbackPlane.zAxis.clone();
+      if (normal.lengthSq() <= EPSILON) {
+        normal = fallbackPlane.zAxis.clone();
+      }
+      normal.normalize();
+      let tangentU = derivatives?.tangentU?.clone();
+      if (!tangentU || tangentU.lengthSq() <= EPSILON) {
+        tangentU = fallbackPlane.xAxis.clone();
+        if (tangentU.lengthSq() <= EPSILON) {
+          tangentU = orthogonalVector(normal);
+        }
+      }
+      tangentU.normalize();
+      let tangentV = derivatives?.tangentV?.clone();
+      if (!tangentV || tangentV.lengthSq() <= EPSILON) {
+        tangentV = fallbackPlane.yAxis.clone();
+        if (tangentV.lengthSq() <= EPSILON) {
+          tangentV = normal.clone().cross(tangentU);
+          if (tangentV.lengthSq() <= EPSILON) {
+            tangentV = orthogonalVector(tangentU);
+          }
+        }
+      }
+      tangentV.normalize();
+      const frame = normalizePlaneAxes(point.clone(), tangentU.clone(), tangentV.clone(), normal.clone());
+      return {
+        entry,
+        surface,
+        uv,
+        point,
+        normal,
+        tangentU,
+        tangentV,
+        frame,
+        derivatives,
+      };
+    }
+
+    function closestPointOnSurfaceEntries(surfaceEntries, point) {
+      if (!surfaceEntries.length || !point) {
+        return null;
+      }
+      let best = null;
+      for (const entry of surfaceEntries) {
+        const result = approximateSurfaceClosestPoint(entry.surface, point, { segmentsU: 32, segmentsV: 32 });
+        if (!result) {
+          continue;
+        }
+        if (!best || result.distance < best.distance) {
+          best = { ...result, surfaceEntry: entry };
+        }
+      }
+      return best;
+    }
+
+    function createOsculatingCircle(point, normal, direction, curvature) {
+      if (!point || !normal || !direction || !Number.isFinite(curvature) || Math.abs(curvature) <= EPSILON) {
+        return null;
+      }
+      const signedRadius = 1 / curvature;
+      if (!Number.isFinite(signedRadius) || Math.abs(signedRadius) <= EPSILON) {
+        return null;
+      }
+      const unitNormal = normal.clone().normalize();
+      const unitDirection = direction.clone().normalize();
+      let yAxis = unitNormal.clone().cross(unitDirection);
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = orthogonalVector(unitDirection);
+      }
+      yAxis.normalize();
+      const center = point.clone().add(unitNormal.clone().multiplyScalar(signedRadius));
+      const plane = normalizePlaneAxes(center.clone(), unitDirection.clone(), yAxis.clone(), unitNormal.clone());
+      const shape = new THREE.Shape();
+      shape.absarc(0, 0, Math.abs(signedRadius), 0, Math.PI * 2, false);
+      return {
+        type: 'circle',
+        plane,
+        center,
+        radius: Math.abs(signedRadius),
+        shape,
+        segments: 128,
+      };
+    }
+
+    function computeMomentsForGeometry(geometryInput, { massOverride = null } = {}) {
+      const box = ensureBoxData(geometryInput) ?? computeBoundingBoxForContent(geometryInput);
+      const base = computeBoxMoments(box);
+      const centroid = base.centroid.clone();
+      let inertia = base.inertia.clone();
+      let secondary = base.secondary.clone();
+      let inertiaError = base.inertiaError.clone();
+      let secondaryError = base.secondaryError.clone();
+      let gyration = base.gyration.clone();
+      let volume = base.volume;
+      if (massOverride !== null && base.volume > EPSILON) {
+        const mass = Math.max(massOverride, 0);
+        const scale = mass / base.volume;
+        inertia = inertia.multiplyScalar(scale);
+        secondary = secondary.multiplyScalar(scale);
+        inertiaError = inertiaError.multiplyScalar(scale);
+        secondaryError = secondaryError.multiplyScalar(scale);
+        gyration = new THREE.Vector3(
+          mass > EPSILON ? Math.sqrt(Math.abs(inertia.x / mass)) : 0,
+          mass > EPSILON ? Math.sqrt(Math.abs(inertia.y / mass)) : 0,
+          mass > EPSILON ? Math.sqrt(Math.abs(inertia.z / mass)) : 0,
+        );
+        volume = mass;
+      }
+      return { volume, area: base.area, centroid, inertia, secondary, inertiaError, secondaryError, gyration };
+    }
+
+    function generateSurfaceIsoCurves(surface, density = 3, segments = 32) {
+      if (!surface) {
+        return [];
+      }
+      const domainU = surface.domainU ?? createDomain(0, 1);
+      const domainV = surface.domainV ?? createDomain(0, 1);
+      const stepCount = Math.max(1, Math.round(Math.abs(density)));
+      const segmentCount = Math.max(segments, 8);
+      const curves = [];
+      const signatures = new Set();
+      const addCurve = (points) => {
+        if (!points || points.length < 2) {
+          return;
+        }
+        const signature = createPolylineSignature(points);
+        if (signatures.has(signature)) {
+          return;
+        }
+        signatures.add(signature);
+        curves.push({
+          type: 'polyline',
+          points: points.map((pt) => pt.clone()),
+          closed: false,
+          length: computePolylineLength(points, false),
+        });
+      };
+      for (let i = 0; i <= stepCount; i += 1) {
+        const factor = stepCount === 0 ? 0 : i / stepCount;
+        const u = domainU.start + (domainU.end - domainU.start) * factor;
+        const points = [];
+        for (let j = 0; j <= segmentCount; j += 1) {
+          const vf = segmentCount === 0 ? 0 : j / segmentCount;
+          const v = domainV.start + (domainV.end - domainV.start) * vf;
+          const point = evaluateSurfacePoint(surface, u, v);
+          if (point) {
+            points.push(point);
+          }
+        }
+        addCurve(points);
+      }
+      for (let j = 0; j <= stepCount; j += 1) {
+        const factor = stepCount === 0 ? 0 : j / stepCount;
+        const v = domainV.start + (domainV.end - domainV.start) * factor;
+        const points = [];
+        for (let i = 0; i <= segmentCount; i += 1) {
+          const uf = segmentCount === 0 ? 0 : i / segmentCount;
+          const u = domainU.start + (domainU.end - domainU.start) * uf;
+          const point = evaluateSurfacePoint(surface, u, v);
+          if (point) {
+            points.push(point);
+          }
+        }
+        addCurve(points);
+      }
+      return curves;
+    }
+
+    function cloneFrame(frame) {
+      if (!frame) {
+        const fallback = defaultPlane();
+        return {
+          origin: fallback.origin.clone(),
+          xAxis: fallback.xAxis.clone(),
+          yAxis: fallback.yAxis.clone(),
+          zAxis: fallback.zAxis.clone(),
+        };
+      }
+      return {
+        origin: frame.origin.clone(),
+        xAxis: frame.xAxis.clone(),
+        yAxis: frame.yAxis.clone(),
+        zAxis: frame.zAxis.clone(),
+      };
+    }
+
+    register('{0148a65d-6f42-414a-9db7-9a9b2eb78437}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          En: 'naked',
+          Naked: 'naked',
+          Ei: 'interior',
+          Interior: 'interior',
+          Em: 'nonManifold',
+          'Non-Manifold': 'nonManifold',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        if (!surfaces.length) {
+          return { naked: [], interior: [], nonManifold: [] };
+        }
+        const edgesInfo = computeSurfaceEdges(surfaces);
+        return {
+          naked: edgesInfo.naked.map(edgeToCurve).filter(Boolean),
+          interior: edgesInfo.interior.map(edgeToCurve).filter(Boolean),
+          nonManifold: edgesInfo.nonManifold.map(edgeToCurve).filter(Boolean),
+        };
+      },
+    });
+
+    register('{0efd7f0c-f63d-446d-970e-9fb0e636ea41}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+        outputs: { C: 'curves', Curves: 'curves', curves: 'curves' },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.surface);
+        if (!surfaces.length) {
+          return { curves: [] };
+        }
+        const curves = computeSurfaceInflectionCurves(surfaces[0].surface);
+        return { curves };
+      },
+    });
+
+    register('{13b40e9c-3aed-4669-b2e8-60bd02091421}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: {
+          B: 'box', Box: 'box', box: 'box',
+          U: 'u', 'U parameter': 'u', u: 'u',
+          V: 'v', 'V parameter': 'v', v: 'v',
+          W: 'w', 'W parameter': 'w', w: 'w',
+        },
+        outputs: {
+          Pl: 'plane', Plane: 'plane', plane: 'plane',
+          Pt: 'point', Point: 'point', point: 'point',
+          I: 'include', Include: 'include', include: 'include',
+        },
+      },
+      eval: ({ inputs }) => {
+        const box = ensureBoxData(inputs.box) ?? computeBoundingBoxForContent(inputs.box);
+        if (!box) {
+          return { plane: null, point: null, include: false };
+        }
+        const planeData = box.plane ?? defaultPlane();
+        const u = clamp01(ensureNumeric(inputs.u, 0));
+        const v = clamp01(ensureNumeric(inputs.v, 0));
+        const w = clamp01(ensureNumeric(inputs.w, 0));
+        const localX = box.localMin.x + (box.localMax.x - box.localMin.x) * u;
+        const localY = box.localMin.y + (box.localMax.y - box.localMin.y) * v;
+        const localZ = box.localMin.z + (box.localMax.z - box.localMin.z) * w;
+        const point = applyPlane(planeData, localX, localY, localZ);
+        const plane = {
+          origin: point.clone(),
+          xAxis: planeData.xAxis.clone(),
+          yAxis: planeData.yAxis.clone(),
+          zAxis: planeData.zAxis.clone(),
+        };
+        const include = computeBoxInclusion(box, point, { strict: false });
+        return { plane, point, include };
+      },
+    });
+
+    register('{15128198-399d-4d6c-9586-1f65db3ce7bf}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+        outputs: {
+          P: 'points', Points: 'points', points: 'points',
+          W: 'weights', Weights: 'weights', weights: 'weights',
+          G: 'greville', Greville: 'greville', greville: 'greville',
+          U: 'uCount', 'U Count': 'uCount',
+          V: 'vCount', 'V Count': 'vCount',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.surface);
+        if (!surfaces.length) {
+          return { points: [], weights: [], greville: [], uCount: 0, vCount: 0 };
+        }
+        const entry = surfaces[0];
+        const surface = entry.surface;
+        const gridData = entry.wrapper?.metadata?.grid ?? entry.surface?.metadata?.grid ?? null;
+        const grid = Array.isArray(gridData) && gridData.length
+          ? gridData.map((row) => row.map((pt) => ensurePoint(pt, new THREE.Vector3())))
+          : sampleSurfaceGrid(surface, 6, 6);
+        const vCount = grid.length;
+        const uCount = vCount ? grid[0].length : 0;
+        const points = [];
+        const weights = [];
+        const greville = [];
+        if (vCount && uCount) {
+          for (let j = 0; j < vCount; j += 1) {
+            for (let i = 0; i < uCount; i += 1) {
+              const point = grid[j][i]?.clone?.() ? grid[j][i].clone() : ensurePoint(grid[j][i], new THREE.Vector3());
+              points.push(point);
+              weights.push(1);
+              const uParam = uCount > 1 ? i / (uCount - 1) : 0;
+              const vParam = vCount > 1 ? j / (vCount - 1) : 0;
+              greville.push({ u: uParam, v: vParam });
+            }
+          }
+        }
+        return { points, weights, greville, uCount, vCount };
+      },
+    });
+
+    register('{224f7648-5956-4b26-80d9-8d771f3dfd5d}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { G: 'geometry', Geometry: 'geometry', geometry: 'geometry' },
+        outputs: { V: 'volume', Volume: 'volume', C: 'centroid', Centroid: 'centroid' },
+      },
+      eval: ({ inputs }) => {
+        const { volume, centroid } = estimateGeometryVolumeAndCentroid(inputs.geometry);
+        return { volume, centroid };
+      },
+    });
+
+    register('{2ba64356-be21-4c12-bbd4-ced54f04c8ef}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          S: 'shape', Shape: 'shape', shape: 'shape',
+        },
+        outputs: { R: 'relation', Relation: 'relation', relation: 'relation' },
+      },
+      eval: ({ inputs }) => {
+        const brepBox = ensureBoxData(inputs.brep) ?? computeBoundingBoxForContent(inputs.brep);
+        const shapeBox = ensureBoxData(inputs.shape) ?? computeBoundingBoxForContent(inputs.shape);
+        if (!brepBox || !shapeBox) {
+          return { relation: 2 };
+        }
+        const corners = shapeBox.corners ?? [];
+        const inside = corners.length
+          ? corners.every((corner) => computeBoxInclusion(brepBox, corner, { strict: false }))
+          : computeBoxInclusion(brepBox, applyPlane(shapeBox.plane ?? defaultPlane(), 0, 0, 0), { strict: false });
+        if (inside) {
+          return { relation: 0 };
+        }
+        const brepBounds = brepBox.box3 ?? computeBoundingBoxFromPoints(brepBox.corners ?? []);
+        const shapeBounds = shapeBox.box3 ?? computeBoundingBoxFromPoints(shapeBox.corners ?? []);
+        if (brepBounds && shapeBounds && brepBounds.intersectsBox(shapeBounds)) {
+          return { relation: 1 };
+        }
+        return { relation: 2 };
+      },
+    });
+
+    register('{2e205f24-9279-47b2-b414-d06dcd0b21a7}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { G: 'geometry', Geometry: 'geometry', geometry: 'geometry' },
+        outputs: { A: 'area', Area: 'area', C: 'centroid', Centroid: 'centroid' },
+      },
+      eval: ({ inputs }) => {
+        const { area, centroid } = estimateGeometryAreaAndCentroid(inputs.geometry);
+        return { area, centroid };
+      },
+    });
+
+    register('{353b206e-bde5-4f02-a913-b3b8a977d4b9}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          uv: 'uv', UV: 'uv', Point: 'uv', point: 'uv',
+        },
+        outputs: {
+          P: 'point', Point: 'point', point: 'point',
+          N: 'normal', Normal: 'normal', normal: 'normal',
+          U: 'uDirection', 'U direction': 'uDirection', u: 'uDirection',
+          V: 'vDirection', 'V direction': 'vDirection', v: 'vDirection',
+          F: 'frame', Frame: 'frame', frame: 'frame',
+        },
+      },
+      eval: ({ inputs }) => {
+        const data = evaluateSurfaceSample(inputs.surface, inputs.uv);
+        const point = data.point ? data.point.clone() : null;
+        const normal = data.normal ? data.normal.clone() : null;
+        const uDirection = data.tangentU ? data.tangentU.clone() : null;
+        const vDirection = data.tangentV ? data.tangentV.clone() : null;
+        const frame = cloneFrame(data.frame);
+        return { point, normal, uDirection, vDirection, frame };
+      },
+    });
+
+    register('{404f75ac-5594-4c48-ad8a-7d0f472bbf8a}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          uv: 'uv', UV: 'uv', Point: 'uv', point: 'uv',
+        },
+        outputs: {
+          F: 'frame', Frame: 'frame', frame: 'frame',
+          Maximum: 'maxCurvature', 'C¹': 'maxCurvature', C1: 'maxCurvature',
+          Minimum: 'minCurvature', 'C²': 'minCurvature', C2: 'minCurvature',
+          'Max direction': 'direction1', 'K¹': 'direction1', K1: 'direction1',
+          'Min direction': 'direction2', 'K²': 'direction2', K2: 'direction2',
+        },
+      },
+      eval: ({ inputs }) => {
+        const data = evaluateSurfaceSample(inputs.surface, inputs.uv);
+        const curvature = data.surface
+          ? computeSurfaceCurvatureData(data.surface, data.uv.u, data.uv.v)
+          : null;
+        const principal = curvature?.principalCurvatures ?? [];
+        const first = principal[0] ?? null;
+        const second = principal[1] ?? null;
+        const maxCurvature = Number.isFinite(first?.value) ? first.value : 0;
+        const minCurvature = Number.isFinite(second?.value) ? second.value : 0;
+        const direction1 = (first?.direction ? first.direction.clone() : data.tangentU.clone()).normalize();
+        const direction2 = (second?.direction ? second.direction.clone() : data.tangentV.clone()).normalize();
+        return {
+          frame: cloneFrame(data.frame),
+          maxCurvature,
+          minCurvature,
+          direction1,
+          direction2,
+        };
+      },
+    });
+
+    register('{4139f3a3-cf93-4fc0-b5e0-18a3acd0b003}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          uv: 'uv', UV: 'uv', Point: 'uv', point: 'uv',
+        },
+        outputs: {
+          F: 'frame', Frame: 'frame', frame: 'frame',
+          G: 'gaussian', Gaussian: 'gaussian', gaussian: 'gaussian',
+          M: 'mean', Mean: 'mean', mean: 'mean',
+        },
+      },
+      eval: ({ inputs }) => {
+        const data = evaluateSurfaceSample(inputs.surface, inputs.uv);
+        const curvature = data.surface
+          ? computeSurfaceCurvatureData(data.surface, data.uv.u, data.uv.v)
+          : null;
+        return {
+          frame: cloneFrame(data.frame),
+          gaussian: curvature?.gaussian ?? 0,
+          mean: curvature?.mean ?? 0,
+        };
+      },
+    });
+
+    register('{4a9e9a8e-0943-4438-b360-129c30f2bb0f}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'point', Point: 'point', point: 'point',
+          S: 'surface', Surface: 'surface', surface: 'surface',
+        },
+        outputs: {
+          P: 'closestPoint', Point: 'closestPoint', point: 'closestPoint',
+          uvP: 'uvPoint', 'UV Point': 'uvPoint', uv: 'uvPoint',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+        },
+      },
+      eval: ({ inputs }) => {
+        const target = inputs.point ? ensurePoint(inputs.point, null) : null;
+        const entry = primarySurfaceEntry(inputs.surface);
+        if (!entry || !target) {
+          return {
+            closestPoint: entry?.surface ? evaluateSurfacePoint(entry.surface, 0.5, 0.5) ?? null : null,
+            uvPoint: { u: 0, v: 0 },
+            distance: 0,
+          };
+        }
+        const result = approximateSurfaceClosestPoint(entry.surface, target, { segmentsU: 32, segmentsV: 32 });
+        if (!result) {
+          const sample = evaluateSurfaceSample(entry.surface, { u: 0.5, v: 0.5 });
+          const point = sample.point ? sample.point.clone() : null;
+          return {
+            closestPoint: point,
+            uvPoint: sample.uv,
+            distance: point ? point.distanceTo(target) : 0,
+          };
+        }
+        return {
+          closestPoint: result.point.clone(),
+          uvPoint: { u: result.u, v: result.v },
+          distance: result.distance,
+        };
+      },
+    });
+
+    register('{4b5f79e1-c2b3-4b9c-b97d-470145a3ca74}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { G: 'geometry', Geometry: 'geometry', geometry: 'geometry' },
+        outputs: {
+          V: 'volume', Volume: 'volume',
+          C: 'centroid', Centroid: 'centroid',
+          I: 'inertia', Inertia: 'inertia',
+          'I±': 'inertiaError', 'Inertia (error)': 'inertiaError',
+          S: 'secondary', Secondary: 'secondary',
+          'S±': 'secondaryError', 'Secondary (error)': 'secondaryError',
+          G: 'gyration', Gyration: 'gyration',
+        },
+      },
+      eval: ({ inputs }) => {
+        const moments = computeMomentsForGeometry(inputs.geometry);
+        return {
+          volume: moments.volume,
+          centroid: moments.centroid.clone(),
+          inertia: moments.inertia.clone(),
+          inertiaError: moments.inertiaError.clone(),
+          secondary: moments.secondary.clone(),
+          secondaryError: moments.secondaryError.clone(),
+          gyration: moments.gyration.clone(),
+        };
+      },
+    });
+
+    register('{4beead95-8aa2-4613-8bb9-24758a0f5c4c}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'point', Point: 'point', point: 'point',
+          B: 'brep', Brep: 'brep', brep: 'brep',
+        },
+        outputs: {
+          P: 'closestPoint', Point: 'closestPoint', point: 'closestPoint',
+          N: 'normal', Normal: 'normal', normal: 'normal',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+        },
+      },
+      eval: ({ inputs }) => {
+        const target = inputs.point ? ensurePoint(inputs.point, null) : null;
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        let result = target ? closestPointOnSurfaceEntries(surfaces, target) : null;
+        if (!result && target) {
+          const fallbackBox = ensureBoxData(inputs.brep) ?? computeBoundingBoxForContent(inputs.brep);
+          if (fallbackBox) {
+            const center = fallbackBox.center?.clone() ?? applyPlane(fallbackBox.plane ?? defaultPlane(), 0, 0, 0);
+            const normal = fallbackBox.plane?.zAxis?.clone() ?? new THREE.Vector3(0, 0, 1);
+            result = {
+              point: center.clone(),
+              normal: normal.normalize(),
+              distance: center.distanceTo(target),
+            };
+          }
+        }
+        if (!result) {
+          return { closestPoint: null, normal: null, distance: 0 };
+        }
+        return {
+          closestPoint: result.point.clone(),
+          normal: result.normal?.clone() ?? (surfaces[0]?.surface?.plane?.zAxis?.clone()?.normalize() ?? new THREE.Vector3(0, 0, 1)),
+          distance: result.distance ?? 0,
+        };
+      },
+    });
+
+    register('{5d2fb801-2905-4a55-9d48-bbb22c73ad13}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          A: 'area', Area: 'area',
+          C: 'centroid', Centroid: 'centroid',
+          I: 'inertia', Inertia: 'inertia',
+          'I±': 'inertiaError', 'Inertia (error)': 'inertiaError',
+          S: 'secondary', Secondary: 'secondary',
+          'S±': 'secondaryError', 'Secondary (error)': 'secondaryError',
+          G: 'gyration', Gyration: 'gyration',
+        },
+      },
+      eval: ({ inputs }) => {
+        const { area, centroid } = estimateGeometryAreaAndCentroid(inputs.brep);
+        const moments = computeMomentsForGeometry(inputs.brep, { massOverride: area });
+        return {
+          area,
+          centroid,
+          inertia: moments.inertia.clone(),
+          inertiaError: moments.inertiaError.clone(),
+          secondary: moments.secondary.clone(),
+          secondaryError: moments.secondaryError.clone(),
+          gyration: moments.gyration.clone(),
+        };
+      },
+    });
+
+    register('{859daa86-3ab7-49cb-9eda-f2811c984070}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'breps', Brep: 'breps', brep: 'breps', Breps: 'breps',
+          P: 'point', Point: 'point', point: 'point',
+          S: 'strict', Strict: 'strict', strict: 'strict',
+        },
+        outputs: { I: 'inside', Inside: 'inside', inside: 'inside', i: 'index', Index: 'index' },
+      },
+      eval: ({ inputs }) => {
+        const point = inputs.point ? ensurePoint(inputs.point, null) : null;
+        const breps = ensureArray(inputs.breps);
+        const strict = ensureBoolean(inputs.strict, false);
+        let inside = false;
+        let index = -1;
+        if (point) {
+          for (let i = 0; i < breps.length; i += 1) {
+            const box = ensureBoxData(breps[i]) ?? computeBoundingBoxForContent(breps[i]);
+            if (box && computeBoxInclusion(box, point, { strict })) {
+              inside = true;
+              index = i;
+              break;
+            }
+          }
+        }
+        return { inside, index };
+      },
+    });
+
+    register('{866ee39d-9ebf-4e1d-b209-324c56825605}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          FF: 'faceFace', 'Face|Face Adjacency': 'faceFace',
+          FE: 'faceEdge', 'Face|Edge Adjacency': 'faceEdge',
+          EF: 'edgeFace', 'Edge|Face Adjacency': 'edgeFace',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        if (!surfaces.length) {
+          return { faceFace: [], faceEdge: [], edgeFace: [] };
+        }
+        const edgesInfo = computeSurfaceEdges(surfaces);
+        const edges = edgesInfo.edges;
+        const faceFace = surfaces.map(() => new Set());
+        const faceEdge = surfaces.map(() => []);
+        edges.forEach((edge, edgeIndex) => {
+          const faces = edge.faces ?? [];
+          faces.forEach((faceIndex) => {
+            if (faceEdge[faceIndex]) {
+              faceEdge[faceIndex].push(edgeIndex);
+            }
+            faces.forEach((other) => {
+              if (other !== faceIndex) {
+                faceFace[faceIndex]?.add(other);
+              }
+            });
+          });
+        });
+        return {
+          faceFace: faceFace.map((set) => Array.from(set ?? [])),
+          faceEdge: faceEdge.map((list) => Array.from(list ?? [])),
+          edgeFace: edges.map((edge) => edge.faces ? edge.faces.slice() : []),
+        };
+      },
+    });
+
+    register('{8d372bdc-9800-45e9-8a26-6e33c5253e21}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          F: 'faces', Faces: 'faces', faces: 'faces',
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          V: 'vertices', Vertices: 'vertices', vertices: 'vertices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        const faces = surfaces.map((entry) => entry.wrapper ?? wrapSurface(entry.surface));
+        const edgesInfo = computeSurfaceEdges(surfaces);
+        const edges = edgesInfo.edges.map(edgeToCurve).filter(Boolean);
+        const vertexPoints = [];
+        edges.forEach((edge) => {
+          edge.points.forEach((pt) => vertexPoints.push(pt));
+        });
+        const vertices = dedupePoints(vertexPoints, 1e-6);
+        return { faces, edges, vertices };
+      },
+    });
+
+    register('{a10e8cdf-7c7a-4aac-aa70-ddb7010ab231}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'box', Box: 'box', box: 'box' },
+        outputs: {
+          A: 'cornerA', 'Corner A': 'cornerA',
+          B: 'cornerB', 'Corner B': 'cornerB',
+          C: 'cornerC', 'Corner C': 'cornerC',
+          D: 'cornerD', 'Corner D': 'cornerD',
+          E: 'cornerE', 'Corner E': 'cornerE',
+          F: 'cornerF', 'Corner F': 'cornerF',
+          G: 'cornerG', 'Corner G': 'cornerG',
+          H: 'cornerH', 'Corner H': 'cornerH',
+        },
+      },
+      eval: ({ inputs }) => {
+        const box = ensureBoxData(inputs.box);
+        if (!box) {
+          return {
+            cornerA: null,
+            cornerB: null,
+            cornerC: null,
+            cornerD: null,
+            cornerE: null,
+            cornerF: null,
+            cornerG: null,
+            cornerH: null,
+          };
+        }
+        const plane = box.plane ?? defaultPlane();
+        const min = box.localMin ?? new THREE.Vector3();
+        const max = box.localMax ?? new THREE.Vector3();
+        const corners = [
+          applyPlane(plane, min.x, min.y, min.z),
+          applyPlane(plane, max.x, min.y, min.z),
+          applyPlane(plane, max.x, max.y, min.z),
+          applyPlane(plane, min.x, max.y, min.z),
+          applyPlane(plane, min.x, min.y, max.z),
+          applyPlane(plane, max.x, min.y, max.z),
+          applyPlane(plane, max.x, max.y, max.z),
+          applyPlane(plane, min.x, max.y, max.z),
+        ];
+        return {
+          cornerA: corners[0],
+          cornerB: corners[1],
+          cornerC: corners[2],
+          cornerD: corners[3],
+          cornerE: corners[4],
+          cornerF: corners[5],
+          cornerG: corners[6],
+          cornerH: corners[7],
+        };
+      },
+    });
+
+    register('{aa1dc107-70de-473e-9636-836030160fc3}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          uv: 'uv', UV: 'uv', Point: 'uv', point: 'uv',
+        },
+        outputs: {
+          P: 'point', Point: 'point', point: 'point',
+          N: 'normal', Normal: 'normal', normal: 'normal',
+          F: 'frame', Frame: 'frame', frame: 'frame',
+        },
+      },
+      eval: ({ inputs }) => {
+        const data = evaluateSurfaceSample(inputs.surface, inputs.uv);
+        const point = data.point ? data.point.clone() : null;
+        const normal = data.normal ? data.normal.clone() : null;
+        const frame = cloneFrame(data.frame);
+        return { point, normal, frame };
+      },
+    });
+
+    register('{ab766b01-a3f5-4257-831a-fc84d7b288b4}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: { A: 'area', Area: 'area', C: 'centroid', Centroid: 'centroid' },
+      },
+      eval: ({ inputs }) => {
+        const { area, centroid } = estimateGeometryAreaAndCentroid(inputs.brep);
+        return { area, centroid };
+      },
+    });
+
+    register('{ac750e41-2450-4f98-9658-98fef97b01b2}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          D: 'density', Density: 'density', density: 'density',
+        },
+        outputs: { W: 'wireframe', Wireframe: 'wireframe', wireframe: 'wireframe' },
+      },
+      eval: ({ inputs }) => {
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        const density = Math.max(0, Math.round(ensureNumeric(inputs.density, 3)));
+        const wireframe = [];
+        const signatures = new Set();
+        for (const entry of surfaces) {
+          const curves = generateSurfaceIsoCurves(entry.surface, density || 3, 32);
+          for (const curve of curves) {
+            const signature = createPolylineSignature(curve.points);
+            if (!signatures.has(signature)) {
+              signatures.add(signature);
+              wireframe.push(curve);
+            }
+          }
+        }
+        return { wireframe };
+      },
+    });
+
+    register('{af9cdb9d-9617-4827-bb3c-9efd88c76a70}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'box', Box: 'box', box: 'box' },
+        outputs: {
+          C: 'center', Center: 'center', center: 'center',
+          D: 'diagonal', Diagonal: 'diagonal', diagonal: 'diagonal',
+          A: 'area', Area: 'area',
+          V: 'volume', Volume: 'volume',
+          d: 'degeneracy', Degeneracy: 'degeneracy', degeneracy: 'degeneracy',
+        },
+      },
+      eval: ({ inputs }) => {
+        const box = ensureBoxData(inputs.box);
+        if (!box) {
+          return { center: null, diagonal: new THREE.Vector3(), area: 0, volume: 0, degeneracy: 3 };
+        }
+        const metrics = computeBoxMetrics(box);
+        const plane = metrics.plane;
+        const min = metrics.localMin;
+        const max = metrics.localMax;
+        const minWorld = applyPlane(plane, min.x, min.y, min.z);
+        const maxWorld = applyPlane(plane, max.x, max.y, max.z);
+        const diagonal = maxWorld.clone().sub(minWorld);
+        const degeneracy = [metrics.size.x, metrics.size.y, metrics.size.z].filter((value) => Math.abs(value) <= EPSILON).length;
+        return {
+          center: metrics.center.clone(),
+          diagonal,
+          area: metrics.area,
+          volume: metrics.volume,
+          degeneracy,
+        };
+      },
+    });
+
+    register('{b799b7c0-76df-4bdb-b3cc-401b1d021aa5}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          uv: 'uv', UV: 'uv', Point: 'uv', point: 'uv',
+        },
+        outputs: {
+          P: 'point', Point: 'point', point: 'point',
+          C1: 'circle1', 'First circle': 'circle1',
+          C2: 'circle2', 'Second circle': 'circle2',
+        },
+      },
+      eval: ({ inputs }) => {
+        const data = evaluateSurfaceSample(inputs.surface, inputs.uv);
+        const curvature = data.surface
+          ? computeSurfaceCurvatureData(data.surface, data.uv.u, data.uv.v)
+          : null;
+        const principal = curvature?.principalCurvatures ?? [];
+        const first = principal[0] ?? null;
+        const second = principal[1] ?? null;
+        const circle1 = first ? createOsculatingCircle(data.point, data.normal, first.direction, first.value) : null;
+        const circle2 = second ? createOsculatingCircle(data.point, data.normal, second.direction, second.value) : null;
+        return {
+          point: data.point ? data.point.clone() : null,
+          circle1,
+          circle2,
+        };
+      },
+    });
+
+    register('{c72d0184-bb99-4af4-a629-4662e1c3d428}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: { V: 'volume', Volume: 'volume', C: 'centroid', Centroid: 'centroid' },
+      },
+      eval: ({ inputs }) => {
+        const { volume, centroid } = estimateGeometryVolumeAndCentroid(inputs.brep);
+        return { volume, centroid };
+      },
+    });
+
+    register('{c98c1666-5f29-4bb8-aafd-bb5a708e8a95}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { G: 'geometry', Geometry: 'geometry', geometry: 'geometry' },
+        outputs: {
+          A: 'area', Area: 'area',
+          C: 'centroid', Centroid: 'centroid',
+          I: 'inertia', Inertia: 'inertia',
+          'I±': 'inertiaError', 'Inertia (error)': 'inertiaError',
+          S: 'secondary', Secondary: 'secondary',
+          'S±': 'secondaryError', 'Secondary (error)': 'secondaryError',
+          G: 'gyration', Gyration: 'gyration',
+        },
+      },
+      eval: ({ inputs }) => {
+        const { area, centroid } = estimateGeometryAreaAndCentroid(inputs.geometry);
+        const moments = computeMomentsForGeometry(inputs.geometry, { massOverride: area });
+        return {
+          area,
+          centroid,
+          inertia: moments.inertia.clone(),
+          inertiaError: moments.inertiaError.clone(),
+          secondary: moments.secondary.clone(),
+          secondaryError: moments.secondaryError.clone(),
+          gyration: moments.gyration.clone(),
+        };
+      },
+    });
+
+    register('{cdd5d441-3bad-4f19-a370-6cf180b6f0fa}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'point', Point: 'point', point: 'point',
+          B: 'brep', Brep: 'brep', brep: 'brep',
+        },
+        outputs: {
+          P: 'closestPoint', Point: 'closestPoint', point: 'closestPoint',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+        },
+      },
+      eval: ({ inputs }) => {
+        const target = inputs.point ? ensurePoint(inputs.point, null) : null;
+        const surfaces = ensureSurfaceEntries(inputs.brep);
+        let result = target ? closestPointOnSurfaceEntries(surfaces, target) : null;
+        if (!result && target) {
+          const fallbackBox = ensureBoxData(inputs.brep) ?? computeBoundingBoxForContent(inputs.brep);
+          if (fallbackBox) {
+            const center = fallbackBox.center?.clone() ?? applyPlane(fallbackBox.plane ?? defaultPlane(), 0, 0, 0);
+            result = {
+              point: center.clone(),
+              distance: center.distanceTo(target),
+            };
+          }
+        }
+        if (!result) {
+          return { closestPoint: null, distance: 0 };
+        }
+        return {
+          closestPoint: result.point.clone(),
+          distance: result.distance ?? 0,
+        };
+      },
+    });
+
+    register('{d4bc9653-c770-4bee-a31d-d120cbb75b39}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          I: 'interior', Interior: 'interior', interior: 'interior',
+        },
+        outputs: {
+          F: 'planar', Planar: 'planar', planar: 'planar',
+          P: 'plane', Plane: 'plane', plane: 'plane',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entry = primarySurfaceEntry(inputs.surface);
+        if (!entry) {
+          return { planar: false, plane: cloneFrame(null) };
+        }
+        const planarity = evaluateSurfacePlanarity(entry.surface);
+        return {
+          planar: Boolean(planarity.planar),
+          plane: cloneFrame(planarity.plane),
+        };
+      },
+    });
+
+    register('{db7d83b1-2898-4ef9-9be5-4e94b4e2048d}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'box', Box: 'box', box: 'box' },
+        outputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          X: 'xSize', x: 'xSize',
+          Y: 'ySize', y: 'ySize',
+          Z: 'zSize', z: 'zSize',
+        },
+      },
+      eval: ({ inputs }) => {
+        const box = ensureBoxData(inputs.box);
+        if (!box) {
+          return { plane: cloneFrame(null), xSize: 0, ySize: 0, zSize: 0 };
+        }
+        const metrics = computeBoxMetrics(box);
+        return {
+          plane: cloneFrame(metrics.plane),
+          xSize: metrics.size.x,
+          ySize: metrics.size.y,
+          zSize: metrics.size.z,
+        };
+      },
+    });
+
+    register('{e03561f8-0e66-41d3-afde-62049f152443}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          P: 'point', Point: 'point', point: 'point',
+          S: 'strict', Strict: 'strict', strict: 'strict',
+        },
+        outputs: { I: 'inside', Inside: 'inside', inside: 'inside' },
+      },
+      eval: ({ inputs }) => {
+        const point = inputs.point ? ensurePoint(inputs.point, null) : null;
+        const box = ensureBoxData(inputs.brep) ?? computeBoundingBoxForContent(inputs.brep);
+        const strict = ensureBoolean(inputs.strict, false);
+        const inside = point && box ? computeBoxInclusion(box, point, { strict }) : false;
+        return { inside };
+      },
+    });
+
+    register('{f241e42e-8983-4ed3-b869-621c07630b00}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+        outputs: {
+          U: 'dimensionU', 'U dimension': 'dimensionU',
+          V: 'dimensionV', 'V dimension': 'dimensionV',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entry = primarySurfaceEntry(inputs.surface);
+        if (!entry) {
+          return { dimensionU: 0, dimensionV: 0 };
+        }
+        const dimensions = computeSurfaceDimensions(entry.surface);
+        return {
+          dimensionU: dimensions.u,
+          dimensionV: dimensions.v,
+        };
+      },
+    });
+
+    register('{f881810b-96de-4668-a95a-f9a6d683e65c}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          P: 'uv', UV: 'uv', 'UV Point': 'uv',
+        },
+        outputs: { I: 'inclusion', Inclusion: 'inclusion', inclusion: 'inclusion' },
+      },
+      eval: ({ inputs }) => {
+        const entry = primarySurfaceEntry(inputs.surface);
+        if (!entry) {
+          return { inclusion: false };
+        }
+        const uv = ensureUVPoint(inputs.uv, entry.surface);
+        const domainU = entry.surface.domainU ?? createDomain(0, 1);
+        const domainV = entry.surface.domainV ?? createDomain(0, 1);
+        const tolerance = 1e-6;
+        const inclusion = uv.u >= domainU.min - tolerance
+          && uv.u <= domainU.max + tolerance
+          && uv.v >= domainV.min - tolerance
+          && uv.v <= domainV.max + tolerance;
+        return { inclusion };
+      },
+    });
+
+    register('{ffdfcfc5-3933-4c38-b680-8bb530e243ff}', {
+      type: 'geometry',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          V: 'volume', Volume: 'volume',
+          C: 'centroid', Centroid: 'centroid',
+          I: 'inertia', Inertia: 'inertia',
+          'I±': 'inertiaError', 'Inertia (error)': 'inertiaError',
+          S: 'secondary', Secondary: 'secondary',
+          'S±': 'secondaryError', 'Secondary (error)': 'secondaryError',
+          G: 'gyration', Gyration: 'gyration',
+        },
+      },
+      eval: ({ inputs }) => {
+        const moments = computeMomentsForGeometry(inputs.brep);
+        return {
+          volume: moments.volume,
+          centroid: moments.centroid.clone(),
+          inertia: moments.inertia.clone(),
+          inertiaError: moments.inertiaError.clone(),
+          secondary: moments.secondary.clone(),
+          secondaryError: moments.secondaryError.clone(),
+          gyration: moments.gyration.clone(),
+        };
+      },
+    });
+  }
+
   function registerFreeformComponents() {
     register('{45f19d16-1c9f-4b0f-a9a6-45a77f3d206c}', {
       type: 'surface',
@@ -2854,8 +4879,14 @@ export function registerSurfacePrimitiveComponents({
     },
   });
   }
+
+  registerAnalysisComponents();
 }
 
 export function registerSurfaceFreeformComponents(args) {
   registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_FREEFORM_ONLY });
+}
+
+export function registerSurfaceAnalysisComponents(args) {
+  registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_ANALYSIS_ONLY });
 }
