@@ -862,6 +862,150 @@ export function registerMathDomainComponents({ register, toNumber }) {
   });
 }
 
+export function registerMathPolynomialComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register math polynomial components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register math polynomial components.');
+  }
+
+  const unaryInputPins = {
+    x: 'value',
+    X: 'value',
+    Value: 'value',
+    value: 'value',
+    Number: 'value',
+    number: 'value',
+  };
+
+  const unaryOutputPins = {
+    y: 'result',
+    Y: 'result',
+    Result: 'result',
+    result: 'result',
+  };
+
+  function registerUnaryPolynomial(keys, compute, { fallback = 0 } = {}) {
+    register(keys, {
+      type: 'math',
+      pinMap: {
+        inputs: unaryInputPins,
+        outputs: unaryOutputPins,
+      },
+      eval: ({ inputs }) => {
+        const value = toNumber(inputs.value, fallback);
+        const result = compute(value);
+        return { result: typeof result === 'number' ? result : Number.NaN };
+      },
+    });
+  }
+
+  const safeLog10 = Math.log10 || ((value) => Math.log(value) / Math.LN10);
+  const safeCbrt = Math.cbrt || ((value) => {
+    if (value === 0) return 0;
+    const abs = Math.abs(value);
+    const root = Math.pow(abs, 1 / 3);
+    return value < 0 ? -root : root;
+  });
+
+  registerUnaryPolynomial([
+    '{2280dde4-9fa2-4b4a-ae2f-37d554861367}',
+    'square',
+    'sqr',
+  ], (value) => value * value);
+
+  registerUnaryPolynomial([
+    '{23afc7aa-2d2f-4ae7-b876-bf366246b826}',
+    'natural logarithm',
+    'ln',
+  ], (value) => {
+    if (value < 0) return Number.NaN;
+    if (value === 0) return Number.NEGATIVE_INFINITY;
+    return Math.log(value);
+  }, { fallback: 1 });
+
+  registerUnaryPolynomial([
+    '{27d6f724-a701-4585-992f-3897488abf08}',
+    'logarithm',
+    'log',
+    'log10',
+  ], (value) => {
+    if (value < 0) return Number.NaN;
+    if (value === 0) return Number.NEGATIVE_INFINITY;
+    return safeLog10(value);
+  }, { fallback: 1 });
+
+  registerUnaryPolynomial([
+    '{2ebb82ef-1f90-4ac9-9a71-1fe0f4ef7044}',
+    'power of 10',
+    '10º',
+    '10^',
+  ], (value) => Math.pow(10, value));
+
+  registerUnaryPolynomial([
+    '{5b0be57a-31f5-4446-a11a-ae0d348bca90}',
+    'cube root',
+    'cbrt',
+  ], (value) => safeCbrt(value));
+
+  registerUnaryPolynomial([
+    '{797d922f-3a1d-46fe-9155-358b009b5997}',
+    'one over x',
+    '1/x',
+  ], (value) => 1 / value, { fallback: 1 });
+
+  registerUnaryPolynomial([
+    '{7a1e5fd7-b7da-4244-a261-f1da66614992}',
+    'power of 2',
+    '2º',
+    '2^',
+  ], (value) => Math.pow(2, value));
+
+  register(['{7ab8d289-26a2-4dd4-b4ad-df5b477999d8}', 'log n', 'logn'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        ...unaryInputPins,
+        V: 'value',
+        v: 'value',
+        Base: 'base',
+        base: 'base',
+        B: 'base',
+      },
+      outputs: unaryOutputPins,
+    },
+    eval: ({ inputs }) => {
+      const value = toNumber(inputs.value, Number.NaN);
+      const base = toNumber(inputs.base, Number.NaN);
+      if (!Number.isFinite(value) || !Number.isFinite(base)) {
+        return { result: Number.NaN };
+      }
+      if (value <= 0 || base <= 0 || base === 1) {
+        return { result: Number.NaN };
+      }
+      return { result: Math.log(value) / Math.log(base) };
+    },
+  });
+
+  registerUnaryPolynomial([
+    '{7e3185eb-a38c-4949-bcf2-0e80dee3a344}',
+    'cube',
+  ], (value) => value * value * value);
+
+  registerUnaryPolynomial([
+    '{ad476cb7-b6d1-41c8-986b-0df243a64146}',
+    'square root',
+    'sqrt',
+  ], (value) => (value < 0 ? Number.NaN : Math.sqrt(value)));
+
+  registerUnaryPolynomial([
+    '{c717f26f-e4a0-475c-8e1c-b8f77af1bc99}',
+    'power of e',
+    'eº',
+  ], (value) => Math.exp(value));
+}
+
 export function registerMathScriptComponents({ register, toNumber, toVector3 }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register math script components.');
