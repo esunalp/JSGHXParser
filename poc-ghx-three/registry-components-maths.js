@@ -862,6 +862,947 @@ export function registerMathDomainComponents({ register, toNumber }) {
   });
 }
 
+export function registerMathTrigComponents({ register, toNumber, toVector3 }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register math trigonometry components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register math trigonometry components.');
+  }
+  if (typeof toVector3 !== 'function') {
+    throw new Error('toVector3 function is required to register math trigonometry components.');
+  }
+
+  const EPSILON = 1e-9;
+
+  function unwrapSingle(value) {
+    let current = value;
+    let depth = 0;
+    const maxDepth = 32;
+    while (depth < maxDepth) {
+      if (current === undefined || current === null) {
+        return current;
+      }
+      if (Array.isArray(current)) {
+        if (!current.length) {
+          return undefined;
+        }
+        current = current[0];
+        depth += 1;
+        continue;
+      }
+      if (typeof current === 'object' && !current?.isVector3) {
+        if ('value' in current) {
+          current = current.value;
+          depth += 1;
+          continue;
+        }
+        if ('item' in current) {
+          current = current.item;
+          depth += 1;
+          continue;
+        }
+        if ('point' in current) {
+          current = current.point;
+          depth += 1;
+          continue;
+        }
+        if ('position' in current) {
+          current = current.position;
+          depth += 1;
+          continue;
+        }
+      }
+      return current;
+    }
+    return current;
+  }
+
+  function toNumeric(value) {
+    return toNumber(unwrapSingle(value), Number.NaN);
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function assignIfMissing(target, key, value) {
+    if (!Number.isFinite(value)) {
+      return false;
+    }
+    if (target[key] === undefined) {
+      target[key] = value;
+      return true;
+    }
+    return false;
+  }
+
+  function assignAngle(target, key, value) {
+    if (!Number.isFinite(value) || value <= EPSILON) {
+      return false;
+    }
+    return assignIfMissing(target, key, value);
+  }
+
+  function assignLength(target, key, value) {
+    if (!Number.isFinite(value) || value <= EPSILON) {
+      return false;
+    }
+    return assignIfMissing(target, key, value);
+  }
+
+  function isAngle(value) {
+    return Number.isFinite(value) && value > EPSILON;
+  }
+
+  function isLength(value) {
+    return Number.isFinite(value) && value > EPSILON;
+  }
+
+  function resolvePoint(value, depth = 0) {
+    if (depth > 8) {
+      return null;
+    }
+    const resolved = unwrapSingle(value);
+    if (resolved === undefined || resolved === null) {
+      return null;
+    }
+    if (resolved?.isVector3) {
+      return resolved.clone();
+    }
+    if (Array.isArray(resolved)) {
+      if (!resolved.length) {
+        return null;
+      }
+      if (resolved.length >= 3) {
+        const x = toNumber(resolved[0], Number.NaN);
+        const y = toNumber(resolved[1], Number.NaN);
+        const z = toNumber(resolved[2], Number.NaN);
+        if (!Number.isFinite(x) && !Number.isFinite(y) && !Number.isFinite(z)) {
+          return null;
+        }
+        return new THREE.Vector3(
+          Number.isFinite(x) ? x : 0,
+          Number.isFinite(y) ? y : 0,
+          Number.isFinite(z) ? z : 0,
+        );
+      }
+      return resolvePoint(resolved[0], depth + 1);
+    }
+    if (typeof resolved === 'object') {
+      if ('point' in resolved) {
+        return resolvePoint(resolved.point, depth + 1);
+      }
+      if ('position' in resolved) {
+        return resolvePoint(resolved.position, depth + 1);
+      }
+      if ('value' in resolved) {
+        return resolvePoint(resolved.value, depth + 1);
+      }
+      const x = toNumber(resolved.x, Number.NaN);
+      const y = toNumber(resolved.y, Number.NaN);
+      const z = toNumber(resolved.z, Number.NaN);
+      if (!Number.isFinite(x) && !Number.isFinite(y) && !Number.isFinite(z)) {
+        return null;
+      }
+      return new THREE.Vector3(
+        Number.isFinite(x) ? x : 0,
+        Number.isFinite(y) ? y : 0,
+        Number.isFinite(z) ? z : 0,
+      );
+    }
+    return null;
+  }
+
+  function createLine(startPoint, endPoint) {
+    const start = startPoint.clone();
+    const end = endPoint.clone();
+    const direction = end.clone().sub(start);
+    const length = direction.length();
+    const safeDirection = length > EPSILON ? direction.clone().divideScalar(length) : new THREE.Vector3(1, 0, 0);
+    return {
+      type: 'line',
+      start,
+      end,
+      length,
+      direction: safeDirection,
+    };
+  }
+
+  function createTriangleData(pointA, pointB, pointC) {
+    const a = resolvePoint(pointA);
+    const b = resolvePoint(pointB);
+    const c = resolvePoint(pointC);
+    if (!a || !b || !c) {
+      return null;
+    }
+    const ab = b.clone().sub(a);
+    const ac = c.clone().sub(a);
+    const normal = ab.clone().cross(ac);
+    const areaSq = normal.lengthSq();
+    if (areaSq < EPSILON) {
+      return null;
+    }
+    const abLength = ab.length();
+    if (abLength < EPSILON) {
+      return null;
+    }
+    const xAxis = ab.clone().divideScalar(abLength);
+    const zAxis = normal.clone().normalize();
+    const yAxis = zAxis.clone().cross(xAxis).normalize();
+    const cRelative = c.clone().sub(a);
+    const cX = cRelative.dot(xAxis);
+    const cY = cRelative.dot(yAxis);
+    return {
+      a,
+      b,
+      c,
+      frame: {
+        origin: a.clone(),
+        xAxis,
+        yAxis,
+        zAxis,
+        abLength,
+      },
+      coords: {
+        a: { x: 0, y: 0 },
+        b: { x: abLength, y: 0 },
+        c: { x: cX, y: cY },
+      },
+    };
+  }
+
+  function from2D(frame, point) {
+    const result = frame.origin.clone();
+    result.add(frame.xAxis.clone().multiplyScalar(point.x));
+    result.add(frame.yAxis.clone().multiplyScalar(point.y));
+    return result;
+  }
+
+  function midpoint2D(p, q) {
+    return {
+      x: (p.x + q.x) / 2,
+      y: (p.y + q.y) / 2,
+    };
+  }
+
+  function projectPointOntoLine(point, start, end) {
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const denom = dx * dx + dy * dy;
+    if (denom < EPSILON) {
+      return { x: start.x, y: start.y };
+    }
+    const t = ((point.x - start.x) * dx + (point.y - start.y) * dy) / denom;
+    return {
+      x: start.x + dx * t,
+      y: start.y + dy * t,
+    };
+  }
+
+  function computeCircumcentreData(triangle) {
+    const { frame, coords } = triangle;
+    const ax = coords.a.x;
+    const ay = coords.a.y;
+    const bx = coords.b.x;
+    const by = coords.b.y;
+    const cx = coords.c.x;
+    const cy = coords.c.y;
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    if (Math.abs(d) < EPSILON) {
+      return null;
+    }
+    const ax2ay2 = ax * ax + ay * ay;
+    const bx2by2 = bx * bx + by * by;
+    const cx2cy2 = cx * cx + cy * cy;
+    const ux = (ax2ay2 * (by - cy) + bx2by2 * (cy - ay) + cx2cy2 * (ay - by)) / d;
+    const uy = (ax2ay2 * (cx - bx) + bx2by2 * (ax - cx) + cx2cy2 * (bx - ax)) / d;
+    const centre2D = { x: ux, y: uy };
+    const centre = from2D(frame, centre2D);
+    const midAB = from2D(frame, midpoint2D(coords.a, coords.b));
+    const midBC = from2D(frame, midpoint2D(coords.b, coords.c));
+    const midCA = from2D(frame, midpoint2D(coords.c, coords.a));
+    return {
+      centre,
+      bisectorAB: createLine(midAB, centre.clone()),
+      bisectorBC: createLine(midBC, centre.clone()),
+      bisectorCA: createLine(midCA, centre.clone()),
+    };
+  }
+
+  function computeOrthocentreData(triangle) {
+    const { frame, coords, a, b, c } = triangle;
+    const bx = coords.b.x;
+    const cx = coords.c.x;
+    const cy = coords.c.y;
+    if (Math.abs(cy) < EPSILON) {
+      return null;
+    }
+    const ortho2D = { x: cx, y: (cx * (bx - cx)) / cy };
+    const ortho = from2D(frame, ortho2D);
+    const footAB = from2D(frame, { x: cx, y: 0 });
+    const footBC = from2D(frame, projectPointOntoLine(coords.a, coords.b, coords.c));
+    const footCA = from2D(frame, projectPointOntoLine(coords.b, coords.a, coords.c));
+    return {
+      orthocentre: ortho,
+      altitudeAB: createLine(c.clone(), footAB),
+      altitudeBC: createLine(a.clone(), footBC),
+      altitudeCA: createLine(b.clone(), footCA),
+    };
+  }
+
+  function computeCentroidData(triangle) {
+    const { frame, coords, a, b, c } = triangle;
+    const centroid = a.clone().add(b).add(c).multiplyScalar(1 / 3);
+    const midAB = from2D(frame, midpoint2D(coords.a, coords.b));
+    const midBC = from2D(frame, midpoint2D(coords.b, coords.c));
+    const midCA = from2D(frame, midpoint2D(coords.c, coords.a));
+    return {
+      centroid,
+      medianAB: createLine(c.clone(), midAB),
+      medianBC: createLine(a.clone(), midBC),
+      medianCA: createLine(b.clone(), midCA),
+    };
+  }
+
+  function computeIncentreData(triangle) {
+    const { a, b, c } = triangle;
+    const sideA = b.clone().sub(c).length();
+    const sideB = a.clone().sub(c).length();
+    const sideC = a.clone().sub(b).length();
+    const perimeter = sideA + sideB + sideC;
+    if (!Number.isFinite(perimeter) || perimeter < EPSILON) {
+      return null;
+    }
+    const incenter = new THREE.Vector3();
+    incenter.add(a.clone().multiplyScalar(sideA));
+    incenter.add(b.clone().multiplyScalar(sideB));
+    incenter.add(c.clone().multiplyScalar(sideC));
+    incenter.divideScalar(perimeter);
+    return {
+      incenter,
+      bisectorA: createLine(a.clone(), incenter.clone()),
+      bisectorB: createLine(b.clone(), incenter.clone()),
+      bisectorC: createLine(c.clone(), incenter.clone()),
+    };
+  }
+
+  function detectAngleUnit(values, sumTarget) {
+    const valid = values.filter((value) => Number.isFinite(value));
+    if (!valid.length) {
+      return 'radians';
+    }
+    const maxAbs = Math.max(...valid.map((value) => Math.abs(value)));
+    if (maxAbs > sumTarget + 0.1) {
+      return 'degrees';
+    }
+    const sum = valid.reduce((acc, value) => acc + Math.abs(value), 0);
+    if (sum > sumTarget + 0.1) {
+      return 'degrees';
+    }
+    return 'radians';
+  }
+
+  function computeSineRatio(state) {
+    const ratios = [];
+    if (isAngle(state.alpha) && isLength(state.a)) {
+      const sinAlpha = Math.sin(state.alpha);
+      if (Math.abs(sinAlpha) > EPSILON) {
+        ratios.push(state.a / sinAlpha);
+      }
+    }
+    if (isAngle(state.beta) && isLength(state.b)) {
+      const sinBeta = Math.sin(state.beta);
+      if (Math.abs(sinBeta) > EPSILON) {
+        ratios.push(state.b / sinBeta);
+      }
+    }
+    if (isAngle(state.gamma) && isLength(state.c)) {
+      const sinGamma = Math.sin(state.gamma);
+      if (Math.abs(sinGamma) > EPSILON) {
+        ratios.push(state.c / sinGamma);
+      }
+    }
+    if (!ratios.length) {
+      return null;
+    }
+    const valid = ratios.filter((value) => Number.isFinite(value) && Math.abs(value) > EPSILON);
+    if (!valid.length) {
+      return null;
+    }
+    return valid.reduce((acc, value) => acc + value, 0) / valid.length;
+  }
+
+  function solveTriangle(initial) {
+    const state = { ...initial };
+    for (let iteration = 0; iteration < 32; iteration += 1) {
+      let changed = false;
+      if (isAngle(state.alpha) && isAngle(state.beta) && state.gamma === undefined) {
+        changed = assignAngle(state, 'gamma', Math.PI - state.alpha - state.beta) || changed;
+      }
+      if (isAngle(state.alpha) && isAngle(state.gamma) && state.beta === undefined) {
+        changed = assignAngle(state, 'beta', Math.PI - state.alpha - state.gamma) || changed;
+      }
+      if (isAngle(state.beta) && isAngle(state.gamma) && state.alpha === undefined) {
+        changed = assignAngle(state, 'alpha', Math.PI - state.beta - state.gamma) || changed;
+      }
+
+      const sineRatio = computeSineRatio(state);
+      if (sineRatio !== null) {
+        if (isAngle(state.alpha) && state.a === undefined) {
+          changed = assignLength(state, 'a', Math.sin(state.alpha) * sineRatio) || changed;
+        }
+        if (isAngle(state.beta) && state.b === undefined) {
+          changed = assignLength(state, 'b', Math.sin(state.beta) * sineRatio) || changed;
+        }
+        if (isAngle(state.gamma) && state.c === undefined) {
+          changed = assignLength(state, 'c', Math.sin(state.gamma) * sineRatio) || changed;
+        }
+        if (state.a !== undefined && state.alpha === undefined) {
+          const sinAlpha = clamp(state.a / sineRatio, -1, 1);
+          const candidate = Math.asin(sinAlpha);
+          changed = assignAngle(state, 'alpha', candidate) || changed;
+        }
+        if (state.b !== undefined && state.beta === undefined) {
+          const sinBeta = clamp(state.b / sineRatio, -1, 1);
+          const candidate = Math.asin(sinBeta);
+          changed = assignAngle(state, 'beta', candidate) || changed;
+        }
+        if (state.c !== undefined && state.gamma === undefined) {
+          const sinGamma = clamp(state.c / sineRatio, -1, 1);
+          const candidate = Math.asin(sinGamma);
+          changed = assignAngle(state, 'gamma', candidate) || changed;
+        }
+      }
+
+      if (state.a === undefined && isLength(state.b) && isLength(state.c) && isAngle(state.alpha)) {
+        const value = Math.sqrt(Math.max(0, state.b * state.b + state.c * state.c - 2 * state.b * state.c * Math.cos(state.alpha)));
+        changed = assignLength(state, 'a', value) || changed;
+      }
+      if (state.b === undefined && isLength(state.a) && isLength(state.c) && isAngle(state.beta)) {
+        const value = Math.sqrt(Math.max(0, state.a * state.a + state.c * state.c - 2 * state.a * state.c * Math.cos(state.beta)));
+        changed = assignLength(state, 'b', value) || changed;
+      }
+      if (state.c === undefined && isLength(state.a) && isLength(state.b) && isAngle(state.gamma)) {
+        const value = Math.sqrt(Math.max(0, state.a * state.a + state.b * state.b - 2 * state.a * state.b * Math.cos(state.gamma)));
+        changed = assignLength(state, 'c', value) || changed;
+      }
+
+      if (isLength(state.a) && isLength(state.b) && isLength(state.c)) {
+        if (state.alpha === undefined) {
+          const cosAlpha = clamp((state.b * state.b + state.c * state.c - state.a * state.a) / (2 * state.b * state.c), -1, 1);
+          changed = assignAngle(state, 'alpha', Math.acos(cosAlpha)) || changed;
+        }
+        if (state.beta === undefined) {
+          const cosBeta = clamp((state.a * state.a + state.c * state.c - state.b * state.b) / (2 * state.a * state.c), -1, 1);
+          changed = assignAngle(state, 'beta', Math.acos(cosBeta)) || changed;
+        }
+        if (state.gamma === undefined) {
+          const cosGamma = clamp((state.a * state.a + state.b * state.b - state.c * state.c) / (2 * state.a * state.b), -1, 1);
+          changed = assignAngle(state, 'gamma', Math.acos(cosGamma)) || changed;
+        }
+      }
+
+      if (!changed) {
+        break;
+      }
+    }
+    return state;
+  }
+
+  function solveRightTriangle(initial) {
+    const state = { ...initial };
+    for (let iteration = 0; iteration < 32; iteration += 1) {
+      let changed = false;
+      if (isAngle(state.alpha) && state.beta === undefined) {
+        changed = assignAngle(state, 'beta', Math.PI / 2 - state.alpha) || changed;
+      }
+      if (isAngle(state.beta) && state.alpha === undefined) {
+        changed = assignAngle(state, 'alpha', Math.PI / 2 - state.beta) || changed;
+      }
+
+      if (isLength(state.p) && isLength(state.q) && state.r === undefined) {
+        changed = assignLength(state, 'r', Math.hypot(state.p, state.q)) || changed;
+      }
+      if (isLength(state.p) && isLength(state.r) && state.q === undefined && state.r > state.p) {
+        const value = Math.sqrt(Math.max(0, state.r * state.r - state.p * state.p));
+        changed = assignLength(state, 'q', value) || changed;
+      }
+      if (isLength(state.q) && isLength(state.r) && state.p === undefined && state.r > state.q) {
+        const value = Math.sqrt(Math.max(0, state.r * state.r - state.q * state.q));
+        changed = assignLength(state, 'p', value) || changed;
+      }
+
+      if (isAngle(state.alpha) && state.r !== undefined) {
+        if (state.p === undefined) {
+          changed = assignLength(state, 'p', state.r * Math.sin(state.alpha)) || changed;
+        }
+        if (state.q === undefined) {
+          changed = assignLength(state, 'q', state.r * Math.cos(state.alpha)) || changed;
+        }
+      }
+      if (isAngle(state.beta) && state.r !== undefined) {
+        if (state.q === undefined) {
+          changed = assignLength(state, 'q', state.r * Math.sin(state.beta)) || changed;
+        }
+        if (state.p === undefined) {
+          changed = assignLength(state, 'p', state.r * Math.cos(state.beta)) || changed;
+        }
+      }
+
+      if (isAngle(state.alpha) && isLength(state.p) && state.r === undefined) {
+        changed = assignLength(state, 'r', state.p / Math.sin(state.alpha)) || changed;
+      }
+      if (isAngle(state.alpha) && isLength(state.q) && state.r === undefined) {
+        changed = assignLength(state, 'r', state.q / Math.cos(state.alpha)) || changed;
+      }
+      if (isAngle(state.beta) && isLength(state.p) && state.r === undefined) {
+        changed = assignLength(state, 'r', state.p / Math.cos(state.beta)) || changed;
+      }
+      if (isAngle(state.beta) && isLength(state.q) && state.r === undefined) {
+        changed = assignLength(state, 'r', state.q / Math.sin(state.beta)) || changed;
+      }
+
+      if (isLength(state.p) && isLength(state.q)) {
+        if (state.alpha === undefined) {
+          changed = assignAngle(state, 'alpha', Math.atan2(state.p, state.q)) || changed;
+        }
+        if (state.beta === undefined) {
+          changed = assignAngle(state, 'beta', Math.atan2(state.q, state.p)) || changed;
+        }
+      }
+      if (isLength(state.p) && isLength(state.r) && state.alpha === undefined && state.r > EPSILON) {
+        changed = assignAngle(state, 'alpha', Math.asin(clamp(state.p / state.r, -1, 1))) || changed;
+      }
+      if (isLength(state.q) && isLength(state.r) && state.beta === undefined && state.r > EPSILON) {
+        changed = assignAngle(state, 'beta', Math.asin(clamp(state.q / state.r, -1, 1))) || changed;
+      }
+
+      if (!changed) {
+        break;
+      }
+    }
+    if (isAngle(state.alpha) && !isAngle(state.beta)) {
+      assignAngle(state, 'beta', Math.PI / 2 - state.alpha);
+    }
+    if (isAngle(state.beta) && !isAngle(state.alpha)) {
+      assignAngle(state, 'alpha', Math.PI / 2 - state.beta);
+    }
+    return state;
+  }
+
+  function simpleTrigEval(inputs, fn, { handleSingularity = false } = {}) {
+    const numeric = toNumeric(inputs.value);
+    if (!Number.isFinite(numeric)) {
+      return { result: 0 };
+    }
+    if (handleSingularity && Math.abs(numeric) < EPSILON) {
+      return { result: 1 };
+    }
+    return { result: fn(numeric) };
+  }
+
+  register(['{0d77c51e-584f-44e8-aed2-c2ddf4803888}', 'degrees', 'deg'], {
+    type: 'math',
+    pinMap: {
+      inputs: { R: 'radians', r: 'radians', Radians: 'radians', radians: 'radians' },
+      outputs: { D: 'degrees', Degrees: 'degrees', degrees: 'degrees' },
+    },
+    eval: ({ inputs }) => {
+      const radians = toNumeric(inputs.radians);
+      if (!Number.isFinite(radians)) {
+        return { degrees: 0 };
+      }
+      return { degrees: radians * (180 / Math.PI) };
+    }
+  });
+
+  register(['{a4cd2751-414d-42ec-8916-476ebf62d7fe}', 'radians', 'rad'], {
+    type: 'math',
+    pinMap: {
+      inputs: { D: 'degrees', d: 'degrees', Degrees: 'degrees', degrees: 'degrees' },
+      outputs: { R: 'radians', Radians: 'radians', radians: 'radians' },
+    },
+    eval: ({ inputs }) => {
+      const degrees = toNumeric(inputs.degrees);
+      if (!Number.isFinite(degrees)) {
+        return { radians: 0 };
+      }
+      return { radians: degrees * (Math.PI / 180) };
+    }
+  });
+
+  register(['{7663efbb-d9b8-4c6a-a0da-c3750a7bbe77}', 'sine', 'sin'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => simpleTrigEval(inputs, Math.sin),
+  });
+
+  register(['{d2d2a900-780c-4d58-9a35-1f9d8d35df6f}', 'cosine', 'cos'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => simpleTrigEval(inputs, Math.cos),
+  });
+
+  register(['{0f31784f-7177-4104-8500-1f4f4a306df4}', 'tangent', 'tan'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      const cosValue = Math.cos(numeric);
+      if (Math.abs(cosValue) < EPSILON) {
+        return { result: null };
+      }
+      return { result: Math.tan(numeric) };
+    }
+  });
+
+  register(['{1f602c33-f38e-4f47-898b-359f0a4de3c2}', 'cotangent', 'cot'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      const tanValue = Math.tan(numeric);
+      if (Math.abs(tanValue) < EPSILON) {
+        return { result: null };
+      }
+      return { result: 1 / tanValue };
+    }
+  });
+
+  register(['{60103def-1bb7-4700-b294-3a89100525c4}', 'secant', 'sec'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      const cosValue = Math.cos(numeric);
+      if (Math.abs(cosValue) < EPSILON) {
+        return { result: null };
+      }
+      return { result: 1 / cosValue };
+    }
+  });
+
+  register(['{d222500b-dfd5-45e0-933e-eabefd07cbfa}', 'cosecant', 'csc'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      const sinValue = Math.sin(numeric);
+      if (Math.abs(sinValue) < EPSILON) {
+        return { result: null };
+      }
+      return { result: 1 / sinValue };
+    }
+  });
+
+  register(['{cc15ba56-fae7-4f05-b599-cb7c43b60e11}', 'arcsine', 'asin'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      if (numeric < -1 || numeric > 1) {
+        return { result: null };
+      }
+      return { result: Math.asin(clamp(numeric, -1, 1)) };
+    }
+  });
+
+  register(['{49584390-d541-41f7-b5f6-1f9515ac0f73}', 'arccosine', 'acos'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const numeric = toNumeric(inputs.value);
+      if (!Number.isFinite(numeric)) {
+        return { result: 0 };
+      }
+      if (numeric < -1 || numeric > 1) {
+        return { result: null };
+      }
+      return { result: Math.acos(clamp(numeric, -1, 1)) };
+    }
+  });
+
+  register(['{b4647919-d041-419e-99f5-fa0dc0ddb8b6}', 'arctangent', 'atan'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => simpleTrigEval(inputs, Math.atan),
+  });
+
+  register(['{a2d9503d-a83c-4d71-81e0-02af8d09cd0c}', 'sinc'], {
+    type: 'math',
+    pinMap: {
+      inputs: { x: 'value', X: 'value', Value: 'value', value: 'value' },
+      outputs: { y: 'result', Y: 'result', Result: 'result', result: 'result' },
+    },
+    eval: ({ inputs }) => simpleTrigEval(inputs, (x) => Math.sin(x) / x, { handleSingularity: true }),
+  });
+
+  register(['{21d0767c-5340-4087-aa09-398d0e706908}', 'circumcentre', 'ccentre', 'circumcenter'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        A: 'pointA', 'Point A': 'pointA', pointA: 'pointA',
+        B: 'pointB', 'Point B': 'pointB', pointB: 'pointB',
+        C: 'pointC', 'Point C': 'pointC', pointC: 'pointC',
+      },
+      outputs: {
+        C: 'circumcentre', Circumcentre: 'circumcentre', Circumcenter: 'circumcentre',
+        AB: 'bisectorAB', 'Bisector AB': 'bisectorAB',
+        BC: 'bisectorBC', 'Bisector BC': 'bisectorBC',
+        CA: 'bisectorCA', 'Bisector CA': 'bisectorCA',
+      },
+    },
+    eval: ({ inputs }) => {
+      const triangle = createTriangleData(inputs.pointA, inputs.pointB, inputs.pointC);
+      if (!triangle) {
+        return { circumcentre: null, bisectorAB: null, bisectorBC: null, bisectorCA: null };
+      }
+      const data = computeCircumcentreData(triangle);
+      if (!data) {
+        return { circumcentre: null, bisectorAB: null, bisectorBC: null, bisectorCA: null };
+      }
+      return {
+        circumcentre: data.centre,
+        bisectorAB: data.bisectorAB,
+        bisectorBC: data.bisectorBC,
+        bisectorCA: data.bisectorCA,
+      };
+    }
+  });
+
+  register(['{36dd5551-b6bd-4246-bd2f-1fd91eb2f02d}', 'orthocentre', 'ocentre', 'orthocenter'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        A: 'pointA', 'Point A': 'pointA',
+        B: 'pointB', 'Point B': 'pointB',
+        C: 'pointC', 'Point C': 'pointC',
+      },
+      outputs: {
+        C: 'orthocentre', Orthocentre: 'orthocentre', Orthocenter: 'orthocentre',
+        AB: 'altitudeAB', 'Altitude AB': 'altitudeAB',
+        BC: 'altitudeBC', 'Altitude BC': 'altitudeBC',
+        CA: 'altitudeCA', 'Altitude CA': 'altitudeCA',
+      },
+    },
+    eval: ({ inputs }) => {
+      const triangle = createTriangleData(inputs.pointA, inputs.pointB, inputs.pointC);
+      if (!triangle) {
+        return { orthocentre: null, altitudeAB: null, altitudeBC: null, altitudeCA: null };
+      }
+      const data = computeOrthocentreData(triangle);
+      if (!data) {
+        return { orthocentre: null, altitudeAB: null, altitudeBC: null, altitudeCA: null };
+      }
+      return {
+        orthocentre: data.orthocentre,
+        altitudeAB: data.altitudeAB,
+        altitudeBC: data.altitudeBC,
+        altitudeCA: data.altitudeCA,
+      };
+    }
+  });
+
+  register(['{afbcbad4-2a2a-4954-8040-d999e316d2bd}', 'centroid'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        A: 'pointA', 'Point A': 'pointA',
+        B: 'pointB', 'Point B': 'pointB',
+        C: 'pointC', 'Point C': 'pointC',
+      },
+      outputs: {
+        C: 'centroid', Centroid: 'centroid',
+        AB: 'medianAB', 'Median AB': 'medianAB',
+        BC: 'medianBC', 'Median BC': 'medianBC',
+        CA: 'medianCA', 'Median CA': 'medianCA',
+      },
+    },
+    eval: ({ inputs }) => {
+      const triangle = createTriangleData(inputs.pointA, inputs.pointB, inputs.pointC);
+      if (!triangle) {
+        return { centroid: null, medianAB: null, medianBC: null, medianCA: null };
+      }
+      const data = computeCentroidData(triangle);
+      return {
+        centroid: data.centroid,
+        medianAB: data.medianAB,
+        medianBC: data.medianBC,
+        medianCA: data.medianCA,
+      };
+    }
+  });
+
+  register(['{c3342ea2-e181-46aa-a9b9-e438ccbfb831}', 'incentre', 'icentre', 'incenter'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        A: 'pointA', 'Point A': 'pointA',
+        B: 'pointB', 'Point B': 'pointB',
+        C: 'pointC', 'Point C': 'pointC',
+      },
+      outputs: {
+        I: 'incentre', Incentre: 'incentre', Incenter: 'incentre',
+        A: 'bisectorA', 'Bisector A': 'bisectorA',
+        B: 'bisectorB', 'Bisector B': 'bisectorB',
+        C: 'bisectorC', 'Bisector C': 'bisectorC',
+      },
+    },
+    eval: ({ inputs }) => {
+      const triangle = createTriangleData(inputs.pointA, inputs.pointB, inputs.pointC);
+      if (!triangle) {
+        return { incentre: null, bisectorA: null, bisectorB: null, bisectorC: null };
+      }
+      const data = computeIncentreData(triangle);
+      if (!data) {
+        return { incentre: null, bisectorA: null, bisectorB: null, bisectorC: null };
+      }
+      return {
+        incentre: data.incenter,
+        bisectorA: data.bisectorA,
+        bisectorB: data.bisectorB,
+        bisectorC: data.bisectorC,
+      };
+    }
+  });
+
+  register(['{92af1a02-9b87-43a0-8c45-0ce1b81555ec}', 'triangle trigonometry', 'trig'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        α: 'alpha', Alpha: 'alpha', alpha: 'alpha',
+        β: 'beta', Beta: 'beta', beta: 'beta',
+        γ: 'gamma', Gamma: 'gamma', gamma: 'gamma',
+        A: 'aLength', 'A length': 'aLength',
+        B: 'bLength', 'B length': 'bLength',
+        C: 'cLength', 'C length': 'cLength',
+      },
+      outputs: {
+        α: 'alpha', Alpha: 'alpha', alpha: 'alpha',
+        β: 'beta', Beta: 'beta', beta: 'beta',
+        γ: 'gamma', Gamma: 'gamma', gamma: 'gamma',
+        A: 'aLength', 'A length': 'aLength',
+        B: 'bLength', 'B length': 'bLength',
+        C: 'cLength', 'C length': 'cLength',
+      },
+    },
+    eval: ({ inputs }) => {
+      const alphaInput = toNumeric(inputs.alpha);
+      const betaInput = toNumeric(inputs.beta);
+      const gammaInput = toNumeric(inputs.gamma);
+      const aInput = toNumeric(inputs.aLength);
+      const bInput = toNumeric(inputs.bLength);
+      const cInput = toNumeric(inputs.cLength);
+      const unit = detectAngleUnit([alphaInput, betaInput, gammaInput], Math.PI);
+      const toRadiansFactor = unit === 'degrees' ? Math.PI / 180 : 1;
+      const fromRadiansFactor = unit === 'degrees' ? 180 / Math.PI : 1;
+      const solution = solveTriangle({
+        alpha: Number.isFinite(alphaInput) ? alphaInput * toRadiansFactor : undefined,
+        beta: Number.isFinite(betaInput) ? betaInput * toRadiansFactor : undefined,
+        gamma: Number.isFinite(gammaInput) ? gammaInput * toRadiansFactor : undefined,
+        a: isLength(aInput) ? aInput : undefined,
+        b: isLength(bInput) ? bInput : undefined,
+        c: isLength(cInput) ? cInput : undefined,
+      });
+      return {
+        alpha: isAngle(solution.alpha) ? solution.alpha * fromRadiansFactor : null,
+        beta: isAngle(solution.beta) ? solution.beta * fromRadiansFactor : null,
+        gamma: isAngle(solution.gamma) ? solution.gamma * fromRadiansFactor : null,
+        aLength: isLength(solution.a) ? solution.a : null,
+        bLength: isLength(solution.b) ? solution.b : null,
+        cLength: isLength(solution.c) ? solution.c : null,
+      };
+    }
+  });
+
+  register(['{e75d4624-8ee2-4067-ac8d-c56bdc901d83}', 'right trigonometry', 'rtrig'], {
+    type: 'math',
+    pinMap: {
+      inputs: {
+        α: 'alpha', Alpha: 'alpha', alpha: 'alpha',
+        β: 'beta', Beta: 'beta', beta: 'beta',
+        P: 'p', p: 'p', 'P length': 'p',
+        Q: 'q', q: 'q', 'Q length': 'q',
+        R: 'r', r: 'r', 'R length': 'r',
+      },
+      outputs: {
+        α: 'alpha', Alpha: 'alpha', alpha: 'alpha',
+        β: 'beta', Beta: 'beta', beta: 'beta',
+        P: 'p', 'P length': 'p',
+        Q: 'q', 'Q length': 'q',
+        R: 'r', 'R length': 'r',
+      },
+    },
+    eval: ({ inputs }) => {
+      const alphaInput = toNumeric(inputs.alpha);
+      const betaInput = toNumeric(inputs.beta);
+      const pInput = toNumeric(inputs.p);
+      const qInput = toNumeric(inputs.q);
+      const rInput = toNumeric(inputs.r);
+      const unit = detectAngleUnit([alphaInput, betaInput], Math.PI / 2);
+      const toRadiansFactor = unit === 'degrees' ? Math.PI / 180 : 1;
+      const fromRadiansFactor = unit === 'degrees' ? 180 / Math.PI : 1;
+      const solution = solveRightTriangle({
+        alpha: Number.isFinite(alphaInput) ? alphaInput * toRadiansFactor : undefined,
+        beta: Number.isFinite(betaInput) ? betaInput * toRadiansFactor : undefined,
+        p: isLength(pInput) ? pInput : undefined,
+        q: isLength(qInput) ? qInput : undefined,
+        r: isLength(rInput) ? rInput : undefined,
+      });
+      return {
+        alpha: isAngle(solution.alpha) ? solution.alpha * fromRadiansFactor : null,
+        beta: isAngle(solution.beta) ? solution.beta * fromRadiansFactor : null,
+        p: isLength(solution.p) ? solution.p : null,
+        q: isLength(solution.q) ? solution.q : null,
+        r: isLength(solution.r) ? solution.r : null,
+      };
+    }
+  });
+}
+
 export function registerMathBooleanComponents({ register }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register math boolean components.');
