@@ -3,6 +3,7 @@ import * as THREE from 'three';
 const REGISTER_SURFACE_FREEFORM_ONLY = Symbol('register-surface-freeform-only');
 const REGISTER_SURFACE_ANALYSIS_ONLY = Symbol('register-surface-analysis-only');
 const REGISTER_SURFACE_SUBD_ONLY = Symbol('register-surface-subd-only');
+const REGISTER_SURFACE_UTIL_ONLY = Symbol('register-surface-util-only');
 
 export function registerSurfacePrimitiveComponents({
   register,
@@ -14,6 +15,7 @@ export function registerSurfacePrimitiveComponents({
   const freeformOnly = mode === REGISTER_SURFACE_FREEFORM_ONLY;
   const analysisOnly = mode === REGISTER_SURFACE_ANALYSIS_ONLY;
   const subdOnly = mode === REGISTER_SURFACE_SUBD_ONLY;
+  const utilOnly = mode === REGISTER_SURFACE_UTIL_ONLY;
   const shouldRegisterFreeform = includeFreeform && !analysisOnly && !subdOnly;
   if (typeof register !== 'function') {
     throw new Error('register function is required to register surface primitive components.');
@@ -31,6 +33,11 @@ export function registerSurfacePrimitiveComponents({
 
   if (subdOnly) {
     registerSubDComponents();
+    return;
+  }
+
+  if (utilOnly) {
+    registerUtilComponents();
     return;
   }
 
@@ -2449,6 +2456,1327 @@ export function registerSurfacePrimitiveComponents({
       plane: basePlane,
       deviation: maxDeviation,
     };
+  }
+
+  function registerUtilComponents() {
+    function clonePlaneData(planeInput) {
+      const plane = ensurePlane(planeInput ?? defaultPlane());
+      return {
+        origin: plane.origin.clone(),
+        xAxis: plane.xAxis.clone(),
+        yAxis: plane.yAxis.clone(),
+        zAxis: plane.zAxis.clone(),
+      };
+    }
+
+    function createDataTree(branches = []) {
+      return { type: 'tree', branches };
+    }
+
+    function treeFromGrid(rows, mapper) {
+      const branches = rows.map((row, index) => ({
+        path: [index],
+        values: row.map((cell) => mapper(cell)),
+      }));
+      return createDataTree(branches);
+    }
+
+    function flattenGrid(rows, mapper) {
+      const list = [];
+      rows.forEach((row) => {
+        row.forEach((cell) => {
+          list.push(mapper(cell));
+        });
+      });
+      return list;
+    }
+
+    function ensureCount(value, fallback) {
+      const numeric = ensureNumeric(value, Number.NaN);
+      if (!Number.isFinite(numeric)) {
+        return Math.max(1, Math.round(Math.max(1, fallback)));
+      }
+      const rounded = Math.round(Math.abs(numeric));
+      return Math.max(1, rounded || 1);
+    }
+
+    function sampleSurfaceDivision(surface, uCount, vCount) {
+      if (!surface) {
+        return { rows: [], segmentsU: 0, segmentsV: 0 };
+      }
+      const segmentsU = Math.max(1, Math.round(Math.abs(uCount)));
+      const segmentsV = Math.max(1, Math.round(Math.abs(vCount)));
+      const domainU = surface.domainU ?? createDomain(0, 1);
+      const domainV = surface.domainV ?? createDomain(0, 1);
+      const rows = [];
+      for (let iv = 0; iv <= segmentsV; iv += 1) {
+        const fv = segmentsV === 0 ? 0 : iv / segmentsV;
+        const v = domainV.start + (domainV.end - domainV.start) * fv;
+        const row = [];
+        for (let iu = 0; iu <= segmentsU; iu += 1) {
+          const fu = segmentsU === 0 ? 0 : iu / segmentsU;
+          const u = domainU.start + (domainU.end - domainU.start) * fu;
+          const point = evaluateSurfacePoint(surface, u, v) ?? new THREE.Vector3();
+          const derivatives = evaluateSurfaceDerivatives(surface, u, v);
+          let normal = derivatives?.normal?.clone();
+          if (!normal || normal.lengthSq() <= EPSILON) {
+            normal = surface.plane?.zAxis?.clone() ?? new THREE.Vector3(0, 0, 1);
+          }
+          normal.normalize();
+          let tangentU = derivatives?.tangentU?.clone();
+          if (!tangentU || tangentU.lengthSq() <= EPSILON) {
+            tangentU = surface.plane?.xAxis?.clone() ?? orthogonalVector(normal);
+          }
+          tangentU.normalize();
+          let tangentV = derivatives?.tangentV?.clone();
+          if (!tangentV || tangentV.lengthSq() <= EPSILON) {
+            tangentV = normal.clone().cross(tangentU);
+            if (tangentV.lengthSq() <= EPSILON) {
+              tangentV = orthogonalVector(tangentU);
+            }
+          }
+          tangentV.normalize();
+          const frame = normalizePlaneAxes(point.clone(), tangentU.clone(), tangentV.clone(), normal.clone());
+          row.push({
+            point: point.clone(),
+            normal,
+            tangentU,
+            tangentV,
+            frame,
+            uv: { u, v },
+          });
+        }
+        rows.push(row);
+      }
+      return { rows, segmentsU, segmentsV };
+    }
+
+    function createBrepFromEntries(entries, metadata = {}) {
+      const surfaces = (entries ?? []).map((entry, index) => {
+        if (!entry) {
+          return null;
+        }
+        if (entry.wrapper) {
+          return { ...entry.wrapper, surface: entry.surface };
+        }
+        return wrapSurface(entry.surface, { faceIndex: index });
+      }).filter(Boolean);
+      return {
+        type: 'brep',
+        surfaces,
+        metadata: { faceCount: surfaces.length, ...metadata },
+      };
+    }
+
+    function ensureSurfaceDomainRange(input, fallback) {
+      if (input === undefined || input === null) {
+        return fallback;
+      }
+      if (Array.isArray(input)) {
+        if (input.length >= 2) {
+          return createDomain(ensureNumeric(input[0], fallback.min), ensureNumeric(input[1], fallback.max));
+        }
+        if (input.length === 1) {
+          return ensureSurfaceDomainRange(input[0], fallback);
+        }
+      }
+      if (typeof input === 'object') {
+        if (typeof input.start !== 'undefined' && typeof input.end !== 'undefined') {
+          return createDomain(ensureNumeric(input.start, fallback.start), ensureNumeric(input.end, fallback.end));
+        }
+        if (typeof input.min !== 'undefined' && typeof input.max !== 'undefined') {
+          return createDomain(ensureNumeric(input.min, fallback.min), ensureNumeric(input.max, fallback.max));
+        }
+        if (typeof input.t0 !== 'undefined' && typeof input.t1 !== 'undefined') {
+          return createDomain(ensureNumeric(input.t0, fallback.start), ensureNumeric(input.t1, fallback.end));
+        }
+        if (input.domain) {
+          return ensureSurfaceDomainRange(input.domain, fallback);
+        }
+        if (input.value !== undefined) {
+          return ensureSurfaceDomainRange(input.value, fallback);
+        }
+      }
+      const numeric = ensureNumeric(input, Number.NaN);
+      if (Number.isFinite(numeric)) {
+        return createDomain(numeric, numeric);
+      }
+      return fallback;
+    }
+
+    function intersectDomains(domainA, domainB) {
+      if (!domainA) return domainB;
+      if (!domainB) return domainA;
+      const min = Math.max(domainA.min ?? domainA.start ?? 0, domainB.min ?? domainB.start ?? 0);
+      const max = Math.min(domainA.max ?? domainA.end ?? 1, domainB.max ?? domainB.end ?? 1);
+      if (!Number.isFinite(min) || !Number.isFinite(max)) {
+        return createDomain(domainA.start, domainA.end);
+      }
+      if (min > max) {
+        return createDomain(min, min);
+      }
+      return createDomain(min, max);
+    }
+
+    function extractDomainOverrides(domainInput, surface) {
+      const baseDomainU = surface?.domainU ?? createDomain(0, 1);
+      const baseDomainV = surface?.domainV ?? createDomain(0, 1);
+      if (!domainInput) {
+        return { domainU: baseDomainU, domainV: baseDomainV };
+      }
+      if (Array.isArray(domainInput)) {
+        if (domainInput.length >= 2) {
+          return {
+            domainU: ensureSurfaceDomainRange(domainInput[0], baseDomainU),
+            domainV: ensureSurfaceDomainRange(domainInput[1], baseDomainV),
+          };
+        }
+        if (domainInput.length === 1) {
+          return extractDomainOverrides(domainInput[0], surface);
+        }
+      }
+      if (typeof domainInput === 'object') {
+        const domainU = domainInput.domainU ?? domainInput.u ?? domainInput.x ?? null;
+        const domainV = domainInput.domainV ?? domainInput.v ?? domainInput.y ?? null;
+        const resolvedU = domainU ? ensureSurfaceDomainRange(domainU, baseDomainU) : baseDomainU;
+        const resolvedV = domainV ? ensureSurfaceDomainRange(domainV, baseDomainV) : baseDomainV;
+        if (domainU || domainV) {
+          return { domainU: resolvedU, domainV: resolvedV };
+        }
+        if (domainInput.min !== undefined && domainInput.max !== undefined) {
+          const range = ensureSurfaceDomainRange(domainInput, baseDomainU);
+          return { domainU: range, domainV: range };
+        }
+      }
+      const numeric = ensureNumeric(domainInput, Number.NaN);
+      if (Number.isFinite(numeric)) {
+        const domain = createDomain(numeric, numeric);
+        return { domainU: domain, domainV: domain };
+      }
+      return { domainU: baseDomainU, domainV: baseDomainV };
+    }
+
+    function createTrimmedSurfaceWrapper(entry, overrides = {}, extras = {}) {
+      if (!entry?.surface) {
+        return null;
+      }
+      const sourceWrapper = entry.wrapper ?? wrapSurface(entry.surface);
+      const baseDomainU = entry.surface.domainU ?? createDomain(0, 1);
+      const baseDomainV = entry.surface.domainV ?? createDomain(0, 1);
+      const domainU = overrides.domainU ? intersectDomains(baseDomainU, overrides.domainU) : baseDomainU;
+      const domainV = overrides.domainV ? intersectDomains(baseDomainV, overrides.domainV) : baseDomainV;
+      const evaluate = (u, v) => {
+        const uu = clampToDomain(u, domainU);
+        const vv = clampToDomain(v, domainV);
+        return evaluateSurfacePoint(entry.surface, uu, vv) ?? new THREE.Vector3();
+      };
+      const trimmedSurface = createParametricSurface({
+        evaluate,
+        domainU,
+        domainV,
+        plane: entry.surface.plane ? clonePlaneData(entry.surface.plane) : defaultPlane(),
+        metadata: { ...entry.surface.metadata, trimmed: true, ...(extras.metadata ?? {}) },
+      });
+      return wrapSurface(trimmedSurface, {
+        ...extras.wrapper,
+        trimmedDomainU: domainU,
+        trimmedDomainV: domainV,
+        trimmedFrom: extras.source ?? sourceWrapper,
+      });
+    }
+
+    function ensureDirections(input) {
+      const values = ensureArray(input);
+      const directions = [];
+      for (const value of values) {
+        const vector = toVector3(value, null);
+        if (vector && vector.lengthSq() > EPSILON) {
+          directions.push(vector.normalize());
+        }
+      }
+      if (!directions.length) {
+        directions.push(new THREE.Vector3(1, 0, 0));
+        directions.push(new THREE.Vector3(0, 1, 0));
+        directions.push(new THREE.Vector3(0, 0, 1));
+      }
+      return directions;
+    }
+
+    function computeEdgeDirection(edge) {
+      const points = edge?.points ?? [];
+      if (points.length < 2) {
+        return new THREE.Vector3();
+      }
+      const direction = new THREE.Vector3();
+      for (let i = 1; i < points.length; i += 1) {
+        direction.add(points[i].clone().sub(points[i - 1]));
+      }
+      if (direction.lengthSq() <= EPSILON) {
+        return new THREE.Vector3();
+      }
+      return direction.normalize();
+    }
+
+    function computeEdgeCentroid(edge) {
+      const points = edge?.points ?? [];
+      if (!points.length) {
+        return new THREE.Vector3();
+      }
+      const centroid = new THREE.Vector3();
+      points.forEach((pt) => centroid.add(pt));
+      return centroid.multiplyScalar(1 / points.length);
+    }
+
+    function computeEdgeLength(edge) {
+      return computePolylineLength(edge?.points ?? [], false);
+    }
+
+    function computeEdgeLinearity(edge) {
+      const points = edge?.points ?? [];
+      if (points.length < 3) {
+        return 0;
+      }
+      const start = points[0];
+      const end = points[points.length - 1];
+      const chord = end.distanceTo(start);
+      if (chord <= EPSILON) {
+        const centroid = computeEdgeCentroid(edge);
+        let maxRadius = 0;
+        points.forEach((pt) => {
+          const distance = pt.distanceTo(centroid);
+          if (distance > maxRadius) {
+            maxRadius = distance;
+          }
+        });
+        return maxRadius;
+      }
+      const direction = end.clone().sub(start);
+      if (direction.lengthSq() <= EPSILON) {
+        return 0;
+      }
+      direction.normalize();
+      let maxDeviation = 0;
+      points.forEach((pt) => {
+        const relative = pt.clone().sub(start);
+        const projection = direction.clone().multiplyScalar(relative.dot(direction));
+        const perpendicular = relative.sub(projection);
+        const distance = perpendicular.length();
+        if (distance > maxDeviation) {
+          maxDeviation = distance;
+        }
+      });
+      return maxDeviation;
+    }
+
+    function computeEdgeNormalForFace(edge, faceIndex, surfaceEntries) {
+      const entry = surfaceEntries[faceIndex];
+      if (!entry?.surface) {
+        return new THREE.Vector3(0, 0, 1);
+      }
+      const points = edge?.points ?? [];
+      const midpoint = points[Math.floor(points.length / 2)] ?? points[0];
+      if (!midpoint) {
+        return (entry.surface.plane?.zAxis?.clone() ?? new THREE.Vector3(0, 0, 1)).normalize();
+      }
+      const closest = approximateSurfaceClosestPoint(entry.surface, midpoint, { segmentsU: 32, segmentsV: 32 });
+      if (closest) {
+        const derivatives = evaluateSurfaceDerivatives(entry.surface, closest.u, closest.v);
+        const normal = derivatives?.normal?.clone();
+        if (normal && normal.lengthSq() > EPSILON) {
+          return normal.normalize();
+        }
+      }
+      const plane = entry.surface.plane ?? defaultPlane();
+      return plane.zAxis.clone().normalize();
+    }
+
+    function computeEdgeAngle(edge, surfaceEntries) {
+      if (!edge || edge.faces.length < 2) {
+        return 0;
+      }
+      const normalA = computeEdgeNormalForFace(edge, edge.faces[0], surfaceEntries);
+      const normalB = computeEdgeNormalForFace(edge, edge.faces[1], surfaceEntries);
+      const dot = clamp(normalA.dot(normalB), -1, 1);
+      return Math.acos(dot);
+    }
+
+    function classifyEdgeConvexity(edge, surfaceEntries) {
+      if (!edge || edge.faces.length !== 2) {
+        return 'mixed';
+      }
+      const normalA = computeEdgeNormalForFace(edge, edge.faces[0], surfaceEntries);
+      const normalB = computeEdgeNormalForFace(edge, edge.faces[1], surfaceEntries);
+      const dot = normalA.dot(normalB);
+      if (!Number.isFinite(dot)) {
+        return 'mixed';
+      }
+      return dot >= 0 ? 'convex' : 'concave';
+    }
+
+    function createCapSurfaceFromPoints(points, metadata = {}) {
+      if (!points || points.length < 3) {
+        return null;
+      }
+      const plane = planeFromPoints(points[0], points[1], points[2]);
+      const coords = points.map((pt) => planeCoordinates(pt, plane));
+      let minX = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      coords.forEach((coord) => {
+        if (!Number.isFinite(coord.x) || !Number.isFinite(coord.y)) {
+          return;
+        }
+        if (coord.x < minX) minX = coord.x;
+        if (coord.x > maxX) maxX = coord.x;
+        if (coord.y < minY) minY = coord.y;
+        if (coord.y > maxY) maxY = coord.y;
+      });
+      if (!Number.isFinite(minX) || !Number.isFinite(maxX) || minX === maxX || minY === maxY) {
+        return null;
+      }
+      const surface = createPlanarSurfaceFromBounds(plane, minX, maxX, minY, maxY);
+      return wrapSurface(surface, {
+        ...metadata,
+        type: 'cap',
+        boundary: points.map((pt) => pt.clone()),
+        bounds: { minX, maxX, minY, maxY },
+      });
+    }
+
+    function createCapSurfacesFromEdges(edges) {
+      const caps = [];
+      const visited = new Set();
+      edges.forEach((edge) => {
+        const signature = edge.signature;
+        if (!signature || visited.has(signature)) {
+          return;
+        }
+        visited.add(signature);
+        const points = edge.points ?? [];
+        if (points.length < 3) {
+          return;
+        }
+        const start = points[0];
+        const end = points[points.length - 1];
+        if (start.distanceToSquared(end) > 1e-6) {
+          return;
+        }
+        const cap = createCapSurfaceFromPoints(points, { signature, faces: edge.faces.slice() });
+        if (cap) {
+          caps.push(cap);
+        }
+      });
+      return caps;
+    }
+
+    function ensureFaceSelection(pointsInput, surfaceEntries) {
+      const entries = surfaceEntries ?? [];
+      const count = entries.length;
+      const centroids = entries.map((entry) => estimateSurfaceArea(entry.surface).centroid ?? new THREE.Vector3());
+      const selection = new Set();
+      const values = ensureArray(pointsInput);
+      values.forEach((value) => {
+        if (value === undefined || value === null) {
+          return;
+        }
+        const numeric = ensureNumeric(value, Number.NaN);
+        if (Number.isFinite(numeric)) {
+          const index = Math.max(0, Math.min(count - 1, Math.round(numeric)));
+          selection.add(index);
+          return;
+        }
+        const point = ensurePoint(value, null);
+        if (point) {
+          let bestIndex = -1;
+          let bestDistance = Number.POSITIVE_INFINITY;
+          centroids.forEach((centroid, index) => {
+            const distance = centroid.distanceToSquared(point);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              bestIndex = index;
+            }
+          });
+          if (bestIndex >= 0) {
+            selection.add(bestIndex);
+          }
+        }
+      });
+      return Array.from(selection.values()).sort((a, b) => a - b);
+    }
+
+    function distancePointToEdge(edge, point) {
+      if (!edge?.points || !edge.points.length || !point) {
+        return Number.POSITIVE_INFINITY;
+      }
+      let minDistance = Number.POSITIVE_INFINITY;
+      edge.points.forEach((edgePoint) => {
+        const distance = edgePoint.distanceTo(point);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      });
+      return minDistance;
+    }
+
+    function mapPointsToEdges(points, edges, tolerance) {
+      return points.map((point, pointIndex) => {
+        const matches = [];
+        const distances = [];
+        edges.forEach((edge, edgeIndex) => {
+          const distance = distancePointToEdge(edge, point);
+          if (distance <= tolerance) {
+            matches.push(edgeIndex);
+            distances.push(distance);
+          }
+        });
+        return { pointIndex, edges: matches, distances };
+      });
+    }
+
+    function createEdgeResult(edges, surfaceEntries, predicate = () => true) {
+      const curves = [];
+      const indices = [];
+      edges.forEach((edge, index) => {
+        if (!predicate(edge, index)) {
+          return;
+        }
+        const curve = edgeToCurve(edge);
+        if (curve) {
+          curves.push(curve);
+          indices.push(edge.faces.slice());
+        }
+      });
+      return { curves, indices };
+    }
+
+    register('{082976f0-c741-4df8-a1d4-89891bf8619f}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          U: 'countU', 'U Count': 'countU', u: 'countU',
+          V: 'countV', 'V Count': 'countV', v: 'countV',
+        },
+        outputs: {
+          P: 'points', Points: 'points',
+          N: 'normals', Normals: 'normals',
+          uv: 'parameters', UV: 'parameters', Parameters: 'parameters',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaceEntry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!surfaceEntry?.surface) {
+          return { points: [], normals: [], parameters: [] };
+        }
+        const countU = ensureCount(inputs.countU, 10);
+        const countV = ensureCount(inputs.countV, 10);
+        const division = sampleSurfaceDivision(surfaceEntry.surface, countU, countV);
+        const points = flattenGrid(division.rows, (cell) => cell.point.clone());
+        const normals = flattenGrid(division.rows, (cell) => cell.normal.clone());
+        const parameters = flattenGrid(division.rows, (cell) => ({ u: cell.uv.u, v: cell.uv.v }));
+        return { points, normals, parameters };
+      },
+    });
+
+    register('{1addcc85-b04e-46e6-bd4a-6f6c93bf7efd}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'breps', Brep: 'breps', brep: 'breps', Breps: 'breps' },
+        outputs: { B: 'breps', Breps: 'breps', breps: 'breps', C: 'closed', Closed: 'closed', closed: 'closed' },
+      },
+      eval: ({ inputs }) => {
+        const breps = ensureArray(inputs.breps);
+        const entries = [];
+        breps.forEach((brep) => {
+          entries.push(...ensureSurfaceEntries(brep));
+        });
+        if (!entries.length) {
+          return { breps: [], closed: [] };
+        }
+        const joined = createBrepFromEntries(entries, { joined: true, sourceCount: breps.length });
+        const edgeInfo = computeSurfaceEdges(entries);
+        const closed = edgeInfo.naked.length === 0;
+        return { breps: [joined], closed: [closed] };
+      },
+    });
+
+    register('{332378f4-acb2-43fe-8593-ed22bfeb2721}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          U: 'countU', 'U Count': 'countU', u: 'countU',
+          V: 'countV', 'V Count': 'countV', v: 'countV',
+        },
+        outputs: {
+          F: 'frames', Frames: 'frames',
+          uv: 'parameters', UV: 'parameters', Parameters: 'parameters',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaceEntry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!surfaceEntry?.surface) {
+          const emptyTree = createDataTree();
+          return { frames: emptyTree, parameters: emptyTree };
+        }
+        const countU = ensureCount(inputs.countU, 10);
+        const countV = ensureCount(inputs.countV, 10);
+        const division = sampleSurfaceDivision(surfaceEntry.surface, countU, countV);
+        const frames = treeFromGrid(division.rows, (cell) => ({
+          origin: cell.frame.origin.clone(),
+          xAxis: cell.frame.xAxis.clone(),
+          yAxis: cell.frame.yAxis.clone(),
+          zAxis: cell.frame.zAxis.clone(),
+        }));
+        const parameters = treeFromGrid(division.rows, (cell) => ({ u: cell.uv.u, v: cell.uv.v }));
+        return { frames, parameters };
+      },
+    });
+
+    register('{4b87eb13-f87c-4ff1-ae0e-6c9f1f2aecbd}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'shape', Shape: 'shape', shape: 'shape',
+          B: 'blend', Blend: 'blend', blend: 'blend',
+          M: 'metric', Metric: 'metric', metric: 'metric',
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          R: 'radii', Radii: 'radii', radii: 'radii',
+        },
+        outputs: { B: 'result', Result: 'result', result: 'result' },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.shape);
+        if (!entries.length) {
+          return {};
+        }
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edgeIndices = collectIndices(inputs.edges);
+        const radiiValues = ensureArray(inputs.radii).map((value) => ensureNumeric(value, ensureNumeric(inputs.radii, 0)));
+        const fillets = [];
+        edgeInfo.edges.forEach((edge, index) => {
+          if (edgeIndices.length && !edgeIndices.includes(index)) {
+            return;
+          }
+          const radius = radiiValues.length ? radiiValues[Math.min(index, radiiValues.length - 1)] : ensureNumeric(inputs.radii, 0);
+          fillets.push({ index, faces: edge.faces.slice(), radius });
+        });
+        const result = createBrepFromEntries(entries, {
+          fillet: {
+            blend: inputs.blend ?? null,
+            metric: inputs.metric ?? null,
+            edges: fillets,
+          },
+        });
+        return { result };
+      },
+    });
+
+    register('{5106bafc-d5d4-4983-83e7-7be3ed07f502}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          U: 'countU', 'U Count': 'countU', u: 'countU',
+          V: 'countV', 'V Count': 'countV', v: 'countV',
+        },
+        outputs: {
+          P: 'points', Points: 'points',
+          N: 'normals', Normals: 'normals',
+          uv: 'parameters', UV: 'parameters', Parameters: 'parameters',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaceEntry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!surfaceEntry?.surface) {
+          const emptyTree = createDataTree();
+          return { points: emptyTree, normals: emptyTree, parameters: emptyTree };
+        }
+        const countU = ensureCount(inputs.countU, 10);
+        const countV = ensureCount(inputs.countV, 10);
+        const division = sampleSurfaceDivision(surfaceEntry.surface, countU, countV);
+        const points = treeFromGrid(division.rows, (cell) => cell.point.clone());
+        const normals = treeFromGrid(division.rows, (cell) => cell.normal.clone());
+        const parameters = treeFromGrid(division.rows, (cell) => ({ u: cell.uv.u, v: cell.uv.v }));
+        return { points, normals, parameters };
+      },
+    });
+
+    register('{59143f40-32f3-47c1-b9ae-1a09eb9c926b}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          U: 'countU', 'U Count': 'countU', u: 'countU',
+          V: 'countV', 'V Count': 'countV', v: 'countV',
+        },
+        outputs: {
+          F: 'frames', Frames: 'frames',
+          uv: 'parameters', UV: 'parameters', Parameters: 'parameters',
+        },
+      },
+      eval: ({ inputs }) => {
+        const surfaceEntry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!surfaceEntry?.surface) {
+          return { frames: [], parameters: [] };
+        }
+        const countU = ensureCount(inputs.countU, 10);
+        const countV = ensureCount(inputs.countV, 10);
+        const division = sampleSurfaceDivision(surfaceEntry.surface, countU, countV);
+        const frames = flattenGrid(division.rows, (cell) => ({
+          origin: cell.frame.origin.clone(),
+          xAxis: cell.frame.xAxis.clone(),
+          yAxis: cell.frame.yAxis.clone(),
+          zAxis: cell.frame.zAxis.clone(),
+        }));
+        const parameters = flattenGrid(division.rows, (cell) => ({ u: cell.uv.u, v: cell.uv.v }));
+        return { frames, parameters };
+      },
+    });
+
+    register('{5d192b90-1ae3-4439-bbde-b05976fc4ac3}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'source', Source: 'source', source: 'source',
+          T: 'target', Target: 'target', target: 'target',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const sourceEntry = ensureSurfaceEntries(inputs.source)[0];
+        const targetEntry = ensureSurfaceEntries(inputs.target)[0];
+        if (!targetEntry?.surface) {
+          return {};
+        }
+        const overrides = sourceEntry?.surface
+          ? {
+            domainU: sourceEntry.surface.domainU ?? createDomain(0, 1),
+            domainV: sourceEntry.surface.domainV ?? createDomain(0, 1),
+          }
+          : {};
+        const surface = createTrimmedSurfaceWrapper(targetEntry, overrides, {
+          source: sourceEntry?.wrapper ?? sourceEntry,
+          metadata: { trimSource: 'copy-trim' },
+        });
+        return { surface };
+      },
+    });
+
+    register('{64ff9813-8fe8-4708-ac9f-61b825213e83}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          D: 'directions', Directions: 'directions', directions: 'directions',
+          R: 'reflex', Reflex: 'reflex', reflex: 'reflex',
+          A: 'angle', Angle: 'angle', angle: 'angle',
+        },
+        outputs: {
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          I: 'indices', Indices: 'indices', indices: 'indices',
+          M: 'map', Map: 'map', map: 'map',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { edges: [], indices: [], map: [] };
+        }
+        const directions = ensureDirections(inputs.directions);
+        const reflex = ensureBoolean(inputs.reflex, false);
+        const threshold = THREE.MathUtils.degToRad(Math.max(0, ensureNumeric(inputs.angle, 15)));
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edges = [];
+        const indices = [];
+        const map = [];
+        edgeInfo.edges.forEach((edge, index) => {
+          const direction = computeEdgeDirection(edge);
+          if (direction.lengthSq() <= EPSILON) {
+            return;
+          }
+          let best = null;
+          directions.forEach((dir, dirIndex) => {
+            const dot = clamp(direction.dot(dir), -1, 1);
+            const angle = Math.acos(dot);
+            const reflexAngle = Math.PI - angle;
+            let qualifies = angle <= threshold;
+            let recordedAngle = angle;
+            if (!qualifies && reflex) {
+              qualifies = reflexAngle <= threshold;
+              recordedAngle = reflexAngle;
+            }
+            if (qualifies && (!best || recordedAngle < best.angle)) {
+              best = { direction: dirIndex, angle: recordedAngle };
+            }
+          });
+          if (best) {
+            const curve = edgeToCurve(edge);
+            if (curve) {
+              edges.push(curve);
+              indices.push(edge.faces.slice());
+              map.push({ edge: index, direction: best.direction, angle: best.angle });
+            }
+          }
+        });
+        return { edges, indices, map };
+      },
+    });
+
+    register('{6a9ccaab-1b03-484e-bbda-be9c81584a66}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          D: 'domain', Domain: 'domain', domain: 'domain',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const entry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!entry?.surface) {
+          return {};
+        }
+        const overrides = extractDomainOverrides(inputs.domain, entry.surface);
+        const surface = createTrimmedSurfaceWrapper(entry, overrides, {
+          metadata: { trimSource: 'isotrim' },
+        });
+        return { surface };
+      },
+    });
+
+    register('{70905be1-e22f-4fa8-b9ae-e119d417904f}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          T: 'tangency', Tangency: 'tangency', tangency: 'tangency',
+        },
+        outputs: {
+          C: 'closed', Closed: 'closed', closed: 'closed',
+          Ci: 'closedIndices', 'Closed Indices': 'closedIndices', closedIndices: 'closedIndices',
+          O: 'open', Open: 'open', open: 'open',
+          Oi: 'openIndices', 'Open Indices': 'openIndices', openIndices: 'openIndices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { closed: [], closedIndices: [], open: [], openIndices: [] };
+        }
+        const tangency = THREE.MathUtils.degToRad(Math.max(0, ensureNumeric(inputs.tangency, 5)));
+        const edgeInfo = computeSurfaceEdges(entries);
+        const closedEdges = [];
+        const closedIndices = [];
+        const openEdges = [];
+        const openIndices = [];
+        edgeInfo.edges.forEach((edge) => {
+          const points = edge.points ?? [];
+          if (!points.length) {
+            return;
+          }
+          const start = points[0];
+          const end = points[points.length - 1];
+          const loopClosed = start.distanceToSquared(end) <= 1e-6;
+          if (loopClosed && edge.faces.length >= 1) {
+            const angle = computeEdgeAngle(edge, entries);
+            if (angle <= tangency) {
+              const curve = edgeToCurve(edge);
+              if (curve) {
+                closedEdges.push(curve);
+                closedIndices.push(edge.faces.slice());
+              }
+              return;
+            }
+          }
+          const curve = edgeToCurve(edge);
+          if (curve) {
+            openEdges.push(curve);
+            openIndices.push(edge.faces.slice());
+          }
+        });
+        return { closed: closedEdges, closedIndices, open: openEdges, openIndices };
+      },
+    });
+
+    register('{71e99dbb-2d79-4f02-a8a6-e87a09d54f47}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          P: 'points', Points: 'points', points: 'points',
+        },
+        outputs: {
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          I: 'indices', Indices: 'indices', indices: 'indices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { edges: [], indices: [] };
+        }
+        const selectedFaces = ensureFaceSelection(inputs.points, entries);
+        const faceSet = new Set(selectedFaces);
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edges = [];
+        const indices = [];
+        edgeInfo.edges.forEach((edge) => {
+          const matches = edge.faces.some((faceIndex) => faceSet.has(faceIndex));
+          if (!matches) {
+            return;
+          }
+          const curve = edgeToCurve(edge);
+          if (curve) {
+            edges.push(curve);
+            indices.push(edge.faces.slice());
+          }
+        });
+        return { edges, indices };
+      },
+    });
+
+    register('{73269f6a-9645-4638-8d5e-88064dd289bd}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          P: 'points', Points: 'points', points: 'points',
+          V: 'valence', Valence: 'valence', valence: 'valence',
+          T: 'tolerance', Tolerance: 'tolerance', tolerance: 'tolerance',
+        },
+        outputs: {
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          I: 'indices', Indices: 'indices', indices: 'indices',
+          M: 'map', Map: 'map', map: 'map',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { edges: [], indices: [], map: [] };
+        }
+        const points = collectPoints(inputs.points);
+        const valence = Math.max(0, Math.round(ensureNumeric(inputs.valence, 0)));
+        const tolerance = Math.max(EPSILON, Math.abs(ensureNumeric(inputs.tolerance, 0.01)));
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edges = [];
+        const indices = [];
+        const mapping = mapPointsToEdges(points, edgeInfo.edges, tolerance);
+        edgeInfo.edges.forEach((edge, index) => {
+          const matchesValence = !valence || edge.faces.length === valence;
+          const associated = mapping.some((entry) => entry.edges.includes(index));
+          if (!associated || !matchesValence) {
+            return;
+          }
+          const curve = edgeToCurve(edge);
+          if (curve) {
+            edges.push(curve);
+            indices.push(edge.faces.slice());
+          }
+        });
+        return { edges, indices, map: mapping };
+      },
+    });
+
+    register('{8248da39-0729-4e04-8395-267b3259bc2f}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: {
+          Cv: 'convex', Convex: 'convex', convex: 'convex',
+          Cc: 'concave', Concave: 'concave', concave: 'concave',
+          Mx: 'mixed', Mixed: 'mixed', mixed: 'mixed',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { convex: [], concave: [], mixed: [] };
+        }
+        const edgeInfo = computeSurfaceEdges(entries);
+        const convex = [];
+        const concave = [];
+        const mixed = [];
+        edgeInfo.edges.forEach((edge) => {
+          const category = classifyEdgeConvexity(edge, entries);
+          const curve = edgeToCurve(edge);
+          if (!curve) {
+            return;
+          }
+          if (category === 'convex') {
+            convex.push(curve);
+          } else if (category === 'concave') {
+            concave.push(curve);
+          } else {
+            mixed.push(curve);
+          }
+        });
+        return { convex, concave, mixed };
+      },
+    });
+
+    register('{a1da39b7-6387-4522-bf2b-2eaee6b14072}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'source', Source: 'source', source: 'source',
+          T: 'target', Target: 'target', target: 'target',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const sourceEntry = ensureSurfaceEntries(inputs.source)[0];
+        const targetEntry = ensureSurfaceEntries(inputs.target)[0];
+        if (!targetEntry?.surface) {
+          return {};
+        }
+        const sourceDomains = sourceEntry?.surface
+          ? {
+            domainU: sourceEntry.surface.domainU ?? createDomain(0, 1),
+            domainV: sourceEntry.surface.domainV ?? createDomain(0, 1),
+          }
+          : {};
+        const targetDomains = {
+          domainU: targetEntry.surface.domainU ?? createDomain(0, 1),
+          domainV: targetEntry.surface.domainV ?? createDomain(0, 1),
+        };
+        const overrides = {
+          domainU: sourceDomains.domainU ? intersectDomains(targetDomains.domainU, sourceDomains.domainU) : targetDomains.domainU,
+          domainV: sourceDomains.domainV ? intersectDomains(targetDomains.domainV, sourceDomains.domainV) : targetDomains.domainV,
+        };
+        const surface = createTrimmedSurfaceWrapper(targetEntry, overrides, {
+          source: sourceEntry?.wrapper ?? sourceEntry,
+          metadata: { trimSource: 'retrim' },
+        });
+        return { surface };
+      },
+    });
+
+    register('{b25c5762-f90e-4839-9fc5-74b74ab42b1e}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+          T: 'retrim', Retrim: 'retrim', retrim: 'retrim',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const entry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!entry?.surface) {
+          return {};
+        }
+        const distance = ensureNumeric(inputs.distance, 0);
+        const retrim = ensureBoolean(inputs.retrim, false);
+        const evaluate = (u, v) => {
+          const point = evaluateSurfacePoint(entry.surface, u, v) ?? new THREE.Vector3();
+          const derivatives = evaluateSurfaceDerivatives(entry.surface, u, v);
+          let normal = derivatives?.normal?.clone();
+          if (!normal || normal.lengthSq() <= EPSILON) {
+            normal = entry.surface.plane?.zAxis?.clone() ?? new THREE.Vector3(0, 0, 1);
+          }
+          normal.normalize();
+          return point.add(normal.multiplyScalar(distance));
+        };
+        const offsetSurface = createParametricSurface({
+          evaluate,
+          domainU: entry.surface.domainU,
+          domainV: entry.surface.domainV,
+          plane: entry.surface.plane ? clonePlaneData(entry.surface.plane) : defaultPlane(),
+          metadata: { ...entry.surface.metadata, offset: { distance, mode: 'normal', retrim } },
+        });
+        let surface = wrapSurface(offsetSurface, {
+          offsetDistance: distance,
+          loose: false,
+          retrim,
+          base: entry.wrapper ?? entry,
+        });
+        if (retrim && entry.wrapper?.trimmedDomainU && entry.wrapper?.trimmedDomainV) {
+          surface = wrapSurface(createParametricSurface({
+            evaluate: (u, v) => evaluate(clampToDomain(u, entry.wrapper.trimmedDomainU), clampToDomain(v, entry.wrapper.trimmedDomainV)),
+            domainU: entry.wrapper.trimmedDomainU,
+            domainV: entry.wrapper.trimmedDomainV,
+            plane: offsetSurface.plane,
+            metadata: offsetSurface.metadata,
+          }), {
+            trimmedDomainU: entry.wrapper.trimmedDomainU,
+            trimmedDomainV: entry.wrapper.trimmedDomainV,
+            trimmedFrom: entry.wrapper,
+            offsetDistance: distance,
+            loose: false,
+            retrim,
+          });
+        }
+        return { surface };
+      },
+    });
+
+    register('{b648d933-ddea-4e75-834c-8f6f3793e311}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return {};
+        }
+        const edgeInfo = computeSurfaceEdges(entries);
+        const caps = createCapSurfacesFromEdges(edgeInfo.naked);
+        if (!caps.length) {
+          return { brep: createBrepFromEntries(entries) };
+        }
+        const capEntries = caps.map((cap) => ({ surface: cap.surface, wrapper: cap }));
+        const combined = createBrepFromEntries([...entries, ...capEntries], { capped: true, caps: caps.length });
+        return { brep: combined };
+      },
+    });
+
+    register('{c3d1f2b8-8596-4e8d-8861-c28ba8ffb4f4}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          G: 'guide', Guide: 'guide', guide: 'guide',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface', R: 'result', Result: 'result', result: 'result' },
+      },
+      eval: ({ inputs }) => {
+        const entry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!entry?.surface) {
+          return {};
+        }
+        const guide = inputs.guide ? ensurePlane(inputs.guide) : null;
+        const plane = entry.surface.plane ? clonePlaneData(entry.surface.plane) : clonePlaneData(defaultPlane());
+        let shouldFlip = true;
+        if (guide) {
+          const dot = plane.zAxis.clone().normalize().dot(guide.zAxis.clone().normalize());
+          shouldFlip = dot < 0;
+        }
+        const flippedPlane = shouldFlip
+          ? normalizePlaneAxes(plane.origin.clone(), plane.xAxis.clone(), plane.yAxis.clone().multiplyScalar(-1), plane.zAxis.clone().multiplyScalar(-1))
+          : plane;
+        const surface = createParametricSurface({
+          evaluate: (u, v) => evaluateSurfacePoint(entry.surface, u, v) ?? new THREE.Vector3(),
+          domainU: entry.surface.domainU,
+          domainV: entry.surface.domainV,
+          plane: flippedPlane,
+          metadata: { ...entry.surface.metadata, flipped: shouldFlip },
+        });
+        return { surface: wrapSurface(surface, { flipped: shouldFlip, base: entry.wrapper ?? entry }), result: shouldFlip };
+      },
+    });
+
+    register('{d6b43673-55dd-4e2f-95c4-6c69a14513a6}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: { B: 'breps', Brep: 'breps', breps: 'breps', N0: 'before', Before: 'before', before: 'before', N1: 'after', After: 'after', after: 'after' },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { breps: null, before: 0, after: 0 };
+        }
+        const before = entries.length;
+        const seen = new Map();
+        const uniqueEntries = [];
+        entries.forEach((entry) => {
+          const surface = entry.surface;
+          const plane = surface.plane ?? defaultPlane();
+          const domainU = surface.domainU ?? createDomain(0, 1);
+          const domainV = surface.domainV ?? createDomain(0, 1);
+          const signature = [
+            plane.origin.x.toFixed(6), plane.origin.y.toFixed(6), plane.origin.z.toFixed(6),
+            plane.zAxis.x.toFixed(4), plane.zAxis.y.toFixed(4), plane.zAxis.z.toFixed(4),
+            domainU.min.toFixed(6), domainU.max.toFixed(6), domainV.min.toFixed(6), domainV.max.toFixed(6),
+          ].join('|');
+          if (!seen.has(signature)) {
+            seen.set(signature, true);
+            uniqueEntries.push(entry);
+          }
+        });
+        const after = uniqueEntries.length;
+        const breps = createBrepFromEntries(uniqueEntries, { merged: before - after });
+        return { breps, before, after };
+      },
+    });
+
+    register('{e4ff8101-73c9-4802-8c5d-704d8721b909}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          'L-': 'min', Min: 'min', min: 'min',
+          'L+': 'max', Max: 'max', max: 'max',
+        },
+        outputs: {
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          I: 'indices', Indices: 'indices', indices: 'indices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { edges: [], indices: [] };
+        }
+        const min = ensureNumeric(inputs.min, 0);
+        const max = ensureNumeric(inputs.max, Number.POSITIVE_INFINITY);
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edges = [];
+        const indices = [];
+        edgeInfo.edges.forEach((edge) => {
+          const linearity = computeEdgeLinearity(edge);
+          if (linearity < min || linearity > max) {
+            return;
+          }
+          const curve = edgeToCurve(edge);
+          if (curve) {
+            edges.push(curve);
+            indices.push(edge.faces.slice());
+          }
+        });
+        return { edges, indices };
+      },
+    });
+
+    register('{e7e43403-f913-4d83-8aff-5b1c7a7f9fbc}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          S: 'surface', Surface: 'surface', surface: 'surface',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+          T: 'retrim', Retrim: 'retrim', retrim: 'retrim',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const entry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!entry?.surface) {
+          return {};
+        }
+        const distance = ensureNumeric(inputs.distance, 0);
+        const retrim = ensureBoolean(inputs.retrim, false);
+        const plane = entry.surface.plane ? clonePlaneData(entry.surface.plane) : clonePlaneData(defaultPlane());
+        const evaluate = (u, v) => {
+          const point = evaluateSurfacePoint(entry.surface, u, v) ?? new THREE.Vector3();
+          const normal = plane.zAxis.clone().normalize();
+          return point.add(normal.multiplyScalar(distance));
+        };
+        const offsetSurface = createParametricSurface({
+          evaluate,
+          domainU: entry.surface.domainU,
+          domainV: entry.surface.domainV,
+          plane,
+          metadata: { ...entry.surface.metadata, offset: { distance, mode: 'loose', retrim } },
+        });
+        let surface = wrapSurface(offsetSurface, {
+          offsetDistance: distance,
+          loose: true,
+          retrim,
+          base: entry.wrapper ?? entry,
+        });
+        if (retrim && entry.wrapper?.trimmedDomainU && entry.wrapper?.trimmedDomainV) {
+          surface = wrapSurface(createParametricSurface({
+            evaluate: (u, v) => evaluate(clampToDomain(u, entry.wrapper.trimmedDomainU), clampToDomain(v, entry.wrapper.trimmedDomainV)),
+            domainU: entry.wrapper.trimmedDomainU,
+            domainV: entry.wrapper.trimmedDomainV,
+            plane,
+            metadata: offsetSurface.metadata,
+          }), {
+            trimmedDomainU: entry.wrapper.trimmedDomainU,
+            trimmedDomainV: entry.wrapper.trimmedDomainV,
+            trimmedFrom: entry.wrapper,
+            offsetDistance: distance,
+            loose: true,
+            retrim,
+          });
+        }
+        return { surface };
+      },
+    });
+
+    register('{f6409a9c-3d2a-4b14-9f2c-e3c3f2cb72f8}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'brep', Brep: 'brep', brep: 'brep' },
+        outputs: { B: 'brep', Brep: 'brep', brep: 'brep', C: 'caps', Caps: 'caps', caps: 'caps', S: 'solid', Solid: 'solid', solid: 'solid' },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return {};
+        }
+        const edgeInfo = computeSurfaceEdges(entries);
+        const caps = createCapSurfacesFromEdges(edgeInfo.naked);
+        const capEntries = caps.map((cap) => ({ surface: cap.surface, wrapper: cap }));
+        const combined = createBrepFromEntries([...entries, ...capEntries], { capped: true, caps: caps.length });
+        const closedInfo = computeSurfaceEdges([...entries, ...capEntries]);
+        const solid = closedInfo.naked.length === 0;
+        return { brep: combined, caps, solid };
+      },
+    });
+
+    register('{fa92858a-a180-4545-ad4d-0dc644b3a2a8}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const entry = ensureSurfaceEntries(inputs.surface)[0];
+        if (!entry?.surface) {
+          return {};
+        }
+        const source = entry.wrapper?.trimmedFrom ?? entry.wrapper ?? entry;
+        if (source?.surface) {
+          return { surface: wrapSurface(source.surface, { ...(source.metadata ?? {}), restored: true }) };
+        }
+        return { surface: entry.wrapper ?? wrapSurface(entry.surface) };
+      },
+    });
+
+    register('{ff187e6a-84bc-4bb9-a572-b39006a0576d}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'brep', Brep: 'brep', brep: 'brep',
+          'L-': 'min', Min: 'min', min: 'min',
+          'L+': 'max', Max: 'max', max: 'max',
+        },
+        outputs: {
+          E: 'edges', Edges: 'edges', edges: 'edges',
+          I: 'indices', Indices: 'indices', indices: 'indices',
+        },
+      },
+      eval: ({ inputs }) => {
+        const entries = ensureSurfaceEntries(inputs.brep);
+        if (!entries.length) {
+          return { edges: [], indices: [] };
+        }
+        const min = ensureNumeric(inputs.min, 0);
+        const max = ensureNumeric(inputs.max, Number.POSITIVE_INFINITY);
+        const edgeInfo = computeSurfaceEdges(entries);
+        const edges = [];
+        const indices = [];
+        edgeInfo.edges.forEach((edge) => {
+          const length = computeEdgeLength(edge);
+          if (length < min || length > max) {
+            return;
+          }
+          const curve = edgeToCurve(edge);
+          if (curve) {
+            edges.push(curve);
+            indices.push(edge.faces.slice());
+          }
+        });
+        return { edges, indices };
+      },
+    });
   }
 
   function registerAnalysisComponents() {
@@ -6193,4 +7521,8 @@ export function registerSurfaceAnalysisComponents(args) {
 
 export function registerSurfaceSubDComponents(args) {
   registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_SUBD_ONLY });
+}
+
+export function registerSurfaceUtilComponents(args) {
+  registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_UTIL_ONLY });
 }
