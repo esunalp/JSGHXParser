@@ -20,11 +20,13 @@ const [
     registerSurfaceSubDComponents,
     registerSurfaceUtilComponents,
   },
+  { registerTransformEuclideanComponents },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-vector.js'),
   versionedImport('./registry-components-curve.js'),
   versionedImport('./registry-components-surface.js'),
+  versionedImport('./registry-components-transform.js'),
 ]);
 
 const entries = new Map();
@@ -233,6 +235,7 @@ registerSurfaceSubDComponents({ register, toNumber, toVector3 });
 registerSurfaceAnalysisComponents({ register, toNumber, toVector3 });
 registerSurfaceFreeformComponents({ register, toNumber, toVector3 });
 registerSurfaceUtilComponents({ register, toNumber, toVector3 });
+registerTransformEuclideanComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
