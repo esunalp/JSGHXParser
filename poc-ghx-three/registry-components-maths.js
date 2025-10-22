@@ -862,6 +862,603 @@ export function registerMathDomainComponents({ register, toNumber }) {
   });
 }
 
+export function registerMathScriptComponents({ register, toNumber, toVector3 }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register math script components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register math script components.');
+  }
+  if (typeof toVector3 !== 'function') {
+    throw new Error('toVector3 function is required to register math script components.');
+  }
+
+  function unwrapSingle(value) {
+    let current = value;
+    let depth = 0;
+    const maxDepth = 32;
+    while (depth < maxDepth) {
+      if (current === undefined || current === null) {
+        return current;
+      }
+      if (Array.isArray(current)) {
+        if (!current.length) {
+          return undefined;
+        }
+        current = current[0];
+        depth += 1;
+        continue;
+      }
+      if (typeof current === 'object' && !current?.isVector3) {
+        if ('value' in current) {
+          current = current.value;
+          depth += 1;
+          continue;
+        }
+        if ('item' in current) {
+          current = current.item;
+          depth += 1;
+          continue;
+        }
+        if ('point' in current) {
+          current = current.point;
+          depth += 1;
+          continue;
+        }
+        if ('position' in current) {
+          current = current.position;
+          depth += 1;
+          continue;
+        }
+      }
+      return current;
+    }
+    return current;
+  }
+
+  function toBoolean(value, fallback = false) {
+    const resolved = unwrapSingle(value);
+    if (typeof resolved === 'boolean') {
+      return resolved;
+    }
+    if (typeof resolved === 'number') {
+      return resolved !== 0;
+    }
+    if (typeof resolved === 'string') {
+      const normalized = resolved.trim().toLowerCase();
+      if (!normalized) return fallback;
+      if (['true', 'yes', '1', 'on'].includes(normalized)) return true;
+      if (['false', 'no', '0', 'off'].includes(normalized)) return false;
+      return fallback;
+    }
+    if (Array.isArray(resolved)) {
+      if (!resolved.length) return fallback;
+      return toBoolean(resolved[0], fallback);
+    }
+    return fallback;
+  }
+
+  function isVectorLike(value) {
+    if (!value) return false;
+    if (value.isVector3) return true;
+    if (typeof value === 'object') {
+      const x = toNumber(value.x, Number.NaN);
+      const y = toNumber(value.y, Number.NaN);
+      const z = toNumber(value.z, Number.NaN);
+      return Number.isFinite(x) || Number.isFinite(y) || Number.isFinite(z);
+    }
+    return false;
+  }
+
+  function ensureVector(value) {
+    if (value?.isVector3) {
+      return value.clone();
+    }
+    return toVector3(value, new THREE.Vector3());
+  }
+
+  const expressionCache = new Map();
+  const RESERVED_IDENTIFIERS = new Set(['if', 'for', 'while', 'switch', 'case', 'return', 'function', 'var', 'let', 'const', 'class']);
+
+  function isValidIdentifier(name) {
+    if (typeof name !== 'string' || !name) {
+      return false;
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      return false;
+    }
+    if (RESERVED_IDENTIFIERS.has(name)) {
+      return false;
+    }
+    return true;
+  }
+
+  function computeNameVariants(name) {
+    if (typeof name !== 'string' || !name) {
+      return [];
+    }
+    const variants = new Set([name, name.toLowerCase(), name.toUpperCase()]);
+    const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+    variants.add(capitalized);
+    const result = [];
+    for (const variant of variants) {
+      if (isValidIdentifier(variant)) {
+        result.push(variant);
+      }
+    }
+    return result;
+  }
+
+  function toExpressionString(value, depth = 0) {
+    if (depth > 8) {
+      return '';
+    }
+    if (value === undefined || value === null) {
+      return '';
+    }
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    if (Array.isArray(value)) {
+      for (let index = 0; index < value.length; index += 1) {
+        const candidate = toExpressionString(value[index], depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      return '';
+    }
+    if (typeof value === 'object') {
+      if ('expression' in value) {
+        const candidate = toExpressionString(value.expression, depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      if ('code' in value) {
+        const candidate = toExpressionString(value.code, depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      if ('text' in value) {
+        const candidate = toExpressionString(value.text, depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      if ('value' in value) {
+        const candidate = toExpressionString(value.value, depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      if ('values' in value) {
+        const candidate = toExpressionString(value.values, depth + 1);
+        if (candidate) {
+          return candidate;
+        }
+      }
+      if (typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+        const text = `${value}`;
+        if (text && text !== '[object Object]') {
+          return text;
+        }
+      }
+      return '';
+    }
+    return '';
+  }
+
+  function normalizeExpressionSource(source) {
+    if (typeof source !== 'string') {
+      return '';
+    }
+    const trimmed = source.trim();
+    if (!trimmed) {
+      return '';
+    }
+    return trimmed
+      .replace(/<>/g, '!=')
+      .replace(/\^/g, '**')
+      .replace(/;+\s*$/g, '');
+  }
+
+  const expressionContext = new Map();
+
+  function addContextEntry(name, value) {
+    if (!isValidIdentifier(name)) {
+      return;
+    }
+    if (!expressionContext.has(name)) {
+      expressionContext.set(name, value);
+    }
+  }
+
+  function registerContextVariants(baseName, value) {
+    for (const variant of computeNameVariants(baseName)) {
+      addContextEntry(variant, value);
+    }
+  }
+
+  const safeSinh = Math.sinh ?? ((v) => (Math.exp(v) - Math.exp(-v)) / 2);
+  const safeCosh = Math.cosh ?? ((v) => (Math.exp(v) + Math.exp(-v)) / 2);
+  const safeTanh = Math.tanh ?? ((v) => {
+    const ePos = Math.exp(v);
+    const eNeg = Math.exp(-v);
+    return (ePos - eNeg) / (ePos + eNeg);
+  });
+  const safeAsinh = Math.asinh ?? ((v) => Math.log(v + Math.sqrt(v * v + 1)));
+  const safeAcosh = Math.acosh ?? ((v) => Math.log(v + Math.sqrt(v * v - 1)));
+  const safeAtanh = Math.atanh ?? ((v) => 0.5 * Math.log((1 + v) / (1 - v)));
+  const safeHypot = Math.hypot ?? ((...values) => Math.sqrt(values.reduce((sum, entry) => sum + entry * entry, 0)));
+
+  const signFunction = Math.sign ?? ((v) => {
+    const numeric = Number(v);
+    if (Number.isNaN(numeric)) {
+      return 0;
+    }
+    if (numeric > 0) return 1;
+    if (numeric < 0) return -1;
+    return 0;
+  });
+
+  const moduloFunction = (a, b) => {
+    const dividend = Number(a);
+    const divisor = Number(b);
+    if (!Number.isFinite(dividend) || !Number.isFinite(divisor) || divisor === 0) {
+      return Number.NaN;
+    }
+    const remainder = dividend % divisor;
+    if (remainder === 0) {
+      return 0;
+    }
+    return remainder < 0 ? remainder + (divisor < 0 ? -divisor : divisor) : remainder;
+  };
+
+  const clampFunction = (value, min = 0, max = 1) => {
+    const numericValue = Number(value);
+    const numericMin = Number(min);
+    const numericMax = Number(max);
+    if (!Number.isFinite(numericValue) || !Number.isFinite(numericMin) || !Number.isFinite(numericMax)) {
+      return Number.NaN;
+    }
+    const lower = Math.min(numericMin, numericMax);
+    const upper = Math.max(numericMin, numericMax);
+    if (numericValue <= lower) return lower;
+    if (numericValue >= upper) return upper;
+    return numericValue;
+  };
+
+  const lerpFunction = (a = 0, b = 0, t = 0) => {
+    const start = Number(a);
+    const end = Number(b);
+    const parameter = Number(t);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(parameter)) {
+      return Number.NaN;
+    }
+    return start + (end - start) * parameter;
+  };
+
+  const degFunction = (value) => Number(value) * (180 / Math.PI);
+  const radFunction = (value) => Number(value) * (Math.PI / 180);
+  const fracFunction = (value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return Number.NaN;
+    }
+    return numeric - Math.trunc(numeric);
+  };
+  const randomFunction = (min = 0, max = 1) => {
+    const numericMin = Number(min);
+    const numericMax = Number(max);
+    if (!Number.isFinite(numericMin) || !Number.isFinite(numericMax)) {
+      return Math.random();
+    }
+    if (numericMin === numericMax) {
+      return numericMin;
+    }
+    const lower = Math.min(numericMin, numericMax);
+    const upper = Math.max(numericMin, numericMax);
+    return lower + Math.random() * (upper - lower);
+  };
+
+  registerContextVariants('abs', Math.abs);
+  registerContextVariants('sign', signFunction);
+  registerContextVariants('sgn', signFunction);
+  registerContextVariants('floor', Math.floor);
+  registerContextVariants('ceil', Math.ceil);
+  registerContextVariants('ceiling', Math.ceil);
+  registerContextVariants('round', Math.round);
+  registerContextVariants('trunc', Math.trunc ?? ((v) => (v < 0 ? Math.ceil(v) : Math.floor(v))));
+  registerContextVariants('frac', fracFunction);
+  registerContextVariants('sqrt', Math.sqrt);
+  registerContextVariants('power', Math.pow);
+  registerContextVariants('pow', Math.pow);
+  registerContextVariants('exp', Math.exp);
+  registerContextVariants('ln', Math.log);
+  registerContextVariants('log', Math.log);
+  registerContextVariants('log10', Math.log10 ?? ((v) => Math.log(v) / Math.LN10));
+  registerContextVariants('log2', Math.log2 ?? ((v) => Math.log(v) / Math.LN2));
+  registerContextVariants('sin', Math.sin);
+  registerContextVariants('cos', Math.cos);
+  registerContextVariants('tan', Math.tan);
+  registerContextVariants('asin', Math.asin);
+  registerContextVariants('acos', Math.acos);
+  registerContextVariants('atan', Math.atan);
+  registerContextVariants('atan2', Math.atan2);
+  registerContextVariants('sinh', safeSinh);
+  registerContextVariants('cosh', safeCosh);
+  registerContextVariants('tanh', safeTanh);
+  registerContextVariants('asinh', safeAsinh);
+  registerContextVariants('acosh', safeAcosh);
+  registerContextVariants('atanh', safeAtanh);
+  registerContextVariants('hypot', safeHypot);
+  registerContextVariants('min', (...values) => Math.min(...values));
+  registerContextVariants('max', (...values) => Math.max(...values));
+  registerContextVariants('clamp', clampFunction);
+  registerContextVariants('lerp', lerpFunction);
+  registerContextVariants('deg', degFunction);
+  registerContextVariants('rad', radFunction);
+  registerContextVariants('random', randomFunction);
+  registerContextVariants('rand', randomFunction);
+  registerContextVariants('mod', moduloFunction);
+  registerContextVariants('modulo', moduloFunction);
+  registerContextVariants('sec', (value) => 1 / Math.cos(Number(value)));
+  registerContextVariants('csc', (value) => 1 / Math.sin(Number(value)));
+  registerContextVariants('cot', (value) => 1 / Math.tan(Number(value)));
+  registerContextVariants('and', (a, b) => (toBoolean(a) && toBoolean(b)) ? 1 : 0);
+  registerContextVariants('or', (a, b) => (toBoolean(a) || toBoolean(b)) ? 1 : 0);
+  registerContextVariants('xor', (a, b) => {
+    const left = toBoolean(a);
+    const right = toBoolean(b);
+    return left !== right ? 1 : 0;
+  });
+  registerContextVariants('not', (value) => (toBoolean(value) ? 0 : 1));
+  registerContextVariants('if', (condition, whenTrue, whenFalse = 0) => (toBoolean(condition) ? whenTrue : whenFalse));
+  registerContextVariants('select', (condition, whenTrue, whenFalse = 0) => (toBoolean(condition) ? whenTrue : whenFalse));
+
+  const phiConstant = (1 + Math.sqrt(5)) / 2;
+  const constants = [
+    ['Pi', Math.PI],
+    ['Tau', Math.PI * 2],
+    ['E', Math.E],
+    ['Phi', phiConstant],
+  ];
+  for (const [name, value] of constants) {
+    for (const variant of computeNameVariants(name)) {
+      addContextEntry(variant, value);
+    }
+  }
+
+  const expressionContextEntries = Array.from(expressionContext.entries());
+  const expressionContextNames = expressionContextEntries.map(([name]) => name);
+  const expressionContextValues = expressionContextEntries.map(([, value]) => value);
+
+  function compileExpression(source, argNames) {
+    const key = `${argNames.join('|')}::${source}`;
+    if (expressionCache.has(key)) {
+      return expressionCache.get(key);
+    }
+    try {
+      const evaluator = new Function(
+        ...argNames,
+        ...expressionContextNames,
+        `'use strict'; return (${source});`
+      );
+      const compiled = (valueMap) => {
+        const args = argNames.map((name) => valueMap.get(name) ?? 0);
+        return evaluator(...args, ...expressionContextValues);
+      };
+      expressionCache.set(key, compiled);
+      return compiled;
+    } catch (error) {
+      expressionCache.set(key, null);
+      return null;
+    }
+  }
+
+  function prepareExpressionVariables(variableNames, variableVariants, inputs) {
+    const valueMap = new Map();
+    const baseValues = [];
+    for (let index = 0; index < variableNames.length; index += 1) {
+      const baseName = variableNames[index];
+      const variants = variableVariants[index];
+      const numeric = toNumber(unwrapSingle(inputs[baseName]), Number.NaN);
+      const value = Number.isFinite(numeric) ? numeric : 0;
+      baseValues.push(value);
+      for (const variant of variants) {
+        valueMap.set(variant, value);
+      }
+    }
+    return { valueMap, baseValues };
+  }
+
+  function executeExpression(expressionValue, compileOrder, valueMap, baseValues) {
+    if (typeof expressionValue === 'function') {
+      try {
+        return expressionValue(...baseValues);
+      } catch (error) {
+        return null;
+      }
+    }
+    const expressionString = normalizeExpressionSource(toExpressionString(expressionValue));
+    if (!expressionString) {
+      return null;
+    }
+    const evaluator = compileExpression(expressionString, compileOrder);
+    if (!evaluator) {
+      return null;
+    }
+    try {
+      return evaluator(valueMap);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function normalizeExpressionResult(result) {
+    if (result === undefined || result === null) {
+      return null;
+    }
+    if (isVectorLike(result)) {
+      return ensureVector(result);
+    }
+    if (typeof result === 'boolean') {
+      return result ? 1 : 0;
+    }
+    const numeric = Number(result);
+    if (!Number.isNaN(numeric)) {
+      return numeric;
+    }
+    if (typeof result === 'number' && Number.isNaN(result)) {
+      return Number.NaN;
+    }
+    return null;
+  }
+
+  function registerExpressionComponent(identifiers, variableNames) {
+    const variableVariants = variableNames.map((name) => computeNameVariants(name));
+    const compileOrder = [];
+    for (const variants of variableVariants) {
+      for (const variant of variants) {
+        if (!compileOrder.includes(variant)) {
+          compileOrder.push(variant);
+        }
+      }
+    }
+
+    const inputMap = {
+      F: 'expression',
+      f: 'expression',
+      Function: 'expression',
+      function: 'expression',
+      Expression: 'expression',
+      expression: 'expression',
+      Expr: 'expression',
+      expr: 'expression',
+      Formula: 'expression',
+      formula: 'expression',
+      Equation: 'expression',
+      equation: 'expression',
+    };
+
+    for (let index = 0; index < variableNames.length; index += 1) {
+      const baseName = variableNames[index];
+      const variants = variableVariants[index];
+      for (const variant of variants) {
+        inputMap[variant] = baseName;
+      }
+      inputMap[`Variable ${baseName}`] = baseName;
+      inputMap[`variable ${baseName}`] = baseName;
+      const upper = baseName.toUpperCase();
+      inputMap[`Variable ${upper}`] = baseName;
+      const capitalized = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+      inputMap[`Variable ${capitalized}`] = baseName;
+      inputMap[`Var ${baseName}`] = baseName;
+      inputMap[`var ${baseName}`] = baseName;
+      inputMap[`Var ${upper}`] = baseName;
+      inputMap[`var ${upper}`] = baseName;
+      inputMap[`Var ${capitalized}`] = baseName;
+      inputMap[`var ${capitalized}`] = baseName;
+    }
+
+    const outputMap = {
+      Result: 'result',
+      result: 'result',
+      R: 'result',
+      r: 'result',
+      Y: 'result',
+      y: 'result',
+      Output: 'result',
+      output: 'result',
+      Out: 'result',
+      out: 'result',
+    };
+
+    register(identifiers, {
+      type: 'math',
+      pinMap: {
+        inputs: inputMap,
+        outputs: outputMap,
+      },
+      eval: ({ inputs }) => {
+        const { valueMap, baseValues } = prepareExpressionVariables(variableNames, variableVariants, inputs);
+        const expressionValue = unwrapSingle(inputs.expression);
+        const rawResult = executeExpression(expressionValue, compileOrder, valueMap, baseValues);
+        const result = normalizeExpressionResult(rawResult);
+        if (result === null) {
+          return {};
+        }
+        return { result };
+      }
+    });
+  }
+
+  registerExpressionComponent(
+    ['{0b7d1129-7b88-4322-aad3-56fd1036a8f6}', 'f1', 'f(x)'],
+    ['x']
+  );
+
+  registerExpressionComponent(
+    ['{00ec9ecd-4e1d-45ba-a8fc-dff716dbd9e4}', 'f2', 'f(x,y)'],
+    ['x', 'y']
+  );
+
+  registerExpressionComponent(
+    ['{2f77b45b-034d-4053-8872-f38d87cbc676}', 'f3', 'f(x,y,z)'],
+    ['x', 'y', 'z']
+  );
+
+  registerExpressionComponent(
+    ['{07efd5e1-d7f4-4205-ab99-83e68175564e}', 'f4', 'f(a,b,c,d)'],
+    ['a', 'b', 'c', 'd']
+  );
+
+  registerExpressionComponent(
+    ['{322f0e6e-d434-4d07-9f8d-f214bb248cb1}', 'f5', 'f(a,b,c,d,x)'],
+    ['a', 'b', 'c', 'd', 'x']
+  );
+
+  registerExpressionComponent(
+    ['{4783b96f-6197-4058-a688-b4ba04c00962}', 'f6', 'f(a,b,c,d,x,y)'],
+    ['a', 'b', 'c', 'd', 'x', 'y']
+  );
+
+  registerExpressionComponent(
+    ['{e9628b21-49d6-4e56-900e-49f4bd4adc85}', 'f7', 'f(a,b,c,d,x,y,z)'],
+    ['a', 'b', 'c', 'd', 'x', 'y', 'z']
+  );
+
+  registerExpressionComponent(
+    ['{f2a97ac6-4f11-4c81-834d-50ecd782675c}', 'f8', 'f(a,b,c,d,w,x,y,z)'],
+    ['a', 'b', 'c', 'd', 'w', 'x', 'y', 'z']
+  );
+
+  registerExpressionComponent(
+    ['{0f3a13d4-5bb7-499e-9b57-56bb6dce93fd}', 'f(a,b,c,d) obsolete', 'f4 obsolete'],
+    ['a', 'b', 'c', 'd']
+  );
+
+  registerExpressionComponent(
+    ['{d2b10b82-f612-4763-91ca-0cbdbe276171}', 'f(x,y) obsolete', 'f2 obsolete'],
+    ['x', 'y']
+  );
+
+  registerExpressionComponent(
+    ['{d3e721b4-f5ea-4e40-85fc-b68616939e47}', 'f(x) obsolete', 'f1 obsolete'],
+    ['x']
+  );
+
+  registerExpressionComponent(
+    ['{e1c4bccc-4ecf-4f18-885d-dfd8983e572a}', 'f(x,y,z) obsolete', 'f3 obsolete'],
+    ['x', 'y', 'z']
+  );
+}
+
 export function registerMathOperatorComponents({ register, toNumber, toVector3 }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register math operator components.');
