@@ -862,6 +862,218 @@ export function registerMathDomainComponents({ register, toNumber }) {
   });
 }
 
+export function registerMathBooleanComponents({ register }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register math boolean components.');
+  }
+
+  function unwrapSingle(value) {
+    let current = value;
+    let depth = 0;
+    const maxDepth = 32;
+    while (depth < maxDepth) {
+      if (current === undefined || current === null) {
+        return current;
+      }
+      if (Array.isArray(current)) {
+        if (!current.length) {
+          return undefined;
+        }
+        current = current[0];
+        depth += 1;
+        continue;
+      }
+      if (typeof current === 'object' && !current?.isVector3) {
+        if ('value' in current) {
+          current = current.value;
+          depth += 1;
+          continue;
+        }
+        if ('item' in current) {
+          current = current.item;
+          depth += 1;
+          continue;
+        }
+        if ('point' in current) {
+          current = current.point;
+          depth += 1;
+          continue;
+        }
+        if ('position' in current) {
+          current = current.position;
+          depth += 1;
+          continue;
+        }
+      }
+      return current;
+    }
+    return current;
+  }
+
+  function toBoolean(value, fallback = false) {
+    const resolved = unwrapSingle(value);
+    if (typeof resolved === 'boolean') {
+      return resolved;
+    }
+    if (typeof resolved === 'number') {
+      return resolved !== 0;
+    }
+    if (typeof resolved === 'string') {
+      const normalized = resolved.trim().toLowerCase();
+      if (!normalized) {
+        return fallback;
+      }
+      if (['true', 'yes', '1', 'on'].includes(normalized)) {
+        return true;
+      }
+      if (['false', 'no', '0', 'off'].includes(normalized)) {
+        return false;
+      }
+      const numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return numeric !== 0;
+      }
+      return fallback;
+    }
+    if (Array.isArray(resolved)) {
+      if (!resolved.length) {
+        return fallback;
+      }
+      return toBoolean(resolved[0], fallback);
+    }
+    if (resolved === undefined || resolved === null) {
+      return fallback;
+    }
+    if (typeof resolved === 'object') {
+      if ('value' in resolved) {
+        return toBoolean(resolved.value, fallback);
+      }
+      if ('values' in resolved) {
+        return toBoolean(resolved.values, fallback);
+      }
+    }
+    return fallback;
+  }
+
+  const OUTPUT_PINS = { R: 'result', Result: 'result', result: 'result' };
+  const BINARY_INPUT_PINS = { A: 'a', a: 'a', B: 'b', b: 'b' };
+  const TERNARY_INPUT_PINS = { A: 'a', a: 'a', B: 'b', b: 'b', C: 'c', c: 'c' };
+  const UNARY_INPUT_PINS = { A: 'a', a: 'a' };
+
+  function registerBinaryGate(keys, operation) {
+    register(keys, {
+      type: 'math',
+      pinMap: {
+        inputs: BINARY_INPUT_PINS,
+        outputs: OUTPUT_PINS,
+      },
+      eval: ({ inputs }) => {
+        const a = toBoolean(inputs.a, false);
+        const b = toBoolean(inputs.b, false);
+        return { result: operation(a, b) };
+      }
+    });
+  }
+
+  function registerUnaryGate(keys, operation) {
+    register(keys, {
+      type: 'math',
+      pinMap: {
+        inputs: UNARY_INPUT_PINS,
+        outputs: OUTPUT_PINS,
+      },
+      eval: ({ inputs }) => {
+        const value = toBoolean(inputs.a, false);
+        return { result: operation(value) };
+      }
+    });
+  }
+
+  function registerTernaryGate(keys, operation) {
+    register(keys, {
+      type: 'math',
+      pinMap: {
+        inputs: TERNARY_INPUT_PINS,
+        outputs: OUTPUT_PINS,
+      },
+      eval: ({ inputs }) => {
+        const a = toBoolean(inputs.a, false);
+        const b = toBoolean(inputs.b, false);
+        const c = toBoolean(inputs.c, false);
+        return { result: operation(a, b, c) };
+      }
+    });
+  }
+
+  registerBinaryGate([
+    '{28f35e12-cd50-4bce-b036-695c2a3d04da}',
+    '{040f195d-0b4e-4fe0-901f-fedb2fd3db15}',
+    'gate and',
+    'and',
+  ], (a, b) => a && b);
+
+  registerBinaryGate([
+    '{eb3c8610-85b9-4593-a366-52550e8305b7}',
+    '{5cad70f9-5a53-4c5c-a782-54a479b4abe3}',
+    'gate or',
+    'or',
+  ], (a, b) => a || b);
+
+  registerBinaryGate([
+    '{5ca5de6b-bc71-46c4-a8f7-7f30d7040acb}',
+    'gate nand',
+    'nand',
+  ], (a, b) => !(a && b));
+
+  registerBinaryGate([
+    '{548177c2-d1db-4172-b667-bec979e2d38b}',
+    'gate nor',
+    'nor',
+  ], (a, b) => !(a || b));
+
+  registerBinaryGate([
+    '{de4a0d86-2709-4564-935a-88bf4d40af89}',
+    'gate xor',
+    'xor',
+  ], (a, b) => (a || b) && !(a && b));
+
+  registerBinaryGate([
+    '{b6aedcac-bf43-42d4-899e-d763612f834d}',
+    'gate xnor',
+    'xnor',
+  ], (a, b) => a === b);
+
+  registerUnaryGate([
+    '{cb2c7d3c-41b4-4c6d-a6bd-9235bd2851bb}',
+    'gate not',
+    'not',
+  ], (value) => !value);
+
+  registerTernaryGate([
+    '{78669f9c-4fea-44fd-ab12-2a69eeec58de}',
+    'gate majority',
+    'majority',
+    'vote',
+  ], (a, b, c) => {
+    const votes = [a, b, c].filter(Boolean).length;
+    return votes >= 2;
+  });
+
+  registerTernaryGate([
+    '{c1364962-87dd-4a6d-901a-e5b170e5ef9e}',
+    'gate and ternary',
+    'and ternary',
+    'ternary and',
+  ], (a, b, c) => a && b && c);
+
+  registerTernaryGate([
+    '{55104772-8096-4ffc-a78a-30e36191ace2}',
+    'gate or ternary',
+    'or ternary',
+    'ternary or',
+  ], (a, b, c) => a || b || c);
+}
+
 export function registerMathPolynomialComponents({ register, toNumber }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register math polynomial components.');
@@ -2386,85 +2598,6 @@ export function registerMathOperatorComponents({ register, toNumber, toVector3 }
     ['{e1c4bccc-4ecf-4f18-885d-dfd8983e572a}', 'f(x,y,z) obsolete', 'f3 obsolete'],
     ['x', 'y', 'z']
   );
-
-  register(['{040f195d-0b4e-4fe0-901f-fedb2fd3db15}', 'gate and', 'and'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: toBoolean(inputs.a) && toBoolean(inputs.b) })
-  });
-
-  register(['{5cad70f9-5a53-4c5c-a782-54a479b4abe3}', 'gate or', 'or'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: toBoolean(inputs.a) || toBoolean(inputs.b) })
-  });
-
-  register(['{5ca5de6b-bc71-46c4-a8f7-7f30d7040acb}', 'gate nand', 'nand'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: !(toBoolean(inputs.a) && toBoolean(inputs.b)) })
-  });
-
-  register(['{548177c2-d1db-4172-b667-bec979e2d38b}', 'gate nor', 'nor'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: !(toBoolean(inputs.a) || toBoolean(inputs.b)) })
-  });
-
-  register(['{de4a0d86-2709-4564-935a-88bf4d40af89}', 'gate xor', 'xor'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => {
-      const a = toBoolean(inputs.a);
-      const b = toBoolean(inputs.b);
-      return { result: (a || b) && !(a && b) };
-    }
-  });
-
-  register(['{b6aedcac-bf43-42d4-899e-d763612f834d}', 'gate xnor', 'xnor'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: toBoolean(inputs.a) === toBoolean(inputs.b) })
-  });
-
-  register(['{cb2c7d3c-41b4-4c6d-a6bd-9235bd2851bb}', 'gate not', 'not'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => ({ result: !toBoolean(inputs.a) })
-  });
-
-  register(['{78669f9c-4fea-44fd-ab12-2a69eeec58de}', 'gate majority', 'majority', 'vote'], {
-    type: 'math',
-    pinMap: {
-      inputs: { A: 'a', a: 'a', B: 'b', b: 'b', C: 'c', c: 'c' },
-      outputs: { R: 'result', Result: 'result', result: 'result' },
-    },
-    eval: ({ inputs }) => {
-      const votes = [inputs.a, inputs.b, inputs.c].filter((value) => toBoolean(value)).length;
-      return { result: votes >= 2 };
-    }
-  });
 
   register(['{28124995-cf99-4298-b6f4-c75a8e379f18}', 'absolute', 'abs'], {
     type: 'math',
