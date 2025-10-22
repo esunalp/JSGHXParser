@@ -6,6 +6,7 @@ const versionedImport = (path) => import(withVersion(path));
 const [
   {
     registerMathDomainComponents,
+    registerMathPolynomialComponents,
     registerMathOperatorComponents,
     registerMathScriptComponents,
   },
@@ -234,6 +235,7 @@ function collectNumericValues(input) {
 }
 
 registerMathDomainComponents({ register, toNumber });
+registerMathPolynomialComponents({ register, toNumber });
 registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
 registerVectorPointComponents({ register, toNumber, toVector3 });
@@ -309,22 +311,6 @@ register([
     const a = toNumber(inputs.a, Number.POSITIVE_INFINITY);
     const b = toNumber(inputs.b, Number.POSITIVE_INFINITY);
     return { result: Math.min(a, b) };
-  }
-});
-
-register([
-  '{ad476cb7-b6d1-41c8-986b-0df243a64146}',
-  'square root',
-  'sqrt',
-], {
-  type: 'math',
-  pinMap: {
-    inputs: { x: 'value', X: 'value', Value: 'value' },
-    outputs: { y: 'result', Y: 'result', Result: 'result' },
-  },
-  eval: ({ inputs }) => {
-    const value = toNumber(inputs.value, 0);
-    return { result: Math.sqrt(value) };
   }
 });
 
