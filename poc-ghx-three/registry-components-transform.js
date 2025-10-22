@@ -20,6 +20,9 @@ function createTransformHelpers({ toNumber, toVector3 }) {
     return matrix;
   }
 
+  const TRANSFORM_METADATA = new WeakMap();
+  const MATRIX_CLONE_PATCH = Symbol('ghx:matrixClonePatch');
+
   function ensureBoolean(value, fallback = false) {
     if (value === undefined || value === null) {
       return fallback;
@@ -813,6 +816,296 @@ function createTransformHelpers({ toNumber, toVector3 }) {
       }
     }
     return true;
+  }
+
+  function cloneTransformMetadata(metadata) {
+    if (!metadata) {
+      return undefined;
+    }
+    const cloned = {};
+    if (Array.isArray(metadata.fragments) && metadata.fragments.length) {
+      cloned.fragments = metadata.fragments
+        .map((fragment) => ensureMatrix4(fragment, identityMatrix()))
+        .filter((fragment) => fragment);
+    }
+    return cloned;
+  }
+
+  function cloneMatrixWithMetadata() {
+    const cloned = THREE.Matrix4.prototype.clone.call(this);
+    const metadata = TRANSFORM_METADATA.get(this);
+    if (metadata) {
+      const clonedMetadata = cloneTransformMetadata(metadata);
+      if (clonedMetadata && Object.keys(clonedMetadata).length) {
+        setTransformMetadata(cloned, clonedMetadata);
+      }
+    }
+    return cloned;
+  }
+
+  function setTransformMetadata(matrix, metadata) {
+    if (!matrix?.isMatrix4) {
+      return matrix;
+    }
+    if (metadata && typeof metadata === 'object' && Object.keys(metadata).length) {
+      TRANSFORM_METADATA.set(matrix, metadata);
+    } else {
+      TRANSFORM_METADATA.delete(matrix);
+    }
+    if (!matrix[MATRIX_CLONE_PATCH]) {
+      Object.defineProperty(matrix, MATRIX_CLONE_PATCH, {
+        value: true,
+        enumerable: false,
+        configurable: false,
+      });
+      matrix.clone = cloneMatrixWithMetadata;
+    }
+    return matrix;
+  }
+
+  function getTransformMetadata(matrix) {
+    if (!matrix?.isMatrix4) {
+      return null;
+    }
+    return TRANSFORM_METADATA.get(matrix) ?? null;
+  }
+
+  function matrixFromArrayLike(arrayLike) {
+    if (!arrayLike || arrayLike.length < 16) {
+      return null;
+    }
+    const elements = [];
+    for (let i = 0; i < 16; i += 1) {
+      const numeric = toNumber(arrayLike[i], Number.NaN);
+      if (!Number.isFinite(numeric)) {
+        return null;
+      }
+      elements.push(numeric);
+    }
+    const matrix = new THREE.Matrix4();
+    matrix.fromArray(elements);
+    return matrix;
+  }
+
+  function ensureMatrix4(input, fallback = identityMatrix()) {
+    if (input === undefined || input === null) {
+      return fallback ? fallback.clone() : null;
+    }
+    if (input?.isMatrix4) {
+      const matrix = THREE.Matrix4.prototype.clone.call(input);
+      const metadata = getTransformMetadata(input);
+      if (metadata) {
+        const clonedMetadata = cloneTransformMetadata(metadata);
+        if (clonedMetadata && Object.keys(clonedMetadata).length) {
+          setTransformMetadata(matrix, clonedMetadata);
+        }
+      }
+      return matrix;
+    }
+    if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input)) {
+      const matrix = matrixFromArrayLike(input);
+      if (matrix) {
+        return matrix;
+      }
+    }
+    if (Array.isArray(input)) {
+      if (input.length === 16) {
+        const matrix = matrixFromArrayLike(input);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (input.length === 4 && input.every((row) => Array.isArray(row) && row.length >= 4)) {
+        const elements = [];
+        for (let r = 0; r < 4; r += 1) {
+          for (let c = 0; c < 4; c += 1) {
+            const numeric = toNumber(input[r][c], Number.NaN);
+            if (!Number.isFinite(numeric)) {
+              return fallback ? fallback.clone() : null;
+            }
+            elements.push(numeric);
+          }
+        }
+        const matrix = matrixFromArrayLike(elements);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (input.length === 1) {
+        return ensureMatrix4(input[0], fallback);
+      }
+    }
+    if (typeof input === 'object') {
+      if (input === null) {
+        return fallback ? fallback.clone() : null;
+      }
+      if (input.matrix || input.Matrix || input.transform || input.Transform) {
+        const candidate = input.matrix ?? input.Matrix ?? input.transform ?? input.Transform;
+        const matrix = ensureMatrix4(candidate, fallback);
+        if (matrix && (input.fragments || input.transforms || input.values)) {
+          const fragments = collectTransforms(input.fragments ?? input.transforms ?? input.values);
+          if (fragments.length) {
+            setTransformMetadata(matrix, { fragments: fragments.map((fragment) => fragment.clone()) });
+          }
+        }
+        return matrix;
+      }
+      if ('value' in input) {
+        return ensureMatrix4(input.value, fallback);
+      }
+      if ('values' in input) {
+        return ensureMatrix4(input.values, fallback);
+      }
+      if (Array.isArray(input.elements) && input.elements.length >= 16) {
+        const matrix = matrixFromArrayLike(input.elements);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (Array.isArray(input.data) && input.data.length >= 16) {
+        const matrix = matrixFromArrayLike(input.data);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (
+        'position' in input ||
+        'translation' in input ||
+        'quaternion' in input ||
+        'rotation' in input ||
+        'scale' in input ||
+        'scaling' in input
+      ) {
+        const position = toVector3(
+          input.position ?? input.translation ?? input.translate ?? input.origin ?? new THREE.Vector3(),
+          new THREE.Vector3(),
+        );
+        let quaternion = null;
+        if (input.quaternion?.isQuaternion) {
+          quaternion = input.quaternion.clone();
+        } else if (input.rotation?.isQuaternion) {
+          quaternion = input.rotation.clone();
+        }
+        const rotationInput = input.rotation ?? input.euler ?? input.angles ?? null;
+        if (!quaternion) {
+          if (rotationInput?.isEuler) {
+            quaternion = new THREE.Quaternion().setFromEuler(rotationInput);
+          } else if (Array.isArray(rotationInput)) {
+            const [rx, ry, rz, order] = rotationInput;
+            const euler = new THREE.Euler(
+              toNumber(rx, 0),
+              toNumber(ry, 0),
+              toNumber(rz, 0),
+              typeof order === 'string' ? order : 'XYZ',
+            );
+            quaternion = new THREE.Quaternion().setFromEuler(euler);
+          } else if (rotationInput && typeof rotationInput === 'object') {
+            const euler = new THREE.Euler(
+              toNumber(rotationInput.x ?? rotationInput[0], 0),
+              toNumber(rotationInput.y ?? rotationInput[1], 0),
+              toNumber(rotationInput.z ?? rotationInput[2], 0),
+              rotationInput.order ?? 'XYZ',
+            );
+            quaternion = new THREE.Quaternion().setFromEuler(euler);
+          } else if (Number.isFinite(rotationInput)) {
+            quaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, toNumber(rotationInput, 0)));
+          }
+        }
+        if (!quaternion) {
+          quaternion = new THREE.Quaternion();
+        }
+        const scaleInput = input.scale ?? input.scaling ?? input.size ?? input.dimensions;
+        let scale = null;
+        if (scaleInput?.isVector3) {
+          scale = scaleInput.clone();
+        } else if (Array.isArray(scaleInput)) {
+          scale = new THREE.Vector3(
+            toNumber(scaleInput[0], 1),
+            toNumber(scaleInput[1], 1),
+            toNumber(scaleInput[2], 1),
+          );
+        } else if (typeof scaleInput === 'object' && scaleInput) {
+          scale = new THREE.Vector3(
+            toNumber(scaleInput.x ?? scaleInput.width ?? scaleInput[0], 1),
+            toNumber(scaleInput.y ?? scaleInput.height ?? scaleInput[1], 1),
+            toNumber(scaleInput.z ?? scaleInput.depth ?? scaleInput[2], 1),
+          );
+        } else if (Number.isFinite(scaleInput)) {
+          const uniform = toNumber(scaleInput, 1);
+          scale = new THREE.Vector3(uniform, uniform, uniform);
+        }
+        if (!scale) {
+          scale = new THREE.Vector3(1, 1, 1);
+        }
+        const matrix = new THREE.Matrix4();
+        matrix.compose(position, quaternion, scale);
+        return matrix;
+      }
+    }
+    if (Number.isFinite(input)) {
+      const factor = toNumber(input, 1);
+      const matrix = new THREE.Matrix4().makeScale(factor, factor, factor);
+      return matrix;
+    }
+    return fallback ? fallback.clone() : null;
+  }
+
+  function collectTransforms(input, visited = new Set()) {
+    if (input === undefined || input === null) {
+      return [];
+    }
+    if (input?.isMatrix4) {
+      return [ensureMatrix4(input)];
+    }
+    if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input)) {
+      const matrix = ensureMatrix4(input, null);
+      return matrix ? [matrix] : [];
+    }
+    if (Array.isArray(input)) {
+      if (visited.has(input)) {
+        return [];
+      }
+      visited.add(input);
+      const result = [];
+      for (const entry of input) {
+        const transforms = collectTransforms(entry, visited);
+        result.push(...transforms);
+      }
+      visited.delete(input);
+      return result;
+    }
+    if (typeof input === 'object') {
+      if (visited.has(input)) {
+        return [];
+      }
+      visited.add(input);
+      try {
+        if (input.matrix || input.Matrix || input.transform || input.Transform) {
+          const candidate = input.matrix ?? input.Matrix ?? input.transform ?? input.Transform;
+          const matrix = ensureMatrix4(candidate, null);
+          if (!matrix) {
+            return [];
+          }
+          if (input.fragments || input.transforms || input.values) {
+            const fragments = collectTransforms(input.fragments ?? input.transforms ?? input.values, visited);
+            if (fragments.length) {
+              setTransformMetadata(matrix, { fragments: fragments.map((fragment) => fragment.clone()) });
+            }
+          }
+          return [matrix];
+        }
+        if ('value' in input) {
+          return collectTransforms(input.value, visited);
+        }
+        if ('values' in input) {
+          return collectTransforms(input.values, visited);
+        }
+      } finally {
+        visited.delete(input);
+      }
+    }
+    const matrix = ensureMatrix4(input, null);
+    return matrix ? [matrix] : [];
   }
 
   function createProjectionMatrix(planeInput, directionInput) {
@@ -1999,6 +2292,10 @@ function createTransformHelpers({ toNumber, toVector3 }) {
     ensureCurveSampler,
     curveClosestPoint,
     createCurveFromPoints,
+    ensureMatrix4,
+    collectTransforms,
+    setTransformMetadata,
+    getTransformMetadata,
   };
 }
 
@@ -2855,6 +3152,351 @@ export function registerTransformAffineComponents({ register, toNumber, toVector
     eval: ({ inputs }) => {
       const matrix = createShearAngleMatrix(inputs.plane, inputs.angleX, inputs.angleY);
       return applyResult(inputs, matrix, true);
+    },
+  });
+}
+
+export function registerTransformUtilComponents({ register, toNumber, toVector3 }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register transform components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register transform components.');
+  }
+  if (typeof toVector3 !== 'function') {
+    throw new Error('toVector3 function is required to register transform components.');
+  }
+
+  const {
+    EPSILON,
+    identityMatrix,
+    ensureBoolean,
+    applyTransformToGeometry,
+    collectEntries,
+    ensureMatrix4,
+    collectTransforms,
+    setTransformMetadata,
+    getTransformMetadata,
+  } = createTransformHelpers({ toNumber, toVector3 });
+
+  const GROUP_MARKER = Symbol('ghx:group');
+
+  function isGroup(value) {
+    return Boolean(value && value[GROUP_MARKER]);
+  }
+
+  function createGroup(members = [], metadata = {}) {
+    const normalizedMembers = [];
+    for (const member of members) {
+      if (member !== undefined) {
+        normalizedMembers.push(member);
+      }
+    }
+    const group = {
+      type: 'group',
+      members: normalizedMembers,
+      size: normalizedMembers.length,
+      metadata: { ...(metadata || {}) },
+    };
+    Object.defineProperty(group, GROUP_MARKER, {
+      value: true,
+      enumerable: false,
+      configurable: false,
+    });
+    return group;
+  }
+
+  function collectGroupMembers(input) {
+    if (input === undefined || input === null) {
+      return [];
+    }
+    if (isGroup(input)) {
+      return input.members.map((member) => member);
+    }
+    if (Array.isArray(input)) {
+      const result = [];
+      for (const entry of input) {
+        result.push(...collectGroupMembers(entry));
+      }
+      return result;
+    }
+    if (typeof input === 'object') {
+      if (Array.isArray(input.members)) {
+        return input.members.map((member) => member);
+      }
+      if (Array.isArray(input.objects)) {
+        return input.objects.map((member) => member);
+      }
+      if ('group' in input) {
+        return collectGroupMembers(input.group);
+      }
+      if ('groups' in input) {
+        return collectGroupMembers(input.groups);
+      }
+      if ('value' in input) {
+        return collectGroupMembers(input.value);
+      }
+      if ('values' in input) {
+        return collectGroupMembers(input.values);
+      }
+    }
+    return collectEntries(input);
+  }
+
+  function normalizeGroup(input) {
+    const members = collectGroupMembers(input);
+    if (isGroup(input)) {
+      return createGroup(members, { ...(input.metadata ?? {}) });
+    }
+    if (input && typeof input === 'object') {
+      if (Array.isArray(input.members) || Array.isArray(input.objects)) {
+        return createGroup(members, { ...(input.metadata ?? {}) });
+      }
+    }
+    return createGroup(members);
+  }
+
+  function normalizeIndices(input, length, { wrap = false } = {}) {
+    const entries = collectEntries(input);
+    const indices = new Set();
+    if (!Number.isFinite(length) || length <= 0) {
+      return indices;
+    }
+    for (const entry of entries) {
+      const numeric = toNumber(entry, Number.NaN);
+      if (!Number.isFinite(numeric)) {
+        continue;
+      }
+      let index = Math.trunc(numeric);
+      if (wrap) {
+        index = ((index % length) + length) % length;
+      }
+      if (index < 0 || index >= length) {
+        continue;
+      }
+      indices.add(index);
+    }
+    return indices;
+  }
+
+  function combineMatrices(matrices, { recordFragments = false } = {}) {
+    if (!Array.isArray(matrices) || matrices.length === 0) {
+      const identity = identityMatrix();
+      if (recordFragments) {
+        setTransformMetadata(identity, { fragments: [] });
+      }
+      return { matrix: identity, fragments: [] };
+    }
+    const combined = identityMatrix();
+    for (const matrix of matrices) {
+      combined.premultiply(matrix);
+    }
+    const fragments = matrices.map((matrix) => matrix.clone());
+    if (recordFragments) {
+      setTransformMetadata(combined, { fragments: fragments.map((fragment) => fragment.clone()) });
+    }
+    return { matrix: combined, fragments };
+  }
+
+  function normalizeTransform(input, { fallbackIdentity = true } = {}) {
+    const transforms = collectTransforms(input);
+    if (!transforms.length) {
+      if (!fallbackIdentity) {
+        return { matrix: null, fragments: [] };
+      }
+      const matrix = identityMatrix();
+      return { matrix, fragments: [matrix.clone()] };
+    }
+    if (transforms.length === 1) {
+      const matrix = transforms[0];
+      const metadata = getTransformMetadata(matrix);
+      let fragments = [];
+      if (metadata?.fragments?.length) {
+        fragments = metadata.fragments.map((fragment) => ensureMatrix4(fragment));
+      } else {
+        fragments = [matrix.clone()];
+        setTransformMetadata(matrix, { fragments: fragments.map((fragment) => fragment.clone()) });
+      }
+      return { matrix, fragments };
+    }
+    const { matrix, fragments } = combineMatrices(transforms, { recordFragments: true });
+    return { matrix, fragments };
+  }
+
+  register(['{15204c6d-bba8-403d-9e8f-6660ab8e0df5}', 'merge group', 'gmerge'], {
+    type: 'group',
+    pinMap: {
+      inputs: {
+        A: 'groupA',
+        'Group A': 'groupA',
+        B: 'groupB',
+        'Group B': 'groupB',
+      },
+      outputs: { G: 'group', Group: 'group' },
+    },
+    eval: ({ inputs }) => {
+      const groupA = normalizeGroup(inputs.groupA);
+      const groupB = normalizeGroup(inputs.groupB);
+      const metadata = { ...(groupA.metadata ?? {}), ...(groupB.metadata ?? {}) };
+      const members = [...groupA.members, ...groupB.members];
+      const group = createGroup(members, metadata);
+      return { group };
+    },
+  });
+
+  register(['{874eebe7-835b-4f4f-9811-97e031c41597}', 'group'], {
+    type: 'group',
+    pinMap: {
+      inputs: { O: 'objects', Objects: 'objects', objects: 'objects' },
+      outputs: { G: 'group', Group: 'group' },
+    },
+    eval: ({ inputs }) => {
+      const members = collectGroupMembers(inputs.objects);
+      const group = createGroup(members);
+      return { group };
+    },
+  });
+
+  register(['{fd03419e-e1cc-4603-8a57-6dfa56ed5dec}', 'split group', 'gsplit'], {
+    type: 'group',
+    pinMap: {
+      inputs: {
+        G: 'group',
+        Group: 'group',
+        I: 'indices',
+        Indices: 'indices',
+        W: 'wrap',
+        Wrap: 'wrap',
+      },
+      outputs: {
+        A: 'groupA',
+        'Group A': 'groupA',
+        B: 'groupB',
+        'Group B': 'groupB',
+      },
+    },
+    eval: ({ inputs }) => {
+      const baseGroup = normalizeGroup(inputs.group);
+      const wrap = ensureBoolean(inputs.wrap, false);
+      const indexSet = normalizeIndices(inputs.indices, baseGroup.members.length, { wrap });
+      const included = [];
+      const excluded = [];
+      baseGroup.members.forEach((member, index) => {
+        if (indexSet.has(index)) {
+          included.push(member);
+        } else {
+          excluded.push(member);
+        }
+      });
+      return {
+        groupA: createGroup(included, { ...(baseGroup.metadata ?? {}) }),
+        groupB: createGroup(excluded, { ...(baseGroup.metadata ?? {}) }),
+      };
+    },
+  });
+
+  register(['{a45f59c8-11c1-4ea7-9e10-847061b80d75}', 'ungroup'], {
+    type: 'group',
+    pinMap: {
+      inputs: { G: 'group', Group: 'group' },
+      outputs: { O: 'objects', Objects: 'objects' },
+    },
+    eval: ({ inputs }) => {
+      const members = collectGroupMembers(inputs.group);
+      return { objects: members };
+    },
+  });
+
+  register(['{610e689b-5adc-47b3-af8f-e3a32b7ea341}', 'transform'], {
+    type: 'geometry',
+    pinMap: {
+      inputs: { G: 'geometry', geometry: 'geometry', T: 'transform', Transform: 'transform' },
+      outputs: { G: 'geometry', geometry: 'geometry' },
+    },
+    eval: ({ inputs }) => {
+      const transforms = collectTransforms(inputs.transform);
+      if (!transforms.length) {
+        const geometry = applyTransformToGeometry(inputs.geometry, identityMatrix());
+        return { geometry };
+      }
+      const { matrix } = combineMatrices(transforms);
+      const geometry = applyTransformToGeometry(inputs.geometry, matrix);
+      return { geometry };
+    },
+  });
+
+  register(['{51f61166-7202-45aa-9126-3d83055b269e}', 'inverse transform', 'inverse'], {
+    type: 'transform',
+    pinMap: {
+      inputs: { T: 'transform', Transform: 'transform' },
+      outputs: { T: 'transform', transform: 'transform' },
+    },
+    eval: ({ inputs }) => {
+      const { matrix, fragments } = normalizeTransform(inputs.transform);
+      if (!matrix) {
+        const identity = identityMatrix();
+        setTransformMetadata(identity, { fragments: [] });
+        return { transform: identity };
+      }
+      const determinant = matrix.determinant();
+      if (!Number.isFinite(determinant) || Math.abs(determinant) < EPSILON) {
+        const identity = identityMatrix();
+        setTransformMetadata(identity, { fragments: [] });
+        return { transform: identity };
+      }
+      matrix.invert();
+      if (fragments.length) {
+        const invertedFragments = fragments
+          .slice()
+          .reverse()
+          .map((fragment) => {
+            const clone = fragment.clone();
+            const det = clone.determinant();
+            if (!Number.isFinite(det) || Math.abs(det) < EPSILON) {
+              return identityMatrix();
+            }
+            clone.invert();
+            return clone;
+          });
+        setTransformMetadata(matrix, { fragments: invertedFragments });
+      }
+      return { transform: matrix };
+    },
+  });
+
+  register(['{915f8f93-f5d1-4a7b-aecb-c327bab88ffb}', 'split'], {
+    type: 'transform',
+    pinMap: {
+      inputs: { T: 'transform', Transform: 'transform' },
+      outputs: { F: 'fragments', Fragments: 'fragments' },
+    },
+    eval: ({ inputs }) => {
+      const { matrix, fragments } = normalizeTransform(inputs.transform, { fallbackIdentity: false });
+      if (fragments.length) {
+        return { fragments: fragments.map((fragment) => fragment.clone()) };
+      }
+      if (matrix) {
+        return { fragments: [matrix.clone()] };
+      }
+      return { fragments: [] };
+    },
+  });
+
+  register(['{ca80054a-cde0-4f69-a132-10502b24866d}', 'compound', 'comp'], {
+    type: 'transform',
+    pinMap: {
+      inputs: { T: 'transforms', Transform: 'transforms', transforms: 'transforms', Transforms: 'transforms' },
+      outputs: { X: 'transform', transform: 'transform', Compound: 'transform' },
+    },
+    eval: ({ inputs }) => {
+      const transforms = collectTransforms(inputs.transforms);
+      if (!transforms.length) {
+        const identity = identityMatrix();
+        setTransformMetadata(identity, { fragments: [] });
+        return { transform: identity };
+      }
+      const { matrix } = combineMatrices(transforms, { recordFragments: true });
+      return { transform: matrix };
     },
   });
 }
