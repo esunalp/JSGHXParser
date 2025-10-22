@@ -1059,6 +1059,879 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     return Math.max(1, Math.round(ensureNumber(value, fallback)));
   }
 
+  function zeroSymmetricMatrix() {
+    return {
+      xx: 0,
+      xy: 0,
+      xz: 0,
+      yy: 0,
+      yz: 0,
+      zz: 0,
+    };
+  }
+
+  function accumulateSymmetricMatrix(target, matrix) {
+    if (!target || !matrix) {
+      return;
+    }
+    target.xx += Number.isFinite(matrix.xx) ? matrix.xx : 0;
+    target.xy += Number.isFinite(matrix.xy) ? matrix.xy : 0;
+    target.xz += Number.isFinite(matrix.xz) ? matrix.xz : 0;
+    target.yy += Number.isFinite(matrix.yy) ? matrix.yy : 0;
+    target.yz += Number.isFinite(matrix.yz) ? matrix.yz : 0;
+    target.zz += Number.isFinite(matrix.zz) ? matrix.zz : 0;
+  }
+
+  function createTensorContribution(direction, weight = 1) {
+    if (!direction) {
+      return zeroSymmetricMatrix();
+    }
+    const vector = direction.clone ? direction.clone() : ensureVector(direction, new THREE.Vector3());
+    if (!vector || !vector.isVector3) {
+      return zeroSymmetricMatrix();
+    }
+    const length = vector.length();
+    if (!(length > EPSILON)) {
+      return zeroSymmetricMatrix();
+    }
+    const normalized = vector.clone().divideScalar(length);
+    const magnitude = Math.max(0, Number.isFinite(weight) ? weight : 0);
+    return {
+      xx: normalized.x * normalized.x * magnitude,
+      xy: normalized.x * normalized.y * magnitude,
+      xz: normalized.x * normalized.z * magnitude,
+      yy: normalized.y * normalized.y * magnitude,
+      yz: normalized.y * normalized.z * magnitude,
+      zz: normalized.z * normalized.z * magnitude,
+    };
+  }
+
+  function finalizeTensorMatrix(matrix) {
+    const sanitized = {
+      xx: Number.isFinite(matrix.xx) ? matrix.xx : 0,
+      xy: Number.isFinite(matrix.xy) ? matrix.xy : 0,
+      xz: Number.isFinite(matrix.xz) ? matrix.xz : 0,
+      yy: Number.isFinite(matrix.yy) ? matrix.yy : 0,
+      yz: Number.isFinite(matrix.yz) ? matrix.yz : 0,
+      zz: Number.isFinite(matrix.zz) ? matrix.zz : 0,
+    };
+    const nearZero = Math.abs(sanitized.xx) < EPSILON
+      && Math.abs(sanitized.xy) < EPSILON
+      && Math.abs(sanitized.xz) < EPSILON
+      && Math.abs(sanitized.yy) < EPSILON
+      && Math.abs(sanitized.yz) < EPSILON
+      && Math.abs(sanitized.zz) < EPSILON;
+    if (nearZero) {
+      return { matrix: sanitized, principal: [], magnitude: 0 };
+    }
+    const { eigenValues, eigenVectors } = jacobiEigenDecomposition(sanitized);
+    const indices = [0, 1, 2].sort((a, b) => Math.abs(eigenValues[b]) - Math.abs(eigenValues[a]));
+    const principal = indices.map((index) => {
+      const direction = new THREE.Vector3(
+        eigenVectors[0][index],
+        eigenVectors[1][index],
+        eigenVectors[2][index],
+      );
+      if (direction.lengthSq() < EPSILON) {
+        direction.set(0, 0, 0);
+      } else {
+        direction.normalize();
+      }
+      return {
+        direction,
+        magnitude: eigenValues[index],
+      };
+    });
+    const magnitude = Math.sqrt(Math.max(0, sanitized.xx + sanitized.yy + sanitized.zz));
+    return { matrix: sanitized, principal, magnitude };
+  }
+
+  function createFieldSource({ type = 'custom', bounds = null, meta = {}, evaluate }) {
+    if (typeof evaluate !== 'function') {
+      throw new Error('Field source requires an evaluate function.');
+    }
+    return {
+      type,
+      bounds: bounds ?? null,
+      meta: meta ? { ...meta } : {},
+      evaluate,
+    };
+  }
+
+  function isField(value) {
+    return Boolean(value && typeof value === 'object' && value.isField && Array.isArray(value.sources));
+  }
+
+  function createField(sources = [], metadata = {}) {
+    const normalizedSources = [];
+    sources.forEach((source) => {
+      if (!source || typeof source.evaluate !== 'function') {
+        return;
+      }
+      normalizedSources.push({
+        type: source.type ?? 'custom',
+        bounds: source.bounds ?? null,
+        meta: source.meta ? { ...source.meta } : {},
+        evaluate: source.evaluate,
+      });
+    });
+    return {
+      type: 'field',
+      isField: true,
+      sources: normalizedSources,
+      bounds: metadata.bounds ?? null,
+      meta: metadata.meta ? { ...metadata.meta } : {},
+    };
+  }
+
+  function mergeFields(fieldInputs, metadata = {}) {
+    const sources = [];
+    const boundsCollection = [];
+    (fieldInputs ?? []).forEach((entry) => {
+      const field = ensureField(entry);
+      if (!field) {
+        return;
+      }
+      field.sources.forEach((source) => {
+        if (!source || typeof source.evaluate !== 'function') {
+          return;
+        }
+        sources.push({
+          type: source.type ?? 'custom',
+          bounds: source.bounds ?? null,
+          meta: source.meta ? { ...source.meta } : {},
+          evaluate: source.evaluate,
+        });
+      });
+      if (field.bounds !== undefined && field.bounds !== null) {
+        boundsCollection.push(field.bounds);
+      }
+    });
+    let combinedBounds = metadata.bounds ?? null;
+    if (combinedBounds === null && boundsCollection.length) {
+      combinedBounds = boundsCollection.length === 1 ? boundsCollection[0] : boundsCollection;
+    }
+    return createField(sources, { ...metadata, bounds: combinedBounds });
+  }
+
+  function ensureField(input) {
+    if (input === undefined || input === null) {
+      return null;
+    }
+    if (isField(input)) {
+      return input;
+    }
+    if (Array.isArray(input)) {
+      const fields = input.map((entry) => ensureField(entry)).filter(Boolean);
+      if (fields.length === 1) {
+        return fields[0];
+      }
+      if (fields.length > 1) {
+        return mergeFields(fields);
+      }
+      return null;
+    }
+    if (typeof input === 'object') {
+      if (Object.prototype.hasOwnProperty.call(input, 'field')) {
+        return ensureField(input.field);
+      }
+      if (Object.prototype.hasOwnProperty.call(input, 'value')) {
+        return ensureField(input.value);
+      }
+      if (Array.isArray(input.sources)) {
+        return createField(input.sources, { bounds: input.bounds, meta: input.meta });
+      }
+    }
+    return null;
+  }
+
+  function collectFields(input) {
+    if (input === undefined || input === null) {
+      return [];
+    }
+    if (Array.isArray(input)) {
+      const fields = [];
+      input.forEach((entry) => {
+        fields.push(...collectFields(entry));
+      });
+      return fields;
+    }
+    const field = ensureField(input);
+    return field ? [field] : [];
+  }
+
+  function evaluateField(fieldInput, pointInput) {
+    const field = ensureField(fieldInput);
+    const point = ensurePoint(pointInput, new THREE.Vector3());
+    const zeroResult = {
+      point: point.clone(),
+      vector: new THREE.Vector3(),
+      magnitude: 0,
+      strength: 0,
+      direction: new THREE.Vector3(),
+      tensor: { matrix: zeroSymmetricMatrix(), principal: [], magnitude: 0 },
+      contributions: [],
+    };
+    if (!field || !field.sources.length) {
+      return zeroResult;
+    }
+    const totalVector = new THREE.Vector3();
+    let totalStrength = 0;
+    const matrix = zeroSymmetricMatrix();
+    const contributions = [];
+    field.sources.forEach((source) => {
+      if (!source || typeof source.evaluate !== 'function') {
+        return;
+      }
+      const result = source.evaluate(point.clone(), { field, source });
+      if (!result) {
+        return;
+      }
+      let vector = null;
+      if (result.vector?.isVector3) {
+        vector = result.vector.clone();
+      } else if (result.vector) {
+        vector = ensureVector(result.vector, null);
+      }
+      if (!vector) {
+        vector = new THREE.Vector3();
+      }
+      const strength = Number.isFinite(result.strength) ? result.strength : vector.length();
+      totalVector.add(vector);
+      totalStrength += Math.abs(strength);
+      if (result.tensor) {
+        accumulateSymmetricMatrix(matrix, result.tensor);
+      } else if (vector.lengthSq() > EPSILON) {
+        accumulateSymmetricMatrix(matrix, createTensorContribution(vector.clone(), Math.abs(strength)));
+      }
+      contributions.push({
+        sourceType: source.type ?? 'custom',
+        vector: vector.clone(),
+        strength: Math.abs(strength),
+      });
+    });
+    const magnitude = totalVector.length();
+    const direction = magnitude > EPSILON ? totalVector.clone().divideScalar(magnitude) : new THREE.Vector3();
+    const tensor = finalizeTensorMatrix(matrix);
+    return {
+      point: point.clone(),
+      vector: totalVector,
+      magnitude,
+      strength: totalStrength,
+      direction,
+      tensor,
+      contributions,
+    };
+  }
+
+  function parseSampleCounts(input, fallback = { x: 10, y: 10 }) {
+    if (input === undefined || input === null) {
+      return { x: fallback.x, y: fallback.y };
+    }
+    if (Array.isArray(input)) {
+      if (input.length >= 2) {
+        const x = ensureNumber(input[0], Number.NaN);
+        const y = ensureNumber(input[1], Number.NaN);
+        return {
+          x: Math.max(1, Math.round(Number.isFinite(x) ? x : fallback.x)),
+          y: Math.max(1, Math.round(Number.isFinite(y) ? y : fallback.y)),
+        };
+      }
+      if (input.length === 1) {
+        const value = ensureNumber(input[0], fallback.x);
+        const count = Math.max(1, Math.round(Number.isFinite(value) ? value : fallback.x));
+        return { x: count, y: count };
+      }
+    }
+    if (typeof input === 'object') {
+      if (Object.prototype.hasOwnProperty.call(input, 'samples')) {
+        return parseSampleCounts(input.samples, fallback);
+      }
+      if (Object.prototype.hasOwnProperty.call(input, 'value')) {
+        return parseSampleCounts(input.value, fallback);
+      }
+      const x = ensureNumber(
+        input.x ?? input.X ?? input.u ?? input.U ?? input.columns ?? input.width ?? input.count ?? input.n ?? input.N,
+        Number.NaN,
+      );
+      const y = ensureNumber(
+        input.y ?? input.Y ?? input.v ?? input.V ?? input.rows ?? input.height ?? input.count ?? input.n ?? input.N,
+        Number.NaN,
+      );
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        return { x: Math.max(1, Math.round(x)), y: Math.max(1, Math.round(y)) };
+      }
+      if (Number.isFinite(x)) {
+        const count = Math.max(1, Math.round(x));
+        return { x: count, y: count };
+      }
+      if (Number.isFinite(y)) {
+        const count = Math.max(1, Math.round(y));
+        return { x: count, y: count };
+      }
+    }
+    const value = ensureNumber(input, Number.NaN);
+    const count = Number.isFinite(value) ? Math.max(1, Math.round(value)) : fallback.x;
+    return { x: count, y: count };
+  }
+
+  function extractDomain(domainInput, fallbackMin, fallbackMax) {
+    if (domainInput === undefined || domainInput === null) {
+      return { min: fallbackMin, max: fallbackMax };
+    }
+    if (Array.isArray(domainInput)) {
+      if (domainInput.length >= 2) {
+        const min = ensureNumber(domainInput[0], Number.NaN);
+        const max = ensureNumber(domainInput[1], Number.NaN);
+        if (Number.isFinite(min) && Number.isFinite(max)) {
+          return { min, max };
+        }
+      }
+      if (domainInput.length === 1) {
+        return extractDomain(domainInput[0], fallbackMin, fallbackMax);
+      }
+    }
+    if (typeof domainInput === 'object') {
+      const min = ensureNumber(
+        domainInput.min ?? domainInput.start ?? domainInput.from ?? domainInput.a ?? domainInput.A ?? domainInput[0],
+        Number.NaN,
+      );
+      const max = ensureNumber(
+        domainInput.max ?? domainInput.end ?? domainInput.to ?? domainInput.b ?? domainInput.B ?? domainInput[1],
+        Number.NaN,
+      );
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        return { min, max };
+      }
+      if (Number.isFinite(min)) {
+        return { min, max: fallbackMax };
+      }
+      if (Number.isFinite(max)) {
+        return { min: fallbackMin, max };
+      }
+      const length = ensureNumber(domainInput.length ?? domainInput.span ?? domainInput.size, Number.NaN);
+      if (Number.isFinite(length)) {
+        const half = Math.abs(length) / 2;
+        return { min: -half, max: half };
+      }
+    }
+    const numeric = ensureNumber(domainInput, Number.NaN);
+    if (Number.isFinite(numeric)) {
+      const half = Math.abs(numeric) / 2;
+      return { min: -half, max: half };
+    }
+    return { min: fallbackMin, max: fallbackMax };
+  }
+
+  function extractRectangleSection(rectangleInput) {
+    if (!rectangleInput) {
+      const plane = defaultPlane();
+      return {
+        plane: clonePlaneData(plane),
+        minX: -0.5,
+        maxX: 0.5,
+        minY: -0.5,
+        maxY: 0.5,
+      };
+    }
+    if (Array.isArray(rectangleInput) && rectangleInput.length === 1) {
+      return extractRectangleSection(rectangleInput[0]);
+    }
+    if (rectangleInput.rectangle) {
+      return extractRectangleSection(rectangleInput.rectangle);
+    }
+    let corners = [];
+    if (Array.isArray(rectangleInput)) {
+      corners = rectangleInput;
+    } else if (Array.isArray(rectangleInput.corners)) {
+      corners = rectangleInput.corners;
+    } else if (Array.isArray(rectangleInput.points)) {
+      corners = rectangleInput.points;
+    }
+    const parsedCorners = corners
+      .map((corner) => ensurePoint(corner, null))
+      .filter((corner) => corner && corner.isVector3);
+    let plane;
+    if (parsedCorners.length >= 3) {
+      plane = planeFromPoints(parsedCorners[0], parsedCorners[1], parsedCorners[2]);
+    } else if (rectangleInput.plane) {
+      plane = ensurePlane(rectangleInput.plane);
+    } else if (hasPlaneProperties(rectangleInput)) {
+      plane = ensurePlane(rectangleInput);
+    } else {
+      plane = defaultPlane();
+    }
+    let minX = -0.5;
+    let maxX = 0.5;
+    let minY = -0.5;
+    let maxY = 0.5;
+    if (parsedCorners.length >= 3) {
+      minX = Number.POSITIVE_INFINITY;
+      maxX = Number.NEGATIVE_INFINITY;
+      minY = Number.POSITIVE_INFINITY;
+      maxY = Number.NEGATIVE_INFINITY;
+      parsedCorners.forEach((corner) => {
+        const coord = planeCoordinates(corner, plane);
+        if (coord.x < minX) minX = coord.x;
+        if (coord.x > maxX) maxX = coord.x;
+        if (coord.y < minY) minY = coord.y;
+        if (coord.y > maxY) maxY = coord.y;
+      });
+      if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+        minX = -0.5;
+        maxX = 0.5;
+        minY = -0.5;
+        maxY = 0.5;
+      }
+    } else {
+      const width = ensureNumber(
+        rectangleInput.width
+          ?? rectangleInput.xSize
+          ?? rectangleInput.sizeX
+          ?? rectangleInput.widthX
+          ?? rectangleInput.X
+          ?? rectangleInput.x,
+        Number.NaN,
+      );
+      const height = ensureNumber(
+        rectangleInput.height
+          ?? rectangleInput.ySize
+          ?? rectangleInput.sizeY
+          ?? rectangleInput.heightY
+          ?? rectangleInput.Y
+          ?? rectangleInput.y,
+        Number.NaN,
+      );
+      const domainX = extractDomain(
+        rectangleInput.domainX
+          ?? rectangleInput.xDomain
+          ?? rectangleInput.XDomain
+          ?? rectangleInput.intervalX
+          ?? rectangleInput.xInterval
+          ?? rectangleInput.XInterval,
+        -0.5,
+        0.5,
+      );
+      const domainY = extractDomain(
+        rectangleInput.domainY
+          ?? rectangleInput.yDomain
+          ?? rectangleInput.YDomain
+          ?? rectangleInput.intervalY
+          ?? rectangleInput.yInterval
+          ?? rectangleInput.YInterval,
+        -0.5,
+        0.5,
+      );
+      if (Number.isFinite(width)) {
+        const half = Math.abs(width) / 2;
+        minX = -half;
+        maxX = half;
+      } else {
+        minX = domainX.min;
+        maxX = domainX.max;
+      }
+      if (Number.isFinite(height)) {
+        const half = Math.abs(height) / 2;
+        minY = -half;
+        maxY = half;
+      } else {
+        minY = domainY.min;
+        maxY = domainY.max;
+      }
+    }
+    const sectionPlane = clonePlaneData(plane);
+    return {
+      plane: sectionPlane,
+      minX,
+      maxX,
+      minY,
+      maxY,
+    };
+  }
+
+  function clamp01(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    if (value <= 0) {
+      return 0;
+    }
+    if (value >= 1) {
+      return 1;
+    }
+    return value;
+  }
+
+  function createDomain(min = 0, max = 1) {
+    return { min, max, span: max - min };
+  }
+
+  function computePolylineLength(points) {
+    let length = 0;
+    for (let i = 1; i < points.length; i += 1) {
+      length += points[i].distanceTo(points[i - 1]);
+    }
+    return length;
+  }
+
+  function closestPointOnSegment(point, start, end) {
+    const segment = end.clone().sub(start);
+    const lengthSq = segment.lengthSq();
+    if (lengthSq < EPSILON) {
+      return start.clone();
+    }
+    const t = clamp01(point.clone().sub(start).dot(segment) / lengthSq);
+    return start.clone().add(segment.multiplyScalar(t));
+  }
+
+  function createPolylineCurve(pointsInput) {
+    const points = pointsInput.map((pt) => pt.clone());
+    if (!points.length) {
+      return {
+        type: 'polyline',
+        points: [],
+        segments: 0,
+        length: 0,
+        closed: false,
+        domain: createDomain(0, 1),
+        getPointAt: () => new THREE.Vector3(),
+        getTangentAt: () => new THREE.Vector3(),
+      };
+    }
+    if (points.length === 1) {
+      const onlyPoint = points[0].clone();
+      return {
+        type: 'polyline',
+        points: [onlyPoint],
+        segments: 0,
+        length: 0,
+        closed: false,
+        domain: createDomain(0, 1),
+        getPointAt: () => onlyPoint.clone(),
+        getTangentAt: () => new THREE.Vector3(),
+      };
+    }
+    const segments = points.length - 1;
+    const length = computePolylineLength(points);
+    const curve = {
+      type: 'polyline',
+      points,
+      segments,
+      length,
+      closed: false,
+      domain: createDomain(0, 1),
+    };
+    curve.getPointAt = (t) => {
+      const clamped = clamp01(t);
+      if (segments === 0) {
+        return points[0].clone();
+      }
+      const scaled = clamped * segments;
+      const index = Math.min(Math.floor(scaled), segments - 1);
+      const localT = scaled - index;
+      const start = points[index];
+      const end = points[index + 1];
+      return start.clone().lerp(end, localT);
+    };
+    curve.getTangentAt = (t) => {
+      if (segments === 0) {
+        return new THREE.Vector3();
+      }
+      const clamped = clamp01(t);
+      if (clamped <= EPSILON) {
+        return points[1].clone().sub(points[0]).normalize();
+      }
+      if (clamped >= 1 - EPSILON) {
+        return points[segments].clone().sub(points[segments - 1]).normalize();
+      }
+      const delta = 1 / Math.max(segments * 4, 32);
+      const p0 = curve.getPointAt(Math.max(0, clamped - delta));
+      const p1 = curve.getPointAt(Math.min(1, clamped + delta));
+      const tangent = p1.clone().sub(p0);
+      if (tangent.lengthSq() < EPSILON) {
+        const index = Math.min(Math.floor(clamped * segments), segments - 1);
+        return points[index + 1].clone().sub(points[index]).normalize();
+      }
+      return tangent.normalize();
+    };
+    return curve;
+  }
+
+  function sampleFieldSection(fieldInput, sectionInput, samplesInput, iterator) {
+    const section = extractRectangleSection(sectionInput);
+    const sampleCounts = parseSampleCounts(samplesInput);
+    const result = {
+      section,
+      samples: { x: Math.max(1, sampleCounts.x), y: Math.max(1, sampleCounts.y) },
+    };
+    const field = ensureField(fieldInput);
+    if (!field || !field.sources.length || typeof iterator !== 'function') {
+      return result;
+    }
+    const xCount = result.samples.x;
+    const yCount = result.samples.y;
+    for (let ix = 0; ix < xCount; ix += 1) {
+      const u = xCount === 1 ? 0.5 : ix / (xCount - 1);
+      const x = THREE.MathUtils.lerp(section.minX, section.maxX, u);
+      for (let iy = 0; iy < yCount; iy += 1) {
+        const v = yCount === 1 ? 0.5 : iy / (yCount - 1);
+        const y = THREE.MathUtils.lerp(section.minY, section.maxY, v);
+        const point = pointFromPlaneCoordinates(section.plane, x, y, 0);
+        const evaluation = evaluateField(field, point);
+        iterator({
+          point,
+          evaluation,
+          index: { x: ix, y: iy },
+          uv: { u, v },
+          planeCoordinates: { x, y },
+          section,
+        });
+      }
+    }
+    return result;
+  }
+
+  function createFieldDisplayPayload({ field, sectionInput, samplesInput, mode, mapper }) {
+    const entries = [];
+    const sampled = sampleFieldSection(field, sectionInput, samplesInput, (payload) => {
+      if (typeof mapper !== 'function') {
+        return;
+      }
+      const entry = mapper({
+        point: payload.point.clone(),
+        evaluation: payload.evaluation,
+        index: payload.index,
+        uv: payload.uv,
+        planeCoordinates: payload.planeCoordinates,
+        section: payload.section,
+      });
+      if (entry !== undefined && entry !== null) {
+        entries.push(entry);
+      }
+    });
+    const corners = [
+      pointFromPlaneCoordinates(sampled.section.plane, sampled.section.minX, sampled.section.minY, 0),
+      pointFromPlaneCoordinates(sampled.section.plane, sampled.section.maxX, sampled.section.minY, 0),
+      pointFromPlaneCoordinates(sampled.section.plane, sampled.section.maxX, sampled.section.maxY, 0),
+      pointFromPlaneCoordinates(sampled.section.plane, sampled.section.minX, sampled.section.maxY, 0),
+    ];
+    return {
+      type: 'field-display',
+      mode,
+      section: {
+        plane: sampled.section.plane,
+        minX: sampled.section.minX,
+        maxX: sampled.section.maxX,
+        minY: sampled.section.minY,
+        maxY: sampled.section.maxY,
+        width: sampled.section.maxX - sampled.section.minX,
+        height: sampled.section.maxY - sampled.section.minY,
+        corners,
+      },
+      samples: sampled.samples,
+      entries,
+    };
+  }
+
+  function computeFieldDirection(field, point) {
+    const evaluation = evaluateField(field, point);
+    if (!evaluation || !(evaluation.magnitude > EPSILON)) {
+      return null;
+    }
+    const speed = THREE.MathUtils.clamp(evaluation.magnitude, 0.1, 5);
+    const direction = evaluation.direction.clone();
+    if (direction.lengthSq() < EPSILON) {
+      return null;
+    }
+    return direction.multiplyScalar(speed);
+  }
+
+  function advanceFieldPoint(field, point, stepSize, order = 4) {
+    const step = Math.max(stepSize, EPSILON);
+    const k1 = computeFieldDirection(field, point);
+    if (!k1) {
+      return null;
+    }
+    if (order <= 1) {
+      return point.clone().add(k1.clone().multiplyScalar(step));
+    }
+    const mid1 = point.clone().add(k1.clone().multiplyScalar(step / 2));
+    const k2 = computeFieldDirection(field, mid1) ?? k1.clone();
+    if (order === 2) {
+      const direction = k1.clone().add(k2).multiplyScalar(0.5);
+      if (direction.lengthSq() < EPSILON) {
+        return null;
+      }
+      return point.clone().add(direction.multiplyScalar(step));
+    }
+    const mid2 = point.clone().add(k2.clone().multiplyScalar(step / 2));
+    const k3 = computeFieldDirection(field, mid2) ?? k2.clone();
+    if (order === 3) {
+      const direction = k1.clone().add(k2).add(k3).multiplyScalar(1 / 3);
+      if (direction.lengthSq() < EPSILON) {
+        return null;
+      }
+      return point.clone().add(direction.multiplyScalar(step));
+    }
+    const endPoint = point.clone().add(k3.clone().multiplyScalar(step));
+    const k4 = computeFieldDirection(field, endPoint) ?? k3.clone();
+    const direction = k1.clone()
+      .add(k2.clone().multiplyScalar(2))
+      .add(k3.clone().multiplyScalar(2))
+      .add(k4)
+      .multiplyScalar(1 / 6);
+    if (direction.lengthSq() < EPSILON) {
+      return null;
+    }
+    return point.clone().add(direction.multiplyScalar(step));
+  }
+
+  function integrateFieldLine(fieldInput, startPointInput, { steps = 25, stepSize = 0.5, method = 4 } = {}) {
+    const field = ensureField(fieldInput);
+    const startPoint = ensurePoint(startPointInput, new THREE.Vector3());
+    if (!field || !field.sources.length) {
+      return [startPoint.clone()];
+    }
+    const result = [startPoint.clone()];
+    let current = startPoint.clone();
+    for (let i = 0; i < steps; i += 1) {
+      const next = advanceFieldPoint(field, current, stepSize, method);
+      if (!next) {
+        break;
+      }
+      if (next.distanceToSquared(current) < EPSILON * EPSILON) {
+        break;
+      }
+      current = next;
+      result.push(current.clone());
+    }
+    return result;
+  }
+
+  function createSpinForceFieldSource(planeInput, strengthInput, radiusInput, decayInput, bounds) {
+    const plane = ensurePlane(planeInput);
+    const strength = ensureNumber(strengthInput, 1);
+    const radius = Math.max(ensureNumber(radiusInput, 1), EPSILON);
+    const decay = Math.max(ensureNumber(decayInput, 1), 0);
+    return createFieldSource({
+      type: 'spin-force',
+      bounds,
+      meta: { plane: clonePlaneData(plane), strength, radius, decay },
+      evaluate(point) {
+        const coords = planeCoordinates(point, plane);
+        const radial = Math.hypot(coords.x, coords.y);
+        const falloff = 1 / Math.pow(1 + radial / radius, decay + 1);
+        const verticalFalloff = 1 / (1 + Math.abs(coords.z) / radius);
+        const tangential = plane.xAxis.clone().multiplyScalar(-coords.y)
+          .add(plane.yAxis.clone().multiplyScalar(coords.x));
+        if (tangential.lengthSq() < EPSILON) {
+          return { vector: new THREE.Vector3(), strength: 0, tensor: zeroSymmetricMatrix() };
+        }
+        tangential.normalize();
+        const magnitude = strength * falloff * verticalFalloff;
+        const vector = tangential.multiplyScalar(magnitude);
+        const weight = Math.abs(magnitude);
+        return { vector, strength: weight, tensor: createTensorContribution(vector.clone(), weight) };
+      },
+    });
+  }
+
+  function createPointChargeFieldSource(positionInput, chargeInput, decayInput, bounds) {
+    const position = ensurePoint(positionInput, new THREE.Vector3());
+    const charge = ensureNumber(chargeInput, 1);
+    const decay = Math.max(ensureNumber(decayInput, 2), 0);
+    return createFieldSource({
+      type: 'point-charge',
+      bounds,
+      meta: { position: position.clone(), charge, decay },
+      evaluate(point) {
+        const offset = point.clone().sub(position);
+        const distanceSq = offset.lengthSq();
+        if (!(distanceSq > EPSILON)) {
+          return { vector: new THREE.Vector3(), strength: Math.abs(charge), tensor: zeroSymmetricMatrix() };
+        }
+        const distance = Math.sqrt(distanceSq);
+        const direction = offset.clone().divideScalar(distance);
+        const magnitude = charge / Math.pow(distance + EPSILON, decay);
+        const vector = direction.clone().multiplyScalar(magnitude);
+        const weight = Math.abs(magnitude);
+        return { vector, strength: weight, tensor: createTensorContribution(direction, weight) };
+      },
+    });
+  }
+
+  function createLineChargeFieldSource(lineInput, chargeInput, bounds) {
+    const line = ensureLine(lineInput);
+    const charge = ensureNumber(chargeInput, 1);
+    const start = line.start.clone();
+    const end = line.end.clone();
+    const direction = end.clone().sub(start);
+    const length = direction.length();
+    if (!(length > EPSILON)) {
+      return createPointChargeFieldSource(start, charge, 2, bounds);
+    }
+    const segments = Math.max(8, Math.round(length * 4));
+    return createFieldSource({
+      type: 'line-charge',
+      bounds,
+      meta: { start: start.clone(), end: end.clone(), charge },
+      evaluate(point) {
+        const totalVector = new THREE.Vector3();
+        let totalStrength = 0;
+        const tensorMatrix = zeroSymmetricMatrix();
+        for (let i = 0; i < segments; i += 1) {
+          const t = (i + 0.5) / segments;
+          const samplePoint = start.clone().lerp(end, t);
+          const offset = point.clone().sub(samplePoint);
+          const distanceSq = offset.lengthSq();
+          if (!(distanceSq > EPSILON)) {
+            continue;
+          }
+          const distance = Math.sqrt(distanceSq);
+          const directionVector = offset.clone().divideScalar(distance);
+          const magnitude = (charge / segments) / (distanceSq + EPSILON);
+          const contribution = directionVector.clone().multiplyScalar(magnitude);
+          totalVector.add(contribution);
+          const weight = Math.abs(magnitude);
+          totalStrength += weight;
+          accumulateSymmetricMatrix(tensorMatrix, createTensorContribution(directionVector, weight));
+        }
+        return { vector: totalVector, strength: totalStrength, tensor: tensorMatrix };
+      },
+    });
+  }
+
+  function createVectorForceFieldSource(lineInput, bounds) {
+    const line = ensureLine(lineInput);
+    const start = line.start.clone();
+    const end = line.end.clone();
+    const axis = end.clone().sub(start);
+    let length = axis.length();
+    if (!(length > EPSILON)) {
+      axis.set(1, 0, 0);
+      length = 1;
+    }
+    axis.normalize();
+    return createFieldSource({
+      type: 'vector-force',
+      bounds,
+      meta: { start: start.clone(), end: end.clone() },
+      evaluate(point) {
+        const closest = closestPointOnSegment(point, start, end);
+        const offset = point.clone().sub(closest);
+        const distanceSq = offset.lengthSq();
+        const axial = axis.clone().multiplyScalar(1 / (1 + distanceSq));
+        let radial = new THREE.Vector3();
+        if (distanceSq > EPSILON) {
+          radial = offset.clone().divideScalar(Math.sqrt(distanceSq)).multiplyScalar(0.5 / (1 + distanceSq));
+        }
+        const vector = axial.add(radial);
+        const strength = vector.length();
+        return { vector, strength, tensor: createTensorContribution(vector.clone(), strength) };
+      },
+    });
+  }
+
   function toUniquePoints(points, tolerance) {
     const unique = [];
     const indices = [];
@@ -2302,6 +3175,326 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     });
   }
 
+  function registerFieldComponents() {
+    register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', Samples: 'samples', samples: 'samples',
+        },
+        outputs: { D: 'display', Display: 'display', display: 'display' },
+      },
+      eval: ({ inputs }) => {
+        const display = createFieldDisplayPayload({
+          field: inputs.field ?? inputs.F,
+          sectionInput: inputs.section ?? inputs.S,
+          samplesInput: inputs.samples ?? inputs.N,
+          mode: 'tensor',
+          mapper: ({ point, evaluation, index, uv, planeCoordinates }) => ({
+            point,
+            index,
+            uv,
+            planeCoordinates,
+            magnitude: evaluation.magnitude,
+            strength: evaluation.strength,
+            direction: evaluation.direction.clone(),
+            principal: evaluation.tensor.principal.map((axis) => ({
+              direction: axis.direction.clone(),
+              magnitude: axis.magnitude,
+            })),
+            matrix: { ...evaluation.tensor.matrix },
+          }),
+        });
+        return { display };
+      },
+    });
+
+    register(['{55f9ce6a-490c-4f25-a536-a3d47b794752}', 'scalar display', 'fscalar'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', Samples: 'samples', samples: 'samples',
+        },
+        outputs: { D: 'display', Display: 'display', display: 'display' },
+      },
+      eval: ({ inputs }) => {
+        const display = createFieldDisplayPayload({
+          field: inputs.field ?? inputs.F,
+          sectionInput: inputs.section ?? inputs.S,
+          samplesInput: inputs.samples ?? inputs.N,
+          mode: 'scalar',
+          mapper: ({ point, evaluation, index, uv, planeCoordinates }) => ({
+            point,
+            index,
+            uv,
+            planeCoordinates,
+            magnitude: evaluation.magnitude,
+            strength: evaluation.strength,
+            direction: evaluation.direction.clone(),
+          }),
+        });
+        return { display };
+      },
+    });
+
+    register(['{5ba20fab-6d71-48ea-a98f-cb034db6bbdc}', 'direction display', 'fdir'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', Samples: 'samples', samples: 'samples',
+        },
+        outputs: { D: 'display', Display: 'display', display: 'display' },
+      },
+      eval: ({ inputs }) => {
+        const display = createFieldDisplayPayload({
+          field: inputs.field ?? inputs.F,
+          sectionInput: inputs.section ?? inputs.S,
+          samplesInput: inputs.samples ?? inputs.N,
+          mode: 'direction',
+          mapper: ({ point, evaluation, index, uv, planeCoordinates }) => ({
+            point,
+            index,
+            uv,
+            planeCoordinates,
+            magnitude: evaluation.magnitude,
+            strength: evaluation.strength,
+            direction: evaluation.direction.clone(),
+          }),
+        });
+        return { display };
+      },
+    });
+
+    register(['{bf106e4c-68f4-476f-b05b-9c15fb50e078}', 'perpendicular display', 'fperp'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          S: 'section', section: 'section', Section: 'section',
+          N: 'samples', Samples: 'samples', samples: 'samples',
+          'C+': 'positiveColour', 'Positive Colour': 'positiveColour', positiveColour: 'positiveColour',
+          'C-': 'negativeColour', 'Negative Colour': 'negativeColour', negativeColour: 'negativeColour',
+        },
+        outputs: { D: 'display', Display: 'display', display: 'display' },
+      },
+      eval: ({ inputs }) => {
+        const fallbackPositive = new THREE.Color(0.95, 0.45, 0.35);
+        const fallbackNegative = new THREE.Color(0.35, 0.55, 0.95);
+        const basePositive = parseColor(inputs.positiveColour ?? inputs['C+'], fallbackPositive) ?? fallbackPositive.clone();
+        const baseNegative = parseColor(inputs.negativeColour ?? inputs['C-'], fallbackNegative) ?? fallbackNegative.clone();
+        const display = createFieldDisplayPayload({
+          field: inputs.field ?? inputs.F,
+          sectionInput: inputs.section ?? inputs.S,
+          samplesInput: inputs.samples ?? inputs.N,
+          mode: 'perpendicular',
+          mapper: ({ point, evaluation, index, uv, planeCoordinates, section }) => {
+            const alignment = evaluation.direction.dot(section.plane.zAxis);
+            const clamped = THREE.MathUtils.clamp(alignment, -1, 1);
+            const factor = (clamped + 1) / 2;
+            const color = baseNegative.clone().lerp(basePositive, factor);
+            return {
+              point,
+              index,
+              uv,
+              planeCoordinates,
+              alignment: clamped,
+              magnitude: evaluation.magnitude,
+              strength: evaluation.strength,
+              direction: evaluation.direction.clone(),
+              color,
+            };
+          },
+        });
+        return { display };
+      },
+    });
+
+    register(['{4b59e893-d4ee-4e31-ae24-a489611d1088}', 'spin force', 'fspin'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          S: 'strength', Strength: 'strength', strength: 'strength',
+          R: 'radius', Radius: 'radius', radius: 'radius',
+          D: 'decay', Decay: 'decay', decay: 'decay',
+          B: 'bounds', Bounds: 'bounds', bounds: 'bounds',
+        },
+        outputs: { F: 'field', Field: 'field', field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const bounds = inputs.bounds ?? inputs.B ?? null;
+        const field = createField([
+          createSpinForceFieldSource(
+            inputs.plane ?? inputs.P,
+            inputs.strength ?? inputs.S,
+            inputs.radius ?? inputs.R,
+            inputs.decay ?? inputs.D,
+            bounds,
+          ),
+        ], { bounds });
+        return { field };
+      },
+    });
+
+    register(['{8cc9eb88-26a7-4baa-a896-13e5fc12416a}', 'line charge', 'lcharge'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          L: 'line', Line: 'line', line: 'line',
+          C: 'charge', Charge: 'charge', charge: 'charge',
+          B: 'bounds', Bounds: 'bounds', bounds: 'bounds',
+        },
+        outputs: { F: 'field', Field: 'field', field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const bounds = inputs.bounds ?? inputs.B ?? null;
+        const field = createField([
+          createLineChargeFieldSource(inputs.line ?? inputs.L ?? inputs.Line, inputs.charge ?? inputs.C, bounds),
+        ], { bounds });
+        return { field };
+      },
+    });
+
+    register(['{cffdbaf3-8d33-4b38-9cad-c264af9fc3f4}', 'point charge', 'pcharge'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          P: 'point', Point: 'point', point: 'point',
+          C: 'charge', Charge: 'charge', charge: 'charge',
+          D: 'decay', Decay: 'decay', decay: 'decay',
+          B: 'bounds', Bounds: 'bounds', bounds: 'bounds',
+        },
+        outputs: { F: 'field', Field: 'field', field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const bounds = inputs.bounds ?? inputs.B ?? null;
+        const field = createField([
+          createPointChargeFieldSource(
+            inputs.point ?? inputs.P,
+            inputs.charge ?? inputs.C,
+            inputs.decay ?? inputs.D,
+            bounds,
+          ),
+        ], { bounds });
+        return { field };
+      },
+    });
+
+    register(['{d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9}', 'vector force', 'fvector'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          L: 'line', Line: 'line', line: 'line',
+          B: 'bounds', Bounds: 'bounds', bounds: 'bounds',
+        },
+        outputs: { F: 'field', Field: 'field', field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const bounds = inputs.bounds ?? inputs.B ?? null;
+        const field = createField([
+          createVectorForceFieldSource(inputs.line ?? inputs.L ?? inputs.Line, bounds),
+        ], { bounds });
+        return { field };
+      },
+    });
+
+    register(['{a7c9f738-f8bd-4f64-8e7f-33341183e493}', 'evaluate field', 'evf'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          P: 'point', point: 'point', Point: 'point',
+        },
+        outputs: {
+          T: 'tensor', Tensor: 'tensor', tensor: 'tensor',
+          S: 'strength', Strength: 'strength', strength: 'strength',
+        },
+      },
+      eval: ({ inputs }) => {
+        const point = ensurePoint(inputs.point ?? inputs.P, new THREE.Vector3());
+        const evaluation = evaluateField(inputs.field ?? inputs.F, point);
+        const tensor = {
+          point: evaluation.point.clone(),
+          vector: evaluation.vector.clone(),
+          direction: evaluation.direction.clone(),
+          magnitude: evaluation.magnitude,
+          strength: evaluation.strength,
+          matrix: { ...evaluation.tensor.matrix },
+          principal: evaluation.tensor.principal.map((axis) => ({
+            direction: axis.direction.clone(),
+            magnitude: axis.magnitude,
+          })),
+        };
+        return { tensor, strength: evaluation.magnitude };
+      },
+    });
+
+    register(['{add6be3e-c57f-4740-96e4-5680abaa9169}', 'field line', 'fline'], {
+      type: 'field',
+      pinMap: {
+        inputs: {
+          F: 'field', field: 'field', Field: 'field',
+          P: 'point', point: 'point', Point: 'point',
+          N: 'steps', Steps: 'steps', steps: 'steps',
+          A: 'accuracy', Accuracy: 'accuracy', accuracy: 'accuracy',
+          M: 'method', Method: 'method', method: 'method',
+        },
+        outputs: { C: 'curve', Curve: 'curve', curve: 'curve' },
+      },
+      eval: ({ inputs }) => {
+        const startPoint = ensurePoint(inputs.point ?? inputs.P, new THREE.Vector3());
+        const steps = resolveCount(inputs.steps ?? inputs.N, 25);
+        const accuracy = Math.max(ensureNumber(inputs.accuracy ?? inputs.A, 0.5), EPSILON);
+        const method = Math.max(1, Math.min(4, Math.round(ensureNumber(inputs.method ?? inputs.M, 4))));
+        const points = integrateFieldLine(inputs.field ?? inputs.F, startPoint, {
+          steps,
+          stepSize: accuracy,
+          method,
+        });
+        const curve = createPolylineCurve(points);
+        return { curve };
+      },
+    });
+
+    register(['{b27d53bc-e713-475d-81fd-71cdd8de2e58}', 'break field', 'breakf'], {
+      type: 'field',
+      pinMap: {
+        inputs: { F: 'field', field: 'field', Field: 'field' },
+        outputs: { F: 'fields', Fields: 'fields', fields: 'fields' },
+      },
+      eval: ({ inputs }) => {
+        const field = ensureField(inputs.field ?? inputs.F);
+        if (!field || !field.sources.length) {
+          return { fields: [] };
+        }
+        const fields = field.sources.map((source) => createField([source], { bounds: source.bounds ?? null }));
+        return { fields };
+      },
+    });
+
+    register(['{d9a6fbd2-2e9f-472e-8147-33bf0233a115}', 'merge fields', 'mergef'], {
+      type: 'field',
+      pinMap: {
+        inputs: { F: 'fields', Fields: 'fields', fields: 'fields' },
+        outputs: { F: 'field', Field: 'field', field: 'field' },
+      },
+      eval: ({ inputs }) => {
+        const fields = collectFields(inputs.fields ?? inputs.F);
+        if (!fields.length) {
+          return { field: createField() };
+        }
+        const field = mergeFields(fields);
+        return { field };
+      },
+    });
+  }
+
   function registerPlaneComponents() {
     register(['{17b7152b-d30d-4d50-b9ef-c9fe25576fc2}', 'xy plane', 'xy'], {
       type: 'plane',
@@ -2783,6 +3976,9 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     registerPlaneCategory() {
       registerPlaneComponents();
     },
+    registerFieldCategory() {
+      registerFieldComponents();
+    },
     registerVectorCategory() {
       registerVectorComputationComponents();
     },
@@ -2797,6 +3993,11 @@ export function registerVectorPointComponents(deps) {
 export function registerVectorPlaneComponents(deps) {
   const { registerPlaneCategory } = createVectorComponentRegistrar(deps);
   registerPlaneCategory();
+}
+
+export function registerVectorFieldComponents(deps) {
+  const { registerFieldCategory } = createVectorComponentRegistrar(deps);
+  registerFieldCategory();
 }
 
 export function registerVectorVectorComponents(deps) {
