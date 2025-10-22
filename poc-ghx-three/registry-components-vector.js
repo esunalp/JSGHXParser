@@ -158,6 +158,45 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
     return result;
   }
 
+  function collectPlanes(input) {
+    const planes = [];
+    const stack = [input];
+    const visited = new Set();
+    while (stack.length) {
+      const current = stack.pop();
+      if (current === undefined || current === null) {
+        continue;
+      }
+      if (typeof current === 'object' && current !== null) {
+        if (visited.has(current)) {
+          continue;
+        }
+        visited.add(current);
+      }
+      if (Array.isArray(current)) {
+        for (const entry of current) {
+          stack.push(entry);
+        }
+        continue;
+      }
+      if (hasPlaneProperties(current)) {
+        planes.push(ensurePlane(current));
+        continue;
+      }
+      if (typeof current === 'object') {
+        if (Object.prototype.hasOwnProperty.call(current, 'plane')) {
+          planes.push(ensurePlane(current.plane));
+          continue;
+        }
+        if (Object.prototype.hasOwnProperty.call(current, 'value')) {
+          stack.push(current.value);
+          continue;
+        }
+      }
+    }
+    return planes;
+  }
+
   function parseMask(maskInput, fallback = ['x', 'y', 'z']) {
     if (maskInput === undefined || maskInput === null) {
       return fallback.slice();
@@ -372,6 +411,76 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
     return plane;
   }
 
+  function ensureLine(input) {
+    if (input === undefined || input === null) {
+      const start = new THREE.Vector3();
+      const end = new THREE.Vector3(1, 0, 0);
+      return { start, end, direction: end.clone().sub(start) };
+    }
+    if (Array.isArray(input)) {
+      if (input.length >= 2) {
+        const start = toVector3(input[0], new THREE.Vector3());
+        const end = toVector3(input[1], start.clone().add(new THREE.Vector3(1, 0, 0)));
+        let direction = end.clone().sub(start);
+        if (direction.lengthSq() < EPSILON && input.length > 2) {
+          direction = toVector3(input[2], new THREE.Vector3());
+        }
+        if (direction.lengthSq() < EPSILON) {
+          direction.set(1, 0, 0);
+        }
+        return { start, end, direction };
+      }
+      if (input.length === 1) {
+        return ensureLine(input[0]);
+      }
+    }
+    if (typeof input === 'object') {
+      if (Object.prototype.hasOwnProperty.call(input, 'line')) {
+        return ensureLine(input.line);
+      }
+      const start = toVector3(
+        input.start
+          ?? input.from
+          ?? input.a
+          ?? input.A
+          ?? input.origin
+          ?? input.p0
+          ?? input.point0
+          ?? input.pointA
+          ?? input.point,
+        new THREE.Vector3(),
+      );
+      let endCandidate = input.end ?? input.to ?? input.b ?? input.B ?? input.p1 ?? input.point1 ?? input.pointB;
+      let directionCandidate = input.direction ?? input.dir ?? input.tangent ?? input.vector;
+      if (directionCandidate !== undefined && directionCandidate !== null) {
+        const direction = toVector3(directionCandidate, new THREE.Vector3(1, 0, 0));
+        if (direction.lengthSq() >= EPSILON) {
+          const normalizedDirection = direction.clone();
+          if (endCandidate === undefined || endCandidate === null) {
+            endCandidate = start.clone().add(normalizedDirection);
+          }
+          return {
+            start,
+            end: toVector3(endCandidate, start.clone().add(normalizedDirection)),
+            direction: normalizedDirection,
+          };
+        }
+      }
+      const end = toVector3(
+        endCandidate,
+        start.clone().add(new THREE.Vector3(1, 0, 0)),
+      );
+      const direction = end.clone().sub(start);
+      if (direction.lengthSq() < EPSILON) {
+        direction.set(1, 0, 0);
+      }
+      return { start, end, direction };
+    }
+    const start = toVector3(input, new THREE.Vector3());
+    const end = start.clone().add(new THREE.Vector3(1, 0, 0));
+    return { start, end, direction: end.clone().sub(start) };
+  }
+
   function planeCoordinates(point, plane) {
     const relative = point.clone().sub(plane.origin);
     return {
@@ -386,6 +495,230 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
       .add(plane.xAxis.clone().multiplyScalar(u))
       .add(plane.yAxis.clone().multiplyScalar(v))
       .add(plane.zAxis.clone().multiplyScalar(w));
+  }
+
+  function jacobiEigenDecomposition(matrix) {
+    const m = [
+      [matrix.xx, matrix.xy, matrix.xz],
+      [matrix.xy, matrix.yy, matrix.yz],
+      [matrix.xz, matrix.yz, matrix.zz],
+    ];
+    const eigenVectors = [
+      [1, 0, 0],
+      [0, 1, 0],
+      [0, 0, 1],
+    ];
+    const tolerance = 1e-10;
+    const maxIterations = 32;
+    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+      let p = 0;
+      let q = 1;
+      if (Math.abs(m[0][1]) < Math.abs(m[0][2])) {
+        p = 0;
+        q = 2;
+      }
+      if (Math.abs(m[p][q]) < Math.abs(m[1][2])) {
+        p = 1;
+        q = 2;
+      }
+      if (Math.abs(m[p][q]) < tolerance) {
+        break;
+      }
+      const app = m[p][p];
+      const aqq = m[q][q];
+      const apq = m[p][q];
+      const angle = 0.5 * Math.atan2(2 * apq, aqq - app);
+      const c = Math.cos(angle);
+      const s = Math.sin(angle);
+      for (let k = 0; k < 3; k += 1) {
+        if (k === p || k === q) {
+          continue;
+        }
+        const mkp = m[k][p];
+        const mkq = m[k][q];
+        m[k][p] = c * mkp - s * mkq;
+        m[p][k] = m[k][p];
+        m[k][q] = c * mkq + s * mkp;
+        m[q][k] = m[k][q];
+      }
+      m[p][p] = c * c * app - 2 * s * c * apq + s * s * aqq;
+      m[q][q] = s * s * app + 2 * s * c * apq + c * c * aqq;
+      m[p][q] = 0;
+      m[q][p] = 0;
+      for (let k = 0; k < 3; k += 1) {
+        const vip = eigenVectors[k][p];
+        const viq = eigenVectors[k][q];
+        eigenVectors[k][p] = c * vip - s * viq;
+        eigenVectors[k][q] = s * vip + c * viq;
+      }
+    }
+    const eigenValues = [m[0][0], m[1][1], m[2][2]];
+    return { eigenValues, eigenVectors };
+  }
+
+  function fitPlaneToPoints(points) {
+    if (!points.length) {
+      return { plane: defaultPlane(), deviation: 0 };
+    }
+    if (points.length === 1) {
+      const plane = defaultPlane();
+      plane.origin.copy(points[0]);
+      return { plane, deviation: 0 };
+    }
+    if (points.length === 2) {
+      const origin = points[0].clone();
+      let xAxis = points[1].clone().sub(points[0]);
+      if (xAxis.lengthSq() < EPSILON) {
+        xAxis = new THREE.Vector3(1, 0, 0);
+      }
+      xAxis.normalize();
+      const normal = orthogonalVector(xAxis);
+      const yAxis = normal.clone().cross(xAxis).normalize();
+      return { plane: normalizePlaneAxes(origin, xAxis, yAxis, normal), deviation: 0 };
+    }
+    const centroid = new THREE.Vector3();
+    points.forEach((point) => centroid.add(point));
+    centroid.divideScalar(points.length);
+    let xx = 0;
+    let xy = 0;
+    let xz = 0;
+    let yy = 0;
+    let yz = 0;
+    let zz = 0;
+    points.forEach((point) => {
+      const dx = point.x - centroid.x;
+      const dy = point.y - centroid.y;
+      const dz = point.z - centroid.z;
+      xx += dx * dx;
+      xy += dx * dy;
+      xz += dx * dz;
+      yy += dy * dy;
+      yz += dy * dz;
+      zz += dz * dz;
+    });
+    const { eigenValues, eigenVectors } = jacobiEigenDecomposition({ xx, xy, xz, yy, yz, zz });
+    let minIndex = 0;
+    if (eigenValues[1] < eigenValues[minIndex]) minIndex = 1;
+    if (eigenValues[2] < eigenValues[minIndex]) minIndex = 2;
+    let normal = new THREE.Vector3(
+      eigenVectors[0][minIndex],
+      eigenVectors[1][minIndex],
+      eigenVectors[2][minIndex],
+    );
+    if (normal.lengthSq() < EPSILON) {
+      normal = new THREE.Vector3(0, 0, 1);
+    } else {
+      normal.normalize();
+    }
+    let xAxis = points[0].clone().sub(centroid);
+    xAxis.sub(normal.clone().multiplyScalar(xAxis.dot(normal)));
+    if (xAxis.lengthSq() < EPSILON) {
+      xAxis = orthogonalVector(normal);
+    } else {
+      xAxis.normalize();
+    }
+    const yAxis = normal.clone().cross(xAxis).normalize();
+    xAxis = yAxis.clone().cross(normal).normalize();
+    const plane = normalizePlaneAxes(centroid, xAxis, yAxis, normal);
+    let deviation = 0;
+    points.forEach((point) => {
+      const coords = planeCoordinates(point, plane);
+      deviation = Math.max(deviation, Math.abs(coords.z));
+    });
+    return { plane, deviation };
+  }
+
+  function planeFromLineAndPoint(line, point) {
+    const origin = line.start.clone();
+    let xAxis = line.direction.clone();
+    if (xAxis.lengthSq() < EPSILON) {
+      xAxis = line.end.clone().sub(line.start);
+    }
+    if (xAxis.lengthSq() < EPSILON) {
+      xAxis = new THREE.Vector3(1, 0, 0);
+    }
+    xAxis.normalize();
+    let offset = point.clone().sub(origin);
+    offset.sub(xAxis.clone().multiplyScalar(offset.dot(xAxis)));
+    if (offset.lengthSq() < EPSILON) {
+      offset = orthogonalVector(xAxis);
+    } else {
+      offset.normalize();
+    }
+    let normal = xAxis.clone().cross(offset);
+    if (normal.lengthSq() < EPSILON) {
+      const fallback = orthogonalVector(xAxis);
+      offset = fallback.clone();
+      normal = xAxis.clone().cross(offset);
+    }
+    normal.normalize();
+    const yAxis = normal.clone().cross(xAxis).normalize();
+    return normalizePlaneAxes(origin, xAxis, yAxis, normal);
+  }
+
+  function planeFromLines(lineA, lineB) {
+    const origin = lineA.start.clone();
+    let xAxis = lineA.direction.clone();
+    if (xAxis.lengthSq() < EPSILON) {
+      xAxis = lineA.end.clone().sub(lineA.start);
+    }
+    if (xAxis.lengthSq() < EPSILON) {
+      xAxis = new THREE.Vector3(1, 0, 0);
+    }
+    xAxis.normalize();
+    let reference = lineB.direction.clone();
+    if (reference.lengthSq() < EPSILON) {
+      reference = lineB.end.clone().sub(lineB.start);
+    }
+    if (reference.lengthSq() < EPSILON) {
+      reference = lineB.start.clone().sub(origin);
+    }
+    if (reference.lengthSq() < EPSILON) {
+      reference = orthogonalVector(xAxis);
+    }
+    let normal = xAxis.clone().cross(reference);
+    if (normal.lengthSq() < EPSILON) {
+      normal = xAxis.clone().cross(lineB.start.clone().sub(origin));
+    }
+    if (normal.lengthSq() < EPSILON) {
+      normal = orthogonalVector(xAxis);
+    }
+    normal.normalize();
+    const yAxis = normal.clone().cross(xAxis).normalize();
+    return normalizePlaneAxes(origin, xAxis, yAxis, normal);
+  }
+
+  function alignPlaneToReference(reference, plane) {
+    const target = clonePlaneData(plane);
+    if (target.zAxis.dot(reference.zAxis) < 0) {
+      target.zAxis.multiplyScalar(-1);
+      target.xAxis.multiplyScalar(-1);
+      target.yAxis.multiplyScalar(-1);
+    }
+    const candidates = [
+      {
+        origin: target.origin.clone(),
+        xAxis: target.xAxis.clone(),
+        yAxis: target.yAxis.clone(),
+        zAxis: target.zAxis.clone(),
+      },
+      {
+        origin: target.origin.clone(),
+        xAxis: target.xAxis.clone().multiplyScalar(-1),
+        yAxis: target.yAxis.clone().multiplyScalar(-1),
+        zAxis: target.zAxis.clone(),
+      },
+    ];
+    let best = candidates[0];
+    let bestScore = Number.NEGATIVE_INFINITY;
+    candidates.forEach((candidate) => {
+      const score = candidate.xAxis.dot(reference.xAxis) + candidate.yAxis.dot(reference.yAxis);
+      if (score > bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    });
+    return normalizePlaneAxes(best.origin, best.xAxis, best.yAxis, best.zAxis);
   }
 
   function evaluateCurvePoint(curve, t) {
@@ -1969,6 +2302,424 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
     });
   }
 
+  function registerPlaneComponents() {
+    register(['{17b7152b-d30d-4d50-b9ef-c9fe25576fc2}', 'xy plane', 'xy'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { O: 'origin', Origin: 'origin', origin: 'origin' },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const origin = ensurePoint(inputs.origin, new THREE.Vector3());
+        const plane = defaultPlane();
+        plane.origin.copy(origin);
+        return { plane };
+      },
+    });
+
+    register(['{2318aee8-01fe-4ea8-9524-6966023fc622}', 'align planes'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'planes', Planes: 'planes', planes: 'planes',
+          M: 'master', Master: 'master', master: 'master',
+        },
+        outputs: { P: 'planes', Planes: 'planes', planes: 'planes' },
+      },
+      eval: ({ inputs }) => {
+        const planes = collectPlanes(inputs.planes);
+        if (!planes.length) {
+          return { planes: [] };
+        }
+        const master = inputs.master ? ensurePlane(inputs.master) : null;
+        const result = [];
+        let reference = master ? clonePlaneData(master) : clonePlaneData(planes[0]);
+        planes.forEach((plane, index) => {
+          if (index === 0 && !master) {
+            const initial = clonePlaneData(plane);
+            result.push(initial);
+            reference = initial;
+          } else {
+            const aligned = alignPlaneToReference(reference, plane);
+            result.push(aligned);
+            reference = aligned;
+          }
+        });
+        return { planes: result.map(clonePlaneData) };
+      },
+    });
+
+    register(['{33bfc73c-19b2-480b-81e6-f3523a012ea6}', 'plane fit', 'plfit'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { P: 'points', Points: 'points', points: 'points' },
+        outputs: {
+          Pl: 'plane', Plane: 'plane', plane: 'plane',
+          dx: 'deviation', Deviation: 'deviation', deviation: 'deviation',
+        },
+      },
+      eval: ({ inputs }) => {
+        const points = collectPoints(inputs.points);
+        const { plane, deviation } = fitPlaneToPoints(points);
+        return { plane, deviation };
+      },
+    });
+
+    register(['{3a0c7bda-3d22-4588-8bab-03f57a52a6ea}', 'plane offset', 'pl offset'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { P: 'plane', Plane: 'plane', plane: 'plane', O: 'offset', Offset: 'offset', offset: 'offset' },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        const offset = ensureNumber(inputs.offset, 0);
+        const result = clonePlaneData(plane);
+        result.origin.add(result.zAxis.clone().multiplyScalar(offset));
+        return { plane: result };
+      },
+    });
+
+    register(['{3cd2949b-4ea8-4ffb-a70c-5c380f9f46ea}', 'deconstruct plane', 'deplane'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+        outputs: {
+          O: 'origin', Origin: 'origin', origin: 'origin',
+          X: 'xAxis', 'X-Axis': 'xAxis', xAxis: 'xAxis',
+          Y: 'yAxis', 'Y-Axis': 'yAxis', yAxis: 'yAxis',
+          Z: 'zAxis', 'Z-Axis': 'zAxis', zAxis: 'zAxis',
+        },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        return {
+          origin: plane.origin.clone(),
+          xAxis: plane.xAxis.clone(),
+          yAxis: plane.yAxis.clone(),
+          zAxis: plane.zAxis.clone(),
+        };
+      },
+    });
+
+    register(['{5f127fa4-ca61-418e-bb2d-e3739d900f1f}', 'plane coordinates', 'plcoord'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'point', Point: 'point', point: 'point',
+          S: 'system', System: 'system', system: 'system',
+        },
+        outputs: { X: 'x', x: 'x', Y: 'y', y: 'y', Z: 'z', z: 'z' },
+      },
+      eval: ({ inputs }) => {
+        const point = ensurePoint(inputs.point, new THREE.Vector3());
+        const plane = ensurePlane(inputs.system);
+        const coords = planeCoordinates(point, plane);
+        return { x: coords.x, y: coords.y, z: coords.z };
+      },
+    });
+
+    register(['{75eec078-a905-47a1-b0d2-0934182b1e3d}', 'plane origin', 'pl origin'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          B: 'base', Base: 'base', base: 'base', P: 'base', Plane: 'base',
+          O: 'origin', Origin: 'origin', origin: 'origin',
+        },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.base ?? inputs.P);
+        const origin = ensurePoint(inputs.origin, plane.origin.clone());
+        const result = clonePlaneData(plane);
+        result.origin.copy(origin);
+        return { plane: result };
+      },
+    });
+
+    register(['{8cc3a196-f6a0-49ea-9ed9-0cb343a3ae64}', 'xz plane', 'xz'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { O: 'origin', Origin: 'origin', origin: 'origin' },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const origin = ensurePoint(inputs.origin, new THREE.Vector3());
+        const plane = normalizePlaneAxes(
+          origin,
+          new THREE.Vector3(1, 0, 0),
+          new THREE.Vector3(0, 0, -1),
+          new THREE.Vector3(0, 1, 0),
+        );
+        return { plane };
+      },
+    });
+
+    register(['{9ce34996-d8c6-40d3-b442-1a7c8c093614}', 'adjust plane', 'padjust'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          N: 'normal', Normal: 'normal', normal: 'normal',
+        },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        let normal = ensureVector(inputs.normal, plane.zAxis.clone());
+        if (normal.lengthSq() < EPSILON) {
+          normal = plane.zAxis.clone();
+        } else {
+          normal.normalize();
+        }
+        let xAxis = plane.xAxis.clone();
+        xAxis.sub(normal.clone().multiplyScalar(xAxis.dot(normal)));
+        if (xAxis.lengthSq() < EPSILON) {
+          xAxis = plane.yAxis.clone();
+          xAxis.sub(normal.clone().multiplyScalar(xAxis.dot(normal)));
+        }
+        if (xAxis.lengthSq() < EPSILON) {
+          xAxis = orthogonalVector(normal);
+        } else {
+          xAxis.normalize();
+        }
+        const yAxis = normal.clone().cross(xAxis).normalize();
+        const result = normalizePlaneAxes(plane.origin, xAxis, yAxis, normal.clone());
+        return { plane: result };
+      },
+    });
+
+    register(['{b075c065-efda-4c9f-9cc9-288362b1b4b9}', 'plane closest point', 'cp'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          S: 'point', Point: 'point', point: 'point',
+          P: 'plane', Plane: 'plane', plane: 'plane',
+        },
+        outputs: {
+          P: 'projected', Point: 'projected', projected: 'projected',
+          uv: 'uv', 'UV Point': 'uv',
+          D: 'distance', Distance: 'distance', distance: 'distance',
+        },
+      },
+      eval: ({ inputs }) => {
+        const point = ensurePoint(inputs.point, new THREE.Vector3());
+        const plane = ensurePlane(inputs.plane);
+        const coords = planeCoordinates(point, plane);
+        const projected = pointFromPlaneCoordinates(plane, coords.x, coords.y, 0);
+        const uv = new THREE.Vector2(coords.x, coords.y);
+        return { projected, uv, distance: coords.z };
+      },
+    });
+
+    register(['{bc3e379e-7206-4e7b-b63a-ff61f4b38a3e}', 'construct plane', 'pl'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          O: 'origin', Origin: 'origin', origin: 'origin',
+          X: 'xAxis', 'X-Axis': 'xAxis', xAxis: 'xAxis',
+          Y: 'yAxis', 'Y-Axis': 'yAxis', yAxis: 'yAxis',
+        },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const origin = ensurePoint(inputs.origin, new THREE.Vector3());
+        let xAxis = ensureVector(inputs.xAxis, new THREE.Vector3(1, 0, 0));
+        let yAxis = ensureVector(inputs.yAxis, new THREE.Vector3(0, 1, 0));
+        if (xAxis.lengthSq() < EPSILON) {
+          xAxis = new THREE.Vector3(1, 0, 0);
+        }
+        if (yAxis.lengthSq() < EPSILON) {
+          yAxis = orthogonalVector(xAxis);
+        }
+        let zAxis = xAxis.clone().cross(yAxis);
+        if (zAxis.lengthSq() < EPSILON) {
+          yAxis = orthogonalVector(xAxis);
+          zAxis = xAxis.clone().cross(yAxis);
+        }
+        const plane = normalizePlaneAxes(origin, xAxis, yAxis, zAxis);
+        return { plane };
+      },
+    });
+
+    register(['{c73e1ed0-82a2-40b0-b4df-8f10e445d60b}', 'flip plane', 'pflip'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          X: 'reverseX', 'Reverse X': 'reverseX', reverseX: 'reverseX',
+          Y: 'reverseY', 'Reverse Y': 'reverseY', reverseY: 'reverseY',
+          S: 'swap', 'Swap axes': 'swap', swap: 'swap',
+        },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        const reverseX = ensureBoolean(inputs.reverseX, false);
+        const reverseY = ensureBoolean(inputs.reverseY, false);
+        const swap = ensureBoolean(inputs.swap, false);
+        let xAxis = plane.xAxis.clone();
+        let yAxis = plane.yAxis.clone();
+        if (swap) {
+          const temp = xAxis;
+          xAxis = yAxis;
+          yAxis = temp;
+        }
+        if (reverseX) {
+          xAxis.multiplyScalar(-1);
+        }
+        if (reverseY) {
+          yAxis.multiplyScalar(-1);
+        }
+        let zAxis = xAxis.clone().cross(yAxis);
+        if (zAxis.lengthSq() < EPSILON) {
+          zAxis = plane.zAxis.clone();
+        }
+        const result = normalizePlaneAxes(plane.origin, xAxis, yAxis, zAxis);
+        return { plane: result };
+      },
+    });
+
+    register(['{c98a6015-7a2f-423c-bc66-bdc505249b45}', 'plane 3pt', 'pl 3pt'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { A: 'a', a: 'a', B: 'b', b: 'b', C: 'c', c: 'c' },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const a = ensurePoint(inputs.a ?? inputs.A, new THREE.Vector3());
+        const b = ensurePoint(inputs.b ?? inputs.B, a.clone().add(new THREE.Vector3(1, 0, 0)));
+        const c = ensurePoint(inputs.c ?? inputs.C, a.clone().add(new THREE.Vector3(0, 1, 0)));
+        const plane = planeFromPoints(a, b, c);
+        return { plane };
+      },
+    });
+
+    register(['{ccc3f2ff-c9f6-45f8-aa30-8a924a9bda36}', 'line + pt', 'lnpt'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { L: 'line', Line: 'line', line: 'line', P: 'point', Point: 'point', point: 'point' },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const line = ensureLine(inputs.line);
+        const point = ensurePoint(inputs.point, line.start.clone().add(new THREE.Vector3(0, 1, 0)));
+        const plane = planeFromLineAndPoint(line, point);
+        return { plane };
+      },
+    });
+
+    register(['{cfb6b17f-ca82-4f5d-b604-d4f69f569de3}', 'plane normal'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          O: 'origin', Origin: 'origin', origin: 'origin',
+          Z: 'zAxis', 'Z-Axis': 'zAxis', zAxis: 'zAxis',
+        },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const origin = ensurePoint(inputs.origin, new THREE.Vector3());
+        let zAxis = ensureVector(inputs.zAxis, new THREE.Vector3(0, 0, 1));
+        if (zAxis.lengthSq() < EPSILON) {
+          zAxis = new THREE.Vector3(0, 0, 1);
+        } else {
+          zAxis.normalize();
+        }
+        const xAxis = orthogonalVector(zAxis);
+        const yAxis = zAxis.clone().cross(xAxis).normalize();
+        const plane = normalizePlaneAxes(origin, xAxis, yAxis, zAxis.clone());
+        return { plane };
+      },
+    });
+
+    register(['{d788ad7f-6d68-4106-8b2f-9e55e6e107c0}', 'line + line', 'lnln'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { A: 'lineA', a: 'lineA', B: 'lineB', b: 'lineB', Line: 'lineA', 'Line A': 'lineA', 'Line B': 'lineB' },
+        outputs: { Pl: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const lineA = ensureLine(inputs.lineA ?? inputs.A ?? inputs.a ?? inputs.Line);
+        const lineB = ensureLine(inputs.lineB ?? inputs.B ?? inputs.b);
+        const plane = planeFromLines(lineA, lineB);
+        return { plane };
+      },
+    });
+
+    register(['{e76040ec-3b91-41e1-8e00-c74c23b89391}', 'align plane', 'align plane direction'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          D: 'direction', Direction: 'direction', direction: 'direction',
+        },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane', A: 'angle', Angle: 'angle', angle: 'angle' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        const direction = ensureVector(inputs.direction, null);
+        if (!direction || direction.lengthSq() < EPSILON) {
+          return { plane: clonePlaneData(plane), angle: 0 };
+        }
+        const projected = direction.clone().sub(plane.zAxis.clone().multiplyScalar(direction.dot(plane.zAxis)));
+        if (projected.lengthSq() < EPSILON) {
+          return { plane: clonePlaneData(plane), angle: 0 };
+        }
+        const target = projected.normalize();
+        const cosTheta = Math.max(-1, Math.min(1, plane.xAxis.dot(target)));
+        const sinTheta = plane.yAxis.dot(target);
+        const angle = Math.atan2(sinTheta, cosTheta);
+        const rotation = new THREE.Quaternion().setFromAxisAngle(plane.zAxis.clone(), angle);
+        const xAxis = plane.xAxis.clone().applyQuaternion(rotation);
+        const yAxis = plane.yAxis.clone().applyQuaternion(rotation);
+        const result = normalizePlaneAxes(plane.origin, xAxis, yAxis, plane.zAxis.clone());
+        return { plane: result, angle };
+      },
+    });
+
+    register(['{f6f14b09-6497-4564-8403-09e4eb5a6b82}', 'rotate plane', 'prot'], {
+      type: 'plane',
+      pinMap: {
+        inputs: {
+          P: 'plane', Plane: 'plane', plane: 'plane',
+          A: 'angle', Angle: 'angle', angle: 'angle',
+        },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const plane = ensurePlane(inputs.plane);
+        const angle = ensureNumber(inputs.angle, 0);
+        if (Math.abs(angle) < EPSILON) {
+          return { plane: clonePlaneData(plane) };
+        }
+        const rotation = new THREE.Quaternion().setFromAxisAngle(plane.zAxis.clone(), angle);
+        const xAxis = plane.xAxis.clone().applyQuaternion(rotation);
+        const yAxis = plane.yAxis.clone().applyQuaternion(rotation);
+        const result = normalizePlaneAxes(plane.origin, xAxis, yAxis, plane.zAxis.clone());
+        return { plane: result };
+      },
+    });
+
+    register(['{fad344bc-09b1-4855-a2e6-437ef5715fe3}', 'yz plane', 'yz'], {
+      type: 'plane',
+      pinMap: {
+        inputs: { O: 'origin', Origin: 'origin', origin: 'origin' },
+        outputs: { P: 'plane', Plane: 'plane', plane: 'plane' },
+      },
+      eval: ({ inputs }) => {
+        const origin = ensurePoint(inputs.origin, new THREE.Vector3());
+        const plane = normalizePlaneAxes(
+          origin,
+          new THREE.Vector3(0, 1, 0),
+          new THREE.Vector3(0, 0, 1),
+          new THREE.Vector3(1, 0, 0),
+        );
+        return { plane };
+      },
+    });
+  }
+
   function registerGridComponents() {
     register(['{8ce6a747-6d36-4bd4-8af0-9a1081df417d}', 'grid hexagonal obsolete', 'hexgrid obsolete'], {
       type: 'point',
@@ -2025,8 +2776,10 @@ export function registerVectorComponents({ register, toNumber, toVector3 }) {
   registerPointAnalysisComponents();
   registerPointConversionComponents();
   registerPointProjectionComponents();
+  registerPlaneComponents();
   registerGridComponents();
   registerVectorComputationComponents();
 }
 
 export const registerVectorPointComponents = registerVectorComponents;
+export const registerVectorPlaneComponents = registerVectorComponents;
