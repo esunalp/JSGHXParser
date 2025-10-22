@@ -17,6 +17,7 @@ const [
     registerSurfacePrimitiveComponents,
     registerSurfaceFreeformComponents,
     registerSurfaceAnalysisComponents,
+    registerSurfaceSubDComponents,
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
@@ -227,6 +228,7 @@ registerCurveSplineComponents({ register, toNumber, toVector3 });
 registerCurveAnalysisComponents({ register, toNumber, toVector3 });
 registerCurveUtilComponents({ register, toNumber, toVector3 });
 registerSurfacePrimitiveComponents({ register, toNumber, toVector3 });
+registerSurfaceSubDComponents({ register, toNumber, toVector3 });
 registerSurfaceAnalysisComponents({ register, toNumber, toVector3 });
 registerSurfaceFreeformComponents({ register, toNumber, toVector3 });
 
