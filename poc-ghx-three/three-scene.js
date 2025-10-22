@@ -53,16 +53,94 @@ export function initScene(canvas) {
   window.addEventListener('resize', resize);
 
   let currentMesh = null;
+  let needsFit = true;
+
+  function computeWorldBoundingSphere(mesh) {
+    const geometry = mesh?.geometry;
+    if (!geometry) {
+      return null;
+    }
+
+    if (typeof geometry.computeBoundingSphere === 'function') {
+      geometry.computeBoundingSphere();
+    }
+
+    if (!geometry.boundingSphere) {
+      return null;
+    }
+
+    const sphere = geometry.boundingSphere.clone();
+    if (!sphere) {
+      return null;
+    }
+
+    if (typeof mesh.updateWorldMatrix === 'function') {
+      mesh.updateWorldMatrix(true, false);
+    } else {
+      mesh.updateMatrixWorld(true);
+    }
+
+    sphere.center.applyMatrix4(mesh.matrixWorld);
+
+    const scale = new THREE.Vector3();
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    mesh.matrixWorld.decompose(position, quaternion, scale);
+    const maxScale = Math.max(scale.x, scale.y, scale.z);
+    if (Number.isFinite(maxScale) && maxScale > 0) {
+      sphere.radius *= maxScale;
+    }
+
+    return sphere;
+  }
+
+  function fitCameraToSphere(sphere) {
+    if (!sphere) {
+      return;
+    }
+
+    const center = sphere.center.clone();
+    const radius = Math.max(sphere.radius, 0.0001);
+
+    const previousTarget = controls.target.clone();
+    let direction = camera.position.clone().sub(previousTarget);
+    if (!Number.isFinite(direction.lengthSq()) || direction.lengthSq() < 1e-6) {
+      direction.set(0, 0, 1);
+    }
+    direction.normalize();
+
+    const aspect = camera.aspect || 1;
+    const halfVerticalFov = THREE.MathUtils.degToRad(camera.fov) / 2;
+    const safeHalfVertical = halfVerticalFov > 1e-4 ? halfVerticalFov : 1e-4;
+    const halfHorizontalFov = Math.atan(Math.tan(safeHalfVertical) * aspect);
+    const safeHalfHorizontal = halfHorizontalFov > 1e-4 ? halfHorizontalFov : 1e-4;
+
+    const verticalDistance = radius / Math.tan(safeHalfVertical);
+    const horizontalDistance = radius / Math.tan(safeHalfHorizontal);
+    const distance = Math.max(verticalDistance, horizontalDistance, radius * 1.5, 1);
+
+    const newPosition = center.clone().add(direction.multiplyScalar(distance));
+
+    controls.target.copy(center);
+    camera.position.copy(newPosition);
+    camera.near = Math.max(distance / 100, 0.01);
+    camera.far = Math.max(distance * 4, distance + radius * 4);
+    camera.updateProjectionMatrix();
+    controls.update();
+  }
 
   function updateMesh(geometryOrMesh) {
     if (currentMesh) {
       scene.remove(currentMesh);
-      currentMesh.geometry?.dispose?.();
-      currentMesh.material?.dispose?.();
+      if (geometryOrMesh !== currentMesh) {
+        currentMesh.geometry?.dispose?.();
+        currentMesh.material?.dispose?.();
+      }
       currentMesh = null;
     }
 
     if (!geometryOrMesh) {
+      needsFit = true;
       return;
     }
 
@@ -82,6 +160,16 @@ export function initScene(canvas) {
     currentMesh.castShadow = true;
     currentMesh.receiveShadow = true;
     scene.add(currentMesh);
+
+    const sphere = computeWorldBoundingSphere(currentMesh);
+    if (sphere) {
+      fitCameraToSphere(sphere);
+      needsFit = false;
+    } else if (needsFit) {
+      controls.target.set(0, 0, 0);
+      controls.update();
+      needsFit = false;
+    }
   }
 
   function animate() {

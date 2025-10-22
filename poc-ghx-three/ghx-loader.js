@@ -129,11 +129,44 @@ function getDirectChildElements(parent, tagName) {
 }
 
 function getDirectChildChunks(parent, name) {
-  return getDirectChildElements(parent, 'chunk').filter((child) => {
-    if (!name) return true;
-    const childName = child.getAttribute('name');
-    return childName && childName.toLowerCase() === name.toLowerCase();
-  });
+  if (!parent) return [];
+  const normalizedName = name?.toLowerCase?.();
+  const results = [];
+  const seen = new Set();
+
+  const shouldInclude = (chunk) => {
+    if (!chunk) return false;
+    if (seen.has(chunk)) return false;
+    if (!normalizedName) {
+      seen.add(chunk);
+      return true;
+    }
+    const childName = chunk.getAttribute?.('name');
+    if (!childName || childName.toLowerCase() !== normalizedName) {
+      return false;
+    }
+    seen.add(chunk);
+    return true;
+  };
+
+  const directChunks = getDirectChildElements(parent, 'chunk');
+  for (const chunk of directChunks) {
+    if (shouldInclude(chunk)) {
+      results.push(chunk);
+    }
+  }
+
+  const chunkContainers = getDirectChildElements(parent, 'chunks');
+  for (const container of chunkContainers) {
+    const nestedChunks = getDirectChildElements(container, 'chunk');
+    for (const chunk of nestedChunks) {
+      if (shouldInclude(chunk)) {
+        results.push(chunk);
+      }
+    }
+  }
+
+  return results;
 }
 
 function getItemsElement(chunk) {
