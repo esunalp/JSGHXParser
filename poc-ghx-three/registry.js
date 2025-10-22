@@ -6,6 +6,7 @@ const versionedImport = (path) => import(withVersion(path));
 const [
   {
     registerMathDomainComponents,
+    registerMathBooleanComponents,
     registerMathPolynomialComponents,
     registerMathOperatorComponents,
     registerMathScriptComponents,
@@ -235,6 +236,7 @@ function collectNumericValues(input) {
 }
 
 registerMathDomainComponents({ register, toNumber });
+registerMathBooleanComponents({ register });
 registerMathPolynomialComponents({ register, toNumber });
 registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
