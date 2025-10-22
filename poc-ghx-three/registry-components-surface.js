@@ -1,8 +1,22 @@
 import * as THREE from 'three';
 
-export function registerSurfacePrimitiveComponents({ register, toNumber, toVector3 }) {
+const REGISTER_SURFACE_FREEFORM_ONLY = Symbol('register-surface-freeform-only');
+
+export function registerSurfacePrimitiveComponents({
+  register,
+  toNumber,
+  toVector3,
+  mode = null,
+  includeFreeform = false,
+}) {
+  const freeformOnly = mode === REGISTER_SURFACE_FREEFORM_ONLY;
+  const shouldRegisterFreeform = freeformOnly || includeFreeform;
   if (typeof register !== 'function') {
     throw new Error('register function is required to register surface primitive components.');
+  }
+
+  if (shouldRegisterFreeform) {
+    registerFreeformComponents();
   }
   if (typeof toNumber !== 'function') {
     throw new Error('toNumber function is required to register surface primitive components.');
@@ -978,6 +992,1477 @@ export function registerSurfacePrimitiveComponents({ register, toNumber, toVecto
       ...extras,
     };
   }
+
+  const DEFAULT_CURVE_SEGMENTS = 32;
+
+  function computePolylineLength(points, closed = false) {
+    if (!points || points.length < 2) {
+      return 0;
+    }
+    let length = 0;
+    for (let i = 1; i < points.length; i += 1) {
+      length += points[i].distanceTo(points[i - 1]);
+    }
+    if (closed) {
+      length += points[0].distanceTo(points[points.length - 1]);
+    }
+    return length;
+  }
+
+  function resamplePolyline(pointsInput, count, { closed = false } = {}) {
+    if (!pointsInput || !pointsInput.length) {
+      return [];
+    }
+    const points = pointsInput.map((pt) => ensurePoint(pt, new THREE.Vector3()));
+    if (count <= 1) {
+      return [points[0].clone()];
+    }
+    const base = points.map((pt) => pt.clone());
+    if (closed) {
+      base.push(points[0].clone());
+    }
+    const distances = [0];
+    for (let i = 1; i < base.length; i += 1) {
+      distances[i] = distances[i - 1] + base[i].distanceTo(base[i - 1]);
+    }
+    const total = distances[distances.length - 1];
+    if (total <= EPSILON) {
+      return Array.from({ length: count }, () => base[0].clone());
+    }
+    const samples = [];
+    const denom = closed ? count : Math.max(count - 1, 1);
+    for (let i = 0; i < count; i += 1) {
+      const target = (denom === 0 ? 0 : (i / denom)) * total;
+      let index = 1;
+      while (index < distances.length && distances[index] < target) {
+        index += 1;
+      }
+      const prevIndex = Math.max(0, index - 1);
+      const nextIndex = Math.min(base.length - 1, index);
+      const prevDist = distances[prevIndex];
+      const nextDist = distances[nextIndex];
+      const segment = nextDist - prevDist;
+      const factor = segment <= EPSILON ? 0 : (target - prevDist) / segment;
+      const point = base[prevIndex].clone().lerp(base[nextIndex], factor);
+      samples.push(point);
+    }
+    return samples;
+  }
+
+  function sampleCurvePoints(curveInput, segments = DEFAULT_CURVE_SEGMENTS, visited = new Set()) {
+    if (curveInput === undefined || curveInput === null) {
+      return { points: [], closed: false };
+    }
+    if (visited.has(curveInput)) {
+      return { points: [], closed: false };
+    }
+    if (typeof curveInput === 'object') {
+      visited.add(curveInput);
+    }
+
+    function normalizeSamples(points, closedFlag = false) {
+      if (!points || !points.length) {
+        return { points: [], closed: Boolean(closedFlag) };
+      }
+      return {
+        points: points.map((pt) => ensurePoint(pt, new THREE.Vector3())),
+        closed: Boolean(closedFlag),
+      };
+    }
+
+    if (curveInput.curve && curveInput.curve !== curveInput) {
+      const result = sampleCurvePoints(curveInput.curve, segments, visited);
+      if (result.points.length) {
+        if (curveInput.closed !== undefined) {
+          result.closed = Boolean(curveInput.closed);
+        }
+        return result;
+      }
+    }
+
+    if (curveInput.polyline && curveInput.polyline !== curveInput) {
+      const result = sampleCurvePoints(curveInput.polyline, segments, visited);
+      if (result.points.length) {
+        return result;
+      }
+    }
+
+    if (curveInput.path && typeof curveInput.path.getPoints === 'function') {
+      return normalizeSamples(curveInput.path.getPoints(Math.max(segments, 8)), curveInput.closed ?? false);
+    }
+
+    if (typeof curveInput.getPoints === 'function') {
+      return normalizeSamples(curveInput.getPoints(Math.max(segments, 8)), curveInput.closed ?? curveInput.isClosed);
+    }
+
+    if (typeof curveInput.getSpacedPoints === 'function') {
+      return normalizeSamples(curveInput.getSpacedPoints(Math.max(segments, 8)), curveInput.closed ?? curveInput.isClosed);
+    }
+
+    if (typeof curveInput.getPoint === 'function') {
+      const count = Math.max(segments, 8);
+      const pts = [];
+      for (let i = 0; i <= count; i += 1) {
+        const t = i / count;
+        const point = curveInput.getPoint(t);
+        if (point) {
+          pts.push(ensurePoint(point, new THREE.Vector3()));
+        }
+      }
+      return normalizeSamples(pts, curveInput.closed ?? false);
+    }
+
+    if (Array.isArray(curveInput.points) && curveInput.points.length) {
+      return normalizeSamples(curveInput.points, curveInput.closed ?? curveInput.isClosed ?? false);
+    }
+
+    if (Array.isArray(curveInput.vertices) && curveInput.vertices.length) {
+      return normalizeSamples(curveInput.vertices, curveInput.closed ?? curveInput.isClosed ?? false);
+    }
+
+    if (Array.isArray(curveInput) && curveInput.length) {
+      return normalizeSamples(curveInput, curveInput.closed ?? false);
+    }
+
+    if (curveInput.start !== undefined && curveInput.end !== undefined) {
+      const start = ensurePoint(curveInput.start, new THREE.Vector3());
+      const end = ensurePoint(curveInput.end, start.clone().add(new THREE.Vector3(1, 0, 0)));
+      return normalizeSamples([start, end], false);
+    }
+
+    if (curveInput.center !== undefined && curveInput.radius !== undefined) {
+      const center = ensurePoint(curveInput.center, new THREE.Vector3());
+      const radius = Math.abs(ensureNumeric(curveInput.radius, 1));
+      if (radius > EPSILON) {
+        const plane = curveInput.plane ? ensurePlane(curveInput.plane) : defaultPlane();
+        const xAxis = normalizeVector(plane.xAxis.clone(), new THREE.Vector3(1, 0, 0));
+        const yAxis = normalizeVector(plane.yAxis.clone(), new THREE.Vector3(0, 1, 0));
+        const pts = [];
+        const count = Math.max(segments, 32);
+        for (let i = 0; i < count; i += 1) {
+          const angle = (i / count) * Math.PI * 2;
+          const point = center.clone()
+            .add(xAxis.clone().multiplyScalar(radius * Math.cos(angle)))
+            .add(yAxis.clone().multiplyScalar(radius * Math.sin(angle)));
+          pts.push(point);
+        }
+        return normalizeSamples(pts, true);
+      }
+    }
+
+    if (curveInput.points && typeof curveInput.points === 'function') {
+      try {
+        const pts = curveInput.points(Math.max(segments, 8));
+        if (Array.isArray(pts) && pts.length) {
+          return normalizeSamples(pts, curveInput.closed ?? false);
+        }
+      } catch (error) {
+        // ignore failures
+      }
+    }
+
+    return { points: [], closed: false };
+  }
+
+  function createGridSurface(rowsInput, { metadata = {}, closedU = false, closedV = false } = {}) {
+    if (!rowsInput || !rowsInput.length) {
+      return null;
+    }
+    const rows = rowsInput.map((row) => row.map((pt) => ensurePoint(pt, new THREE.Vector3())));
+    const columnCount = rows.reduce((max, row) => Math.max(max, row.length), 0);
+    if (rows.length < 2 || columnCount < 2) {
+      return null;
+    }
+    const normalizedRows = rows.map((row) => {
+      if (row.length === columnCount) {
+        return row.map((pt) => pt.clone());
+      }
+      return resamplePolyline(row, columnCount, { closed: closedU });
+    });
+    const domainU = createDomain(0, 1);
+    const domainV = createDomain(0, 1);
+    const maxUIndex = columnCount - 1;
+    const maxVIndex = normalizedRows.length - 1;
+    const evaluate = (uInput, vInput) => {
+      const u = clamp(uInput, domainU.min, domainU.max);
+      const v = clamp(vInput, domainV.min, domainV.max);
+      const scaledU = (u - domainU.min) / (domainU.max - domainU.min || 1);
+      const scaledV = (v - domainV.min) / (domainV.max - domainV.min || 1);
+      const targetU = scaledU * (closedU ? columnCount : maxUIndex);
+      const targetV = scaledV * (closedV ? normalizedRows.length : maxVIndex);
+      const i0 = closedU ? Math.floor(targetU) % columnCount : Math.min(Math.floor(targetU), maxUIndex);
+      const j0 = closedV ? Math.floor(targetV) % normalizedRows.length : Math.min(Math.floor(targetV), maxVIndex);
+      const du = targetU - Math.floor(targetU);
+      const dv = targetV - Math.floor(targetV);
+      const i1 = closedU ? (i0 + 1) % columnCount : Math.min(i0 + 1, maxUIndex);
+      const j1 = closedV ? (j0 + 1) % normalizedRows.length : Math.min(j0 + 1, maxVIndex);
+      const p00 = normalizedRows[j0][i0] ?? normalizedRows[j0][0];
+      const p10 = normalizedRows[j0][i1] ?? normalizedRows[j0][i0];
+      const p01 = normalizedRows[j1][i0] ?? normalizedRows[j0][i0];
+      const p11 = normalizedRows[j1][i1] ?? normalizedRows[j1][i0];
+      const a = p00.clone().lerp(p10, du);
+      const b = p01.clone().lerp(p11, du);
+      return a.lerp(b, dv);
+    };
+    return createParametricSurface({
+      evaluate,
+      domainU,
+      domainV,
+      plane: null,
+      metadata: {
+        ...metadata,
+        grid: normalizedRows,
+        closedU,
+        closedV,
+      },
+    });
+  }
+
+  function createLoftSurfaceFromSections(sections, { metadata = {}, closed = false } = {}) {
+    if (!sections || !sections.length) {
+      return null;
+    }
+    const filtered = sections.filter((section) => section?.points?.length >= 2);
+    if (!filtered.length) {
+      return null;
+    }
+    const segmentCount = filtered.reduce((max, section) => Math.max(max, section.points.length), 0);
+    const count = Math.max(segmentCount, 8);
+    const rows = filtered.map((section) => resamplePolyline(section.points, count, { closed: closed || section.closed }));
+    return createGridSurface(rows, {
+      metadata: {
+        ...metadata,
+        sections: filtered.map((section) => ({
+          closed: section.closed ?? false,
+          count: section.points.length,
+        })),
+      },
+      closedU: closed || filtered.some((section) => section.closed),
+      closedV: false,
+    });
+  }
+
+  function createSurfaceFromPointGrid(points, countU, { metadata = {} } = {}) {
+    const total = points.length;
+    const uCount = Math.max(2, Math.round(countU || 0));
+    if (!total || !uCount) {
+      return null;
+    }
+    const vCount = Math.max(2, Math.floor(total / uCount));
+    if (vCount < 2) {
+      return null;
+    }
+    const rows = [];
+    for (let v = 0; v < vCount; v += 1) {
+      const row = [];
+      for (let u = 0; u < uCount; u += 1) {
+        const index = v * uCount + u;
+        row.push(points[index] ? ensurePoint(points[index], new THREE.Vector3()) : new THREE.Vector3());
+      }
+      rows.push(row);
+    }
+    return createGridSurface(rows, { metadata });
+  }
+
+  function computeCentroid(points) {
+    if (!points || !points.length) {
+      return new THREE.Vector3();
+    }
+    const sum = new THREE.Vector3();
+    for (const point of points) {
+      sum.add(point);
+    }
+    return sum.multiplyScalar(1 / points.length);
+  }
+
+  function extractProfileData(profileInput, { segments = DEFAULT_CURVE_SEGMENTS } = {}) {
+    const sample = sampleCurvePoints(profileInput, segments);
+    let points = sample.points;
+    let closed = sample.closed;
+    if (!points.length) {
+      points = collectPoints(profileInput);
+      closed = false;
+    }
+    if (!points.length) {
+      return {
+        plane: defaultPlane(),
+        coords: [],
+        points: [],
+        centroid: new THREE.Vector3(),
+        closed: false,
+      };
+    }
+    const centroid = computeCentroid(points);
+    let plane;
+    if (points.length >= 3) {
+      plane = planeFromPoints(points[0], points[1], points[2]);
+    } else if (points.length === 2) {
+      const fallback = points[0].clone().add(orthogonalVector(points[1].clone().sub(points[0])));
+      plane = planeFromPoints(points[0], points[1], fallback);
+    } else {
+      plane = defaultPlane();
+    }
+    const normalizedPlane = normalizePlaneAxes(
+      centroid.clone(),
+      plane.xAxis.clone(),
+      plane.yAxis.clone(),
+      plane.zAxis.clone(),
+    );
+    const coords = points.map((point) => {
+      const relative = point.clone().sub(normalizedPlane.origin);
+      return new THREE.Vector2(
+        relative.dot(normalizedPlane.xAxis),
+        relative.dot(normalizedPlane.yAxis),
+      );
+    });
+    return {
+      plane: normalizedPlane,
+      coords,
+      points: points.map((pt) => pt.clone()),
+      centroid,
+      closed,
+    };
+  }
+
+  function createFramesAlongPath(pathPointsInput, basePlane, { closed = false } = {}) {
+    const pathPoints = pathPointsInput.map((pt) => ensurePoint(pt, new THREE.Vector3()));
+    if (!pathPoints.length) {
+      return [];
+    }
+    const frames = [];
+    let previousXAxis = basePlane?.xAxis?.clone() ?? new THREE.Vector3(1, 0, 0);
+    let previousYAxis = basePlane?.yAxis?.clone() ?? new THREE.Vector3(0, 1, 0);
+    for (let i = 0; i < pathPoints.length; i += 1) {
+      const current = pathPoints[i];
+      const prev = pathPoints[i - 1] ?? (closed ? pathPoints[pathPoints.length - 1] : pathPoints[i]);
+      const next = pathPoints[i + 1] ?? (closed ? pathPoints[(i + 1) % pathPoints.length] : pathPoints[i]);
+      const tangent = next.clone().sub(prev).normalize();
+      const zAxis = normalizeVector(tangent, basePlane?.zAxis ?? new THREE.Vector3(0, 0, 1));
+      let xAxis = previousXAxis.clone();
+      xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
+      if (xAxis.lengthSq() <= EPSILON) {
+        xAxis = basePlane?.xAxis ? basePlane.xAxis.clone() : orthogonalVector(zAxis);
+      }
+      xAxis.normalize();
+      let yAxis = zAxis.clone().cross(xAxis);
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = previousYAxis.clone();
+        yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
+        if (yAxis.lengthSq() <= EPSILON) {
+          yAxis = zAxis.clone().cross(xAxis).normalize();
+        } else {
+          yAxis.normalize();
+        }
+      } else {
+        yAxis.normalize();
+      }
+      if (frames.length) {
+        const prevFrame = frames[frames.length - 1];
+        if (prevFrame.xAxis.dot(xAxis) < 0) {
+          xAxis.negate();
+        }
+        if (prevFrame.yAxis.dot(yAxis) < 0) {
+          yAxis.negate();
+        }
+      }
+      frames.push({ origin: current.clone(), xAxis, yAxis, zAxis });
+      previousXAxis = xAxis.clone();
+      previousYAxis = yAxis.clone();
+    }
+    return frames;
+  }
+
+  function createExtrusionSurface(profileData, pathFrames, { metadata = {}, closedPath = false } = {}) {
+    if (!profileData || !profileData.coords.length || !pathFrames.length) {
+      return null;
+    }
+    const rows = pathFrames.map((frame) => profileData.coords.map((coord) => {
+      const point = frame.origin.clone()
+        .add(frame.xAxis.clone().multiplyScalar(coord.x))
+        .add(frame.yAxis.clone().multiplyScalar(coord.y));
+      return point;
+    }));
+    return createGridSurface(rows, {
+      metadata: {
+        ...metadata,
+        frames: pathFrames.map((frame) => ({
+          origin: frame.origin.clone(),
+          xAxis: frame.xAxis.clone(),
+          yAxis: frame.yAxis.clone(),
+          zAxis: frame.zAxis.clone(),
+        })),
+      },
+      closedU: profileData.closed,
+      closedV: closedPath,
+    });
+  }
+
+  function createPipeSurface(pathFrames, radii, { metadata = {}, radialSegments = 24, closed = false } = {}) {
+    if (!pathFrames || !pathFrames.length) {
+      return null;
+    }
+    const rows = pathFrames.map((frame, index) => {
+      const radius = Math.max(Math.abs(radii[index] ?? radii[radii.length - 1] ?? 0), EPSILON);
+      const row = [];
+      for (let i = 0; i < radialSegments; i += 1) {
+        const angle = (i / radialSegments) * Math.PI * 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        const point = frame.origin.clone()
+          .add(frame.xAxis.clone().multiplyScalar(x))
+          .add(frame.yAxis.clone().multiplyScalar(y));
+        row.push(point);
+      }
+      return row;
+    });
+    return createGridSurface(rows, {
+      metadata,
+      closedU: true,
+      closedV: closed,
+    });
+  }
+
+  function parseAxisInput(axisInput, fallbackOrigin = new THREE.Vector3(), fallbackDirection = new THREE.Vector3(0, 0, 1)) {
+    if (!axisInput) {
+      const direction = normalizeVector(fallbackDirection.clone(), new THREE.Vector3(0, 0, 1));
+      return { origin: fallbackOrigin.clone(), direction, vector: direction.clone(), length: 1 };
+    }
+    if (axisInput.mode === 'vector' && axisInput.origin && axisInput.direction) {
+      const origin = ensurePoint(axisInput.origin, fallbackOrigin.clone());
+      const direction = normalizeVector(ensurePoint(axisInput.direction, fallbackDirection.clone()), fallbackDirection.clone());
+      return { origin, direction, vector: direction.clone(), length: 1 };
+    }
+    if (axisInput.line) {
+      return parseAxisInput(axisInput.line, fallbackOrigin, fallbackDirection);
+    }
+    if (axisInput.origin && axisInput.direction) {
+      const origin = ensurePoint(axisInput.origin, fallbackOrigin.clone());
+      const vector = ensurePoint(axisInput.direction, fallbackDirection.clone());
+      const length = vector.length();
+      const direction = length > EPSILON ? vector.clone().normalize() : fallbackDirection.clone().normalize();
+      return { origin, direction, vector, length: length > EPSILON ? length : 1 };
+    }
+    if (axisInput.start && axisInput.end) {
+      const start = ensurePoint(axisInput.start, fallbackOrigin.clone());
+      const end = ensurePoint(axisInput.end, start.clone().add(fallbackDirection.clone()));
+      const vector = end.clone().sub(start);
+      const length = vector.length();
+      const direction = length > EPSILON ? vector.clone().normalize() : fallbackDirection.clone().normalize();
+      return { origin: start, direction, vector, length: length > EPSILON ? length : 1 };
+    }
+    if (Array.isArray(axisInput) && axisInput.length >= 2) {
+      return parseAxisInput({ start: axisInput[0], end: axisInput[1] }, fallbackOrigin, fallbackDirection);
+    }
+    if (axisInput.point && axisInput.vector) {
+      return parseAxisInput({ origin: axisInput.point, direction: axisInput.vector }, fallbackOrigin, fallbackDirection);
+    }
+    if (axisInput.direction || axisInput.vector) {
+      const origin = ensurePoint(axisInput.origin ?? axisInput.point ?? fallbackOrigin, fallbackOrigin.clone());
+      const vector = ensurePoint(axisInput.direction ?? axisInput.vector, fallbackDirection.clone());
+      const length = vector.length();
+      const direction = length > EPSILON ? vector.clone().normalize() : fallbackDirection.clone().normalize();
+      return { origin, direction, vector, length: length > EPSILON ? length : 1 };
+    }
+    if (axisInput.length !== undefined) {
+      const direction = normalizeVector(fallbackDirection.clone(), new THREE.Vector3(0, 0, 1));
+      const vector = direction.clone().multiplyScalar(Math.abs(ensureNumeric(axisInput.length, 1)) || 1);
+      return { origin: fallbackOrigin.clone(), direction, vector, length: vector.length() };
+    }
+    if (axisInput.x !== undefined || axisInput.y !== undefined || axisInput.z !== undefined) {
+      const origin = fallbackOrigin.clone();
+      const vector = ensurePoint(axisInput, fallbackDirection.clone());
+      const length = vector.length();
+      const direction = length > EPSILON ? vector.clone().normalize() : fallbackDirection.clone().normalize();
+      return { origin, direction, vector, length: length > EPSILON ? length : 1 };
+    }
+    return {
+      origin: fallbackOrigin.clone(),
+      direction: normalizeVector(fallbackDirection.clone(), new THREE.Vector3(0, 0, 1)),
+      vector: normalizeVector(fallbackDirection.clone(), new THREE.Vector3(0, 0, 1)),
+      length: 1,
+    };
+  }
+
+  function createLinearPath(origin, vector, segments = 8) {
+    const points = [];
+    for (let i = 0; i <= segments; i += 1) {
+      const t = i / segments;
+      points.push(origin.clone().add(vector.clone().multiplyScalar(t)));
+    }
+    return points;
+  }
+
+  function createRevolutionSurface(profilePoints, axisData, { domain, metadata = {}, segments = 48 } = {}) {
+    if (!profilePoints || !profilePoints.length) {
+      return null;
+    }
+    const startAngle = Number.isFinite(domain?.start) ? domain.start : 0;
+    const endAngle = Number.isFinite(domain?.end) ? domain.end : Math.PI * 2;
+    const angleSpan = endAngle - startAngle;
+    const rowCount = Math.max(3, Math.round(Math.abs(angleSpan) / (Math.PI / 16)));
+    const rows = [];
+    const axisDirection = axisData.direction.clone().normalize();
+    const axisOrigin = axisData.origin.clone();
+    for (let i = 0; i <= rowCount; i += 1) {
+      const t = i / rowCount;
+      const angle = startAngle + angleSpan * t;
+      const rotation = new THREE.Quaternion().setFromAxisAngle(axisDirection, angle);
+      const row = profilePoints.map((point) => {
+        const relative = point.clone().sub(axisOrigin);
+        const rotated = relative.applyQuaternion(rotation).add(axisOrigin);
+        return rotated;
+      });
+      rows.push(row);
+    }
+    return createGridSurface(rows, {
+      metadata: {
+        ...metadata,
+        axis: {
+          origin: axisOrigin,
+          direction: axisDirection,
+          startAngle,
+          endAngle,
+        },
+      },
+      closedU: Math.abs(Math.abs(angleSpan) - Math.PI * 2) <= 1e-6,
+      closedV: false,
+    });
+  }
+
+  function createBoundarySurfaceFromCurve(curveInput, options = {}) {
+    const sample = sampleCurvePoints(curveInput, options.segments ?? DEFAULT_CURVE_SEGMENTS);
+    if (!sample.points.length) {
+      return null;
+    }
+    const basePlane = sample.points.length >= 3
+      ? planeFromPoints(sample.points[0], sample.points[1], sample.points[2])
+      : defaultPlane();
+    const coords = sample.points.map((point) => planeCoordinates(point, basePlane));
+    const xs = coords.map((coord) => coord.x);
+    const ys = coords.map((coord) => coord.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    return createPlanarSurfaceFromBounds(basePlane, minX, maxX, minY, maxY);
+  }
+
+  function registerFreeformComponents() {
+    register('{45f19d16-1c9f-4b0f-a9a6-45a77f3d206c}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          Cls: 'closed', Closed: 'closed', closed: 'closed',
+          Adj: 'adjust', Adjust: 'adjust', adjust: 'adjust',
+          Rbd: 'rebuild', Rebuild: 'rebuild', rebuild: 'rebuild',
+          Rft: 'refit', Refit: 'refit', refit: 'refit',
+          T: 'type', Type: 'type', type: 'type',
+        },
+        outputs: { O: 'options', Options: 'options', options: 'options' },
+      },
+      eval: ({ inputs }) => {
+        const closed = ensureBoolean(inputs.closed, false);
+        const adjust = ensureBoolean(inputs.adjust, false);
+        const rebuild = Math.max(0, Math.round(ensureNumeric(inputs.rebuild, 0)));
+        const refit = Math.max(0, ensureNumeric(inputs.refit, 0));
+        const loftType = Math.max(0, Math.min(5, Math.round(ensureNumeric(inputs.type, 0))));
+        const options = { closed, adjust, rebuild, refit, type: loftType };
+        return { options };
+      },
+    });
+
+    register('{a7a41d0a-2188-4f7a-82cc-1a2c4e4ec850}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curves', Curves: 'curves', curves: 'curves',
+          O: 'options', Options: 'options', options: 'options',
+        },
+        outputs: { L: 'loft', Loft: 'loft', S: 'loft', Surface: 'loft', surface: 'loft' },
+      },
+      eval: ({ inputs }) => {
+        const curves = ensureArray(inputs.curves);
+        const sections = [];
+        for (const curve of curves) {
+          const section = sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS);
+          if (section.points.length >= 2) {
+            sections.push(section);
+          }
+        }
+        if (!sections.length) {
+          return {};
+        }
+        const providedOptions = inputs.options?.options ?? inputs.options;
+        const normalizedOptions = providedOptions && typeof providedOptions === 'object'
+          ? {
+            closed: ensureBoolean(providedOptions.closed, false),
+            adjust: ensureBoolean(providedOptions.adjust, false),
+            rebuild: Math.max(0, Math.round(ensureNumeric(providedOptions.rebuild, 0))),
+            refit: Math.max(0, ensureNumeric(providedOptions.refit, 0)),
+            type: Math.max(0, Math.min(5, Math.round(ensureNumeric(providedOptions.type, 0)))),
+          }
+          : { closed: false, adjust: false, rebuild: 0, refit: 0, type: 0 };
+        const surface = createLoftSurfaceFromSections(sections, {
+          metadata: { type: 'loft', options: normalizedOptions },
+          closed: normalizedOptions.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          loft: wrapSurface(surface, {
+            sections: sections.map((section) => section.points.map((pt) => pt.clone())),
+          }),
+        };
+      },
+    });
+
+    register('{342aa574-1327-4bc2-8daf-203da2a45676}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curves', Curves: 'curves', curves: 'curves',
+          Nu: 'countU', 'Count U': 'countU', countU: 'countU',
+          Du: 'degreeU', 'Degree U': 'degreeU', degreeU: 'degreeU',
+          Dv: 'degreeV', 'Degree V': 'degreeV', degreeV: 'degreeV',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const curves = ensureArray(inputs.curves);
+        const sections = [];
+        for (const curve of curves) {
+          const section = sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS);
+          if (section.points.length >= 2) {
+            sections.push(section);
+          }
+        }
+        if (!sections.length) {
+          return {};
+        }
+        const countU = Math.max(2, Math.round(ensureNumeric(inputs.countU, sections[0].points.length)));
+        const resampled = sections.map((section) => ({
+          points: resamplePolyline(section.points, countU, { closed: section.closed }),
+          closed: section.closed,
+        }));
+        const degreeU = Math.max(1, Math.round(ensureNumeric(inputs.degreeU, 3)));
+        const degreeV = Math.max(1, Math.round(ensureNumeric(inputs.degreeV, 3)));
+        const surface = createLoftSurfaceFromSections(resampled, {
+          metadata: { type: 'fit-loft', countU, degreeU, degreeV },
+          closed: resampled.some((section) => section.closed),
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            sections: resampled.map((section) => section.points.map((pt) => pt.clone())),
+          }),
+        };
+      },
+    });
+
+    register('{5c270622-ee80-45a4-b07a-bd8ffede92a2}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curves', Curves: 'curves', curves: 'curves',
+          D: 'degree', Degree: 'degree', degree: 'degree',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const curves = ensureArray(inputs.curves);
+        const sections = [];
+        for (const curve of curves) {
+          const section = sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS);
+          if (section.points.length >= 2) {
+            sections.push(section);
+          }
+        }
+        if (!sections.length) {
+          return {};
+        }
+        const degree = Math.max(1, Math.round(ensureNumeric(inputs.degree, 3)));
+        const surface = createLoftSurfaceFromSections(sections, {
+          metadata: { type: 'control-point-loft', degree },
+          closed: sections.some((section) => section.closed),
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            sections: sections.map((section) => section.points.map((pt) => pt.clone())),
+          }),
+        };
+      },
+    });
+
+    register('{36132830-e2ef-4476-8ea1-6a43922344f0}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          A: 'curveA', 'Curve A': 'curveA', CurveA: 'curveA', curveA: 'curveA',
+          B: 'curveB', 'Curve B': 'curveB', CurveB: 'curveB', curveB: 'curveB',
+          C: 'curveC', 'Curve C': 'curveC', CurveC: 'curveC', curveC: 'curveC',
+          D: 'curveD', 'Curve D': 'curveD', CurveD: 'curveD', curveD: 'curveD',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const candidates = [inputs.curveA, inputs.curveB, inputs.curveC, inputs.curveD];
+        const sections = [];
+        for (const candidate of candidates) {
+          if (!candidate) continue;
+          const section = sampleCurvePoints(candidate, DEFAULT_CURVE_SEGMENTS);
+          if (section.points.length >= 2) {
+            sections.push(section);
+          }
+        }
+        if (sections.length < 2) {
+          return {};
+        }
+        const surface = createLoftSurfaceFromSections(sections, {
+          metadata: { type: 'edge-surface' },
+          closed: sections.some((section) => section.closed),
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            sections: sections.map((section) => section.points.map((pt) => pt.clone())),
+          }),
+        };
+      },
+    });
+
+    register('{4b04a1e1-cddf-405d-a7db-335aaa940541}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'points', Points: 'points', points: 'points',
+          U: 'countU', 'U Count': 'countU', countU: 'countU',
+          I: 'interpolate', Interpolate: 'interpolate', interpolate: 'interpolate',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const pointList = collectPoints(inputs.points);
+        if (!pointList.length) {
+          return {};
+        }
+        const countU = Math.max(2, Math.round(ensureNumeric(inputs.countU, Math.round(Math.sqrt(pointList.length)) || 2)));
+        const interpolate = ensureBoolean(inputs.interpolate, false);
+        const surface = createSurfaceFromPointGrid(pointList, countU, {
+          metadata: { type: 'surface-from-points', interpolate },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, { points: pointList.map((pt) => pt.clone()) }),
+        };
+      },
+    });
+
+    register('{57b2184c-8931-4e70-9220-612ec5b3809a}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curves', Curves: 'curves', curves: 'curves',
+          P: 'points', Points: 'points', points: 'points',
+          S: 'spans', Spans: 'spans', spans: 'spans',
+          F: 'flexibility', Flexibility: 'flexibility', flexibility: 'flexibility',
+          T: 'trim', Trim: 'trim', trim: 'trim',
+        },
+        outputs: { P: 'patch', Patch: 'patch', S: 'patch', Surface: 'patch' },
+      },
+      eval: ({ inputs }) => {
+        const curvePoints = [];
+        const curves = ensureArray(inputs.curves);
+        for (const curve of curves) {
+          const section = sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS);
+          if (section.points.length) {
+            curvePoints.push(...section.points);
+          }
+        }
+        const extraPoints = collectPoints(inputs.points);
+        const allPoints = [...curvePoints, ...extraPoints];
+        if (!allPoints.length) {
+          return {};
+        }
+        const plane = allPoints.length >= 3
+          ? planeFromPoints(allPoints[0], allPoints[1], allPoints[2])
+          : defaultPlane();
+        const coords = allPoints.map((pt) => planeCoordinates(pt, plane));
+        const xs = coords.map((coord) => coord.x);
+        const ys = coords.map((coord) => coord.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const surface = createPlanarSurfaceFromBounds(plane, minX, maxX, minY, maxY);
+        if (!surface) {
+          return {};
+        }
+        const spans = Math.max(1, Math.round(ensureNumeric(inputs.spans, 1)));
+        const flexibility = Math.max(0, ensureNumeric(inputs.flexibility, 1));
+        const trim = ensureBoolean(inputs.trim, false);
+        return {
+          patch: wrapSurface(surface, {
+            spans,
+            flexibility,
+            trim,
+            supportPoints: allPoints.map((pt) => pt.clone()),
+          }),
+        };
+      },
+    });
+
+    register('{5e33c760-adcd-4235-b1dd-05cf72eb7a38}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          A: 'curveA', CurveA: 'curveA', 'Curve A': 'curveA', curveA: 'curveA',
+          B: 'curveB', CurveB: 'curveB', 'Curve B': 'curveB', curveB: 'curveB',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = sampleCurvePoints(inputs.curveA, DEFAULT_CURVE_SEGMENTS);
+        const curveB = sampleCurvePoints(inputs.curveB, DEFAULT_CURVE_SEGMENTS);
+        if (!curveA.points.length || !curveB.points.length) {
+          return {};
+        }
+        const origin = curveA.points[0].clone().add(curveB.points[0]);
+        const rows = curveB.points.map((pb) => curveA.points.map((pa) => pa.clone().add(pb).sub(origin)));
+        const surface = createGridSurface(rows, {
+          metadata: { type: 'sum-surface' },
+          closedU: curveA.closed,
+          closedV: curveB.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            curveA: curveA.points.map((pt) => pt.clone()),
+            curveB: curveB.points.map((pt) => pt.clone()),
+          }),
+        };
+      },
+    });
+
+    register('{6e5de495-ba76-42d0-9985-a5c265e9aeca}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          A: 'curveA', CurveA: 'curveA', 'Curve A': 'curveA', curveA: 'curveA',
+          B: 'curveB', CurveB: 'curveB', 'Curve B': 'curveB', curveB: 'curveB',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const curveA = sampleCurvePoints(inputs.curveA, DEFAULT_CURVE_SEGMENTS);
+        const curveB = sampleCurvePoints(inputs.curveB, DEFAULT_CURVE_SEGMENTS);
+        if (!curveA.points.length || !curveB.points.length) {
+          return {};
+        }
+        const surface = createLoftSurfaceFromSections([curveA, curveB], {
+          metadata: { type: 'ruled-surface' },
+          closed: curveA.closed && curveB.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            startCurve: curveA.points.map((pt) => pt.clone()),
+            endCurve: curveB.points.map((pt) => pt.clone()),
+          }),
+        };
+      },
+    });
+
+    register('{71506fa8-9bf0-432d-b897-b2e0c5ac316c}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          U: 'curvesU', CurvesU: 'curvesU', 'Curves U': 'curvesU', curvesU: 'curvesU',
+          V: 'curvesV', CurvesV: 'curvesV', 'Curves V': 'curvesV', curvesV: 'curvesV',
+          C: 'continuity', Continuity: 'continuity', continuity: 'continuity',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const curvesU = ensureArray(inputs.curvesU).map((curve) => sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS)).filter((section) => section.points.length >= 2);
+        const curvesV = ensureArray(inputs.curvesV).map((curve) => sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS)).filter((section) => section.points.length >= 2);
+        if (!curvesU.length && !curvesV.length) {
+          return {};
+        }
+        const continuity = Math.max(0, Math.round(ensureNumeric(inputs.continuity, 0)));
+        let surface = null;
+        if (curvesU.length >= 2) {
+          surface = createLoftSurfaceFromSections(curvesU, {
+            metadata: { type: 'network-surface', direction: 'u', continuity, curvesV: curvesV.length },
+            closed: curvesU.some((section) => section.closed),
+          });
+        } else if (curvesV.length >= 2) {
+          surface = createLoftSurfaceFromSections(curvesV, {
+            metadata: { type: 'network-surface', direction: 'v', continuity, curvesU: curvesU.length },
+            closed: curvesV.some((section) => section.closed),
+          });
+        }
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            curvesU: curvesU.map((section) => section.points.map((pt) => pt.clone())),
+            curvesV: curvesV.map((section) => section.points.map((pt) => pt.clone())),
+            continuity,
+          }),
+        };
+      },
+    });
+
+    register('{75164624-395a-4d24-b60b-6bf91cab0194}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          'R¹': 'rail1', R1: 'rail1', rail1: 'rail1', 'Rail 1': 'rail1',
+          'R²': 'rail2', R2: 'rail2', rail2: 'rail2', 'Rail 2': 'rail2',
+          S: 'sections', Sections: 'sections', sections: 'sections',
+          H: 'sameHeight', 'Same Height': 'sameHeight', sameHeight: 'sameHeight',
+        },
+        outputs: { S: 'breps', Brep: 'breps', Breps: 'breps' },
+      },
+      eval: ({ inputs }) => {
+        const sectionCurves = ensureArray(inputs.sections)
+          .map((curve) => sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS))
+          .filter((section) => section.points.length >= 2);
+        if (!sectionCurves.length) {
+          return {};
+        }
+        const surface = createLoftSurfaceFromSections(sectionCurves, {
+          metadata: {
+            type: 'sweep2',
+            rails: [inputs.rail1 ?? null, inputs.rail2 ?? null],
+            sameHeight: ensureBoolean(inputs.sameHeight, false),
+          },
+          closed: sectionCurves.some((section) => section.closed),
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          breps: [wrapSurface(surface, {
+            sections: sectionCurves.map((section) => section.points.map((pt) => pt.clone())),
+          })],
+        };
+      },
+    });
+
+    register('{bb6666e7-d0f4-41ec-a257-df2371619f13}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          R: 'rail', Rail: 'rail', rail: 'rail',
+          S: 'sections', Sections: 'sections', sections: 'sections',
+          M: 'miter', Miter: 'miter', miter: 'miter',
+        },
+        outputs: { S: 'breps', Brep: 'breps', Breps: 'breps' },
+      },
+      eval: ({ inputs }) => {
+        const sectionCurves = ensureArray(inputs.sections)
+          .map((curve) => sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS))
+          .filter((section) => section.points.length >= 2);
+        if (!sectionCurves.length) {
+          return {};
+        }
+        const surface = createLoftSurfaceFromSections(sectionCurves, {
+          metadata: {
+            type: 'sweep1',
+            rail: inputs.rail ?? null,
+            miter: Math.max(0, Math.round(ensureNumeric(inputs.miter, 0))),
+          },
+          closed: sectionCurves.some((section) => section.closed),
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          breps: [wrapSurface(surface, {
+            sections: sectionCurves.map((section) => section.points.map((pt) => pt.clone())),
+          })],
+        };
+      },
+    });
+
+    register('{38a5638b-6d01-4417-bf11-976d925f8a71}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'base', Base: 'base', base: 'base',
+          C: 'curve', Curve: 'curve', curve: 'curve',
+        },
+        outputs: { E: 'extrusion', Extrusion: 'extrusion', extrusion: 'extrusion' },
+      },
+      eval: ({ inputs }) => {
+        const profile = extractProfileData(inputs.base);
+        if (!profile.coords.length) {
+          return {};
+        }
+        const pathSample = sampleCurvePoints(inputs.curve, DEFAULT_CURVE_SEGMENTS);
+        if (!pathSample.points.length) {
+          return {};
+        }
+        const pathPoints = resamplePolyline(pathSample.points, Math.max(pathSample.points.length, 16), { closed: pathSample.closed });
+        const frames = createFramesAlongPath(pathPoints, profile.plane, { closed: pathSample.closed });
+        const surface = createExtrusionSurface(profile, frames, {
+          metadata: { type: 'extrude-along' },
+          closedPath: pathSample.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          extrusion: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            closed: pathSample.closed,
+          }),
+        };
+      },
+    });
+
+    register('{8efd5eb9-a896-486e-9f98-d8d1a07a49f3}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'profile', Profile: 'profile', profile: 'profile',
+          Po: 'orientationProfile', 'Orientation (P)': 'orientationProfile',
+          A: 'axis', Axis: 'axis', axis: 'axis',
+          Ao: 'orientationAxis', 'Orientation (A)': 'orientationAxis',
+        },
+        outputs: { E: 'extrusion', Extrusion: 'extrusion', extrusion: 'extrusion' },
+      },
+      eval: ({ inputs }) => {
+        let profile = extractProfileData(inputs.profile);
+        if (inputs.orientationProfile) {
+          const orientPlane = ensurePlane(inputs.orientationProfile);
+          const coords = profile.points.map((pt) => planeCoordinates(pt, orientPlane));
+          profile = {
+            plane: orientPlane,
+            coords: coords.map((coord) => new THREE.Vector2(coord.x, coord.y)),
+            points: profile.points.map((pt) => pt.clone()),
+            centroid: profile.centroid.clone(),
+            closed: profile.closed,
+          };
+        }
+        if (!profile.coords.length) {
+          return {};
+        }
+        const axisData = parseAxisInput(inputs.axis, profile.plane.origin.clone(), profile.plane.zAxis.clone());
+        const pathPoints = createLinearPath(axisData.origin.clone(), axisData.vector.clone(), 16);
+        const frames = createFramesAlongPath(pathPoints, profile.plane);
+        const surface = createExtrusionSurface(profile, frames, {
+          metadata: {
+            type: 'extrude-linear',
+            axis: axisData,
+            orientationAxis: inputs.orientationAxis ?? null,
+          },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          extrusion: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            axis: axisData,
+          }),
+        };
+      },
+    });
+
+    register('{962034e9-cc27-4394-afc4-5c16e3447cf9}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'base', Base: 'base', base: 'base',
+          D: 'direction', Direction: 'direction', direction: 'direction',
+        },
+        outputs: { E: 'extrusion', Extrusion: 'extrusion', extrusion: 'extrusion' },
+      },
+      eval: ({ inputs }) => {
+        const profile = extractProfileData(inputs.base);
+        if (!profile.coords.length) {
+          return {};
+        }
+        const directionVector = ensurePoint(inputs.direction, profile.plane.zAxis.clone());
+        if (directionVector.lengthSq() <= EPSILON) {
+          return {};
+        }
+        const pathPoints = createLinearPath(profile.plane.origin.clone(), directionVector.clone(), 16);
+        const frames = createFramesAlongPath(pathPoints, profile.plane);
+        const surface = createExtrusionSurface(profile, frames, {
+          metadata: { type: 'extrude-vector', direction: directionVector.clone() },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          extrusion: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            direction: directionVector.clone(),
+          }),
+        };
+      },
+    });
+
+    register('{be6636b2-2f1a-4d42-897b-fdef429b6f17}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          B: 'base', Base: 'base', base: 'base',
+          P: 'point', Point: 'point', point: 'point',
+        },
+        outputs: { E: 'extrusion', Extrusion: 'extrusion', extrusion: 'extrusion' },
+      },
+      eval: ({ inputs }) => {
+        const profile = extractProfileData(inputs.base);
+        if (!profile.coords.length) {
+          return {};
+        }
+        const tip = ensurePoint(inputs.point, profile.plane.origin.clone().add(profile.plane.zAxis.clone()));
+        const vector = tip.clone().sub(profile.plane.origin);
+        if (vector.lengthSq() <= EPSILON) {
+          return {};
+        }
+        const pathPoints = createLinearPath(profile.plane.origin.clone(), vector.clone(), 16);
+        const frames = createFramesAlongPath(pathPoints, profile.plane);
+        const surface = createExtrusionSurface(profile, frames, {
+          metadata: { type: 'extrude-point', tip },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          extrusion: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            tip,
+          }),
+        };
+      },
+    });
+
+    register('{ae57e09b-a1e4-4d05-8491-abd232213bc9}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'polyline', Polyline: 'polyline', polyline: 'polyline',
+          Hb: 'baseHeight', 'Base height': 'baseHeight', baseHeight: 'baseHeight',
+          Ht: 'topHeight', 'Top height': 'topHeight', topHeight: 'topHeight',
+          A: 'angles', Angles: 'angles', angles: 'angles',
+        },
+        outputs: { S: 'shape', Shape: 'shape', shape: 'shape' },
+      },
+      eval: ({ inputs }) => {
+        const profile = extractProfileData(inputs.polyline);
+        if (!profile.coords.length) {
+          return {};
+        }
+        const baseHeight = ensureNumeric(inputs.baseHeight, 0);
+        const topHeight = ensureNumeric(inputs.topHeight, 0);
+        const totalHeight = baseHeight + topHeight;
+        const vector = profile.plane.zAxis.clone().multiplyScalar(totalHeight || 1);
+        const pathPoints = createLinearPath(profile.plane.origin.clone(), vector, 4);
+        const frames = createFramesAlongPath(pathPoints, profile.plane);
+        const surface = createExtrusionSurface(profile, frames, {
+          metadata: {
+            type: 'extrude-angled',
+            baseHeight,
+            topHeight,
+            angles: ensureArray(inputs.angles).map((value) => ensureNumeric(value, 0)),
+          },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          shape: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            baseHeight,
+            topHeight,
+          }),
+        };
+      },
+    });
+
+    register('{888f9c3c-f1e1-4344-94b0-5ee6a45aee11}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curve', Curve: 'curve', curve: 'curve',
+          t: 'parameters', T: 'parameters', Parameters: 'parameters', parameters: 'parameters',
+          R: 'radii', Radii: 'radii', radii: 'radii',
+          E: 'caps', Caps: 'caps', caps: 'caps',
+        },
+        outputs: { P: 'pipe', Pipe: 'pipe', pipe: 'pipe' },
+      },
+      eval: ({ inputs }) => {
+        const pathSample = sampleCurvePoints(inputs.curve, DEFAULT_CURVE_SEGMENTS);
+        if (!pathSample.points.length) {
+          return {};
+        }
+        const basePlane = pathSample.points.length >= 3
+          ? planeFromPoints(pathSample.points[0], pathSample.points[1], pathSample.points[2])
+          : defaultPlane();
+        const rawParameters = ensureArray(inputs.parameters)
+          .map((value) => ensureNumeric(value, Number.NaN))
+          .filter((value) => Number.isFinite(value))
+          .map((value) => clamp01(value));
+        const rawRadii = ensureArray(inputs.radii)
+          .map((value) => Math.abs(ensureNumeric(value, Number.NaN)))
+          .filter((value) => Number.isFinite(value));
+        const segmentCount = Math.max(pathSample.points.length, rawParameters.length, rawRadii.length, 24);
+        const pathPoints = resamplePolyline(pathSample.points, segmentCount, { closed: pathSample.closed });
+        const frames = createFramesAlongPath(pathPoints, basePlane, { closed: pathSample.closed });
+        const samples = frames.map((_, index) => {
+          if (!rawParameters.length || rawParameters.length !== rawRadii.length) {
+            const sourceIndex = Math.min(index, rawRadii.length - 1);
+            return Math.max(ensureNumeric(rawRadii[sourceIndex] ?? rawRadii[0] ?? 1, 1), EPSILON);
+          }
+          const t = frames.length <= 1 ? 0 : index / (frames.length - 1);
+          let lowerIndex = 0;
+          let upperIndex = rawParameters.length - 1;
+          for (let i = 0; i < rawParameters.length; i += 1) {
+            if (rawParameters[i] <= t) {
+              lowerIndex = i;
+            }
+            if (rawParameters[i] >= t) {
+              upperIndex = i;
+              break;
+            }
+          }
+          const lowerParam = rawParameters[lowerIndex] ?? 0;
+          const upperParam = rawParameters[upperIndex] ?? 1;
+          const lowerRadius = rawRadii[lowerIndex] ?? rawRadii[0] ?? 1;
+          const upperRadius = rawRadii[upperIndex] ?? rawRadii[rawRadii.length - 1] ?? lowerRadius;
+          if (Math.abs(upperParam - lowerParam) <= EPSILON) {
+            return Math.max(lowerRadius, EPSILON);
+          }
+          const factor = (t - lowerParam) / (upperParam - lowerParam);
+          return Math.max(lowerRadius + (upperRadius - lowerRadius) * factor, EPSILON);
+        });
+        const surface = createPipeSurface(frames, samples, {
+          metadata: {
+            type: 'pipe-variable',
+            caps: ensureNumeric(inputs.caps, 0),
+          },
+          closed: pathSample.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          pipe: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            radii: samples,
+            caps: ensureNumeric(inputs.caps, 0),
+          }),
+        };
+      },
+    });
+
+    register('{c277f778-6fdf-4890-8f78-347efb23c406}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          C: 'curve', Curve: 'curve', curve: 'curve',
+          R: 'radius', Radius: 'radius', radius: 'radius',
+          E: 'caps', Caps: 'caps', caps: 'caps',
+        },
+        outputs: { P: 'pipe', Pipe: 'pipe', pipe: 'pipe' },
+      },
+      eval: ({ inputs }) => {
+        const pathSample = sampleCurvePoints(inputs.curve, DEFAULT_CURVE_SEGMENTS);
+        if (!pathSample.points.length) {
+          return {};
+        }
+        const basePlane = pathSample.points.length >= 3
+          ? planeFromPoints(pathSample.points[0], pathSample.points[1], pathSample.points[2])
+          : defaultPlane();
+        const radius = Math.max(Math.abs(ensureNumeric(inputs.radius, 1)), EPSILON);
+        const pathPoints = resamplePolyline(pathSample.points, Math.max(pathSample.points.length, 24), { closed: pathSample.closed });
+        const frames = createFramesAlongPath(pathPoints, basePlane, { closed: pathSample.closed });
+        const surface = createPipeSurface(frames, frames.map(() => radius), {
+          metadata: { type: 'pipe', caps: ensureNumeric(inputs.caps, 0) },
+          closed: pathSample.closed,
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          pipe: wrapSurface(surface, {
+            path: pathPoints.map((pt) => pt.clone()),
+            radius,
+            caps: ensureNumeric(inputs.caps, 0),
+          }),
+        };
+      },
+    });
+
+    register('{c77a8b3b-c569-4d81-9b59-1c27299a1c45}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          A: 'cornerA', CornerA: 'cornerA', 'Corner A': 'cornerA', cornerA: 'cornerA',
+          B: 'cornerB', CornerB: 'cornerB', 'Corner B': 'cornerB', cornerB: 'cornerB',
+          C: 'cornerC', CornerC: 'cornerC', 'Corner C': 'cornerC', cornerC: 'cornerC',
+          D: 'cornerD', CornerD: 'cornerD', 'Corner D': 'cornerD', cornerD: 'cornerD',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const cornerA = ensurePoint(inputs.cornerA, new THREE.Vector3());
+        const cornerB = ensurePoint(inputs.cornerB, cornerA.clone().add(new THREE.Vector3(1, 0, 0)));
+        const cornerC = ensurePoint(inputs.cornerC, cornerA.clone().add(new THREE.Vector3(0, 1, 0)));
+        const cornerD = inputs.cornerD ? ensurePoint(inputs.cornerD, cornerA.clone()) : cornerA.clone().add(cornerC.clone().sub(cornerB));
+        const rows = [
+          [cornerA.clone(), cornerB.clone()],
+          [cornerD.clone(), cornerC.clone()],
+        ];
+        const surface = createGridSurface(rows, {
+          metadata: { type: 'four-point-surface' },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            corners: [cornerA, cornerB, cornerC, cornerD],
+          }),
+        };
+      },
+    });
+
+    register('{cb56b26c-2595-4d03-bdb2-eb2e6aeba82d}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { B: 'boundary', Boundary: 'boundary', boundary: 'boundary' },
+        outputs: { P: 'patch', Patch: 'patch', patch: 'patch' },
+      },
+      eval: ({ inputs }) => {
+        const surface = createBoundarySurfaceFromCurve(inputs.boundary);
+        if (!surface) {
+          return {};
+        }
+        return { patch: wrapSurface(surface, { boundary: inputs.boundary ?? null }) };
+      },
+    });
+
+    register('{cdee962f-4202-456b-a1b4-f3ed9aa0dc29}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'profile', Curve: 'profile', profile: 'profile',
+          A: 'axis', Axis: 'axis', axis: 'axis',
+          D: 'domain', Domain: 'domain', domain: 'domain',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const profileSample = sampleCurvePoints(inputs.profile, DEFAULT_CURVE_SEGMENTS);
+        if (!profileSample.points.length) {
+          return {};
+        }
+        const axisData = parseAxisInput(inputs.axis, profileSample.points[0] ?? new THREE.Vector3(), new THREE.Vector3(0, 0, 1));
+        const domain = inputs.domain && typeof inputs.domain === 'object'
+          ? {
+            start: ensureNumeric(inputs.domain.start ?? inputs.domain.min ?? inputs.domain[0], 0),
+            end: ensureNumeric(inputs.domain.end ?? inputs.domain.max ?? inputs.domain[1], Math.PI * 2),
+          }
+          : null;
+        const surface = createRevolutionSurface(profileSample.points, axisData, {
+          domain,
+          metadata: { type: 'revolution' },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            profile: profileSample.points.map((pt) => pt.clone()),
+            axis: axisData,
+            domain,
+          }),
+        };
+      },
+    });
+
+    register('{d8d68c35-f869-486d-adf3-69ee3cc2d501}', {
+      type: 'surface',
+      pinMap: {
+        inputs: {
+          P: 'profile', Curve: 'profile', profile: 'profile',
+          R: 'rail', Rail: 'rail', rail: 'rail',
+          A: 'axis', Axis: 'axis', axis: 'axis',
+          S: 'scale', Scale: 'scale', scale: 'scale',
+        },
+        outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
+      },
+      eval: ({ inputs }) => {
+        const profileSample = sampleCurvePoints(inputs.profile, DEFAULT_CURVE_SEGMENTS);
+        if (!profileSample.points.length) {
+          return {};
+        }
+        const axisData = parseAxisInput(inputs.axis, profileSample.points[0] ?? new THREE.Vector3(), new THREE.Vector3(0, 0, 1));
+        const surface = createRevolutionSurface(profileSample.points, axisData, {
+          metadata: {
+            type: 'rail-revolution',
+            rail: inputs.rail ?? null,
+            scale: ensureNumeric(inputs.scale, 1),
+          },
+        });
+        if (!surface) {
+          return {};
+        }
+        return {
+          surface: wrapSurface(surface, {
+            profile: profileSample.points.map((pt) => pt.clone()),
+            axis: axisData,
+            rail: inputs.rail ?? null,
+            scale: ensureNumeric(inputs.scale, 1),
+          }),
+        };
+      },
+    });
+
+    register('{d51e9b65-aa4e-4fd6-976c-cef35d421d05}', {
+      type: 'surface',
+      pinMap: {
+        inputs: { E: 'edges', Edges: 'edges', edges: 'edges' },
+        outputs: { S: 'surfaces', Surfaces: 'surfaces', surfaces: 'surfaces' },
+      },
+      eval: ({ inputs }) => {
+        const edges = ensureArray(inputs.edges);
+        const surfaces = [];
+        for (const edge of edges) {
+          const surface = createBoundarySurfaceFromCurve(edge);
+          if (surface) {
+            surfaces.push(wrapSurface(surface, { boundary: edge ?? null }));
+          }
+        }
+        if (!surfaces.length) {
+          return {};
+        }
+        return { surfaces };
+      },
+    });
+  }
+  if (!freeformOnly) {
   register('{0373008a-80ee-45be-887d-ab5a244afc29}', {
     type: 'surface',
     pinMap: {
@@ -1368,4 +2853,9 @@ export function registerSurfacePrimitiveComponents({ register, toNumber, toVecto
       return { surface: wrapSurface(surface) };
     },
   });
+  }
+}
+
+export function registerSurfaceFreeformComponents(args) {
+  registerSurfacePrimitiveComponents({ ...args, mode: REGISTER_SURFACE_FREEFORM_ONLY });
 }
