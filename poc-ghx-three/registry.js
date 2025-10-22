@@ -13,7 +13,7 @@ const [
     registerCurveSplineComponents,
     registerCurveUtilComponents,
   },
-  { registerSurfacePrimitiveComponents },
+  { registerSurfacePrimitiveComponents, registerSurfaceFreeformComponents },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-vector.js'),
@@ -223,6 +223,7 @@ registerCurveSplineComponents({ register, toNumber, toVector3 });
 registerCurveAnalysisComponents({ register, toNumber, toVector3 });
 registerCurveUtilComponents({ register, toNumber, toVector3 });
 registerSurfacePrimitiveComponents({ register, toNumber, toVector3 });
+registerSurfaceFreeformComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
