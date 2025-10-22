@@ -862,6 +862,564 @@ export function registerMathDomainComponents({ register, toNumber }) {
   });
 }
 
+export function registerMathMatrixComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register math matrix components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register math matrix components.');
+  }
+
+  const DEFAULT_TOLERANCE = 1e-10;
+
+  function parseDimension(value) {
+    const numeric = toNumber(value, Number.NaN);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    const integer = Math.trunc(numeric);
+    return integer > 0 ? integer : 0;
+  }
+
+  function collectNumbersOrdered(input, result = [], visited = new Set()) {
+    if (input === undefined || input === null) {
+      return result;
+    }
+    if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input)) {
+      for (let i = 0; i < input.length; i += 1) {
+        const numeric = toNumber(input[i], Number.NaN);
+        if (Number.isFinite(numeric)) {
+          result.push(numeric);
+        }
+      }
+      return result;
+    }
+    if (Array.isArray(input)) {
+      if (visited.has(input)) {
+        return result;
+      }
+      visited.add(input);
+      for (const entry of input) {
+        collectNumbersOrdered(entry, result, visited);
+      }
+      visited.delete(input);
+      return result;
+    }
+    if (typeof input === 'object') {
+      if (visited.has(input)) {
+        return result;
+      }
+      visited.add(input);
+      try {
+        if (input?.isMatrix4 && input.elements) {
+          collectNumbersOrdered(input.elements, result, visited);
+          return result;
+        }
+        if (Array.isArray(input.values) || (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input.values))) {
+          collectNumbersOrdered(input.values, result, visited);
+          return result;
+        }
+        if (Array.isArray(input.data) || (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input.data))) {
+          collectNumbersOrdered(input.data, result, visited);
+          return result;
+        }
+        if (Array.isArray(input.elements) || (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input.elements))) {
+          collectNumbersOrdered(input.elements, result, visited);
+          return result;
+        }
+        if (typeof input.value !== 'undefined') {
+          collectNumbersOrdered(input.value, result, visited);
+          return result;
+        }
+      } finally {
+        visited.delete(input);
+      }
+    }
+    const numeric = toNumber(input, Number.NaN);
+    if (Number.isFinite(numeric)) {
+      result.push(numeric);
+    }
+    return result;
+  }
+
+  function createMatrix(rowsInput, columnsInput, valuesInput, { identityFallback = false } = {}) {
+    const rows = parseDimension(rowsInput);
+    const columns = parseDimension(columnsInput);
+    if (rows <= 0 || columns <= 0) {
+      return null;
+    }
+    const total = rows * columns;
+    const flat = new Array(total).fill(0);
+    let valuesArray = [];
+    if (valuesInput !== undefined && valuesInput !== null) {
+      if (Array.isArray(valuesInput)) {
+        valuesArray = valuesInput;
+      } else if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(valuesInput)) {
+        valuesArray = Array.from(valuesInput);
+      } else if (typeof valuesInput === 'string') {
+        valuesArray = [valuesInput];
+      } else if (typeof valuesInput[Symbol.iterator] === 'function') {
+        valuesArray = Array.from(valuesInput);
+      } else {
+        valuesArray = [valuesInput];
+      }
+    }
+    let hasValues = false;
+    if (valuesArray.length) {
+      const count = Math.min(total, valuesArray.length);
+      for (let i = 0; i < count; i += 1) {
+        const numeric = toNumber(valuesArray[i], Number.NaN);
+        flat[i] = Number.isFinite(numeric) ? numeric : 0;
+      }
+      hasValues = true;
+    }
+    if (!hasValues && identityFallback) {
+      const diagonal = Math.min(rows, columns);
+      for (let i = 0; i < diagonal; i += 1) {
+        flat[i * columns + i] = 1;
+      }
+    }
+    return { type: 'matrix', rows, columns, values: flat };
+  }
+
+  function createMatrixFromFlatArray(flatValues) {
+    if (!flatValues || !flatValues.length) {
+      return null;
+    }
+    const numbers = collectNumbersOrdered(flatValues);
+    if (!numbers.length) {
+      return null;
+    }
+    const size = Math.sqrt(numbers.length);
+    if (Number.isInteger(size)) {
+      return createMatrix(size, size, numbers);
+    }
+    return createMatrix(1, numbers.length, numbers);
+  }
+
+  function ensureMatrix(input) {
+    if (input === undefined || input === null) {
+      return null;
+    }
+    if (input.type === 'matrix' && Array.isArray(input.values)) {
+      return createMatrix(input.rows, input.columns, input.values);
+    }
+    if (input?.isMatrix4) {
+      return createMatrix(4, 4, input.elements ?? []);
+    }
+    if (typeof ArrayBuffer !== 'undefined' && typeof ArrayBuffer.isView === 'function' && ArrayBuffer.isView(input)) {
+      return createMatrixFromFlatArray(input);
+    }
+    if (Array.isArray(input)) {
+      if (!input.length) {
+        return null;
+      }
+      const isMatrixArray = input.every((row) => Array.isArray(row));
+      if (isMatrixArray) {
+        const rows = input.length;
+        let columns = 0;
+        for (const row of input) {
+          columns = Math.max(columns, row.length);
+        }
+        if (columns === 0) {
+          return null;
+        }
+        const flat = [];
+        for (let r = 0; r < rows; r += 1) {
+          const row = input[r] ?? [];
+          for (let c = 0; c < columns; c += 1) {
+            const numeric = toNumber(row[c], Number.NaN);
+            flat.push(Number.isFinite(numeric) ? numeric : 0);
+          }
+        }
+        return createMatrix(rows, columns, flat);
+      }
+      const numbers = collectNumbersOrdered(input);
+      if (!numbers.length) {
+        return null;
+      }
+      return createMatrix(1, numbers.length, numbers);
+    }
+    if (typeof input === 'object') {
+      const rowsCandidate = input.rows ?? input.rowCount ?? input.height ?? input.m ?? input.M;
+      const columnsCandidate = input.columns ?? input.columnCount ?? input.width ?? input.n ?? input.N;
+      if (rowsCandidate !== undefined && columnsCandidate !== undefined) {
+        const valuesCandidate = input.values ?? input.data ?? input.elements ?? input.list ?? input.grid;
+        const numbers = collectNumbersOrdered(valuesCandidate);
+        return createMatrix(rowsCandidate, columnsCandidate, numbers);
+      }
+      if (input.matrix) {
+        const matrix = ensureMatrix(input.matrix);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (typeof input.value !== 'undefined') {
+        const matrix = ensureMatrix(input.value);
+        if (matrix) {
+          return matrix;
+        }
+      }
+      if (Array.isArray(input.data)) {
+        return ensureMatrix(input.data);
+      }
+      if (Array.isArray(input.elements)) {
+        return ensureMatrix(input.elements);
+      }
+    }
+    const numeric = toNumber(input, Number.NaN);
+    if (Number.isFinite(numeric)) {
+      return createMatrix(1, 1, [numeric]);
+    }
+    return null;
+  }
+
+  function cloneMatrix(matrix) {
+    if (!matrix) {
+      return null;
+    }
+    return createMatrix(matrix.rows, matrix.columns, matrix.values);
+  }
+
+  function transposeMatrix(matrix) {
+    if (!matrix) {
+      return null;
+    }
+    const { rows, columns, values } = matrix;
+    const result = new Array(rows * columns);
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < columns; c += 1) {
+        result[c * rows + r] = values[r * columns + c];
+      }
+    }
+    return createMatrix(columns, rows, result);
+  }
+
+  function normalizeIndex(value, size) {
+    const numeric = toNumber(value, Number.NaN);
+    if (!Number.isFinite(numeric)) {
+      return null;
+    }
+    const rounded = Math.round(numeric);
+    if (Math.abs(numeric - rounded) > 1e-6) {
+      return null;
+    }
+    if (rounded >= 0 && rounded < size) {
+      return rounded;
+    }
+    const adjusted = rounded - 1;
+    if (adjusted >= 0 && adjusted < size) {
+      return adjusted;
+    }
+    return null;
+  }
+
+  function swapRows(matrix, rowAInput, rowBInput) {
+    if (!matrix) {
+      return null;
+    }
+    const { rows, columns, values } = matrix;
+    const rowA = normalizeIndex(rowAInput, rows);
+    const rowB = normalizeIndex(rowBInput, rows);
+    if (rowA === null || rowB === null) {
+      return cloneMatrix(matrix);
+    }
+    if (rowA === rowB) {
+      return cloneMatrix(matrix);
+    }
+    const result = values.slice();
+    for (let c = 0; c < columns; c += 1) {
+      const indexA = rowA * columns + c;
+      const indexB = rowB * columns + c;
+      const temp = result[indexA];
+      result[indexA] = result[indexB];
+      result[indexB] = temp;
+    }
+    return createMatrix(rows, columns, result);
+  }
+
+  function swapColumns(matrix, columnAInput, columnBInput) {
+    if (!matrix) {
+      return null;
+    }
+    const { rows, columns, values } = matrix;
+    const columnA = normalizeIndex(columnAInput, columns);
+    const columnB = normalizeIndex(columnBInput, columns);
+    if (columnA === null || columnB === null) {
+      return cloneMatrix(matrix);
+    }
+    if (columnA === columnB) {
+      return cloneMatrix(matrix);
+    }
+    const result = values.slice();
+    for (let r = 0; r < rows; r += 1) {
+      const indexA = r * columns + columnA;
+      const indexB = r * columns + columnB;
+      const temp = result[indexA];
+      result[indexA] = result[indexB];
+      result[indexB] = temp;
+    }
+    return createMatrix(rows, columns, result);
+  }
+
+  function invertMatrix(matrix, toleranceInput) {
+    if (!matrix) {
+      return { matrix: null, success: false };
+    }
+    if (matrix.rows !== matrix.columns) {
+      return { matrix: null, success: false };
+    }
+    const size = matrix.rows;
+    const toleranceValue = Math.abs(toNumber(toleranceInput, DEFAULT_TOLERANCE));
+    const tolerance = toleranceValue > 0 ? toleranceValue : DEFAULT_TOLERANCE;
+    const augmented = new Array(size);
+    for (let r = 0; r < size; r += 1) {
+      augmented[r] = new Array(size * 2).fill(0);
+      for (let c = 0; c < size; c += 1) {
+        augmented[r][c] = matrix.values[r * size + c];
+      }
+      for (let c = 0; c < size; c += 1) {
+        augmented[r][size + c] = r === c ? 1 : 0;
+      }
+    }
+
+    for (let col = 0; col < size; col += 1) {
+      let pivotRow = col;
+      let pivotValue = Math.abs(augmented[pivotRow][col]);
+      for (let r = col + 1; r < size; r += 1) {
+        const value = Math.abs(augmented[r][col]);
+        if (value > pivotValue) {
+          pivotValue = value;
+          pivotRow = r;
+        }
+      }
+      if (pivotValue <= tolerance) {
+        return { matrix: null, success: false };
+      }
+      if (pivotRow !== col) {
+        const temp = augmented[col];
+        augmented[col] = augmented[pivotRow];
+        augmented[pivotRow] = temp;
+      }
+      const pivot = augmented[col][col];
+      for (let c = 0; c < size * 2; c += 1) {
+        augmented[col][c] /= pivot;
+      }
+      for (let r = 0; r < size; r += 1) {
+        if (r === col) {
+          continue;
+        }
+        const factor = augmented[r][col];
+        if (Math.abs(factor) <= tolerance) {
+          augmented[r][col] = 0;
+          continue;
+        }
+        for (let c = 0; c < size * 2; c += 1) {
+          augmented[r][c] -= factor * augmented[col][c];
+        }
+        augmented[r][col] = 0;
+      }
+    }
+
+    const resultValues = new Array(size * size);
+    for (let r = 0; r < size; r += 1) {
+      for (let c = 0; c < size; c += 1) {
+        const value = augmented[r][size + c];
+        resultValues[r * size + c] = Math.abs(value) <= tolerance ? 0 : value;
+      }
+    }
+    const inverted = createMatrix(size, size, resultValues);
+    if (!inverted) {
+      return { matrix: null, success: false };
+    }
+    return { matrix: inverted, success: true };
+  }
+
+  register(['{54ac80cf-74f3-43f7-834c-0e3fe94632c6}', 'construct matrix', 'matrix'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        R: 'rows',
+        Rows: 'rows',
+        rows: 'rows',
+        C: 'columns',
+        Columns: 'columns',
+        columns: 'columns',
+        V: 'values',
+        Values: 'values',
+        values: 'values',
+      },
+      outputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+    },
+    eval: ({ inputs }) => {
+      const numbers = collectNumbersOrdered(inputs.values ?? inputs.V);
+      const matrix = createMatrix(inputs.rows ?? inputs.R, inputs.columns ?? inputs.C, numbers.length ? numbers : null, {
+        identityFallback: true,
+      });
+      if (!matrix) {
+        return {};
+      }
+      return { matrix };
+    }
+  });
+
+  register(['{3aa2a080-e322-4be3-8c6e-baf6c8000cf1}', 'deconstruct matrix', 'dematrix'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+      outputs: {
+        R: 'rows',
+        Rows: 'rows',
+        rows: 'rows',
+        C: 'columns',
+        Columns: 'columns',
+        columns: 'columns',
+        V: 'values',
+        Values: 'values',
+        values: 'values',
+      },
+    },
+    eval: ({ inputs }) => {
+      const matrix = ensureMatrix(inputs.matrix);
+      if (!matrix) {
+        return {};
+      }
+      return {
+        rows: matrix.rows,
+        columns: matrix.columns,
+        values: matrix.values.slice(),
+      };
+    }
+  });
+
+  register(['{0e90b1f3-b870-4e09-8711-4bf819675d90}', 'transpose matrix', 'transpose'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+      outputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+    },
+    eval: ({ inputs }) => {
+      const matrix = ensureMatrix(inputs.matrix);
+      if (!matrix) {
+        return {};
+      }
+      const result = transposeMatrix(matrix);
+      return result ? { matrix: result } : {};
+    }
+  });
+
+  register(['{8600a3fc-30f0-4df6-b126-aaa79ece5bfe}', 'swap rows', 'swapr'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+        A: 'rowA',
+        'Row A': 'rowA',
+        rowA: 'rowA',
+        B: 'rowB',
+        'Row B': 'rowB',
+        rowB: 'rowB',
+      },
+      outputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+    },
+    eval: ({ inputs }) => {
+      const matrix = ensureMatrix(inputs.matrix);
+      if (!matrix) {
+        return {};
+      }
+      const result = swapRows(matrix, inputs.rowA ?? inputs.A, inputs.rowB ?? inputs.B);
+      return result ? { matrix: result } : {};
+    }
+  });
+
+  register(['{4cebcaf7-9a6a-435b-8f8f-95a62bacb0f2}', 'swap columns', 'swapc'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+        A: 'columnA',
+        'Column A': 'columnA',
+        columnA: 'columnA',
+        B: 'columnB',
+        'Column B': 'columnB',
+        columnB: 'columnB',
+      },
+      outputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+      },
+    },
+    eval: ({ inputs }) => {
+      const matrix = ensureMatrix(inputs.matrix);
+      if (!matrix) {
+        return {};
+      }
+      const result = swapColumns(matrix, inputs.columnA ?? inputs.A, inputs.columnB ?? inputs.B);
+      return result ? { matrix: result } : {};
+    }
+  });
+
+  register(['{f986e79a-1215-4822-a1e7-3311dbdeb851}', 'invert matrix', 'minvert'], {
+    type: 'math-matrix',
+    pinMap: {
+      inputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+        t: 'tolerance',
+        T: 'tolerance',
+        Tolerance: 'tolerance',
+      },
+      outputs: {
+        M: 'matrix',
+        Matrix: 'matrix',
+        matrix: 'matrix',
+        S: 'success',
+        Success: 'success',
+        success: 'success',
+      },
+    },
+    eval: ({ inputs }) => {
+      const matrix = ensureMatrix(inputs.matrix);
+      if (!matrix) {
+        return { success: false };
+      }
+      const { matrix: inverted, success } = invertMatrix(matrix, inputs.tolerance ?? inputs.t ?? inputs.T);
+      const result = {};
+      if (inverted) {
+        result.matrix = inverted;
+      }
+      result.success = Boolean(success);
+      return result;
+    }
+  });
+}
+
 export function registerMathTrigComponents({ register, toNumber, toVector3 }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register math trigonometry components.');
