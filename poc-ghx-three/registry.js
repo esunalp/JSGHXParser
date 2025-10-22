@@ -250,6 +250,7 @@ registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorPointComponents({ register, toNumber, toVector3 }, {
   includeFieldComponents: false,
   includeVectorComponents: false,
+  includeColourComponents: true,
 });
 registerVectorVectorComponents({ register, toNumber, toVector3 });
 registerVectorPlaneComponents({ register, toNumber, toVector3 });
