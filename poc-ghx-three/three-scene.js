@@ -33,7 +33,8 @@ function addDefaultLights(scene) {
 
 function addHelpers(scene) {
   const grid = new THREE.GridHelper(GRID_SIZE_MM, GRID_DIVISIONS, 0x888888, 0x444444);
-  grid.position.y = -0.5 * GRID_CELL_SIZE_MM;
+  grid.rotation.x = Math.PI / 2;
+  grid.position.z = -0.5 * GRID_CELL_SIZE_MM;
   scene.add(grid);
 
   const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
@@ -69,7 +70,7 @@ function createSkyDome(scene) {
 
       void main() {
         vec3 direction = normalize(vWorldPosition);
-        float base = clamp(direction.y * 0.5 + 0.5 + horizonOffset, 0.0, 1.0);
+        float base = clamp(direction.z * 0.5 + 0.5 + horizonOffset, 0.0, 1.0);
         float shaped = pow(base, gradientExponent);
         vec3 color = mix(bottomColor, horizonColor, smoothstep(0.0, 0.65, base));
         color = mix(color, topColor, smoothstep(0.25, 1.0, shaped));
@@ -94,7 +95,7 @@ function createSkyDome(scene) {
     update(camera) {
       skyMesh.position.copy(camera.position);
       camera.getWorldDirection(TEMP_CAMERA_DIRECTION);
-      const desiredOffset = THREE.MathUtils.clamp(TEMP_CAMERA_DIRECTION.y * 0.35, -0.4, 0.4);
+      const desiredOffset = THREE.MathUtils.clamp(TEMP_CAMERA_DIRECTION.z * 0.35, -0.4, 0.4);
       uniforms.horizonOffset.value = THREE.MathUtils.lerp(uniforms.horizonOffset.value, desiredOffset, 0.08);
     },
   };
@@ -447,11 +448,13 @@ export function initScene(canvas) {
   scene.background = null;
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, MAX_DRAW_DISTANCE_MM);
+  camera.up.set(0, 0, 1);
   camera.position.set(6, 4, 8);
 
   const renderer = createRenderer(canvas);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  controls.screenSpacePanning = false;
 
   const sky = createSkyDome(scene);
   addDefaultLights(scene);
