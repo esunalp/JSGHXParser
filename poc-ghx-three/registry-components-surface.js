@@ -350,6 +350,18 @@ export function registerSurfacePrimitiveComponents({
     }
 
     const candidates = [];
+    const seenCurves = new Set();
+    const curveSignature = (points) => {
+      if (!Array.isArray(points) || points.length < 2) {
+        return null;
+      }
+      let signature = '';
+      for (const point of points) {
+        const vector = point?.isVector3 ? point : ensurePoint(point, new THREE.Vector3());
+        signature += `${vector.x.toFixed(6)},${vector.y.toFixed(6)},${vector.z.toFixed(6)}|`;
+      }
+      return signature;
+    };
     const unwrap = (value) => (value && value !== input ? value : null);
 
     const surfaceCandidate = unwrap(input.surface);
@@ -370,30 +382,37 @@ export function registerSurfacePrimitiveComponents({
       if (!curve) {
         return;
       }
+      let points = null;
       if (Array.isArray(curve) && curve.length >= 2) {
-        candidates.push(curve);
+        points = curve;
+      } else if (curve.points && Array.isArray(curve.points) && curve.points.length >= 2) {
+        points = curve.points;
+      }
+      if (!points) {
         return;
       }
-      if (curve.points && Array.isArray(curve.points) && curve.points.length >= 2) {
-        candidates.push(curve.points);
+      const signature = curveSignature(points);
+      if (!signature || seenCurves.has(signature)) {
+        return;
       }
+      seenCurves.add(signature);
+      candidates.push(points);
     };
 
     startCurves.forEach(pushCurve);
     endCurves.forEach(pushCurve);
 
-    if (candidates.length) {
-      return candidates;
-    }
-
     for (const meta of metadataSources) {
       const grid = meta?.grid;
       if (Array.isArray(grid) && grid.length) {
-        const validRows = grid.filter((row) => Array.isArray(row) && row.length >= 2);
-        if (validRows.length) {
-          return validRows;
+        for (const row of grid) {
+          pushCurve(row);
         }
       }
+    }
+
+    if (candidates.length) {
+      return candidates;
     }
 
     return [input];
