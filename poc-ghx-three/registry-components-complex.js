@@ -621,3 +621,101 @@ export function registerComplexTrigComponents({ register, toNumber }) {
     },
   });
 }
+
+export function registerComplexOperatorsComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register complex operator components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register complex operator components.');
+  }
+
+  const {
+    ensureComplex,
+    addComplex,
+    subtractComplex,
+    multiplyComplex,
+    divideComplex,
+    ZERO_COMPLEX,
+    createComplex,
+  } = createComplexToolkit(toNumber);
+
+  const ONE_COMPLEX = createComplex(1, 0);
+
+  const binaryPinMap = {
+    inputs: {
+      A: 'first',
+      a: 'first',
+      'First number': 'first',
+      'first number': 'first',
+      B: 'second',
+      b: 'second',
+      'Second number': 'second',
+      'second number': 'second',
+    },
+    outputs: {
+      R: 'result',
+      r: 'result',
+      Result: 'result',
+      result: 'result',
+      Output: 'result',
+      output: 'result',
+    },
+  };
+
+  register([
+    '{58669268-a825-4688-8072-7d3508fcf91c}',
+    'addition',
+    'add',
+  ], {
+    type: 'complex',
+    pinMap: binaryPinMap,
+    eval: ({ inputs }) => {
+      const first = ensureComplex(inputs.first, ZERO_COMPLEX);
+      const second = ensureComplex(inputs.second, ZERO_COMPLEX);
+      return { result: addComplex(first, second) };
+    },
+  });
+
+  register([
+    '{babecca6-9813-4146-b150-cd72f743e47c}',
+    'subtraction',
+    'minus',
+  ], {
+    type: 'complex',
+    pinMap: binaryPinMap,
+    eval: ({ inputs }) => {
+      const first = ensureComplex(inputs.first, ZERO_COMPLEX);
+      const second = ensureComplex(inputs.second, ZERO_COMPLEX);
+      return { result: subtractComplex(first, second) };
+    },
+  });
+
+  register([
+    '{2f643ab6-b9a4-4923-b3da-f9d52b0cba14}',
+    'multiplication',
+    'multiply',
+  ], {
+    type: 'complex',
+    pinMap: binaryPinMap,
+    eval: ({ inputs }) => {
+      const first = ensureComplex(inputs.first, ZERO_COMPLEX);
+      const second = ensureComplex(inputs.second, ONE_COMPLEX);
+      return { result: multiplyComplex(first, second) };
+    },
+  });
+
+  register([
+    '{cb4ec4a1-f48e-4685-b58c-72ed27b53681}',
+    'division',
+    'divide',
+  ], {
+    type: 'complex',
+    pinMap: binaryPinMap,
+    eval: ({ inputs }) => {
+      const numerator = ensureComplex(inputs.first, ZERO_COMPLEX);
+      const denominator = ensureComplex(inputs.second, ONE_COMPLEX);
+      return { result: divideComplex(numerator, denominator) };
+    },
+  });
+}
