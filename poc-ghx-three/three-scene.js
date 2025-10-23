@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+const VIEWPORT_UNIT_SCALE = 1000;
+
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -21,11 +23,27 @@ function addDefaultLights(scene) {
 
 function addHelpers(scene) {
   const grid = new THREE.GridHelper(20, 20, 0x888888, 0x444444);
-  grid.position.y = -0.5;
+  grid.scale.setScalar(VIEWPORT_UNIT_SCALE);
+  grid.position.y = -0.5 * VIEWPORT_UNIT_SCALE;
   scene.add(grid);
 
   const axes = new THREE.AxesHelper(5);
+  axes.scale.setScalar(VIEWPORT_UNIT_SCALE);
   scene.add(axes);
+}
+
+function applyViewportUnitScale(object) {
+  if (!object?.isObject3D) {
+    return;
+  }
+
+  const userData = object.userData || (object.userData = {});
+  if (userData.__viewportUnitScaleApplied) {
+    return;
+  }
+
+  object.scale.multiplyScalar(VIEWPORT_UNIT_SCALE);
+  userData.__viewportUnitScaleApplied = true;
 }
 
 const FIELD_EPSILON = 1e-6;
@@ -545,6 +563,8 @@ export function initScene(canvas) {
       nextObject.castShadow = true;
       nextObject.receiveShadow = true;
     }
+
+    applyViewportUnitScale(nextObject);
 
     currentObject = nextObject;
     scene.add(currentObject);
