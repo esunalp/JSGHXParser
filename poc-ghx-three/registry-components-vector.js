@@ -978,6 +978,57 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     return { x: numeric, y: numeric };
   }
 
+  function createSeededRandom(seedInput) {
+    const numericSeed = Math.floor(ensureNumber(seedInput, Number.NaN));
+    if (!Number.isFinite(numericSeed)) {
+      return () => Math.random();
+    }
+    let state = numericSeed % 2147483647;
+    if (state <= 0) {
+      state += 2147483646;
+    }
+    return () => {
+      state = (state * 16807) % 2147483647;
+      return state / 2147483647;
+    };
+  }
+
+  function computeBoundingBoxFromPoints(points) {
+    if (!Array.isArray(points) || !points.length) {
+      return null;
+    }
+    const box = new THREE.Box3();
+    let valid = false;
+    for (const point of points) {
+      if (point?.isVector3) {
+        box.expandByPoint(point);
+        valid = true;
+      }
+    }
+    return valid ? box : null;
+  }
+
+  function randomPointInAxisAlignedBox(box, rng = Math.random) {
+    if (!box || !box.isBox3) {
+      return new THREE.Vector3();
+    }
+    const u = rng();
+    const v = rng();
+    const w = rng();
+    const x = THREE.MathUtils.lerp(box.min.x, box.max.x, u);
+    const y = THREE.MathUtils.lerp(box.min.y, box.max.y, v);
+    const z = THREE.MathUtils.lerp(box.min.z, box.max.z, w);
+    return new THREE.Vector3(x, y, z);
+  }
+
+  function randomPointInRectangle(section, rng = Math.random) {
+    const u = rng();
+    const v = rng();
+    const x = THREE.MathUtils.lerp(section.minX, section.maxX, u);
+    const y = THREE.MathUtils.lerp(section.minY, section.maxY, v);
+    return pointFromPlaneCoordinates(section.plane, x, y, 0);
+  }
+
   function axialToWorld(plane, q, r, size) {
     const x = size * (Math.sqrt(3) * q + (Math.sqrt(3) / 2) * r);
     const y = size * (1.5 * r);
@@ -1013,28 +1064,178 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     return { points, cells, centers };
   }
 
-  function buildRectangularGrid(basePlane, xCount, yCount, sizeX, sizeY) {
+  function buildRectangularGrid(basePlane, xCount, yCount, sizeX, sizeY, offset = { x: 0, y: 0 }) {
     const gridPoints = [];
     const cells = [];
     const centers = [];
+    const offsetX = ensureNumber(offset.x, 0);
+    const offsetY = ensureNumber(offset.y, 0);
     for (let ix = 0; ix < xCount; ix += 1) {
       for (let iy = 0; iy < yCount; iy += 1) {
-        gridPoints.push(pointFromPlaneCoordinates(basePlane, ix * sizeX, iy * sizeY, 0));
+        gridPoints.push(pointFromPlaneCoordinates(basePlane, ix * sizeX + offsetX, iy * sizeY + offsetY, 0));
       }
     }
     if (xCount > 1 && yCount > 1) {
       for (let ix = 0; ix < xCount - 1; ix += 1) {
         for (let iy = 0; iy < yCount - 1; iy += 1) {
-          const bottomLeft = pointFromPlaneCoordinates(basePlane, ix * sizeX, iy * sizeY, 0);
-          const bottomRight = pointFromPlaneCoordinates(basePlane, (ix + 1) * sizeX, iy * sizeY, 0);
-          const topRight = pointFromPlaneCoordinates(basePlane, (ix + 1) * sizeX, (iy + 1) * sizeY, 0);
-          const topLeft = pointFromPlaneCoordinates(basePlane, ix * sizeX, (iy + 1) * sizeY, 0);
+          const bottomLeft = pointFromPlaneCoordinates(basePlane, ix * sizeX + offsetX, iy * sizeY + offsetY, 0);
+          const bottomRight = pointFromPlaneCoordinates(basePlane, (ix + 1) * sizeX + offsetX, iy * sizeY + offsetY, 0);
+          const topRight = pointFromPlaneCoordinates(basePlane, (ix + 1) * sizeX + offsetX, (iy + 1) * sizeY + offsetY, 0);
+          const topLeft = pointFromPlaneCoordinates(basePlane, ix * sizeX + offsetX, (iy + 1) * sizeY + offsetY, 0);
           cells.push([bottomLeft, bottomRight, topRight, topLeft, bottomLeft.clone()]);
-          centers.push(pointFromPlaneCoordinates(basePlane, (ix + 0.5) * sizeX, (iy + 0.5) * sizeY, 0));
+          centers.push(pointFromPlaneCoordinates(basePlane, (ix + 0.5) * sizeX + offsetX, (iy + 0.5) * sizeY + offsetY, 0));
         }
       }
     }
     return { gridPoints, cells, centers };
+  }
+
+  function createGridPointTree(points, xCount, yCount) {
+    if (!Array.isArray(points) || !points.length) {
+      return [];
+    }
+    const rows = [];
+    for (let iy = 0; iy < yCount; iy += 1) {
+      const row = [];
+      for (let ix = 0; ix < xCount; ix += 1) {
+        const index = ix * yCount + iy;
+        row.push(points[index].clone());
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function buildHexGridByExtents(basePlane, size, countX, countY) {
+    const rows = [];
+    const cells = [];
+    const localRows = [];
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    const stepX = Math.sqrt(3) * size;
+    const stepY = 1.5 * size;
+    for (let row = 0; row < countY; row += 1) {
+      const localRow = [];
+      const rowOffset = (row % 2) * (stepX / 2);
+      for (let col = 0; col < countX; col += 1) {
+        const x = col * stepX + rowOffset;
+        const y = row * stepY;
+        localRow.push({ x, y });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      localRows.push(localRow);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return { points: [], cells: [] };
+    }
+    const offsetX = (minX + maxX) / 2;
+    const offsetY = (minY + maxY) / 2;
+    for (let row = 0; row < countY; row += 1) {
+      const pointRow = [];
+      for (let col = 0; col < countX; col += 1) {
+        const { x, y } = localRows[row][col];
+        const center = pointFromPlaneCoordinates(basePlane, x - offsetX, y - offsetY, 0);
+        pointRow.push(center);
+        const corners = [];
+        for (let i = 0; i < 6; i += 1) {
+          const angle = (Math.PI / 3) * i + Math.PI / 6;
+          corners.push(pointFromPlaneCoordinates(
+            basePlane,
+            x - offsetX + size * Math.cos(angle),
+            y - offsetY + size * Math.sin(angle),
+            0,
+          ));
+        }
+        corners.push(corners[0].clone());
+        cells.push(corners);
+      }
+      rows.push(pointRow);
+    }
+    return { points: rows.map((row) => row.map((pt) => pt.clone())), cells };
+  }
+
+  function buildRadialGrid(basePlane, radiusStep, radialCount, polarCount) {
+    const rings = [];
+    const cells = [];
+    const normalizedPolar = Math.max(3, Math.round(polarCount));
+    const angleStep = (Math.PI * 2) / normalizedPolar;
+    rings.push([pointFromPlaneCoordinates(basePlane, 0, 0, 0)]);
+    for (let ring = 1; ring <= radialCount; ring += 1) {
+      const radius = radiusStep * ring;
+      const ringPoints = [];
+      for (let segment = 0; segment < normalizedPolar; segment += 1) {
+        const angle = segment * angleStep;
+        ringPoints.push(pointFromPlaneCoordinates(basePlane, radius * Math.cos(angle), radius * Math.sin(angle), 0));
+      }
+      rings.push(ringPoints);
+    }
+    for (let ring = 0; ring < radialCount; ring += 1) {
+      const innerRadius = radiusStep * ring;
+      const outerRadius = radiusStep * (ring + 1);
+      for (let segment = 0; segment < normalizedPolar; segment += 1) {
+        const angleA = segment * angleStep;
+        const angleB = (segment + 1) * angleStep;
+        const corners = [
+          pointFromPlaneCoordinates(basePlane, innerRadius * Math.cos(angleA), innerRadius * Math.sin(angleA), 0),
+          pointFromPlaneCoordinates(basePlane, outerRadius * Math.cos(angleA), outerRadius * Math.sin(angleA), 0),
+          pointFromPlaneCoordinates(basePlane, outerRadius * Math.cos(angleB), outerRadius * Math.sin(angleB), 0),
+          pointFromPlaneCoordinates(basePlane, innerRadius * Math.cos(angleB), innerRadius * Math.sin(angleB), 0),
+        ];
+        corners.push(corners[0].clone());
+        cells.push(corners);
+      }
+    }
+    return { rings: rings.map((ring) => ring.map((pt) => pt.clone())), cells };
+  }
+
+  function buildTriangularGrid(basePlane, edgeLength, countX, countY) {
+    const height = edgeLength * Math.sqrt(3) / 2;
+    const localRows = [];
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    for (let row = 0; row <= countY; row += 1) {
+      const localRow = [];
+      for (let col = 0; col <= countX; col += 1) {
+        const x = (col + (row / 2)) * edgeLength;
+        const y = row * height;
+        localRow.push({ x, y });
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+      localRows.push(localRow);
+    }
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      return { points: [], cells: [] };
+    }
+    const offsetX = (minX + maxX) / 2;
+    const offsetY = (minY + maxY) / 2;
+    const rows = localRows.map((row) => row.map(({ x, y }) => pointFromPlaneCoordinates(basePlane, x - offsetX, y - offsetY, 0)));
+    const cells = [];
+    for (let row = 0; row < countY; row += 1) {
+      for (let col = 0; col < countX; col += 1) {
+        const p00 = rows[row][col];
+        const p10 = rows[row][col + 1];
+        const p01 = rows[row + 1][col];
+        const p11 = rows[row + 1][col + 1];
+        if ((row + col) % 2 === 0) {
+          cells.push([p00.clone(), p10.clone(), p11.clone(), p00.clone()]);
+          cells.push([p00.clone(), p11.clone(), p01.clone(), p00.clone()]);
+        } else {
+          cells.push([p00.clone(), p10.clone(), p01.clone(), p00.clone()]);
+          cells.push([p10.clone(), p11.clone(), p01.clone(), p10.clone()]);
+        }
+      }
+    }
+    return { points: rows.map((row) => row.map((pt) => pt.clone())), cells };
   }
 
   function pickClosestCandidate(candidates, preferForward = true) {
@@ -1547,6 +1748,231 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
       minY,
       maxY,
     };
+  }
+
+  function extractBoxRegion(regionInput) {
+    const fallback = {
+      plane: clonePlaneData(defaultPlane()),
+      min: new THREE.Vector3(-0.5, -0.5, -0.5),
+      max: new THREE.Vector3(0.5, 0.5, 0.5),
+    };
+    if (regionInput === undefined || regionInput === null) {
+      return fallback;
+    }
+    if (Array.isArray(regionInput)) {
+      if (regionInput.length === 1) {
+        return extractBoxRegion(regionInput[0]);
+      }
+      const points = collectPoints(regionInput);
+      const box = computeBoundingBoxFromPoints(points);
+      if (box) {
+        return { plane: clonePlaneData(defaultPlane()), min: box.min.clone(), max: box.max.clone() };
+      }
+    }
+    if (regionInput.isBox3) {
+      return { plane: clonePlaneData(defaultPlane()), min: regionInput.min.clone(), max: regionInput.max.clone() };
+    }
+    if (regionInput.box) {
+      return extractBoxRegion(regionInput.box);
+    }
+    if (regionInput.region) {
+      return extractBoxRegion(regionInput.region);
+    }
+    if (regionInput.bounds) {
+      return extractBoxRegion(regionInput.bounds);
+    }
+    const plane = hasPlaneProperties(regionInput.plane)
+      ? ensurePlane(regionInput.plane)
+      : hasPlaneProperties(regionInput)
+        ? ensurePlane(regionInput)
+        : defaultPlane();
+    const toLocalVector = (value) => {
+      if (!value && value !== 0) {
+        return null;
+      }
+      if (value?.isVector3) {
+        const coord = planeCoordinates(value, plane);
+        return new THREE.Vector3(coord.x, coord.y, coord.z);
+      }
+      if (typeof value === 'object') {
+        if (
+          Object.prototype.hasOwnProperty.call(value, 'x')
+          || Object.prototype.hasOwnProperty.call(value, 'y')
+          || Object.prototype.hasOwnProperty.call(value, 'z')
+        ) {
+          const x = ensureNumber(value.x ?? value.X ?? value[0], Number.NaN);
+          const y = ensureNumber(value.y ?? value.Y ?? value[1], Number.NaN);
+          const z = ensureNumber(value.z ?? value.Z ?? value[2], Number.NaN);
+          if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+            return new THREE.Vector3(x, y, z);
+          }
+        }
+      }
+      const point = ensurePoint(value, null);
+      if (point) {
+        const coord = planeCoordinates(point, plane);
+        return new THREE.Vector3(coord.x, coord.y, coord.z);
+      }
+      return null;
+    };
+    let localMin = toLocalVector(regionInput.localMin ?? regionInput.min ?? null);
+    let localMax = toLocalVector(regionInput.localMax ?? regionInput.max ?? null);
+    if (!localMin || !localMax) {
+      const centerLocal = toLocalVector(regionInput.center ?? null) ?? new THREE.Vector3();
+      const sizeVector = toLocalVector(regionInput.size ?? regionInput.dimensions ?? null);
+      if (sizeVector) {
+        localMin = centerLocal.clone().sub(sizeVector.clone().multiplyScalar(0.5));
+        localMax = centerLocal.clone().add(sizeVector.clone().multiplyScalar(0.5));
+      }
+    }
+    if (!localMin || !localMax) {
+      const points = collectPoints(regionInput.points ?? regionInput.corners ?? regionInput.vertices ?? regionInput.locations);
+      const box = computeBoundingBoxFromPoints(points);
+      if (box) {
+        const minCoord = planeCoordinates(box.min, plane);
+        const maxCoord = planeCoordinates(box.max, plane);
+        localMin = new THREE.Vector3(
+          Math.min(minCoord.x, maxCoord.x),
+          Math.min(minCoord.y, maxCoord.y),
+          Math.min(minCoord.z, maxCoord.z),
+        );
+        localMax = new THREE.Vector3(
+          Math.max(minCoord.x, maxCoord.x),
+          Math.max(minCoord.y, maxCoord.y),
+          Math.max(minCoord.z, maxCoord.z),
+        );
+      }
+    }
+    if (!localMin || !localMax) {
+      return fallback;
+    }
+    const min = new THREE.Vector3(
+      Math.min(localMin.x, localMax.x),
+      Math.min(localMin.y, localMax.y),
+      Math.min(localMin.z, localMax.z),
+    );
+    const max = new THREE.Vector3(
+      Math.max(localMin.x, localMax.x),
+      Math.max(localMin.y, localMax.y),
+      Math.max(localMin.z, localMax.z),
+    );
+    return { plane: clonePlaneData(plane), min, max };
+  }
+
+  function randomPointInBoxRegion(region, rng = Math.random) {
+    const u = rng();
+    const v = rng();
+    const w = rng();
+    const x = THREE.MathUtils.lerp(region.min.x, region.max.x, u);
+    const y = THREE.MathUtils.lerp(region.min.y, region.max.y, v);
+    const z = THREE.MathUtils.lerp(region.min.z, region.max.z, w);
+    return pointFromPlaneCoordinates(region.plane, x, y, z);
+  }
+
+  function createDiscreteSampler(points) {
+    const entries = points.map((pt) => pt.clone());
+    return (rng) => {
+      if (!entries.length) {
+        return new THREE.Vector3();
+      }
+      const scaled = rng() * entries.length;
+      const index = Math.max(0, Math.min(entries.length - 1, Math.floor(scaled)));
+      return entries[index].clone();
+    };
+  }
+
+  function gatherGeometrySamplers(geometryInput) {
+    const stack = ensureArray(geometryInput);
+    const visited = new Set();
+    const samplers = [];
+    const collectedPoints = [];
+    while (stack.length) {
+      const current = stack.pop();
+      if (current === undefined || current === null) {
+        continue;
+      }
+      if (current?.isVector3) {
+        collectedPoints.push(current.clone());
+        continue;
+      }
+      if (typeof current === 'object') {
+        if (visited.has(current)) {
+          continue;
+        }
+        visited.add(current);
+      }
+      if (Array.isArray(current)) {
+        for (const entry of current) {
+          stack.push(entry);
+        }
+        continue;
+      }
+      if (typeof current === 'number') {
+        collectedPoints.push(new THREE.Vector3(current, 0, 0));
+        continue;
+      }
+      if (typeof current === 'object') {
+        if (current.geometry && current.geometry !== current) stack.push(current.geometry);
+        if (current.surface && current.surface !== current) stack.push(current.surface);
+        if (current.curve && current.curve !== current) stack.push(current.curve);
+        if (current.mesh && current.mesh !== current) stack.push(current.mesh);
+        if (current.value && current.value !== current) stack.push(current.value);
+        if (current.boundary && current.boundary !== current) stack.push(current.boundary);
+        if (current.edges && current.edges !== current) stack.push(current.edges);
+        if (current.faces && current.faces !== current) stack.push(current.faces);
+        if (current.objects && current.objects !== current) stack.push(current.objects);
+        if (current.children && current.children !== current) stack.push(current.children);
+
+        if (typeof current.getPointAt === 'function') {
+          const domain = current.domain ?? current.parameterDomain ?? createDomain(0, 1);
+          samplers.push((rng) => {
+            const t = THREE.MathUtils.lerp(domain.min ?? 0, domain.max ?? 1, rng());
+            const denominator = (domain.max ?? 1) - (domain.min ?? 0);
+            const normalized = denominator !== 0 ? (t - (domain.min ?? 0)) / denominator : 0;
+            const point = current.getPointAt(normalized);
+            return ensurePoint(point, new THREE.Vector3());
+          });
+        } else if (typeof current.getPoint === 'function') {
+          samplers.push((rng) => {
+            const target = new THREE.Vector3();
+            current.getPoint(rng(), target);
+            return target.clone();
+          });
+        } else if (typeof current.evaluate === 'function') {
+          const domainU = current.domainU ?? createDomain(0, 1);
+          const domainV = current.domainV ?? createDomain(0, 1);
+          samplers.push((rng) => {
+            const u = THREE.MathUtils.lerp(domainU.min ?? 0, domainU.max ?? 1, rng());
+            const v = THREE.MathUtils.lerp(domainV.min ?? 0, domainV.max ?? 1, rng());
+            const point = current.evaluate(u, v);
+            return ensurePoint(point, new THREE.Vector3());
+          });
+        }
+
+        if (current.points || current.corners || current.vertices || current.positions) {
+          const dataPoints = collectPoints(current.points ?? current.corners ?? current.vertices ?? current.positions);
+          if (dataPoints.length) {
+            const clones = dataPoints.map((pt) => pt.clone());
+            collectedPoints.push(...clones);
+            samplers.push(createDiscreteSampler(clones));
+          }
+        }
+        if (current.center?.isVector3) {
+          collectedPoints.push(current.center.clone());
+        }
+        if (current.origin?.isVector3) {
+          collectedPoints.push(current.origin.clone());
+        }
+      }
+    }
+    const boundingBox = computeBoundingBoxFromPoints(collectedPoints);
+    if (!samplers.length && boundingBox) {
+      samplers.push((rng) => randomPointInAxisAlignedBox(boundingBox, rng));
+    }
+    if (!samplers.length && collectedPoints.length) {
+      samplers.push(createDiscreteSampler(collectedPoints));
+    }
+    return { samplers, fallbackPoints: collectedPoints, boundingBox };
   }
 
   function clamp01(value) {
@@ -3914,53 +4340,453 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
   }
 
   function registerGridComponents() {
-    register(['{8ce6a747-6d36-4bd4-8af0-9a1081df417d}', 'grid hexagonal obsolete', 'hexgrid obsolete'], {
-      type: 'point',
-      pinMap: {
-        inputs: {
-          P: 'plane', Plane: 'plane', plane: 'plane',
-          R: 'radius', Radius: 'radius', radius: 'radius',
-          S: 'size', Size: 'size', size: 'size',
+    function registerHexagonalGrid() {
+      register(['{125dc122-8544-4617-945e-bb9a0c101c50}', 'hexagonal grid', 'hexgrid'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            S: 'size', Size: 'size', size: 'size',
+            'Extent X': 'extentX', 'extent x': 'extentX', Ex: 'extentX',
+            'Extent Y': 'extentY', 'extent y': 'extentY', Ey: 'extentY',
+          },
+          outputs: {
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            P: 'points', Points: 'points', points: 'points',
+          },
         },
-        outputs: {
-          G: 'grid', Grid: 'grid', grid: 'grid',
-          C: 'cells', Cells: 'cells', cells: 'cells',
-          M: 'centers', Centers: 'centers', centers: 'centers',
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane);
+          const size = Math.max(ensureNumber(inputs.size, 1), EPSILON);
+          const extentX = Math.max(1, Math.round(ensureNumber(inputs.extentX, 6)));
+          const extentY = Math.max(1, Math.round(ensureNumber(inputs.extentY, 6)));
+          const grid = buildHexGridByExtents(plane, size, extentX, extentY);
+          return {
+            cells: grid.cells.map((cell) => cell.map((pt) => pt.clone())),
+            points: grid.points.map((row) => row.map((pt) => pt.clone())),
+          };
         },
-      },
-      eval: ({ inputs }) => {
-        const plane = ensurePlane(inputs.plane ?? inputs.P);
-        const radius = Math.max(0, ensureNumber(inputs.radius ?? inputs.R, 3));
-        const size = Math.max(ensureNumber(inputs.size ?? inputs.S, 1), EPSILON);
-        const grid = buildHexGrid(plane, radius, size);
-        return { grid: grid.points, cells: grid.cells, centers: grid.centers };
-      },
-    });
+      });
+    }
 
-    register(['{99f1e47c-978d-468f-bb3d-a3df44552a8e}', 'grid rectangular obsolete', 'rectangular grid obsolete'], {
-      type: 'point',
-      pinMap: {
-        inputs: {
-          P: 'plane', Plane: 'plane', plane: 'plane',
-          X: 'xCount', x: 'xCount',
-          Y: 'yCount', y: 'yCount',
-          S: 'size', Size: 'size', size: 'size',
+    function registerRectangularGrids() {
+      register([
+        '{1a25aae0-0b56-497a-85b2-cc5bf7e4b96b}',
+        '{fdedcd0a-ad40-4307-959d-d2891e2f533e}',
+        'rectangular grid',
+        'recgrid',
+      ], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            'Size X': 'sizeX', 'size x': 'sizeX', Sx: 'sizeX',
+            'Size Y': 'sizeY', 'size y': 'sizeY', Sy: 'sizeY',
+            'Extent X': 'extentX', 'extent x': 'extentX', Ex: 'extentX',
+            'Extent Y': 'extentY', 'extent y': 'extentY', Ey: 'extentY',
+          },
+          outputs: {
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            P: 'points', Points: 'points', points: 'points',
+          },
         },
-        outputs: {
-          G: 'grid', Grid: 'grid', grid: 'grid',
-          C: 'cells', Cells: 'cells', cells: 'cells',
-          M: 'centers', Centers: 'centers', centers: 'centers',
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane);
+          const sizeX = Math.max(ensureNumber(inputs.sizeX, ensureNumber(inputs.sizeY, 1)), EPSILON);
+          const sizeY = Math.max(ensureNumber(inputs.sizeY, sizeX), EPSILON);
+          const cellsX = Math.max(1, Math.round(ensureNumber(inputs.extentX, 4)));
+          const cellsY = Math.max(1, Math.round(ensureNumber(inputs.extentY, 4)));
+          const pointCountX = cellsX + 1;
+          const pointCountY = cellsY + 1;
+          const offset = {
+            x: -((pointCountX - 1) * sizeX) / 2,
+            y: -((pointCountY - 1) * sizeY) / 2,
+          };
+          const grid = buildRectangularGrid(plane, pointCountX, pointCountY, sizeX, sizeY, offset);
+          return {
+            cells: grid.cells.map((cell) => cell.map((pt) => pt.clone())),
+            points: createGridPointTree(grid.gridPoints, pointCountX, pointCountY),
+          };
         },
-      },
-      eval: ({ inputs }) => {
-        const plane = ensurePlane(inputs.plane ?? inputs.P);
-        const xCount = Math.max(1, Math.round(ensureNumber(inputs.xCount ?? inputs.X, 3)));
-        const yCount = Math.max(1, Math.round(ensureNumber(inputs.yCount ?? inputs.Y, 3)));
-        const size = parseGridSize(inputs.size ?? inputs.S, { x: 1, y: 1 });
-        const grid = buildRectangularGrid(plane, xCount, yCount, Math.max(size.x, EPSILON), Math.max(size.y, EPSILON));
-        return { grid: grid.gridPoints, cells: grid.cells, centers: grid.centers };
-      },
-    });
+      });
+    }
+
+    function registerSquareGrids() {
+      register([
+        '{40efea60-1902-4c28-8020-27abbb7a1449}',
+        '{717a1e25-a075-4530-bc80-d43ecc2500d9}',
+        'square grid',
+        'sqgrid',
+      ], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            S: 'size', Size: 'size', size: 'size',
+            'Extent X': 'extentX', 'extent x': 'extentX', Ex: 'extentX',
+            'Extent Y': 'extentY', 'extent y': 'extentY', Ey: 'extentY',
+          },
+          outputs: {
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            P: 'points', Points: 'points', points: 'points',
+          },
+        },
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane);
+          const size = Math.max(ensureNumber(inputs.size, 1), EPSILON);
+          const cellsX = Math.max(1, Math.round(ensureNumber(inputs.extentX, 4)));
+          const cellsY = Math.max(1, Math.round(ensureNumber(inputs.extentY, 4)));
+          const pointCountX = cellsX + 1;
+          const pointCountY = cellsY + 1;
+          const offset = {
+            x: -((pointCountX - 1) * size) / 2,
+            y: -((pointCountY - 1) * size) / 2,
+          };
+          const grid = buildRectangularGrid(plane, pointCountX, pointCountY, size, size, offset);
+          return {
+            cells: grid.cells.map((cell) => cell.map((pt) => pt.clone())),
+            points: createGridPointTree(grid.gridPoints, pointCountX, pointCountY),
+          };
+        },
+      });
+    }
+
+    function registerRadialGrids() {
+      register([
+        '{66eedc35-187d-4dab-b49b-408491b1255f}',
+        '{773183d0-8c00-4fe4-a38c-f8d2408b7415}',
+        'radial grid',
+        'radgrid',
+      ], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            S: 'size', Size: 'size', size: 'size',
+            'Extent R': 'extentR', 'extent r': 'extentR', Er: 'extentR',
+            'Extent P': 'extentP', 'extent p': 'extentP', Ep: 'extentP',
+          },
+          outputs: {
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            P: 'points', Points: 'points', points: 'points',
+          },
+        },
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane);
+          const radiusStep = Math.max(ensureNumber(inputs.size, 1), EPSILON);
+          const radialCount = Math.max(1, Math.round(ensureNumber(inputs.extentR, 4)));
+          const polarCount = Math.max(3, Math.round(ensureNumber(inputs.extentP, 12)));
+          const grid = buildRadialGrid(plane, radiusStep, radialCount, polarCount);
+          return {
+            cells: grid.cells.map((cell) => cell.map((pt) => pt.clone())),
+            points: grid.rings.map((ring) => ring.map((pt) => pt.clone())),
+          };
+        },
+      });
+    }
+
+    function registerTriangularGrid() {
+      register(['{86a9944b-dea5-4126-9433-9e95ff07927a}', 'triangular grid', 'trigrid'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            S: 'size', Size: 'size', size: 'size',
+            'Extent X': 'extentX', 'extent x': 'extentX', Ex: 'extentX',
+            'Extent Y': 'extentY', 'extent y': 'extentY', Ey: 'extentY',
+          },
+          outputs: {
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            P: 'points', Points: 'points', points: 'points',
+          },
+        },
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane);
+          const edgeLength = Math.max(ensureNumber(inputs.size, 1), EPSILON);
+          const cellsX = Math.max(1, Math.round(ensureNumber(inputs.extentX, 4)));
+          const cellsY = Math.max(1, Math.round(ensureNumber(inputs.extentY, 4)));
+          const grid = buildTriangularGrid(plane, edgeLength, cellsX, cellsY);
+          return {
+            cells: grid.cells.map((cell) => cell.map((pt) => pt.clone())),
+            points: grid.points.map((row) => row.map((pt) => pt.clone())),
+          };
+        },
+      });
+    }
+
+    function registerPopulateGeometryComponent() {
+      register(['{c8cb6a5c-2ffd-4095-ba2a-5c35015e09e4}', 'populate geometry', 'popgeo'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            G: 'geometry', Geometry: 'geometry', geometry: 'geometry',
+            N: 'count', Count: 'count', count: 'count',
+            S: 'seed', Seed: 'seed', seed: 'seed',
+            P: 'existing', Points: 'existing', points: 'existing',
+          },
+          outputs: { P: 'population', Population: 'population', population: 'population' },
+        },
+        eval: ({ inputs }) => {
+          const targetCount = resolveCount(inputs.count, 100);
+          const rng = createSeededRandom(inputs.seed);
+          const existing = collectPoints(inputs.existing).map((pt) => pt.clone());
+          const { samplers, boundingBox, fallbackPoints } = gatherGeometrySamplers(inputs.geometry);
+          const population = existing.slice(0, targetCount);
+          let attempts = 0;
+          while (population.length < targetCount && attempts < targetCount * 10) {
+            attempts += 1;
+            let point = null;
+            if (samplers.length) {
+              const index = Math.max(0, Math.min(samplers.length - 1, Math.floor(rng() * samplers.length)));
+              point = samplers[index](rng);
+            } else if (boundingBox) {
+              point = randomPointInAxisAlignedBox(boundingBox, rng);
+            }
+            if (!point || !point.isVector3) {
+              const fallbackPoint = ensurePoint(inputs.geometry, null) ?? fallbackPoints[0] ?? new THREE.Vector3();
+              point = fallbackPoint.clone ? fallbackPoint.clone() : ensurePoint(fallbackPoint, new THREE.Vector3());
+            }
+            population.push(point.clone ? point.clone() : ensurePoint(point, new THREE.Vector3()));
+            if (!samplers.length && !boundingBox) {
+              break;
+            }
+          }
+          while (population.length < targetCount) {
+            const fallbackPoint = ensurePoint(inputs.geometry, null) ?? new THREE.Vector3();
+            population.push(fallbackPoint.clone ? fallbackPoint.clone() : ensurePoint(fallbackPoint, new THREE.Vector3()));
+            break;
+          }
+          return { population: population.slice(0, targetCount) };
+        },
+      });
+    }
+
+    function registerPopulate2DComponent() {
+      register(['{e2d958e8-9f08-44f7-bf47-a684882d0b2a}', 'populate 2d', 'pop2d'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            R: 'region', Region: 'region', region: 'region',
+            N: 'count', Count: 'count', count: 'count',
+            S: 'seed', Seed: 'seed', seed: 'seed',
+            P: 'existing', Points: 'existing', points: 'existing',
+          },
+          outputs: { P: 'population', Population: 'population', population: 'population' },
+        },
+        eval: ({ inputs }) => {
+          const section = extractRectangleSection(inputs.region);
+          const targetCount = resolveCount(inputs.count, 100);
+          const rng = createSeededRandom(inputs.seed);
+          const existing = collectPoints(inputs.existing).map((pt) => pt.clone());
+          const population = existing.slice(0, targetCount);
+          let attempts = 0;
+          while (population.length < targetCount && attempts < targetCount * 10) {
+            attempts += 1;
+            const point = randomPointInRectangle(section, rng);
+            population.push(point);
+            if (
+              Math.abs(section.maxX - section.minX) < EPSILON
+              && Math.abs(section.maxY - section.minY) < EPSILON
+            ) {
+              break;
+            }
+          }
+          while (population.length < targetCount) {
+            population.push(pointFromPlaneCoordinates(section.plane, section.minX, section.minY, 0));
+            break;
+          }
+          return { population: population.slice(0, targetCount) };
+        },
+      });
+    }
+
+    function registerPopulate3DComponent() {
+      register(['{e202025b-dc8e-4c51-ae19-4415b172886f}', 'populate 3d', 'pop3d'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            R: 'region', Region: 'region', region: 'region',
+            N: 'count', Count: 'count', count: 'count',
+            S: 'seed', Seed: 'seed', seed: 'seed',
+            P: 'existing', Points: 'existing', points: 'existing',
+          },
+          outputs: { P: 'population', Population: 'population', population: 'population' },
+        },
+        eval: ({ inputs }) => {
+          const region = extractBoxRegion(inputs.region);
+          const targetCount = resolveCount(inputs.count, 100);
+          const rng = createSeededRandom(inputs.seed);
+          const existing = collectPoints(inputs.existing).map((pt) => pt.clone());
+          const population = existing.slice(0, targetCount);
+          let attempts = 0;
+          while (population.length < targetCount && attempts < targetCount * 10) {
+            attempts += 1;
+            const point = randomPointInBoxRegion(region, rng);
+            population.push(point);
+            if (
+              Math.abs(region.max.x - region.min.x) < EPSILON
+              && Math.abs(region.max.y - region.min.y) < EPSILON
+              && Math.abs(region.max.z - region.min.z) < EPSILON
+            ) {
+              break;
+            }
+          }
+          while (population.length < targetCount) {
+            population.push(pointFromPlaneCoordinates(region.plane, region.min.x, region.min.y, region.min.z));
+            break;
+          }
+          return { population: population.slice(0, targetCount) };
+        },
+      });
+    }
+
+    function registerFreeformCloudComponent() {
+      register(['{f08233f1-9772-4514-8965-bde4948503df}', 'freeform cloud', 'ffcloud'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            G: 'geometry', Guide: 'geometry', geometry: 'geometry', guide: 'geometry',
+            N: 'count', Number: 'count', count: 'count',
+            S: 'seed', Seed: 'seed', seed: 'seed',
+          },
+          outputs: { C: 'cloud', Cloud: 'cloud', cloud: 'cloud' },
+        },
+        eval: ({ inputs }) => {
+          const targetCount = resolveCount(inputs.count, 100);
+          const rng = createSeededRandom(inputs.seed);
+          const { samplers, boundingBox, fallbackPoints } = gatherGeometrySamplers(inputs.geometry);
+          const cloud = [];
+          let attempts = 0;
+          while (cloud.length < targetCount && attempts < targetCount * 10) {
+            attempts += 1;
+            let point = null;
+            if (samplers.length) {
+              const index = Math.max(0, Math.min(samplers.length - 1, Math.floor(rng() * samplers.length)));
+              point = samplers[index](rng);
+            } else if (boundingBox) {
+              point = randomPointInAxisAlignedBox(boundingBox, rng);
+            }
+            if (!point || !point.isVector3) {
+              const fallbackPoint = ensurePoint(inputs.geometry, null) ?? fallbackPoints[0] ?? new THREE.Vector3();
+              point = fallbackPoint.clone ? fallbackPoint.clone() : ensurePoint(fallbackPoint, new THREE.Vector3());
+            }
+            cloud.push(point.clone ? point.clone() : ensurePoint(point, new THREE.Vector3()));
+            if (!samplers.length && !boundingBox) {
+              break;
+            }
+          }
+          while (cloud.length < targetCount) {
+            const fallbackPoint = ensurePoint(inputs.geometry, null) ?? new THREE.Vector3();
+            cloud.push(fallbackPoint.clone ? fallbackPoint.clone() : ensurePoint(fallbackPoint, new THREE.Vector3()));
+            break;
+          }
+          return { cloud: cloud.slice(0, targetCount) };
+        },
+      });
+    }
+
+    function registerSphericalCloudComponent() {
+      register(['{fd68754e-6c60-44b2-9927-0a58146e0250}', 'spherical cloud', 'sphcloud'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            C: 'center', Center: 'center', center: 'center',
+            R: 'radius', Radius: 'radius', radius: 'radius',
+            N: 'count', Count: 'count', count: 'count',
+            S: 'seed', Seed: 'seed', seed: 'seed',
+          },
+          outputs: {
+            C: 'cloud', Cloud: 'cloud', cloud: 'cloud',
+            N: 'normals', Normals: 'normals', normals: 'normals',
+          },
+        },
+        eval: ({ inputs }) => {
+          const center = ensurePoint(inputs.center, new THREE.Vector3());
+          const radius = Math.max(ensureNumber(inputs.radius, 1), EPSILON);
+          const targetCount = resolveCount(inputs.count, 100);
+          const rng = createSeededRandom(inputs.seed);
+          const cloud = [];
+          const normals = [];
+          for (let i = 0; i < targetCount; i += 1) {
+            const u = rng();
+            const v = rng();
+            const theta = 2 * Math.PI * u;
+            const phi = Math.acos(2 * v - 1);
+            const dir = new THREE.Vector3(
+              Math.sin(phi) * Math.cos(theta),
+              Math.sin(phi) * Math.sin(theta),
+              Math.cos(phi),
+            );
+            const point = center.clone().add(dir.clone().multiplyScalar(radius));
+            cloud.push(point);
+            normals.push(dir);
+          }
+          return { cloud, normals };
+        },
+      });
+    }
+
+    function registerObsoleteGridComponents() {
+      register(['{8ce6a747-6d36-4bd4-8af0-9a1081df417d}', 'grid hexagonal obsolete', 'hexgrid obsolete'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            R: 'radius', Radius: 'radius', radius: 'radius',
+            S: 'size', Size: 'size', size: 'size',
+          },
+          outputs: {
+            G: 'grid', Grid: 'grid', grid: 'grid',
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            M: 'centers', Centers: 'centers', centers: 'centers',
+          },
+        },
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane ?? inputs.P);
+          const radius = Math.max(0, ensureNumber(inputs.radius ?? inputs.R, 3));
+          const size = Math.max(ensureNumber(inputs.size ?? inputs.S, 1), EPSILON);
+          const grid = buildHexGrid(plane, radius, size);
+          return { grid: grid.points, cells: grid.cells, centers: grid.centers };
+        },
+      });
+
+      register(['{99f1e47c-978d-468f-bb3d-a3df44552a8e}', 'grid rectangular obsolete', 'rectangular grid obsolete'], {
+        type: 'point',
+        pinMap: {
+          inputs: {
+            P: 'plane', Plane: 'plane', plane: 'plane',
+            X: 'xCount', x: 'xCount',
+            Y: 'yCount', y: 'yCount',
+            S: 'size', Size: 'size', size: 'size',
+          },
+          outputs: {
+            G: 'grid', Grid: 'grid', grid: 'grid',
+            C: 'cells', Cells: 'cells', cells: 'cells',
+            M: 'centers', Centers: 'centers', centers: 'centers',
+          },
+        },
+        eval: ({ inputs }) => {
+          const plane = ensurePlane(inputs.plane ?? inputs.P);
+          const xCount = Math.max(1, Math.round(ensureNumber(inputs.xCount ?? inputs.X, 3)));
+          const yCount = Math.max(1, Math.round(ensureNumber(inputs.yCount ?? inputs.Y, 3)));
+          const size = parseGridSize(inputs.size ?? inputs.S, { x: 1, y: 1 });
+          const grid = buildRectangularGrid(plane, xCount, yCount, Math.max(size.x, EPSILON), Math.max(size.y, EPSILON));
+          return { grid: grid.gridPoints, cells: grid.cells, centers: grid.centers };
+        },
+      });
+    }
+
+    registerHexagonalGrid();
+    registerRectangularGrids();
+    registerSquareGrids();
+    registerRadialGrids();
+    registerTriangularGrid();
+    registerPopulateGeometryComponent();
+    registerPopulate2DComponent();
+    registerPopulate3DComponent();
+    registerFreeformCloudComponent();
+    registerSphericalCloudComponent();
+    registerObsoleteGridComponents();
   }
 
   return {
@@ -3971,7 +4797,6 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
       registerPointAnalysisComponents();
       registerPointConversionComponents();
       registerPointProjectionComponents();
-      registerGridComponents();
     },
     registerPlaneCategory() {
       registerPlaneComponents();
@@ -3981,6 +4806,9 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     },
     registerVectorCategory() {
       registerVectorComputationComponents();
+    },
+    registerGridCategory() {
+      registerGridComponents();
     },
   };
 }
@@ -4003,4 +4831,9 @@ export function registerVectorFieldComponents(deps) {
 export function registerVectorVectorComponents(deps) {
   const { registerVectorCategory } = createVectorComponentRegistrar(deps);
   registerVectorCategory();
+}
+
+export function registerVectorGridComponents(deps) {
+  const { registerGridCategory } = createVectorComponentRegistrar(deps);
+  registerGridCategory();
 }
