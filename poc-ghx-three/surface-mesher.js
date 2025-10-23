@@ -376,6 +376,75 @@ function planeSurfaceToGeometry(info, options = {}) {
   return applyPlaneFrame(geometry, info.plane);
 }
 
+function gridMetadataToGeometry(info) {
+  const grid = Array.isArray(info.metadata?.grid) ? info.metadata.grid : null;
+  if (!grid || grid.length < 2) {
+    return null;
+  }
+  const rows = grid.length;
+  const columns = Array.isArray(grid[0]) ? grid[0].length : 0;
+  if (columns < 2) {
+    return null;
+  }
+
+  const closedU = Boolean(info.metadata?.closedU);
+  const closedV = Boolean(info.metadata?.closedV);
+  const expandedColumns = columns + (closedU ? 1 : 0);
+  const expandedRows = rows + (closedV ? 1 : 0);
+
+  if (expandedColumns < 2 || expandedRows < 2) {
+    return null;
+  }
+
+  const positions = new Float32Array(expandedColumns * expandedRows * 3);
+  let ptr = 0;
+  for (let row = 0; row < expandedRows; row += 1) {
+    const sourceRow = grid[row % rows];
+    for (let col = 0; col < expandedColumns; col += 1) {
+      const source = toVector3(sourceRow[col % columns], null);
+      if (!source) {
+        return null;
+      }
+      positions[ptr] = source.x;
+      positions[ptr + 1] = source.y;
+      positions[ptr + 2] = source.z;
+      ptr += 3;
+    }
+  }
+
+  const faceCount = (expandedColumns - 1) * (expandedRows - 1) * 2;
+  if (faceCount <= 0) {
+    return null;
+  }
+  const indexArray = expandedColumns * expandedRows > 65535
+    ? new Uint32Array(faceCount * 3)
+    : new Uint16Array(faceCount * 3);
+
+  let indexPtr = 0;
+  for (let row = 0; row < expandedRows - 1; row += 1) {
+    for (let col = 0; col < expandedColumns - 1; col += 1) {
+      const a = row * expandedColumns + col;
+      const b = a + 1;
+      const c = a + expandedColumns;
+      const d = c + 1;
+
+      indexArray[indexPtr] = a;
+      indexArray[indexPtr + 1] = c;
+      indexArray[indexPtr + 2] = b;
+      indexArray[indexPtr + 3] = b;
+      indexArray[indexPtr + 4] = c;
+      indexArray[indexPtr + 5] = d;
+      indexPtr += 6;
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 function sampledSurfaceToGeometry(info, options = {}) {
   const evaluator = (u, v) => evaluateSurface(info, u, v);
   const domainU = getDomain(info.domainU ?? { start: 0, end: 1 });
@@ -464,6 +533,10 @@ export function surfaceToGeometry(input, options = {}) {
 
   if (!geometry) {
     geometry = sampledSurfaceToGeometry(info, options);
+  }
+
+  if (!geometry) {
+    geometry = gridMetadataToGeometry(info, options);
   }
 
   if (geometry) {
