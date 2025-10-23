@@ -129,6 +129,109 @@ function resolveNumeric(input, toNumber, fallback = 0) {
   return { value: fallback, valid: false };
 }
 
+function collectNumericValues(input, toNumber) {
+  const numbers = [];
+  const stack = [input];
+  const seen = new Set();
+  let depth = 0;
+
+  const pushCandidate = (candidate) => {
+    if (candidate === undefined || candidate === null) {
+      return;
+    }
+    stack.push(candidate);
+  };
+
+  while (stack.length && depth < DEFAULT_MAX_UNWRAP_DEPTH) {
+    const current = stack.pop();
+    depth += 1;
+
+    if (current === undefined || current === null) {
+      continue;
+    }
+
+    const type = typeof current;
+    if (type === 'number' || type === 'string' || type === 'boolean' || type === 'bigint') {
+      const numeric = toNumber(current, Number.NaN);
+      if (Number.isFinite(numeric)) {
+        numbers.push(numeric);
+      }
+      continue;
+    }
+
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        pushCandidate(current[index]);
+      }
+      continue;
+    }
+
+    if (type === 'object') {
+      if (seen.has(current)) {
+        continue;
+      }
+      seen.add(current);
+
+      if (typeof current.valueOf === 'function') {
+        const raw = current.valueOf();
+        if (raw !== current) {
+          pushCandidate(raw);
+        } else {
+          const numeric = toNumber(raw, Number.NaN);
+          if (Number.isFinite(numeric)) {
+            numbers.push(numeric);
+            continue;
+          }
+        }
+      }
+
+      if (typeof current[Symbol.iterator] === 'function') {
+        const items = [];
+        for (const entry of current) {
+          items.push(entry);
+        }
+        for (let index = items.length - 1; index >= 0; index -= 1) {
+          pushCandidate(items[index]);
+        }
+        continue;
+      }
+
+      if (current.isVector3 && typeof current.length === 'function') {
+        const length = current.length();
+        if (Number.isFinite(length)) {
+          numbers.push(length);
+          continue;
+        }
+      }
+
+      const candidateKeys = [
+        'value', 'Value', 'values', 'Values', 'items', 'Items', 'data', 'Data',
+        'number', 'Number', 'numeric', 'Numeric', 'result', 'Result', 'input', 'Input',
+        'first', 'First', 'second', 'Second', 'A', 'a', 'B', 'b',
+      ];
+
+      let pushed = false;
+      for (const key of candidateKeys) {
+        if (Object.prototype.hasOwnProperty.call(current, key)) {
+          pushed = true;
+          pushCandidate(current[key]);
+        }
+      }
+
+      if (pushed) {
+        continue;
+      }
+
+      const numeric = toNumber(current, Number.NaN);
+      if (Number.isFinite(numeric)) {
+        numbers.push(numeric);
+      }
+    }
+  }
+
+  return numbers;
+}
+
 function createBinaryEvaluator({ toNumber, firstFallback = 0, secondFallback = 0, compute }) {
   return ({ inputs }) => {
     const first = resolveNumeric(inputs?.first, toNumber, firstFallback);
@@ -417,6 +520,258 @@ export function registerScalarPolynomialsComponents({ register, toNumber }) {
     toNumber,
     compute: ({ value }) => Math.pow(10, value),
   }));
+}
+
+export function registerScalarUtilComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const registerOperation = (keys, pinMap, evaluator) => {
+    const uniqueKeys = Array.from(new Set(keys));
+    register(uniqueKeys, {
+      type: 'math',
+      pinMap,
+      eval: evaluator,
+    });
+  };
+
+  const registerBinaryOperation = (keys, evaluatorConfig) => {
+    registerOperation(keys, BINARY_PIN_MAP, createBinaryEvaluator(evaluatorConfig));
+  };
+
+  registerOperation(
+    [
+      ...createGuidKeys('0bb7682f-333c-4bb7-b6fe-91ed2c886100'),
+      'scalar:mean',
+      'scalar-util:mean',
+    ],
+    {
+      inputs: { I: 'values', Input: 'values' },
+      outputs: {
+        AM: 'arithmeticMean',
+        'Arithmetic mean': 'arithmeticMean',
+        GM: 'geometricMean',
+        'Geometric mean': 'geometricMean',
+        HM: 'harmonicMean',
+        'Harmonic mean': 'harmonicMean',
+      },
+    },
+    ({ inputs }) => {
+      const numbers = collectNumericValues(inputs.values, toNumber);
+      if (!numbers.length) {
+        return {
+          arithmeticMean: null,
+          geometricMean: null,
+          harmonicMean: null,
+        };
+      }
+
+      let sum = 0;
+      let logSum = 0;
+      let hasZero = false;
+      let reciprocalSum = 0;
+      let geometricValid = true;
+      let harmonicValid = true;
+
+      for (const value of numbers) {
+        sum += value;
+
+        if (geometricValid) {
+          if (value < 0) {
+            geometricValid = false;
+          } else if (value === 0) {
+            hasZero = true;
+          } else {
+            logSum += Math.log(value);
+          }
+        }
+
+        if (harmonicValid) {
+          if (value === 0) {
+            harmonicValid = false;
+          } else {
+            reciprocalSum += 1 / value;
+          }
+        }
+      }
+
+      const count = numbers.length;
+      const arithmeticMean = sum / count;
+
+      let geometricMean = null;
+      if (geometricValid) {
+        geometricMean = hasZero ? 0 : Math.exp(logSum / count);
+      }
+
+      let harmonicMean = null;
+      if (harmonicValid && Math.abs(reciprocalSum) > EPSILON) {
+        harmonicMean = count / reciprocalSum;
+      } else if (harmonicValid) {
+        harmonicValid = false;
+      }
+
+      return {
+        arithmeticMean,
+        geometricMean: geometricValid ? geometricMean : null,
+        harmonicMean: harmonicValid ? harmonicMean : null,
+      };
+    }
+  );
+
+  registerBinaryOperation(
+    [
+      ...createGuidKeys('532b722d-9368-42ee-b99d-64a4732ee99a'),
+      'scalar:minimum',
+      'scalar-util:minimum',
+    ],
+    {
+      toNumber,
+      firstFallback: Number.POSITIVE_INFINITY,
+      secondFallback: Number.POSITIVE_INFINITY,
+      compute: ({ firstValue, secondValue, firstValid, secondValid }) => {
+        if (!firstValid && !secondValid) {
+          return null;
+        }
+        if (!firstValid) {
+          return secondValue;
+        }
+        if (!secondValid) {
+          return firstValue;
+        }
+        return Math.min(firstValue, secondValue);
+      },
+    }
+  );
+
+  registerBinaryOperation(
+    [
+      ...createGuidKeys('e9b807a3-dd48-4c2c-bada-e4f8e0edbbdb'),
+      'scalar:maximum',
+      'scalar-util:maximum',
+    ],
+    {
+      toNumber,
+      firstFallback: Number.NEGATIVE_INFINITY,
+      secondFallback: Number.NEGATIVE_INFINITY,
+      compute: ({ firstValue, secondValue, firstValid, secondValid }) => {
+        if (!firstValid && !secondValid) {
+          return null;
+        }
+        if (!firstValid) {
+          return secondValue;
+        }
+        if (!secondValid) {
+          return firstValue;
+        }
+        return Math.max(firstValue, secondValue);
+      },
+    }
+  );
+
+  const massAdditionPinMap = {
+    inputs: { I: 'values', Input: 'values' },
+    outputs: {
+      R: 'result',
+      Result: 'result',
+      Pr: 'partialResults',
+      'Partial Result': 'partialResults',
+    },
+  };
+
+  const computeMassAddition = (values) => {
+    const numbers = collectNumericValues(values, toNumber);
+    let total = 0;
+    const partialResults = [];
+    for (const value of numbers) {
+      total += value;
+      partialResults.push(total);
+    }
+    return { total, partialResults };
+  };
+
+  registerOperation(
+    [
+      ...createGuidKeys('74d95062-0bec-4a4e-9026-5141fca954a6'),
+      'scalar:mass-addition-with-partials',
+      'scalar-util:mass-addition-with-partials',
+    ],
+    massAdditionPinMap,
+    ({ inputs }) => {
+      const { total, partialResults } = computeMassAddition(inputs.values);
+      return {
+        result: total,
+        partialResults,
+      };
+    }
+  );
+
+  registerOperation(
+    [
+      ...createGuidKeys('bb64b2fb-f87a-432f-86f8-393f4ee21310'),
+      'scalar:mass-addition',
+      'scalar-util:mass-addition',
+    ],
+    {
+      inputs: { I: 'values', Input: 'values' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    ({ inputs }) => {
+      const { total } = computeMassAddition(inputs.values);
+      return { result: total };
+    }
+  );
+
+  registerOperation(
+    [
+      ...createGuidKeys('a8de2000-073d-412d-a0b2-3a4894ba71f8'),
+      'scalar:truncate',
+      'scalar-util:truncate',
+    ],
+    {
+      inputs: { I: 'values', Input: 'values', t: 'factor', 'Truncation factor': 'factor' },
+      outputs: {
+        T: 'truncated',
+        Result: 'truncated',
+        'Truncated set': 'truncated',
+      },
+    },
+    ({ inputs }) => {
+      const numbers = collectNumericValues(inputs.values, toNumber);
+      const factorValue = toNumber(inputs.factor, 0);
+      if (!numbers.length) {
+        return { truncated: [] };
+      }
+
+      const factor = Number.isFinite(factorValue) ? clamp(factorValue, 0, 1) : 0;
+      if (numbers.length === 0 || factor <= 0) {
+        return { truncated: [...numbers] };
+      }
+
+      const sorted = [...numbers].sort((a, b) => a - b);
+      const removeTotal = Math.round(sorted.length * factor);
+      const removeLower = Math.floor(removeTotal / 2);
+      const removeUpper = removeTotal - removeLower;
+      const start = Math.min(removeLower, sorted.length);
+      const end = Math.max(start, sorted.length - removeUpper);
+      const kept = sorted.slice(start, end);
+
+      const remainingCounts = new Map();
+      for (const value of kept) {
+        remainingCounts.set(value, (remainingCounts.get(value) ?? 0) + 1);
+      }
+
+      const truncated = [];
+      for (const value of numbers) {
+        const count = remainingCounts.get(value) ?? 0;
+        if (count > 0) {
+          truncated.push(value);
+          remainingCounts.set(value, count - 1);
+        }
+      }
+
+      return { truncated };
+    }
+  );
 }
 
 export function registerScalarTrigComponents({ register, toNumber }) {
