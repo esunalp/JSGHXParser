@@ -241,9 +241,24 @@ function evaluateSurface(info, u, v) {
     return toVector3(result, null);
   }
   if (info.getPoint) {
+    const owner = info.root ?? info.base;
     const target = new THREE.Vector3();
-    info.getPoint.call(info.root ?? info.base, u, v, target);
-    return target.clone();
+    try {
+      info.getPoint.call(owner, u, v, target);
+      return target.clone();
+    } catch (error) {
+      const expectsSingleParameter = info.domainV === undefined || info.domainV === null;
+      const isOptionalTargetError =
+        error instanceof TypeError && typeof error.message === 'string' && error.message.includes('point.set');
+
+      if (expectsSingleParameter && isOptionalTargetError) {
+        const fallbackTarget = new THREE.Vector3();
+        const result = info.getPoint.call(owner, u, fallbackTarget);
+        return toVector3(result, fallbackTarget);
+      }
+
+      throw error;
+    }
   }
   if (Array.isArray(info.points) && info.points.length) {
     const domainU = getDomain(info.domainU ?? { start: 0, end: 1 });
