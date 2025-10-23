@@ -6953,6 +6953,17 @@ export function registerSurfacePrimitiveComponents({
         if (!pathFrames.length) {
           return {};
         }
+        const toSweepFrame = (frame) => {
+          if (!frame) {
+            return null;
+          }
+          return {
+            origin: frame.origin.clone(),
+            xAxis: frame.xAxis.clone(),
+            yAxis: frame.zAxis.clone(),
+            zAxis: frame.yAxis.clone(),
+          };
+        };
         const sectionData = [];
         let maxSectionPoints = 0;
         for (const entry of sectionEntries) {
@@ -6964,24 +6975,28 @@ export function registerSurfacePrimitiveComponents({
           if (!projection) {
             continue;
           }
-          const interpolatedFrame = interpolateFrames(pathFrames, projection.segmentIndex, projection.factor, { closed: railSample.closed })
+          const rawFrame = interpolateFrames(pathFrames, projection.segmentIndex, projection.factor, { closed: railSample.closed })
             || cloneFrame(pathFrames[projection.segmentIndex] ?? pathFrames[0]);
-          if (!interpolatedFrame) {
+          if (!rawFrame) {
             continue;
           }
-          interpolatedFrame.origin = projection.position.clone();
-          const offsetVector = profile.centroid.clone().sub(interpolatedFrame.origin);
+          rawFrame.origin = projection.position.clone();
+          const sweepFrame = toSweepFrame(rawFrame);
+          if (!sweepFrame) {
+            continue;
+          }
+          const offsetVector = profile.centroid.clone().sub(sweepFrame.origin);
           const offset = {
-            x: offsetVector.dot(interpolatedFrame.xAxis),
-            y: offsetVector.dot(interpolatedFrame.yAxis),
-            z: offsetVector.dot(interpolatedFrame.zAxis),
+            x: offsetVector.dot(sweepFrame.xAxis),
+            y: offsetVector.dot(sweepFrame.yAxis),
+            z: offsetVector.dot(sweepFrame.zAxis),
           };
           sectionData.push({
             curve: entry.curve,
             closed: entry.sample.closed,
             samplePoints: entry.sample.points.map((pt) => pt.clone()),
             profile,
-            frame: interpolatedFrame,
+            frame: sweepFrame,
             offset,
             offsetVector: offsetVector.clone(),
             projection,
@@ -6998,7 +7013,7 @@ export function registerSurfacePrimitiveComponents({
           const resampled = resamplePolyline(section.samplePoints, countU, { closed: section.closed });
           section.coords = resampled.map((pt) => {
             const coords = planeCoordinates(pt, section.profile.plane);
-            return new THREE.Vector3(coords.x ?? 0, coords.y ?? 0, coords.z ?? 0);
+            return new THREE.Vector3(coords.x ?? 0, coords.z ?? 0, coords.y ?? 0);
           });
           section.offsetVector = section.offsetVector ? section.offsetVector.clone() : new THREE.Vector3();
           section.orientedPoints = section.coords.map((coord) => {
@@ -7079,14 +7094,18 @@ export function registerSurfacePrimitiveComponents({
           if (!sample) {
             return [];
           }
-          const origin = frame.origin.clone();
+          const sweepFrame = toSweepFrame(frame);
+          if (!sweepFrame) {
+            return [];
+          }
+          const origin = sweepFrame.origin.clone();
           const offsetVector = sample.offsetVector.clone();
           return sample.coords.map((coord) => {
             const point = origin.clone();
-            point.addScaledVector(frame.xAxis, coord.x);
-            point.addScaledVector(frame.yAxis, coord.y);
+            point.addScaledVector(sweepFrame.xAxis, coord.x);
+            point.addScaledVector(sweepFrame.yAxis, coord.y);
             if (Math.abs(coord.z) > EPSILON) {
-              point.addScaledVector(frame.zAxis, coord.z);
+              point.addScaledVector(sweepFrame.zAxis, coord.z);
             }
             point.add(offsetVector);
             return point;
@@ -7115,13 +7134,16 @@ export function registerSurfacePrimitiveComponents({
         if (!surface) {
           return {};
         }
-        const sweepFrames = pathFrames.map((frame, index) => ({
-          origin: frame.origin.clone(),
-          xAxis: frame.xAxis.clone(),
-          yAxis: frame.yAxis.clone(),
-          zAxis: frame.zAxis.clone(),
-          parameter: frameParameters[index] ?? (pathFrames.length > 1 ? index / (pathFrames.length - 1) : 0),
-        }));
+        const sweepFrames = pathFrames.map((frame, index) => {
+          const sweepFrame = toSweepFrame(frame) ?? frame;
+          return {
+            origin: sweepFrame.origin.clone(),
+            xAxis: sweepFrame.xAxis.clone(),
+            yAxis: sweepFrame.yAxis.clone(),
+            zAxis: sweepFrame.zAxis.clone(),
+            parameter: frameParameters[index] ?? (pathFrames.length > 1 ? index / (pathFrames.length - 1) : 0),
+          };
+        });
         return {
           breps: [wrapSurface(surface, {
             rail: pathPoints.map((pt) => pt.clone()),
