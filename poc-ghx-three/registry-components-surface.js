@@ -1447,6 +1447,15 @@ export function registerSurfacePrimitiveComponents({
     const frames = [];
     let previousXAxis = normalizedBasePlane.xAxis.clone();
     let previousYAxis = normalizedBasePlane.yAxis.clone();
+    let baseXAxisReference = previousXAxis.clone();
+    let baseYAxisReference = previousYAxis.clone();
+    const baseZAxis = normalizedBasePlane.zAxis.clone();
+    const baseZAxisLengthSq = baseZAxis.lengthSq();
+    const canAlignBaseAxes = baseZAxisLengthSq > EPSILON;
+    if (canAlignBaseAxes) {
+      baseZAxis.multiplyScalar(1 / Math.sqrt(baseZAxisLengthSq));
+    }
+    let baseAxesAligned = !canAlignBaseAxes;
     let previousTangent = null;
     const getIndex = (index) => {
       if (index < 0) {
@@ -1473,6 +1482,14 @@ export function registerSurfacePrimitiveComponents({
       }
       tangent.normalize();
       const zAxis = tangent.clone();
+      if (!baseAxesAligned) {
+        const alignment = new THREE.Quaternion().setFromUnitVectors(baseZAxis, zAxis);
+        previousXAxis = normalizedBasePlane.xAxis.clone().applyQuaternion(alignment);
+        previousYAxis = normalizedBasePlane.yAxis.clone().applyQuaternion(alignment);
+        baseXAxisReference = previousXAxis.clone();
+        baseYAxisReference = previousYAxis.clone();
+        baseAxesAligned = true;
+      }
       let xAxis = previousXAxis.clone();
       xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
       if (xAxis.lengthSq() <= EPSILON) {
@@ -1517,10 +1534,10 @@ export function registerSurfacePrimitiveComponents({
           yAxis.negate();
         }
       } else {
-        if (xAxis.dot(normalizedBasePlane.xAxis) < 0) {
+        if (xAxis.dot(baseXAxisReference) < 0) {
           xAxis.negate();
         }
-        if (yAxis.dot(normalizedBasePlane.yAxis) < 0) {
+        if (yAxis.dot(baseYAxisReference) < 0) {
           yAxis.negate();
         }
       }
