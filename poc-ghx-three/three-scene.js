@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+// Toggle to enable or disable double sided rendering for viewport meshes.
+const ENABLE_DOUBLE_SIDED_MESHES = true;
+const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.FrontSide;
+
 const GRID_CELL_SIZE_MM = 1000;
 const GRID_DIVISIONS = 20;
 const GRID_SIZE_MM = GRID_CELL_SIZE_MM * GRID_DIVISIONS;
@@ -118,6 +122,31 @@ function ensureColor(value, fallback = new THREE.Color(0xffffff)) {
     return new THREE.Color(r, g, b);
   }
   return fallback.clone();
+}
+
+function applyMaterialSide(material, side) {
+  if (!material) {
+    return;
+  }
+  if (Array.isArray(material)) {
+    material.forEach((entry) => applyMaterialSide(entry, side));
+    return;
+  }
+  if (material && 'side' in material && material.side !== side) {
+    material.side = side;
+    material.needsUpdate = true;
+  }
+}
+
+function applyMeshSide(object, side) {
+  if (!object?.isObject3D) {
+    return;
+  }
+  object.traverse((child) => {
+    if (child.isMesh) {
+      applyMaterialSide(child.material, side);
+    }
+  });
 }
 
 function getEntryMagnitude(entry, fallback = 0) {
@@ -594,10 +623,18 @@ export function initScene(canvas) {
     } else if (geometryOrMesh.isObject3D) {
       nextObject = geometryOrMesh;
     } else if (geometryOrMesh.isBufferGeometry || geometryOrMesh.isGeometry) {
-      const material = new THREE.MeshStandardMaterial({ color: 0x2c9cf5, metalness: 0.1, roughness: 0.65 });
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x2c9cf5,
+        metalness: 0.1,
+        roughness: 0.65,
+        side: DEFAULT_MESH_SIDE,
+      });
       nextObject = new THREE.Mesh(geometryOrMesh, material);
     } else if (geometryOrMesh.geometry) {
-      const material = geometryOrMesh.material || new THREE.MeshStandardMaterial({ color: 0x2c9cf5 });
+      const material = geometryOrMesh.material || new THREE.MeshStandardMaterial({
+        color: 0x2c9cf5,
+        side: DEFAULT_MESH_SIDE,
+      });
       nextObject = new THREE.Mesh(geometryOrMesh.geometry, material);
     } else {
       console.warn('updateMesh: onbekend objecttype', geometryOrMesh);
@@ -613,6 +650,10 @@ export function initScene(canvas) {
     if (nextObject.isMesh || nextObject.isLine || nextObject.isLineSegments || nextObject.isPoints) {
       nextObject.castShadow = true;
       nextObject.receiveShadow = true;
+    }
+
+    if (ENABLE_DOUBLE_SIDED_MESHES) {
+      applyMeshSide(nextObject, THREE.DoubleSide);
     }
 
     currentObject = nextObject;
