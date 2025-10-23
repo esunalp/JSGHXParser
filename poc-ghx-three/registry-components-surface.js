@@ -1112,6 +1112,14 @@ export function registerSurfacePrimitiveComponents({
       }
     }
 
+    if (Array.isArray(curveInput.points) && curveInput.points.length) {
+      return normalizeSamples(curveInput.points, curveInput.closed ?? curveInput.isClosed ?? false);
+    }
+
+    if (Array.isArray(curveInput.vertices) && curveInput.vertices.length) {
+      return normalizeSamples(curveInput.vertices, curveInput.closed ?? curveInput.isClosed ?? false);
+    }
+
     if (curveInput.path && typeof curveInput.path.getPoints === 'function') {
       return normalizeSamples(curveInput.path.getPoints(Math.max(segments, 8)), curveInput.closed ?? false);
     }
@@ -1135,14 +1143,6 @@ export function registerSurfacePrimitiveComponents({
         }
       }
       return normalizeSamples(pts, curveInput.closed ?? false);
-    }
-
-    if (Array.isArray(curveInput.points) && curveInput.points.length) {
-      return normalizeSamples(curveInput.points, curveInput.closed ?? curveInput.isClosed ?? false);
-    }
-
-    if (Array.isArray(curveInput.vertices) && curveInput.vertices.length) {
-      return normalizeSamples(curveInput.vertices, curveInput.closed ?? curveInput.isClosed ?? false);
     }
 
     if (Array.isArray(curveInput) && curveInput.length) {

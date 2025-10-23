@@ -2589,9 +2589,6 @@ export function registerCurveDivisionComponents({ register, toNumber, toVector3 
     if (!curve) {
       return [];
     }
-    if (curve.path?.getSpacedPoints) {
-      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
-    }
     if (curve.points && Array.isArray(curve.points)) {
       if (curve.points.length === segments + 1) {
         return curve.points.map((pt) => pt.clone());
@@ -2605,6 +2602,9 @@ export function registerCurveDivisionComponents({ register, toNumber, toVector3 
         }
       }
       return result;
+    }
+    if (curve.path?.getSpacedPoints) {
+      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
     }
     return [];
   }
@@ -3665,9 +3665,6 @@ export function registerCurveSplineComponents({ register, toNumber, toVector3 })
     if (!curve) {
       return [];
     }
-    if (curve.path?.getSpacedPoints) {
-      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
-    }
     if (curve.points && Array.isArray(curve.points)) {
       if (curve.points.length === segments + 1) {
         return curve.points.map((pt) => pt.clone());
@@ -3678,6 +3675,9 @@ export function registerCurveSplineComponents({ register, toNumber, toVector3 })
         result.push(curvePointAt(curve, t));
       }
       return result;
+    }
+    if (curve.path?.getSpacedPoints) {
+      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
     }
     return [];
   }
@@ -5303,11 +5303,11 @@ export function registerCurveAnalysisComponents({ register, toNumber, toVector3 
     if (!curve) {
       return [];
     }
-    if (curve.path?.getSpacedPoints) {
-      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
-    }
     if (curve.points && Array.isArray(curve.points)) {
       return curve.points.map((pt) => pt.clone());
+    }
+    if (curve.path?.getSpacedPoints) {
+      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
     }
     const points = [];
     for (let i = 0; i <= segments; i += 1) {
@@ -7321,9 +7321,6 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
     if (!curve) {
       return [];
     }
-    if (curve.path?.getSpacedPoints) {
-      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
-    }
     if (curve.points && Array.isArray(curve.points)) {
       if (curve.points.length === segments + 1) {
         return curve.points.map((pt) => pt.clone());
@@ -7337,6 +7334,9 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
         }
       }
       return result;
+    }
+    if (curve.path?.getSpacedPoints) {
+      return curve.path.getSpacedPoints(Math.max(segments, 8)).map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
     }
     return [];
   }
