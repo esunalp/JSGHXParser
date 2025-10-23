@@ -5,6 +5,7 @@ const GRID_CELL_SIZE_MM = 1000;
 const GRID_DIVISIONS = 20;
 const GRID_SIZE_MM = GRID_CELL_SIZE_MM * GRID_DIVISIONS;
 const AXES_LENGTH_MM = GRID_CELL_SIZE_MM * 5;
+const MAX_DRAW_DISTANCE_MM = 100000;
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -352,7 +353,7 @@ export function initScene(canvas) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x050505);
 
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, MAX_DRAW_DISTANCE_MM);
   camera.position.set(6, 4, 8);
 
   const renderer = createRenderer(canvas);
@@ -460,7 +461,7 @@ export function initScene(canvas) {
     controls.target.copy(center);
     camera.position.copy(newPosition);
     camera.near = Math.max(distance / 100, 0.01);
-    camera.far = Math.max(distance * 4, distance + radius * 4);
+    camera.far = Math.max(distance * 4, distance + radius * 4, MAX_DRAW_DISTANCE_MM);
     camera.updateProjectionMatrix();
     controls.update();
   }
