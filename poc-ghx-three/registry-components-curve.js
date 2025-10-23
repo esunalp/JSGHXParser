@@ -13,6 +13,14 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
 
   const EPSILON = 1e-9;
 
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function clamp01(value) {
+    return clamp(value, 0, 1);
+  }
+
   function cloneVector(vector) {
     if (vector?.isVector3) {
       return vector.clone();
@@ -32,6 +40,10 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
       return input;
     }
     return [input];
+  }
+
+  function ensureNumber(value, fallback = 0) {
+    return toNumber(value, fallback);
   }
 
   function collectPoints(input) {
@@ -76,6 +88,71 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
 
     visit(input);
     return result;
+  }
+
+  function computePolylineLength(points) {
+    if (!points || points.length < 2) {
+      return 0;
+    }
+    let length = 0;
+    for (let i = 0; i < points.length - 1; i += 1) {
+      length += points[i].distanceTo(points[i + 1]);
+    }
+    return length;
+  }
+
+  function createDomain(start = 0, end = 1) {
+    const min = Math.min(start, end);
+    const max = Math.max(start, end);
+    const span = end - start;
+    const length = max - min;
+    const center = (start + end) / 2;
+    return { start, end, min, max, span, length, center, dimension: 1 };
+  }
+
+  function createCurveFromPath(path, { segments = 64, closed = false, type = 'curve' } = {}) {
+    if (!path) {
+      return null;
+    }
+    const safeSegments = Math.max(segments, 8);
+    const spaced = path.getSpacedPoints(safeSegments);
+    const points = spaced.map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
+    let length = 0;
+    if (typeof path.getLength === 'function') {
+      length = path.getLength();
+    } else {
+      length = computePolylineLength(points);
+    }
+    const curve = {
+      type,
+      path,
+      points,
+      segments: safeSegments,
+      length,
+      closed,
+      domain: createDomain(0, 1),
+    };
+    curve.isNativeCurve = true;
+    curve.getPointAt = (t) => {
+      const clamped = clamp01(t);
+      if (typeof path.getPointAt === 'function') {
+        const pt = path.getPointAt(clamped);
+        return new THREE.Vector3(pt.x, pt.y, pt.z ?? 0);
+      }
+      const pt = path.getPoint(clamped);
+      return new THREE.Vector3(pt.x, pt.y, pt.z ?? 0);
+    };
+    curve.getTangentAt = (t) => {
+      if (typeof path.getTangentAt === 'function') {
+        const tangent = path.getTangentAt(clamp01(t));
+        return new THREE.Vector3(tangent.x, tangent.y, tangent.z ?? 0).normalize();
+      }
+      const delta = 1e-3;
+      const p0 = curve.getPointAt(clamp01(t - delta));
+      const p1 = curve.getPointAt(clamp01(t + delta));
+      return p1.clone().sub(p0).normalize();
+    };
+    return curve;
   }
 
   function normalizeVector(vector, fallback = new THREE.Vector3(1, 0, 0)) {
