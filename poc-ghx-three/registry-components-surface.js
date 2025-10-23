@@ -344,6 +344,61 @@ export function registerSurfacePrimitiveComponents({
     return [value];
   }
 
+  function extractCurveCandidates(input) {
+    if (input === undefined || input === null) {
+      return [];
+    }
+
+    const candidates = [];
+    const unwrap = (value) => (value && value !== input ? value : null);
+
+    const surfaceCandidate = unwrap(input.surface);
+    const metadataSources = [input.metadata, surfaceCandidate?.metadata];
+
+    const startCurves = [
+      input.startCurve,
+      surfaceCandidate?.startCurve,
+      ...metadataSources.map((meta) => meta?.startCurve).filter(Boolean),
+    ];
+    const endCurves = [
+      input.endCurve,
+      surfaceCandidate?.endCurve,
+      ...metadataSources.map((meta) => meta?.endCurve).filter(Boolean),
+    ];
+
+    const pushCurve = (curve) => {
+      if (!curve) {
+        return;
+      }
+      if (Array.isArray(curve) && curve.length >= 2) {
+        candidates.push(curve);
+        return;
+      }
+      if (curve.points && Array.isArray(curve.points) && curve.points.length >= 2) {
+        candidates.push(curve.points);
+      }
+    };
+
+    startCurves.forEach(pushCurve);
+    endCurves.forEach(pushCurve);
+
+    if (candidates.length) {
+      return candidates;
+    }
+
+    for (const meta of metadataSources) {
+      const grid = meta?.grid;
+      if (Array.isArray(grid) && grid.length) {
+        const validRows = grid.filter((row) => Array.isArray(row) && row.length >= 2);
+        if (validRows.length) {
+          return validRows;
+        }
+      }
+    }
+
+    return [input];
+  }
+
   function collectPoints(input, visited = new Set()) {
     if (visited.has(input)) {
       return [];
@@ -6768,6 +6823,7 @@ export function registerSurfacePrimitiveComponents({
           return {};
         }
         const sectionEntries = ensureArray(inputs.sections)
+          .flatMap((section) => extractCurveCandidates(section))
           .map((curve) => ({
             curve,
             sample: sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS),
