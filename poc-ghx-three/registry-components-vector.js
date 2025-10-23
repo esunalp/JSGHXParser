@@ -56,7 +56,17 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     if (point) {
       return point;
     }
-    return fallback.clone();
+    if (fallback === null || fallback === undefined) {
+      return fallback;
+    }
+    if (typeof fallback.clone === 'function') {
+      return fallback.clone();
+    }
+    const fallbackPoint = toVector3(fallback, null);
+    if (fallbackPoint) {
+      return fallbackPoint;
+    }
+    return new THREE.Vector3();
   }
 
   function ensureVector(value, fallback = new THREE.Vector3()) {
