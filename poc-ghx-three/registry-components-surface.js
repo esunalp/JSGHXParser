@@ -21,6 +21,9 @@ export function registerSurfacePrimitiveComponents({
     throw new Error('register function is required to register surface primitive components.');
   }
 
+  const EPSILON = 1e-9;
+  const DEFAULT_CURVE_SEGMENTS = 32;
+
   if (freeformOnly) {
     registerFreeformComponents();
     return;
@@ -50,8 +53,6 @@ export function registerSurfacePrimitiveComponents({
   if (typeof toVector3 !== 'function') {
     throw new Error('toVector3 function is required to register surface primitive components.');
   }
-
-  const EPSILON = 1e-9;
 
   function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -1018,8 +1019,6 @@ export function registerSurfacePrimitiveComponents({
       ...extras,
     };
   }
-
-  const DEFAULT_CURVE_SEGMENTS = 32;
 
   function computePolylineLength(points, closed = false) {
     if (!points || points.length < 2) {
