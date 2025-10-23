@@ -309,6 +309,30 @@ function parseSliderMeta(objectChunk, fallbackName) {
     ...SLIDER_DEFAULTS,
   };
 
+  const chunkItems = getItemsElement(objectChunk);
+  const containerChunk = objectChunk?.querySelector?.('chunk[name="Container"]');
+  const containerItems = getItemsElement(containerChunk);
+
+  const labelCandidates = [
+    readItem(containerItems, 'NickName'),
+    readItem(chunkItems, 'NickName'),
+    getFirstText(objectChunk, [
+      'string[name="NickName"]',
+      'string[name="Name"]',
+      'chunk[name="Definition"] > string[name="NickName"]',
+      'chunk[name="Definition"] > string[name="Name"]',
+    ]),
+  ];
+
+  for (const candidate of labelCandidates) {
+    if (candidate === null || candidate === undefined) continue;
+    const label = String(candidate).trim();
+    if (!label) continue;
+    meta.label = label;
+    meta.nickName = label;
+    break;
+  }
+
   const sliderRelatedChunks = [
     objectChunk.querySelector('chunk[name="Slider"]'),
     objectChunk.querySelector('chunk[name="SliderData"]'),
