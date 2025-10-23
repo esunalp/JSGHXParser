@@ -928,6 +928,32 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     return fallback ? fallback.clone() : null;
   }
 
+  function ensureColor(value, fallback = new THREE.Color()) {
+    const fallbackColor = fallback ?? new THREE.Color();
+    return parseColor(value, fallbackColor) ?? fallbackColor.clone();
+  }
+
+  function clamp01(value) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    if (value <= 0) {
+      return 0;
+    }
+    if (value >= 1) {
+      return 1;
+    }
+    return value;
+  }
+
+  function clampColor(color) {
+    const result = color ?? new THREE.Color();
+    result.r = clamp01(result.r);
+    result.g = clamp01(result.g);
+    result.b = clamp01(result.b);
+    return result;
+  }
+
   function ensureTagPlane(input) {
     if (hasPlaneProperties(input)) {
       return ensurePlane(input);
@@ -3601,6 +3627,152 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     });
   }
 
+  function registerColourComponents() {
+    register([
+      '{035bf8a7-b9e0-4e37-b031-4567bc60d047}',
+      'colour multiplication',
+      'color multiplication',
+      'mul',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA',
+          a: 'colourA',
+          'Colour A': 'colourA',
+          'Color A': 'colourA',
+          colourA: 'colourA',
+          colorA: 'colourA',
+          B: 'colourB',
+          b: 'colourB',
+          'Colour B': 'colourB',
+          'Color B': 'colourB',
+          colourB: 'colourB',
+          colorB: 'colourB',
+        },
+        outputs: {
+          C: 'colour',
+          c: 'colour',
+          colour: 'colour',
+          Colour: 'colour',
+          color: 'colour',
+          Color: 'colour',
+        },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(
+          inputs.colourA ?? inputs.colorA ?? inputs.A ?? inputs['Colour A'] ?? inputs['Color A'],
+          new THREE.Color(1, 1, 1),
+        );
+        const colourB = ensureColor(
+          inputs.colourB ?? inputs.colorB ?? inputs.B ?? inputs['Colour B'] ?? inputs['Color B'],
+          new THREE.Color(1, 1, 1),
+        );
+        const colour = clampColor(colourA.clone().multiply(colourB));
+        return { colour };
+      },
+    });
+
+    register([
+      '{0c80d9c0-d8b3-4817-b8e1-6214d443704b}',
+      'colour subtraction',
+      'color subtraction',
+      'sub',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA',
+          a: 'colourA',
+          'Colour A': 'colourA',
+          'Color A': 'colourA',
+          colourA: 'colourA',
+          colorA: 'colourA',
+          B: 'colourB',
+          b: 'colourB',
+          'Colour B': 'colourB',
+          'Color B': 'colourB',
+          colourB: 'colourB',
+          colorB: 'colourB',
+        },
+        outputs: {
+          C: 'colour',
+          c: 'colour',
+          colour: 'colour',
+          Colour: 'colour',
+          color: 'colour',
+          Color: 'colour',
+        },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(
+          inputs.colourA ?? inputs.colorA ?? inputs.A ?? inputs['Colour A'] ?? inputs['Color A'],
+          new THREE.Color(),
+        );
+        const colourB = ensureColor(
+          inputs.colourB ?? inputs.colorB ?? inputs.B ?? inputs['Colour B'] ?? inputs['Color B'],
+          new THREE.Color(),
+        );
+        const colour = new THREE.Color(
+          clamp01(colourA.r - colourB.r),
+          clamp01(colourA.g - colourB.g),
+          clamp01(colourA.b - colourB.b),
+        );
+        return { colour };
+      },
+    });
+
+    register([
+      '{8b4da37d-1124-436a-9de2-952e4224a220}',
+      'blend colours',
+      'blend colors',
+      'blendcol',
+    ], {
+      type: 'colour',
+      pinMap: {
+        inputs: {
+          A: 'colourA',
+          a: 'colourA',
+          'Colour A': 'colourA',
+          'Color A': 'colourA',
+          colourA: 'colourA',
+          colorA: 'colourA',
+          B: 'colourB',
+          b: 'colourB',
+          'Colour B': 'colourB',
+          'Color B': 'colourB',
+          colourB: 'colourB',
+          colorB: 'colourB',
+          F: 'factor',
+          f: 'factor',
+          factor: 'factor',
+          Factor: 'factor',
+        },
+        outputs: {
+          C: 'colour',
+          c: 'colour',
+          colour: 'colour',
+          Colour: 'colour',
+          color: 'colour',
+          Color: 'colour',
+        },
+      },
+      eval: ({ inputs }) => {
+        const colourA = ensureColor(
+          inputs.colourA ?? inputs.colorA ?? inputs.A ?? inputs['Colour A'] ?? inputs['Color A'],
+          new THREE.Color(),
+        );
+        const colourB = ensureColor(
+          inputs.colourB ?? inputs.colorB ?? inputs.B ?? inputs['Colour B'] ?? inputs['Color B'],
+          new THREE.Color(1, 1, 1),
+        );
+        const factor = clamp01(ensureNumber(inputs.factor ?? inputs.F ?? inputs.f, 0.5));
+        const colour = clampColor(colourA.clone().lerp(colourB, factor));
+        return { colour };
+      },
+    });
+  }
+
   function registerFieldComponents() {
     register(['{08619b6d-f9c4-4cb2-adcd-90959f08dc0d}', 'tensor display', 'ftensor'], {
       type: 'field',
@@ -4804,6 +4976,9 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
     registerFieldCategory() {
       registerFieldComponents();
     },
+    registerColourCategory() {
+      registerColourComponents();
+    },
     registerVectorCategory() {
       registerVectorComputationComponents();
     },
@@ -4826,6 +5001,11 @@ export function registerVectorPlaneComponents(deps) {
 export function registerVectorFieldComponents(deps) {
   const { registerFieldCategory } = createVectorComponentRegistrar(deps);
   registerFieldCategory();
+}
+
+export function registerVectorColourComponents(deps) {
+  const { registerColourCategory } = createVectorComponentRegistrar(deps);
+  registerColourCategory();
 }
 
 export function registerVectorVectorComponents(deps) {
