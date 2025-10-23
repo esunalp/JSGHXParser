@@ -52,6 +52,9 @@ const [
     registerComplexTrigComponents,
     registerComplexOperatorsComponents,
   },
+  {
+    registerParamsInputComponents,
+  },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-scalar.js'),
@@ -60,6 +63,7 @@ const [
   versionedImport('./registry-components-transform.js'),
   versionedImport('./registry-components-vector.js'),
   versionedImport('./registry-components-complex.js'),
+  versionedImport('./registry-components-params.js'),
 ]);
 
 const entries = new Map();
@@ -288,6 +292,7 @@ registerVectorColourComponents({ register, toNumber, toVector3 });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
+registerParamsInputComponents({ register });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
