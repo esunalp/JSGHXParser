@@ -6821,6 +6821,7 @@ export function registerSurfacePrimitiveComponents({
             profile,
             frame: interpolatedFrame,
             offset,
+            offsetVector: offsetVector.clone(),
             projection,
           });
           maxSectionPoints = Math.max(maxSectionPoints, entry.sample.points.length);
@@ -6831,22 +6832,107 @@ export function registerSurfacePrimitiveComponents({
         const miter = Math.max(0, Math.round(ensureNumeric(inputs.miter, 0)));
         const countU = Math.max(3, maxSectionPoints, 8);
         sectionData.sort((a, b) => a.projection.distance - b.projection.distance);
-        const rows = sectionData.map((section) => {
-          const frame = section.frame;
-          const offsetVector = frame.xAxis.clone().multiplyScalar(section.offset.x)
-            .add(frame.yAxis.clone().multiplyScalar(section.offset.y))
-            .add(frame.zAxis.clone().multiplyScalar(section.offset.z));
+        sectionData.forEach((section) => {
           const resampled = resamplePolyline(section.samplePoints, countU, { closed: section.closed });
-          return resampled.map((pt) => {
+          section.coords = resampled.map((pt) => {
             const coords = planeCoordinates(pt, section.profile.plane);
-            const result = frame.origin.clone()
-              .add(frame.xAxis.clone().multiplyScalar(coords.x))
-              .add(frame.yAxis.clone().multiplyScalar(coords.y))
-              .add(frame.zAxis.clone().multiplyScalar(coords.z ?? 0));
-            result.add(offsetVector);
-            return result;
+            return new THREE.Vector3(coords.x ?? 0, coords.y ?? 0, coords.z ?? 0);
+          });
+          section.offsetVector = section.offsetVector ? section.offsetVector.clone() : new THREE.Vector3();
+          section.orientedPoints = section.coords.map((coord) => {
+            const point = section.frame.origin.clone();
+            point.addScaledVector(section.frame.xAxis, coord.x);
+            point.addScaledVector(section.frame.yAxis, coord.y);
+            if (Math.abs(coord.z) > EPSILON) {
+              point.addScaledVector(section.frame.zAxis, coord.z);
+            }
+            point.add(section.offsetVector);
+            return point;
           });
         });
+        const frameParameters = (() => {
+          if (!pathPoints.length) {
+            return [];
+          }
+          const cumulative = [0];
+          let total = 0;
+          for (let i = 1; i < pathPoints.length; i += 1) {
+            const segment = pathPoints[i].distanceTo(pathPoints[i - 1]);
+            total += segment;
+            cumulative[i] = total;
+          }
+          if (railSample.closed && pathPoints.length > 1) {
+            total += pathPoints[0].distanceTo(pathPoints[pathPoints.length - 1]);
+          }
+          if (total <= EPSILON) {
+            const fallback = sectionData[0]?.projection?.normalized ?? 0;
+            return pathPoints.map(() => fallback);
+          }
+          return cumulative.map((value) => value / total);
+        })();
+        const interpolateSection = (parameter) => {
+          if (!sectionData.length) {
+            return null;
+          }
+          if (sectionData.length === 1) {
+            return {
+              coords: sectionData[0].coords.map((coord) => coord.clone()),
+              offsetVector: sectionData[0].offsetVector.clone(),
+              closed: sectionData[0].closed,
+            };
+          }
+          const firstParameter = sectionData[0].projection.normalized;
+          const lastParameter = sectionData[sectionData.length - 1].projection.normalized;
+          const clamped = THREE.MathUtils.clamp(parameter, firstParameter, lastParameter);
+          for (let i = 0; i < sectionData.length - 1; i += 1) {
+            const current = sectionData[i];
+            const next = sectionData[i + 1];
+            const start = current.projection.normalized;
+            const end = next.projection.normalized;
+            if (clamped <= end || i === sectionData.length - 2) {
+              const span = end - start;
+              const factor = span > EPSILON ? THREE.MathUtils.clamp((clamped - start) / span, 0, 1) : 0;
+              const coords = current.coords.map((coord, index) => {
+                const other = next.coords[index] ?? next.coords[next.coords.length - 1] ?? coord;
+                return coord.clone().lerp(other, factor);
+              });
+              const offsetVector = current.offsetVector.clone().lerp(next.offsetVector, factor);
+              return {
+                coords,
+                offsetVector,
+                closed: current.closed || next.closed,
+              };
+            }
+          }
+          const last = sectionData[sectionData.length - 1];
+          return {
+            coords: last.coords.map((coord) => coord.clone()),
+            offsetVector: last.offsetVector.clone(),
+            closed: last.closed,
+          };
+        };
+        const rows = pathFrames.map((frame, index) => {
+          const parameter = frameParameters[index] ?? (pathFrames.length > 1 ? index / (pathFrames.length - 1) : 0);
+          const sample = interpolateSection(parameter);
+          if (!sample) {
+            return [];
+          }
+          const origin = frame.origin.clone();
+          const offsetVector = sample.offsetVector.clone();
+          return sample.coords.map((coord) => {
+            const point = origin.clone();
+            point.addScaledVector(frame.xAxis, coord.x);
+            point.addScaledVector(frame.yAxis, coord.y);
+            if (Math.abs(coord.z) > EPSILON) {
+              point.addScaledVector(frame.zAxis, coord.z);
+            }
+            point.add(offsetVector);
+            return point;
+          });
+        }).filter((row) => row.length === countU);
+        if (rows.length < 2) {
+          return {};
+        }
         const surface = createGridSurface(rows, {
           metadata: {
             type: 'sweep1',
@@ -6857,7 +6943,9 @@ export function registerSurfacePrimitiveComponents({
               closed: section.closed,
               parameter: section.projection.normalized,
               originalCount: section.samplePoints.length,
+              resampledCount: section.coords.length,
             })),
+            frameCount: pathFrames.length,
           },
           closedU: sectionData.some((section) => section.closed),
           closedV: railSample.closed,
@@ -6865,12 +6953,12 @@ export function registerSurfacePrimitiveComponents({
         if (!surface) {
           return {};
         }
-        const sweepFrames = sectionData.map((section) => ({
-          origin: section.frame.origin.clone(),
-          xAxis: section.frame.xAxis.clone(),
-          yAxis: section.frame.yAxis.clone(),
-          zAxis: section.frame.zAxis.clone(),
-          parameter: section.projection.normalized,
+        const sweepFrames = pathFrames.map((frame, index) => ({
+          origin: frame.origin.clone(),
+          xAxis: frame.xAxis.clone(),
+          yAxis: frame.yAxis.clone(),
+          zAxis: frame.zAxis.clone(),
+          parameter: frameParameters[index] ?? (pathFrames.length > 1 ? index / (pathFrames.length - 1) : 0),
         }));
         return {
           breps: [wrapSurface(surface, {
@@ -6880,6 +6968,14 @@ export function registerSurfacePrimitiveComponents({
               parameter: section.projection.normalized,
               closed: section.closed,
               points: section.samplePoints.map((pt) => pt.clone()),
+              coords: section.coords.map((coord) => coord.clone()),
+              oriented: section.orientedPoints.map((pt) => pt.clone()),
+              offset: {
+                x: section.offset.x,
+                y: section.offset.y,
+                z: section.offset.z,
+              },
+              offsetVector: section.offsetVector.clone(),
             })),
           })],
         };
