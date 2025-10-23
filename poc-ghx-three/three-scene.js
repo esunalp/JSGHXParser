@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const VIEWPORT_UNIT_SCALE = 1000;
+const GRID_CELL_SIZE_MM = 1000;
+const GRID_DIVISIONS = 20;
+const GRID_SIZE_MM = GRID_CELL_SIZE_MM * GRID_DIVISIONS;
+const AXES_LENGTH_MM = GRID_CELL_SIZE_MM * 5;
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -22,13 +25,11 @@ function addDefaultLights(scene) {
 }
 
 function addHelpers(scene) {
-  const grid = new THREE.GridHelper(20, 20, 0x888888, 0x444444);
-  grid.scale.setScalar(VIEWPORT_UNIT_SCALE);
-  grid.position.y = -0.5 * VIEWPORT_UNIT_SCALE;
+  const grid = new THREE.GridHelper(GRID_SIZE_MM, GRID_DIVISIONS, 0x888888, 0x444444);
+  grid.position.y = -0.5 * GRID_CELL_SIZE_MM;
   scene.add(grid);
 
-  const axes = new THREE.AxesHelper(5);
-  axes.scale.setScalar(VIEWPORT_UNIT_SCALE);
+  const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
   scene.add(axes);
 }
 
