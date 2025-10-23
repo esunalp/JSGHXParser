@@ -1397,6 +1397,141 @@ export function registerSurfacePrimitiveComponents({
     return frames;
   }
 
+  function cloneFrame(frame) {
+    if (!frame) {
+      return null;
+    }
+    return {
+      origin: frame.origin.clone(),
+      xAxis: frame.xAxis.clone(),
+      yAxis: frame.yAxis.clone(),
+      zAxis: frame.zAxis.clone(),
+    };
+  }
+
+  function interpolateFrames(frames, index, factor, { closed = false } = {}) {
+    if (!frames || !frames.length) {
+      return null;
+    }
+    const count = frames.length;
+    const baseIndex = closed
+      ? ((Math.floor(index) % count) + count) % count
+      : Math.max(0, Math.min(count - 1, Math.floor(index)));
+    const frameA = frames[baseIndex];
+    if (!frameA) {
+      return null;
+    }
+    const clampedFactor = clamp01(Number.isFinite(factor) ? factor : 0);
+    if (clampedFactor <= EPSILON) {
+      return cloneFrame(frameA);
+    }
+    const nextIndex = baseIndex + 1;
+    if (!closed && nextIndex >= count) {
+      return cloneFrame(frameA);
+    }
+    const frameB = frames[closed ? nextIndex % count : nextIndex];
+    if (!frameB) {
+      return cloneFrame(frameA);
+    }
+    if (clampedFactor >= 1 - EPSILON) {
+      return cloneFrame(frameB);
+    }
+    const origin = frameA.origin.clone().lerp(frameB.origin, clampedFactor);
+    let zAxis = frameA.zAxis.clone().lerp(frameB.zAxis, clampedFactor);
+    if (zAxis.lengthSq() <= EPSILON) {
+      zAxis = frameA.zAxis.clone();
+    }
+    zAxis.normalize();
+    let xAxis = frameA.xAxis.clone().lerp(frameB.xAxis, clampedFactor);
+    xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
+    if (xAxis.lengthSq() <= EPSILON) {
+      xAxis = frameA.xAxis.clone();
+      xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
+      if (xAxis.lengthSq() <= EPSILON) {
+        xAxis = orthogonalVector(zAxis);
+      }
+    }
+    xAxis.normalize();
+    let yAxis = zAxis.clone().cross(xAxis);
+    if (yAxis.lengthSq() <= EPSILON) {
+      yAxis = frameA.yAxis.clone().lerp(frameB.yAxis, clampedFactor);
+      yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = zAxis.clone().cross(xAxis);
+      }
+    }
+    yAxis.normalize();
+    return { origin, xAxis, yAxis, zAxis };
+  }
+
+  function projectPointOntoPolyline(pointInput, pathPointsInput, { closed = false } = {}) {
+    if (!pathPointsInput || !pathPointsInput.length) {
+      return null;
+    }
+    const point = ensurePoint(pointInput, new THREE.Vector3());
+    const pathPoints = pathPointsInput.map((pt) => ensurePoint(pt, new THREE.Vector3()));
+    if (pathPoints.length === 1) {
+      return {
+        position: pathPoints[0].clone(),
+        segmentIndex: 0,
+        factor: 0,
+        distance: 0,
+        normalized: 0,
+      };
+    }
+    const totalLength = computePolylineLength(pathPoints, closed);
+    if (totalLength <= EPSILON) {
+      return {
+        position: pathPoints[0].clone(),
+        segmentIndex: 0,
+        factor: 0,
+        distance: 0,
+        normalized: 0,
+      };
+    }
+    let accumulated = 0;
+    const segmentCount = closed ? pathPoints.length : Math.max(0, pathPoints.length - 1);
+    let best = null;
+    for (let i = 0; i < segmentCount; i += 1) {
+      const a = pathPoints[i];
+      const b = pathPoints[(i + 1) % pathPoints.length];
+      const segment = b.clone().sub(a);
+      const segmentLength = segment.length();
+      if (segmentLength <= EPSILON) {
+        accumulated += segmentLength;
+        continue;
+      }
+      const relative = point.clone().sub(a);
+      let factor = relative.dot(segment) / (segmentLength * segmentLength);
+      factor = clamp01(factor);
+      const projected = a.clone().lerp(b, factor);
+      const distanceAlong = accumulated + segmentLength * factor;
+      const normalized = clamp01(totalLength > EPSILON ? distanceAlong / totalLength : 0);
+      const distanceSq = projected.distanceToSquared(point);
+      if (!best || distanceSq < best.distanceSq) {
+        best = {
+          distanceSq,
+          position: projected,
+          segmentIndex: i,
+          factor,
+          distance: distanceAlong,
+          normalized,
+        };
+      }
+      accumulated += segmentLength;
+    }
+    if (!best) {
+      return null;
+    }
+    return {
+      position: best.position,
+      segmentIndex: best.segmentIndex,
+      factor: best.factor,
+      distance: best.distance,
+      normalized: best.normalized,
+    };
+  }
+
   function createExtrusionSurface(profileData, pathFrames, { metadata = {}, closedPath = false } = {}) {
     if (!profileData || !profileData.coords.length || !pathFrames.length) {
       return null;
@@ -6628,26 +6763,124 @@ export function registerSurfacePrimitiveComponents({
         outputs: { S: 'breps', Brep: 'breps', Breps: 'breps' },
       },
       eval: ({ inputs }) => {
-        const sectionCurves = ensureArray(inputs.sections)
-          .map((curve) => sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS))
-          .filter((section) => section.points.length >= 2);
-        if (!sectionCurves.length) {
+        const railSample = sampleCurvePoints(inputs.rail, DEFAULT_CURVE_SEGMENTS);
+        if (railSample.points.length < 2) {
           return {};
         }
-        const surface = createLoftSurfaceFromSections(sectionCurves, {
+        const sectionEntries = ensureArray(inputs.sections)
+          .map((curve) => ({
+            curve,
+            sample: sampleCurvePoints(curve, DEFAULT_CURVE_SEGMENTS),
+          }))
+          .filter((entry) => entry.sample.points.length >= 2);
+        if (!sectionEntries.length) {
+          return {};
+        }
+        const baseProfile = extractProfileData(sectionEntries[0].curve);
+        const basePlane = baseProfile?.plane ?? defaultPlane();
+        const pathSegmentCount = Math.max(
+          DEFAULT_CURVE_SEGMENTS,
+          railSample.points.length,
+          sectionEntries.length * 8,
+        );
+        const pathPoints = resamplePolyline(railSample.points, pathSegmentCount, { closed: railSample.closed });
+        if (pathPoints.length < 2) {
+          return {};
+        }
+        const pathFrames = createFramesAlongPath(pathPoints, basePlane, { closed: railSample.closed });
+        if (!pathFrames.length) {
+          return {};
+        }
+        const sectionData = [];
+        let maxSectionPoints = 0;
+        for (const entry of sectionEntries) {
+          const profile = extractProfileData(entry.curve);
+          if (!profile.coords.length) {
+            continue;
+          }
+          const projection = projectPointOntoPolyline(profile.centroid, pathPoints, { closed: railSample.closed });
+          if (!projection) {
+            continue;
+          }
+          const interpolatedFrame = interpolateFrames(pathFrames, projection.segmentIndex, projection.factor, { closed: railSample.closed })
+            || cloneFrame(pathFrames[projection.segmentIndex] ?? pathFrames[0]);
+          if (!interpolatedFrame) {
+            continue;
+          }
+          interpolatedFrame.origin = projection.position.clone();
+          const offsetVector = profile.centroid.clone().sub(interpolatedFrame.origin);
+          const offset = {
+            x: offsetVector.dot(interpolatedFrame.xAxis),
+            y: offsetVector.dot(interpolatedFrame.yAxis),
+            z: offsetVector.dot(interpolatedFrame.zAxis),
+          };
+          sectionData.push({
+            curve: entry.curve,
+            closed: entry.sample.closed,
+            samplePoints: entry.sample.points.map((pt) => pt.clone()),
+            profile,
+            frame: interpolatedFrame,
+            offset,
+            projection,
+          });
+          maxSectionPoints = Math.max(maxSectionPoints, entry.sample.points.length);
+        }
+        if (!sectionData.length) {
+          return {};
+        }
+        const miter = Math.max(0, Math.round(ensureNumeric(inputs.miter, 0)));
+        const countU = Math.max(3, maxSectionPoints, 8);
+        sectionData.sort((a, b) => a.projection.distance - b.projection.distance);
+        const rows = sectionData.map((section) => {
+          const frame = section.frame;
+          const offsetVector = frame.xAxis.clone().multiplyScalar(section.offset.x)
+            .add(frame.yAxis.clone().multiplyScalar(section.offset.y))
+            .add(frame.zAxis.clone().multiplyScalar(section.offset.z));
+          const resampled = resamplePolyline(section.samplePoints, countU, { closed: section.closed });
+          return resampled.map((pt) => {
+            const coords = planeCoordinates(pt, section.profile.plane);
+            const result = frame.origin.clone()
+              .add(frame.xAxis.clone().multiplyScalar(coords.x))
+              .add(frame.yAxis.clone().multiplyScalar(coords.y))
+              .add(frame.zAxis.clone().multiplyScalar(coords.z ?? 0));
+            result.add(offsetVector);
+            return result;
+          });
+        });
+        const surface = createGridSurface(rows, {
           metadata: {
             type: 'sweep1',
             rail: inputs.rail ?? null,
-            miter: Math.max(0, Math.round(ensureNumeric(inputs.miter, 0))),
+            miter,
+            pathClosed: railSample.closed,
+            sections: sectionData.map((section) => ({
+              closed: section.closed,
+              parameter: section.projection.normalized,
+              originalCount: section.samplePoints.length,
+            })),
           },
-          closed: sectionCurves.some((section) => section.closed),
+          closedU: sectionData.some((section) => section.closed),
+          closedV: railSample.closed,
         });
         if (!surface) {
           return {};
         }
+        const sweepFrames = sectionData.map((section) => ({
+          origin: section.frame.origin.clone(),
+          xAxis: section.frame.xAxis.clone(),
+          yAxis: section.frame.yAxis.clone(),
+          zAxis: section.frame.zAxis.clone(),
+          parameter: section.projection.normalized,
+        }));
         return {
           breps: [wrapSurface(surface, {
-            sections: sectionCurves.map((section) => section.points.map((pt) => pt.clone())),
+            rail: pathPoints.map((pt) => pt.clone()),
+            frames: sweepFrames,
+            sections: sectionData.map((section) => ({
+              parameter: section.projection.normalized,
+              closed: section.closed,
+              points: section.samplePoints.map((pt) => pt.clone()),
+            })),
           })],
         };
       },
