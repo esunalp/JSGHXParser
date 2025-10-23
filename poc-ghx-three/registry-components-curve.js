@@ -225,15 +225,32 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
   }
 
   function createCircleData({ plane, center, radius, segments = 128 }) {
+    const safeRadius = Math.max(radius, EPSILON);
+    const centerPoint = center.clone();
+    const normalizedPlane = normalizePlaneAxes(
+      centerPoint.clone(),
+      plane.xAxis.clone(),
+      plane.yAxis.clone(),
+      plane.zAxis.clone(),
+    );
     const shape = new THREE.Shape();
-    shape.absarc(0, 0, Math.max(radius, EPSILON), 0, Math.PI * 2, false);
+    shape.absarc(0, 0, safeRadius, 0, Math.PI * 2, false);
     return {
       type: 'circle',
-      plane,
-      center,
-      radius,
+      plane: normalizedPlane,
+      center: centerPoint,
+      radius: safeRadius,
       shape,
       segments,
+      curveDefinition: {
+        type: 'circle',
+        plane: normalizedPlane,
+        center: centerPoint.clone(),
+        radius: safeRadius,
+        startAngle: 0,
+        endAngle: Math.PI * 2,
+        segments,
+      },
     };
   }
 
@@ -448,25 +465,184 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
     };
   }
 
-  function createArcFromAngles(plane, radius, startAngle, endAngle) {
-    const path = new THREE.Path();
-    path.absarc(0, 0, Math.max(radius, EPSILON), startAngle, endAngle, endAngle < startAngle);
-    const start = applyPlane(plane, Math.cos(startAngle) * radius, Math.sin(startAngle) * radius, 0);
-    const end = applyPlane(plane, Math.cos(endAngle) * radius, Math.sin(endAngle) * radius, 0);
-    const midAngle = (startAngle + endAngle) / 2;
-    const mid = applyPlane(plane, Math.cos(midAngle) * radius, Math.sin(midAngle) * radius, 0);
-    const length = Math.abs(endAngle - startAngle) * radius;
+  function createArcFromAngles(planeInput, radiusInput, startAngleInput, endAngleInput, centerInput) {
+    const basePlane = planeInput ? ensurePlane(planeInput) : defaultPlane();
+    const safeRadius = Math.max(Math.abs(radiusInput ?? 0), EPSILON);
+    const center = centerInput
+      ? ensurePoint(centerInput, basePlane.origin.clone())
+      : basePlane.origin.clone();
+    const normalizedPlane = normalizePlaneAxes(
+      center.clone(),
+      basePlane.xAxis.clone(),
+      basePlane.yAxis.clone(),
+      basePlane.zAxis.clone(),
+    );
+    const startAngle = startAngleInput;
+    const endAngle = endAngleInput;
+    const segments = 128;
+    const curve = createCircularCurve({
+      plane: normalizedPlane,
+      center,
+      radius: safeRadius,
+      startAngle,
+      endAngle,
+      segments,
+    });
     return {
       type: 'arc',
-      plane,
+      plane: normalizedPlane,
+      center: curve.center.clone(),
+      radius: safeRadius,
+      startAngle,
+      endAngle,
+      start: curve.start.clone(),
+      end: curve.end.clone(),
+      mid: curve.mid.clone(),
+      length: curve.length,
+      segments: curve.segments,
+      curveDefinition: {
+        type: 'arc',
+        plane: normalizedPlane,
+        center: curve.center.clone(),
+        radius: safeRadius,
+        startAngle,
+        endAngle,
+        segments: curve.segments,
+      },
+      path: curve.path,
+      curve,
+    };
+  }
+
+  function createCircularCurve({ plane, center, radius, startAngle, endAngle, segments = 128 }) {
+    const safeRadius = Math.max(Math.abs(radius), EPSILON);
+    const normalizedPlane = normalizePlaneAxes(
+      center.clone(),
+      plane.xAxis.clone(),
+      plane.yAxis.clone(),
+      plane.zAxis.clone(),
+    );
+    const deltaAngle = endAngle - startAngle;
+    const totalAngle = Math.abs(deltaAngle);
+    const fullCircle = Math.abs(totalAngle - Math.PI * 2) <= 1e-6;
+    const segmentValue = Number(segments ?? 128);
+    const safeSegments = Math.max(Math.round(Number.isFinite(segmentValue) ? segmentValue : 128), 8);
+    const path = new THREE.Path();
+    path.absarc(0, 0, safeRadius, startAngle, endAngle, deltaAngle < 0);
+    const curve = createCurveFromPath(path, {
+      segments: safeSegments,
+      closed: fullCircle,
+      type: fullCircle ? 'circle' : 'arc',
+    });
+    const computePoint = (t) => {
+      const clamped = clamp01(t);
+      const angle = startAngle + deltaAngle * clamped;
+      return applyPlane(normalizedPlane, Math.cos(angle) * safeRadius, Math.sin(angle) * safeRadius, 0);
+    };
+    curve.getPointAt = (t) => computePoint(t);
+    curve.getTangentAt = (t) => {
+      const clamped = clamp01(t);
+      const angle = startAngle + deltaAngle * clamped;
+      const derivative = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0).multiplyScalar(deltaAngle);
+      const tangent = normalizedPlane.xAxis.clone().multiplyScalar(derivative.x)
+        .add(normalizedPlane.yAxis.clone().multiplyScalar(derivative.y));
+      if (tangent.lengthSq() < EPSILON) {
+        return normalizedPlane.xAxis.clone();
+      }
+      return tangent.normalize();
+    };
+    const points = [];
+    for (let i = 0; i <= safeSegments; i += 1) {
+      const t = safeSegments === 0 ? 0 : i / safeSegments;
+      points.push(curve.getPointAt(t));
+    }
+    curve.points = points;
+    curve.plane = normalizedPlane;
+    curve.center = normalizedPlane.origin.clone();
+    curve.radius = safeRadius;
+    curve.startAngle = startAngle;
+    curve.endAngle = endAngle;
+    curve.start = curve.getPointAt(0);
+    curve.end = curve.getPointAt(1);
+    curve.mid = curve.getPointAt(0.5);
+    curve.length = totalAngle * safeRadius;
+    return curve;
+  }
+
+  function extractArcParameters(input) {
+    if (!input) {
+      return null;
+    }
+    const definition = input.curveDefinition ?? input;
+    const basePlane = definition.plane ? ensurePlane(definition.plane) : defaultPlane();
+    const centerSource = definition.center ?? input.center;
+    const center = centerSource
+      ? ensurePoint(centerSource, basePlane.origin.clone())
+      : basePlane.origin.clone();
+    const normalizedPlane = normalizePlaneAxes(
+      center.clone(),
+      basePlane.xAxis.clone(),
+      basePlane.yAxis.clone(),
+      basePlane.zAxis.clone(),
+    );
+    const radiusValue = definition.radius ?? input.radius ?? 0;
+    const radius = Math.max(Math.abs(ensureNumber(radiusValue, 0)), EPSILON);
+    let startAngle = definition.startAngle;
+    if (startAngle !== undefined) {
+      const numericStart = ensureNumber(startAngle, Number.NaN);
+      startAngle = Number.isFinite(numericStart) ? numericStart : undefined;
+    }
+    let endAngle = definition.endAngle;
+    if (endAngle !== undefined) {
+      const numericEnd = ensureNumber(endAngle, Number.NaN);
+      endAngle = Number.isFinite(numericEnd) ? numericEnd : undefined;
+    }
+    const startPoint = definition.start ?? input.start;
+    const endPoint = definition.end ?? input.end;
+    const midPoint = definition.mid ?? input.mid;
+    if (startAngle === undefined && startPoint) {
+      const coords = planeCoordinates(startPoint, normalizedPlane);
+      startAngle = Math.atan2(coords.y, coords.x);
+    }
+    if (endAngle === undefined && endPoint) {
+      const coords = planeCoordinates(endPoint, normalizedPlane);
+      endAngle = Math.atan2(coords.y, coords.x);
+    }
+    if (startAngle === undefined) {
+      startAngle = 0;
+    }
+    if (endAngle === undefined) {
+      endAngle = startAngle + Math.PI * 2;
+    }
+    if (Math.abs(endAngle - startAngle) < EPSILON && midPoint) {
+      const coordsMid = planeCoordinates(midPoint, normalizedPlane);
+      const midAngle = Math.atan2(coordsMid.y, coordsMid.x);
+      endAngle = startAngle + Math.PI * 2;
+      if (!isAngleBetween(midAngle, startAngle, endAngle)) {
+        startAngle -= Math.PI * 2;
+      }
+    } else if (midPoint) {
+      const coordsMid = planeCoordinates(midPoint, normalizedPlane);
+      const midAngle = Math.atan2(coordsMid.y, coordsMid.x);
+      if (!isAngleBetween(midAngle, startAngle, endAngle)) {
+        if (endAngle < startAngle) {
+          endAngle += Math.PI * 2;
+        } else {
+          startAngle -= Math.PI * 2;
+        }
+      }
+    }
+    if (Math.abs(endAngle - startAngle) < EPSILON) {
+      endAngle = startAngle + Math.PI * 2;
+    }
+    const segments = ensureNumber(definition.segments ?? input.segments ?? 128, 128);
+    return {
+      plane: normalizedPlane,
+      center,
       radius,
       startAngle,
       endAngle,
-      start,
-      end,
-      mid,
-      length,
-      path,
+      segments,
     };
   }
 
@@ -511,9 +687,7 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
         normalizedStart += Math.PI * 2;
       }
     }
-    const arc = createArcFromAngles(plane, radius, normalizedStart, normalizedEnd);
-    arc.center = center;
-    return arc;
+    return createArcFromAngles(plane, radius, normalizedStart, normalizedEnd, center);
   }
 
   function isAngleBetween(angle, start, end) {
@@ -566,9 +740,7 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
     const coordsEnd = planeCoordinates(end, plane);
     const startAngle = Math.atan2(coordsStart.y, coordsStart.x);
     const endAngle = Math.atan2(coordsEnd.y, coordsEnd.x);
-    const arc = createArcFromAngles(plane, Math.abs(radius), startAngle, endAngle);
-    arc.center = center;
-    return arc;
+    return createArcFromAngles(plane, Math.abs(radius), startAngle, endAngle, center);
   }
 
   function fitCircleToPoints(pointsInput) {
@@ -2275,6 +2447,7 @@ export function registerCurveDivisionComponents({ register, toNumber, toVector3 
       closed,
       domain: createDomain(0, 1),
     };
+    curve.isNativeCurve = true;
     curve.getPointAt = (t) => {
       const clamped = clamp01(t);
       if (typeof path.getPointAt === 'function') {
@@ -2397,24 +2570,51 @@ export function registerCurveDivisionComponents({ register, toNumber, toVector3 
       return ensureCircle(input.circle);
     }
     if (input.type === 'circle') {
+      const plane = input.plane
+        ? normalizePlaneAxes(input.plane.origin, input.plane.xAxis, input.plane.yAxis, input.plane.zAxis)
+        : defaultPlane();
+      const center = ensurePoint(input.center, plane.origin.clone());
+      const radius = Math.max(ensureNumber(input.radius, 1), EPSILON);
+      const segments = input.segments ?? 128;
       return {
         type: 'circle',
-        plane: input.plane ? normalizePlaneAxes(input.plane.origin, input.plane.xAxis, input.plane.yAxis, input.plane.zAxis) : defaultPlane(),
-        center: ensurePoint(input.center, new THREE.Vector3()),
-        radius: Math.max(ensureNumber(input.radius, 1), EPSILON),
+        plane,
+        center,
+        radius,
         shape: input.shape,
-        segments: input.segments ?? 128,
+        segments,
+        curveDefinition: {
+          type: 'circle',
+          plane,
+          center: center.clone(),
+          radius,
+          startAngle: 0,
+          endAngle: Math.PI * 2,
+          segments,
+        },
       };
     }
     if (input.center && input.radius) {
       const plane = input.plane ? ensurePlane(input.plane) : defaultPlane();
+      const center = ensurePoint(input.center, plane.origin.clone());
+      const radius = Math.max(ensureNumber(input.radius, 1), EPSILON);
+      const segments = input.segments ?? 128;
       return {
         type: 'circle',
         plane,
-        center: ensurePoint(input.center, plane.origin.clone()),
-        radius: Math.max(ensureNumber(input.radius, 1), EPSILON),
+        center,
+        radius,
         shape: input.shape,
-        segments: input.segments ?? 128,
+        segments,
+        curveDefinition: {
+          type: 'circle',
+          plane,
+          center: center.clone(),
+          radius,
+          startAngle: 0,
+          endAngle: Math.PI * 2,
+          segments,
+        },
       };
     }
     return null;
@@ -2423,6 +2623,9 @@ export function registerCurveDivisionComponents({ register, toNumber, toVector3 
   function ensureCurve(input) {
     if (!input) {
       return null;
+    }
+    if (input.isNativeCurve) {
+      return input;
     }
     if (Array.isArray(input)) {
       if (input.length === 0) {
@@ -3320,6 +3523,7 @@ export function registerCurveSplineComponents({ register, toNumber, toVector3 })
       closed,
       domain: createDomain(0, 1),
     };
+    curve.isNativeCurve = true;
     curve.getPointAt = (t) => {
       const clamped = clamp01(t);
       if (typeof path.getPointAt === 'function') {
@@ -3608,6 +3812,9 @@ export function registerCurveSplineComponents({ register, toNumber, toVector3 })
   function ensureCurve(input) {
     if (!input) {
       return null;
+    }
+    if (input.isNativeCurve) {
+      return input;
     }
     if (Array.isArray(input)) {
       if (input.length === 0) {
@@ -4943,6 +5150,7 @@ export function registerCurveAnalysisComponents({ register, toNumber, toVector3 
       closed,
       domain,
     };
+    curve.isNativeCurve = true;
     curve.getPointAt = (t) => {
       const clamped = clamp01(t);
       if (typeof path.getPointAt === 'function') {
@@ -5018,6 +5226,9 @@ export function registerCurveAnalysisComponents({ register, toNumber, toVector3 
   function ensureCurve(input) {
     if (!input) {
       return null;
+    }
+    if (input.isNativeCurve) {
+      return input;
     }
     if (Array.isArray(input)) {
       if (!input.length) {
@@ -6968,6 +7179,7 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
       closed,
       domain: createDomain(0, 1),
     };
+    curve.isNativeCurve = true;
     curve.getPointAt = (t) => {
       const clamped = clamp01(t);
       if (typeof path.getPointAt === 'function') {
@@ -7243,6 +7455,9 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
   function ensureCurve(input) {
     if (!input) {
       return null;
+    }
+    if (input.isNativeCurve) {
+      return input;
     }
     if (Array.isArray(input)) {
       if (input.length === 0) {
