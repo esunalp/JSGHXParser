@@ -1,14 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+
 // Toggle to enable or disable double sided rendering for viewport meshes.
 const ENABLE_DOUBLE_SIDED_MESHES = true;
 const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.FrontSide;
 
-const GRID_CELL_SIZE_MM = 1000;
-const GRID_DIVISIONS = 20;
-const GRID_SIZE_MM = GRID_CELL_SIZE_MM * GRID_DIVISIONS;
-const AXES_LENGTH_MM = GRID_CELL_SIZE_MM * 5;
+const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
 const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
 const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
@@ -32,11 +31,6 @@ function addDefaultLights(scene) {
 }
 
 function addHelpers(scene) {
-  const grid = new THREE.GridHelper(GRID_SIZE_MM, GRID_DIVISIONS, 0x888888, 0x444444);
-  grid.rotation.x = Math.PI / 2;
-  grid.position.z = -0.5 * GRID_CELL_SIZE_MM;
-  scene.add(grid);
-
   const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
   scene.add(axes);
 }
