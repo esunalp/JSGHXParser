@@ -1,14 +1,19 @@
 const DEFAULT_MAX_UNWRAP_DEPTH = 32;
+const EPSILON = 1e-9;
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
 function ensureRegisterFunction(register) {
   if (typeof register !== 'function') {
-    throw new Error('register function is required to register scalar operator components.');
+    throw new Error('register function is required to register scalar components.');
   }
 }
 
 function ensureToNumberFunction(toNumber) {
   if (typeof toNumber !== 'function') {
-    throw new Error('toNumber function is required to register scalar operator components.');
+    throw new Error('toNumber function is required to register scalar components.');
   }
 }
 
@@ -152,6 +157,28 @@ function createBinaryEvaluator({ toNumber, firstFallback = 0, secondFallback = 0
   };
 }
 
+function createUnaryEvaluator({ toNumber, fallback = 0, compute }) {
+  return ({ inputs }) => {
+    const value = resolveNumeric(inputs?.value, toNumber, fallback);
+
+    if (!value.valid) {
+      return { result: null };
+    }
+
+    const outcome = compute({ value: value.value, valid: value.valid });
+
+    if (outcome === null || outcome === undefined) {
+      return { result: null };
+    }
+
+    if (typeof outcome === 'number') {
+      return Number.isFinite(outcome) ? { result: outcome } : { result: null };
+    }
+
+    return { result: outcome };
+  };
+}
+
 const BINARY_PIN_MAP = {
   inputs: {
     A: 'first',
@@ -174,6 +201,25 @@ const BINARY_PIN_MAP = {
     result: 'result',
     Output: 'result',
     output: 'result',
+  },
+};
+
+const UNARY_PIN_MAP = {
+  inputs: {
+    x: 'value',
+    X: 'value',
+    Input: 'value',
+    input: 'value',
+    Value: 'value',
+    value: 'value',
+  },
+  outputs: {
+    y: 'result',
+    Y: 'result',
+    Output: 'result',
+    output: 'result',
+    Result: 'result',
+    result: 'result',
   },
 };
 
@@ -266,6 +312,104 @@ export function registerScalarOperatorsComponents({ register, toNumber }) {
       }
       const remainder = ((firstValue % secondValue) + secondValue) % secondValue;
       return remainder;
+    },
+  }));
+}
+
+export function registerScalarTrigComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const registerOperation = (keys, evaluator) => {
+    const uniqueKeys = Array.from(new Set(keys));
+    register(uniqueKeys, {
+      type: 'math',
+      pinMap: UNARY_PIN_MAP,
+      eval: evaluator,
+    });
+  };
+
+  registerOperation([
+    ...createGuidKeys('ecee923b-1b93-4cf2-acd6-680835503437'),
+    'scalar:sine',
+    'scalar-trig:sine',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.sin(value),
+  }));
+
+  registerOperation([
+    ...createGuidKeys('12278a4b-c131-4735-a3ee-bcb783083856'),
+    'scalar:cosine',
+    'scalar-trig:cosine',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.cos(value),
+  }));
+
+  registerOperation([
+    ...createGuidKeys('002b2feb-5d1b-41ea-913f-9f203c615792'),
+    'scalar:tangent',
+    'scalar-trig:tangent',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      const cosValue = Math.cos(value);
+      if (Math.abs(cosValue) < EPSILON) {
+        return null;
+      }
+      return Math.tan(value);
+    },
+  }));
+
+  registerOperation([
+    ...createGuidKeys('22bba82d-32e8-448c-a59c-f054c8843ee3'),
+    'scalar:arcsine',
+    'scalar-trig:arcsine',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      if (value < -1 - EPSILON || value > 1 + EPSILON) {
+        return null;
+      }
+      return Math.asin(clamp(value, -1, 1));
+    },
+  }));
+
+  registerOperation([
+    ...createGuidKeys('cfc280bb-332a-4828-bb4e-aca6d88859aa'),
+    'scalar:arccosine',
+    'scalar-trig:arccosine',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      if (value < -1 - EPSILON || value > 1 + EPSILON) {
+        return null;
+      }
+      return Math.acos(clamp(value, -1, 1));
+    },
+  }));
+
+  registerOperation([
+    ...createGuidKeys('7b312903-4782-438f-aa37-ba43f5083460'),
+    'scalar:arctangent',
+    'scalar-trig:arctangent',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.atan(value),
+  }));
+
+  registerOperation([
+    ...createGuidKeys('da4be42b-ba75-4249-a685-69ce78b6ee44'),
+    'scalar:sinc',
+    'scalar-trig:sinc',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      if (Math.abs(value) < EPSILON) {
+        return 1;
+      }
+      return Math.sin(value) / value;
     },
   }));
 }
