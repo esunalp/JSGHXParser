@@ -43,9 +43,9 @@ function addHelpers(scene) {
 
 function createSkyDome(scene) {
   const uniforms = {
-    topColor: { value: new THREE.Color(0x6fa7ff) },
-    horizonColor: { value: new THREE.Color(0x2a3f63) },
-    bottomColor: { value: new THREE.Color(0x05070f) },
+    topColor: { value: new THREE.Color(0x20a7db) },
+    horizonColor: { value: new THREE.Color(0xcfecf7) },
+    bottomColor: { value: new THREE.Color(0xcfecf7) },
     horizonOffset: { value: 0 },
     gradientExponent: { value: 1.25 },
   };
