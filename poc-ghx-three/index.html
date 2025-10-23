@@ -107,6 +107,32 @@
         color: inherit;
       }
 
+      .toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-weight: 600;
+      }
+
+      .toggle-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .toggle-controls input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: #2c9cf5;
+      }
+
+      .toggle-state {
+        font-size: 0.85rem;
+        text-transform: lowercase;
+        opacity: 0.75;
+      }
+
       .viewport {
         position: relative;
         background: #1a1a1a;
@@ -132,6 +158,16 @@
     </header>
     <main>
       <aside>
+        <section>
+          <h2 style="margin:0 0 0.5rem 0;font-size:1rem;letter-spacing:0.03em;text-transform:uppercase;">Weergave</h2>
+          <label class="toggle">
+            <span>Lijnen &amp; punten tonen</span>
+            <span class="toggle-controls">
+              <input id="overlay-toggle" type="checkbox" role="switch" aria-checked="false" aria-label="Toon lijnen en punten" />
+              <span id="overlay-state" class="toggle-state">false</span>
+            </span>
+          </label>
+        </section>
         <section>
           <h2 style="margin:0 0 0.5rem 0;font-size:1rem;letter-spacing:0.03em;text-transform:uppercase;">Sliders</h2>
           <div id="slider-container" class="sliders" aria-live="polite"></div>
@@ -173,6 +209,8 @@
       const statusEl = document.getElementById('status');
       const sliderContainer = document.getElementById('slider-container');
       const fileInput = document.getElementById('ghx-input');
+      const overlayToggle = document.getElementById('overlay-toggle');
+      const overlayState = document.getElementById('overlay-state');
 
       const sceneApi = initScene(canvas);
       const engine = createEngine({
@@ -193,6 +231,18 @@
           statusEl.textContent = payload.message;
         }
       });
+
+      const syncOverlay = (checked) => {
+        overlayState.textContent = checked ? 'true' : 'false';
+        overlayToggle.setAttribute('aria-checked', checked ? 'true' : 'false');
+        sceneApi.setOverlayEnabled(checked);
+      };
+
+      overlayToggle.addEventListener('change', () => {
+        syncOverlay(overlayToggle.checked);
+      });
+
+      syncOverlay(Boolean(overlayToggle.checked));
 
       const mockGraph = {
         nodes: [

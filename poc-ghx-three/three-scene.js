@@ -102,6 +102,8 @@ function createSkyDome(scene) {
 
 const FIELD_EPSILON = 1e-6;
 const FIELD_AXIS_COLOURS = [0xd1495b, 0x3066be, 0x2fbf71];
+const OVERLAY_LINE_COLOR = new THREE.Color(0x000000);
+const OVERLAY_POINT_COLOR = new THREE.Color(0x000000);
 
 function ensureColor(value, fallback = new THREE.Color(0xffffff)) {
   if (value?.isColor) {
@@ -467,6 +469,98 @@ export function initScene(canvas) {
 
   let currentObject = null;
   let needsFit = true;
+  let overlayEnabled = false;
+  let currentOverlayGroup = null;
+  let latestOverlayData = { segments: [], points: [] };
+
+  function sanitizeOverlayData(raw) {
+    const safe = { segments: [], points: [] };
+    if (!raw || typeof raw !== 'object') {
+      return safe;
+    }
+
+    if (Array.isArray(raw.segments)) {
+      raw.segments.forEach((segment) => {
+        const start = segment?.start;
+        const end = segment?.end;
+        if (start?.isVector3 && end?.isVector3) {
+          safe.segments.push({ start: start.clone(), end: end.clone() });
+        }
+      });
+    }
+
+    if (Array.isArray(raw.points)) {
+      raw.points.forEach((point) => {
+        if (point?.isVector3) {
+          safe.points.push(point.clone());
+        }
+      });
+    }
+
+    return safe;
+  }
+
+  function rebuildOverlayGroup() {
+    if (currentOverlayGroup) {
+      scene.remove(currentOverlayGroup);
+      disposeSceneObject(currentOverlayGroup);
+      currentOverlayGroup = null;
+    }
+
+    if (!overlayEnabled) {
+      return;
+    }
+
+    const segments = latestOverlayData.segments.map((segment) => ({
+      start: segment.start,
+      end: segment.end,
+      colorStart: OVERLAY_LINE_COLOR,
+      colorEnd: OVERLAY_LINE_COLOR,
+    }));
+    const segmentObject = createSegmentsObject(segments);
+
+    const pointEntries = latestOverlayData.points.map((point) => ({ point }));
+    const pointObject = createPointsObject(pointEntries, () => OVERLAY_POINT_COLOR);
+
+    if (!segmentObject && !pointObject) {
+      return;
+    }
+
+    const group = new THREE.Group();
+    group.name = 'GHXCurveOverlay';
+
+    if (segmentObject) {
+      group.add(segmentObject.object);
+    }
+    if (pointObject) {
+      group.add(pointObject.object);
+    }
+
+    currentOverlayGroup = group;
+    scene.add(currentOverlayGroup);
+  }
+
+  function setOverlayData(raw) {
+    latestOverlayData = sanitizeOverlayData(raw);
+    rebuildOverlayGroup();
+  }
+
+  function setOverlayEnabled(value) {
+    overlayEnabled = Boolean(value);
+    rebuildOverlayGroup();
+
+    if (!currentObject && overlayEnabled && currentOverlayGroup) {
+      const sphere = computeWorldBoundingSphere(currentOverlayGroup);
+      if (sphere) {
+        fitCameraToSphere(sphere);
+        needsFit = false;
+      }
+    }
+
+    if (!currentObject && !currentOverlayGroup) {
+      needsFit = true;
+    }
+  }
 
   function computeWorldBoundingSphere(object) {
     if (!object) {
@@ -591,9 +685,15 @@ export function initScene(canvas) {
     }
   }
 
-  function updateMesh(geometryOrMesh) {
+  function updateMesh(payload) {
+    const isDisplayPayload = payload && typeof payload === 'object' && payload.type === 'ghx-display';
+    const geometryOrMesh = isDisplayPayload ? payload.main ?? null : payload;
+    const overlayData = isDisplayPayload ? payload.overlays ?? null : null;
+
     if (geometryOrMesh && geometryOrMesh === currentObject) {
-      const sphere = computeWorldBoundingSphere(currentObject);
+      setOverlayData(overlayData);
+      const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
+      const sphere = computeWorldBoundingSphere(fitTarget);
       if (sphere) {
         fitCameraToSphere(sphere);
         needsFit = false;
@@ -608,7 +708,15 @@ export function initScene(canvas) {
     }
 
     if (!geometryOrMesh) {
-      needsFit = true;
+      setOverlayData(overlayData);
+      const fitTarget = overlayEnabled ? currentOverlayGroup : null;
+      const sphere = computeWorldBoundingSphere(fitTarget);
+      if (sphere) {
+        fitCameraToSphere(sphere);
+        needsFit = false;
+      } else {
+        needsFit = true;
+      }
       return;
     }
 
@@ -617,6 +725,7 @@ export function initScene(canvas) {
       nextObject = createFieldDisplayGroup(geometryOrMesh);
       if (!nextObject) {
         console.warn('updateMesh: kon veldweergave niet maken', geometryOrMesh);
+        setOverlayData(overlayData);
         needsFit = true;
         return;
       }
@@ -638,11 +747,13 @@ export function initScene(canvas) {
       nextObject = new THREE.Mesh(geometryOrMesh.geometry, material);
     } else {
       console.warn('updateMesh: onbekend objecttype', geometryOrMesh);
+      setOverlayData(overlayData);
       needsFit = true;
       return;
     }
 
     if (!nextObject) {
+      setOverlayData(overlayData);
       needsFit = true;
       return;
     }
@@ -659,7 +770,10 @@ export function initScene(canvas) {
     currentObject = nextObject;
     scene.add(currentObject);
 
-    const sphere = computeWorldBoundingSphere(currentObject);
+    setOverlayData(overlayData);
+
+    const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
+    const sphere = computeWorldBoundingSphere(fitTarget);
     if (sphere) {
       fitCameraToSphere(sphere);
       needsFit = false;
@@ -678,5 +792,5 @@ export function initScene(canvas) {
   }
   animate();
 
-  return { scene, camera, renderer, controls, updateMesh };
+  return { scene, camera, renderer, controls, updateMesh, setOverlayEnabled };
 }
