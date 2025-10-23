@@ -703,6 +703,74 @@ export function initScene(canvas) {
     }
   }
 
+  function applyShadowDefaults(object) {
+    if (!object?.isObject3D) {
+      return;
+    }
+    object.traverse((child) => {
+      if (child.isMesh || child.isLine || child.isLineSegments || child.isPoints) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+  }
+
+  function buildSceneObject(renderable) {
+    if (!renderable) {
+      return null;
+    }
+
+    if (Array.isArray(renderable)) {
+      const group = new THREE.Group();
+      group.name = 'GHXRenderableGroup';
+      for (const entry of renderable) {
+        const child = buildSceneObject(entry);
+        if (child) {
+          group.add(child);
+        }
+      }
+      return group.children.length ? group : null;
+    }
+
+    if (renderable.type === 'field-display') {
+      const group = createFieldDisplayGroup(renderable);
+      if (!group) {
+        console.warn('updateMesh: kon veldweergave niet maken', renderable);
+      }
+      return group;
+    }
+
+    if (renderable.isObject3D) {
+      return renderable;
+    }
+
+    if (renderable.isBufferGeometry || renderable.isGeometry) {
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x2c9cf5,
+        metalness: 0.1,
+        roughness: 0.65,
+        side: DEFAULT_MESH_SIDE,
+      });
+      const mesh = new THREE.Mesh(renderable, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    if (renderable.geometry) {
+      const material = renderable.material || new THREE.MeshStandardMaterial({
+        color: 0x2c9cf5,
+        side: DEFAULT_MESH_SIDE,
+      });
+      const mesh = new THREE.Mesh(renderable.geometry, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    return null;
+  }
+
   function updateMesh(payload) {
     const isDisplayPayload = payload && typeof payload === 'object' && payload.type === 'ghx-display';
     const geometryOrMesh = isDisplayPayload ? payload.main ?? null : payload;
@@ -738,48 +806,18 @@ export function initScene(canvas) {
       return;
     }
 
-    let nextObject = null;
-    if (geometryOrMesh.type === 'field-display') {
-      nextObject = createFieldDisplayGroup(geometryOrMesh);
-      if (!nextObject) {
-        console.warn('updateMesh: kon veldweergave niet maken', geometryOrMesh);
-        setOverlayData(overlayData);
-        needsFit = true;
-        return;
-      }
-    } else if (geometryOrMesh.isObject3D) {
-      nextObject = geometryOrMesh;
-    } else if (geometryOrMesh.isBufferGeometry || geometryOrMesh.isGeometry) {
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x2c9cf5,
-        metalness: 0.1,
-        roughness: 0.65,
-        side: DEFAULT_MESH_SIDE,
-      });
-      nextObject = new THREE.Mesh(geometryOrMesh, material);
-    } else if (geometryOrMesh.geometry) {
-      const material = geometryOrMesh.material || new THREE.MeshStandardMaterial({
-        color: 0x2c9cf5,
-        side: DEFAULT_MESH_SIDE,
-      });
-      nextObject = new THREE.Mesh(geometryOrMesh.geometry, material);
-    } else {
-      console.warn('updateMesh: onbekend objecttype', geometryOrMesh);
-      setOverlayData(overlayData);
-      needsFit = true;
-      return;
-    }
+    const nextObject = buildSceneObject(geometryOrMesh);
 
     if (!nextObject) {
+      if (geometryOrMesh) {
+        console.warn('updateMesh: onbekend objecttype', geometryOrMesh);
+      }
       setOverlayData(overlayData);
       needsFit = true;
       return;
     }
 
-    if (nextObject.isMesh || nextObject.isLine || nextObject.isLineSegments || nextObject.isPoints) {
-      nextObject.castShadow = true;
-      nextObject.receiveShadow = true;
-    }
+    applyShadowDefaults(nextObject);
 
     if (ENABLE_DOUBLE_SIDED_MESHES) {
       applyMeshSide(nextObject, THREE.DoubleSide);

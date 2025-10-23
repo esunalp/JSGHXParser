@@ -114,59 +114,66 @@ function isRenderableCandidate(value) {
   );
 }
 
-function extractRenderable(value, visited = new Set()) {
+function collectRenderables(value, results = [], visited = new Set()) {
   if (value === undefined || value === null) {
-    return null;
+    return results;
   }
 
-  if (typeof value === 'object' || typeof value === 'function') {
-    if (visited.has(value)) {
-      return null;
-    }
-    visited.add(value);
+  const valueType = typeof value;
+  if (valueType !== 'object' && valueType !== 'function') {
+    return results;
+  }
+
+  if (visited.has(value)) {
+    return results;
+  }
+  visited.add(value);
+
+  if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+    return results;
   }
 
   if (isRenderableCandidate(value)) {
-    return value;
+    results.push(value);
+    return results;
   }
 
-  if (value && typeof value === 'object') {
-    if (value.mesh || value.geom || value.geometry) {
-      const direct = value.mesh ?? value.geom ?? value.geometry;
-      const directRenderable = extractRenderable(direct, visited);
-      if (directRenderable) {
-        return directRenderable;
-      }
-    }
+  const direct = value?.mesh ?? value?.geom ?? value?.geometry ?? null;
+  if (direct) {
+    collectRenderables(direct, results, visited);
+  }
 
-    if (isSurfaceDefinition(value)) {
-      const surfaceGeometry = surfaceToGeometry(value);
-      if (surfaceGeometry) {
-        return surfaceGeometry;
-      }
+  const isSurface = isSurfaceDefinition(value);
+  if (isSurface) {
+    const surfaceGeometry = surfaceToGeometry(value);
+    if (surfaceGeometry) {
+      results.push(surfaceGeometry);
     }
   }
 
   if (Array.isArray(value)) {
     for (const entry of value) {
-      const renderable = extractRenderable(entry, visited);
-      if (renderable) {
-        return renderable;
-      }
+      collectRenderables(entry, results, visited);
     }
-    return null;
+    return results;
   }
 
+  const skipKeys = new Set();
   if (value && typeof value === 'object') {
-    for (const key of Object.keys(value)) {
-      const renderable = extractRenderable(value[key], visited);
-      if (renderable) {
-        return renderable;
-      }
-    }
+    if (value.mesh) skipKeys.add('mesh');
+    if (value.geom) skipKeys.add('geom');
+    if (value.geometry) skipKeys.add('geometry');
+    if (isSurface) skipKeys.add('surface');
   }
 
-  return null;
+  for (const [key, entry] of Object.entries(value)) {
+    if (skipKeys.has(key)) {
+      continue;
+    }
+    collectRenderables(entry, results, visited);
+  }
+
+  return results;
 }
 
 function collectOverlayData(value, overlay, visited = new Set()) {
@@ -328,7 +335,7 @@ class Engine {
     const outputs = new Map();
     const overlay = { segments: [], points: [] };
     const overlayVisited = new Set();
-    let lastRenderable = null;
+    const renderables = [];
     for (const nodeId of this.topology) {
       const node = this.nodeById.get(nodeId);
       if (!node) continue;
@@ -361,17 +368,23 @@ class Engine {
 
       collectOverlayData(result, overlay, overlayVisited);
 
-      let renderable = result.mesh ?? result.geom ?? result.geometry;
-      if (!renderable) {
-        renderable = extractRenderable(result);
-      }
-      if (renderable) {
-        lastRenderable = renderable;
+      const nodeRenderables = collectRenderables(result);
+      for (const entry of nodeRenderables) {
+        if (!entry) {
+          continue;
+        }
+        renderables.push(entry);
       }
     }
 
     if (typeof this.updateMesh === 'function') {
-      this.updateMesh({ type: 'ghx-display', main: lastRenderable, overlays: overlay });
+      let main = null;
+      if (renderables.length === 1) {
+        [main] = renderables;
+      } else if (renderables.length > 1) {
+        main = renderables.slice();
+      }
+      this.updateMesh({ type: 'ghx-display', main, overlays: overlay });
     }
 
     const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;
