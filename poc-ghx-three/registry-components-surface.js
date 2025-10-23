@@ -1428,42 +1428,68 @@ export function registerSurfacePrimitiveComponents({
     if (!pathPoints.length) {
       return [];
     }
+    const upAxis = new THREE.Vector3(0, 0, 1);
+    const baseXAxis = (() => {
+      if (basePlane?.xAxis) {
+        const projected = new THREE.Vector3(basePlane.xAxis.x, basePlane.xAxis.y, 0);
+        if (projected.lengthSq() > EPSILON) {
+          return projected.normalize();
+        }
+      }
+      return new THREE.Vector3(1, 0, 0);
+    })();
+    const baseYAxis = (() => {
+      const projected = basePlane?.yAxis
+        ? new THREE.Vector3(basePlane.yAxis.x, basePlane.yAxis.y, 0)
+        : null;
+      let axis = upAxis.clone().cross(baseXAxis);
+      if (axis.lengthSq() <= EPSILON) {
+        axis = new THREE.Vector3(0, 1, 0);
+      } else {
+        axis.normalize();
+      }
+      if (projected && projected.lengthSq() > EPSILON) {
+        projected.normalize();
+        if (axis.dot(projected) < 0) {
+          axis.negate();
+        }
+      }
+      return axis;
+    })();
     const frames = [];
-    let previousXAxis = basePlane?.xAxis?.clone() ?? new THREE.Vector3(1, 0, 0);
-    let previousYAxis = basePlane?.yAxis?.clone() ?? new THREE.Vector3(0, 1, 0);
+    let previousXAxis = baseXAxis.clone();
+    let previousYAxis = baseYAxis.clone();
     for (let i = 0; i < pathPoints.length; i += 1) {
       const current = pathPoints[i];
       const prev = pathPoints[i - 1] ?? (closed ? pathPoints[pathPoints.length - 1] : pathPoints[i]);
       const next = pathPoints[i + 1] ?? (closed ? pathPoints[(i + 1) % pathPoints.length] : pathPoints[i]);
-      const tangent = next.clone().sub(prev).normalize();
-      const zAxis = normalizeVector(tangent, basePlane?.zAxis ?? new THREE.Vector3(0, 0, 1));
-      let xAxis = previousXAxis.clone();
-      xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
-      if (xAxis.lengthSq() <= EPSILON) {
-        xAxis = basePlane?.xAxis ? basePlane.xAxis.clone() : orthogonalVector(zAxis);
+      const tangent = next.clone().sub(prev);
+      const horizontalTangent = new THREE.Vector3(tangent.x, tangent.y, 0);
+      let xAxis;
+      if (horizontalTangent.lengthSq() > EPSILON) {
+        xAxis = horizontalTangent.normalize();
+      } else if (previousXAxis.lengthSq() > EPSILON) {
+        xAxis = previousXAxis.clone();
+      } else {
+        xAxis = baseXAxis.clone();
       }
-      xAxis.normalize();
-      let yAxis = zAxis.clone().cross(xAxis);
-      if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = previousYAxis.clone();
-        yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
-        if (yAxis.lengthSq() <= EPSILON) {
-          yAxis = zAxis.clone().cross(xAxis).normalize();
-        } else {
-          yAxis.normalize();
+      if (!frames.length) {
+        if (xAxis.dot(baseXAxis) < 0) {
+          xAxis.negate();
         }
       } else {
-        yAxis.normalize();
-      }
-      if (frames.length) {
         const prevFrame = frames[frames.length - 1];
         if (prevFrame.xAxis.dot(xAxis) < 0) {
           xAxis.negate();
         }
-        if (prevFrame.yAxis.dot(yAxis) < 0) {
-          yAxis.negate();
-        }
       }
+      let yAxis = upAxis.clone().cross(xAxis);
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = previousYAxis.lengthSq() > EPSILON ? previousYAxis.clone() : baseYAxis.clone();
+      } else {
+        yAxis.normalize();
+      }
+      const zAxis = upAxis.clone();
       frames.push({ origin: current.clone(), xAxis, yAxis, zAxis });
       previousXAxis = xAxis.clone();
       previousYAxis = yAxis.clone();
