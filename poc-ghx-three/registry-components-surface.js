@@ -1429,63 +1429,110 @@ export function registerSurfacePrimitiveComponents({
       return [];
     }
     const upAxis = new THREE.Vector3(0, 0, 1);
+    const projectHorizontal = (vector) => {
+      if (!vector) {
+        return null;
+      }
+      const projected = new THREE.Vector3(vector.x, vector.y, 0);
+      return projected.lengthSq() > EPSILON ? projected : null;
+    };
     const baseXAxis = (() => {
-      if (basePlane?.xAxis) {
-        const projected = new THREE.Vector3(basePlane.xAxis.x, basePlane.xAxis.y, 0);
-        if (projected.lengthSq() > EPSILON) {
-          return projected.normalize();
-        }
+      const projected = projectHorizontal(basePlane?.xAxis);
+      if (projected) {
+        return projected.normalize();
       }
       return new THREE.Vector3(1, 0, 0);
     })();
     const baseYAxis = (() => {
-      const projected = basePlane?.yAxis
-        ? new THREE.Vector3(basePlane.yAxis.x, basePlane.yAxis.y, 0)
-        : null;
-      let axis = upAxis.clone().cross(baseXAxis);
-      if (axis.lengthSq() <= EPSILON) {
-        axis = new THREE.Vector3(0, 1, 0);
-      } else {
-        axis.normalize();
-      }
-      if (projected && projected.lengthSq() > EPSILON) {
-        projected.normalize();
-        if (axis.dot(projected) < 0) {
-          axis.negate();
+      const projected = projectHorizontal(basePlane?.yAxis);
+      if (projected) {
+        const orthogonalized = projected.clone()
+          .sub(baseXAxis.clone().multiplyScalar(projected.dot(baseXAxis)));
+        if (orthogonalized.lengthSq() > EPSILON) {
+          if (orthogonalized.dot(projected) < 0) {
+            orthogonalized.negate();
+          }
+          orthogonalized.normalize();
+          return orthogonalized;
         }
       }
-      return axis;
+      const fallback = upAxis.clone().cross(baseXAxis);
+      if (fallback.lengthSq() <= EPSILON) {
+        return new THREE.Vector3(0, 1, 0);
+      }
+      return fallback.normalize();
     })();
     const frames = [];
     let previousXAxis = baseXAxis.clone();
     let previousYAxis = baseYAxis.clone();
+    let alignTangentWith = null;
     for (let i = 0; i < pathPoints.length; i += 1) {
       const current = pathPoints[i];
       const prev = pathPoints[i - 1] ?? (closed ? pathPoints[pathPoints.length - 1] : pathPoints[i]);
       const next = pathPoints[i + 1] ?? (closed ? pathPoints[(i + 1) % pathPoints.length] : pathPoints[i]);
       const tangent = next.clone().sub(prev);
       const horizontalTangent = new THREE.Vector3(tangent.x, tangent.y, 0);
-      let xAxis;
+      let tangentAxis = null;
       if (horizontalTangent.lengthSq() > EPSILON) {
-        xAxis = horizontalTangent.normalize();
-      } else if (previousXAxis.lengthSq() > EPSILON) {
-        xAxis = previousXAxis.clone();
-      } else {
-        xAxis = baseXAxis.clone();
+        tangentAxis = horizontalTangent.normalize();
+        if (!alignTangentWith) {
+          const dotWithX = Math.abs(tangentAxis.dot(baseXAxis));
+          const dotWithY = Math.abs(tangentAxis.dot(baseYAxis));
+          alignTangentWith = dotWithY > dotWithX ? 'y' : 'x';
+        }
+      }
+      let xAxis;
+      let yAxis;
+      if (tangentAxis && alignTangentWith === 'y') {
+        yAxis = tangentAxis.clone();
+        xAxis = upAxis.clone().cross(yAxis);
+        if (xAxis.lengthSq() <= EPSILON) {
+          xAxis = previousXAxis.lengthSq() > EPSILON ? previousXAxis.clone() : baseXAxis.clone();
+        } else {
+          xAxis.normalize();
+        }
+      } else if (tangentAxis) {
+        xAxis = tangentAxis.clone();
+      }
+      if (!xAxis || xAxis.lengthSq() <= EPSILON) {
+        if (previousXAxis.lengthSq() > EPSILON) {
+          xAxis = previousXAxis.clone();
+        } else {
+          xAxis = baseXAxis.clone();
+        }
+      }
+      if (!yAxis || yAxis.lengthSq() <= EPSILON) {
+        yAxis = upAxis.clone().cross(xAxis);
+        if (yAxis.lengthSq() <= EPSILON) {
+          yAxis = previousYAxis.lengthSq() > EPSILON ? previousYAxis.clone() : baseYAxis.clone();
+        } else {
+          yAxis.normalize();
+        }
       }
       if (!frames.length) {
         if (xAxis.dot(baseXAxis) < 0) {
           xAxis.negate();
+        }
+        if (yAxis.dot(baseYAxis) < 0) {
+          yAxis.negate();
         }
       } else {
         const prevFrame = frames[frames.length - 1];
         if (prevFrame.xAxis.dot(xAxis) < 0) {
           xAxis.negate();
         }
+        if (prevFrame.yAxis.dot(yAxis) < 0) {
+          yAxis.negate();
+        }
       }
-      let yAxis = upAxis.clone().cross(xAxis);
+      yAxis.sub(xAxis.clone().multiplyScalar(yAxis.dot(xAxis)));
       if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = previousYAxis.lengthSq() > EPSILON ? previousYAxis.clone() : baseYAxis.clone();
+        yAxis = upAxis.clone().cross(xAxis);
+        if (yAxis.lengthSq() <= EPSILON) {
+          yAxis = baseYAxis.clone();
+        } else {
+          yAxis.normalize();
+        }
       } else {
         yAxis.normalize();
       }
