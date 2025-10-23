@@ -33,6 +33,20 @@ function addHelpers(scene) {
   scene.add(axes);
 }
 
+function applyViewportUnitScale(object) {
+  if (!object?.isObject3D) {
+    return;
+  }
+
+  const userData = object.userData || (object.userData = {});
+  if (userData.__viewportUnitScaleApplied) {
+    return;
+  }
+
+  object.scale.multiplyScalar(VIEWPORT_UNIT_SCALE);
+  userData.__viewportUnitScaleApplied = true;
+}
+
 const FIELD_EPSILON = 1e-6;
 const FIELD_AXIS_COLOURS = [0xd1495b, 0x3066be, 0x2fbf71];
 
@@ -550,6 +564,8 @@ export function initScene(canvas) {
       nextObject.castShadow = true;
       nextObject.receiveShadow = true;
     }
+
+    applyViewportUnitScale(nextObject);
 
     currentObject = nextObject;
     scene.add(currentObject);
