@@ -379,14 +379,28 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
   function intersectLines(p1, p2, p3, p4) {
     const v1 = p2.clone().sub(p1);
     const v2 = p4.clone().sub(p3);
+    if (v1.lengthSq() < EPSILON || v2.lengthSq() < EPSILON) {
+      return null;
+    }
     const normal = v1.clone().cross(v2);
     if (normal.lengthSq() < EPSILON) {
       return null;
     }
     const plane = createPlane(p1, v1, normal.clone().cross(v1), normal);
-    const lineDirection = v1.clone().normalize();
-    const t = plane.zAxis.dot(p3.clone().sub(p1)) / plane.zAxis.dot(lineDirection);
-    return p1.clone().add(lineDirection.multiplyScalar(t));
+    const origin1 = planeCoordinates(p1, plane);
+    const dir1 = planeCoordinates(p2, plane);
+    const origin2 = planeCoordinates(p3, plane);
+    const dir2 = planeCoordinates(p4, plane);
+    const d1 = new THREE.Vector2(dir1.x - origin1.x, dir1.y - origin1.y);
+    const d2 = new THREE.Vector2(dir2.x - origin2.x, dir2.y - origin2.y);
+    const determinant = d1.x * d2.y - d1.y * d2.x;
+    if (Math.abs(determinant) < EPSILON) {
+      return null;
+    }
+    const offset = new THREE.Vector2(origin2.x - origin1.x, origin2.y - origin1.y);
+    const t = (offset.x * d2.y - offset.y * d2.x) / determinant;
+    const intersection2d = new THREE.Vector2(origin1.x + d1.x * t, origin1.y + d1.y * t);
+    return applyPlane(plane, intersection2d.x, intersection2d.y, 0);
   }
 
   function createRectangleShape(width, height, radius = 0) {
