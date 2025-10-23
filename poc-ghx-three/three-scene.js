@@ -105,6 +105,9 @@ const FIELD_EPSILON = 1e-6;
 const FIELD_AXIS_COLOURS = [0xd1495b, 0x3066be, 0x2fbf71];
 const OVERLAY_LINE_COLOR = new THREE.Color(0x000000);
 const OVERLAY_POINT_COLOR = new THREE.Color(0x000000);
+const POINT_SPHERE_RADIUS_MM = 10;
+const POINT_SPHERE_WIDTH_SEGMENTS = 16;
+const POINT_SPHERE_HEIGHT_SEGMENTS = 12;
 
 function ensureColor(value, fallback = new THREE.Color(0xffffff)) {
   if (value?.isColor) {
@@ -210,39 +213,57 @@ function createPointsObject(entries, colourFactory) {
     return null;
   }
 
-  const positions = new Float32Array(entries.length * 3);
-  const colours = new Float32Array(entries.length * 3);
+  const validCount = entries.reduce((count, entry) => (entry?.point?.isVector3 ? count + 1 : count), 0);
+  if (!validCount) {
+    return null;
+  }
 
+  const geometry = new THREE.SphereGeometry(
+    POINT_SPHERE_RADIUS_MM,
+    POINT_SPHERE_WIDTH_SEGMENTS,
+    POINT_SPHERE_HEIGHT_SEGMENTS,
+  );
+
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    vertexColors: true,
+    metalness: 0,
+    roughness: 0.55,
+  });
+
+  const object = new THREE.InstancedMesh(geometry, material, validCount);
+  const matrix = new THREE.Matrix4();
+  const instanceColours = new Float32Array(validCount * 3);
+
+  let instanceIndex = 0;
   entries.forEach((entry, index) => {
     const point = entry?.point;
     if (!point?.isVector3) {
       return;
     }
-    const colour = ensureColor(colourFactory(entry, index), new THREE.Color(0xffffff));
-    const offset = index * 3;
-    positions[offset + 0] = point.x;
-    positions[offset + 1] = point.y;
-    positions[offset + 2] = point.z;
-    colours[offset + 0] = colour.r;
-    colours[offset + 1] = colour.g;
-    colours[offset + 2] = colour.b;
+
+    matrix.makeTranslation(point.x, point.y, point.z);
+    object.setMatrixAt(instanceIndex, matrix);
+
+    const colour = ensureColor(
+      typeof colourFactory === 'function' ? colourFactory(entry, index) : OVERLAY_POINT_COLOR,
+      OVERLAY_POINT_COLOR,
+    );
+    const offset = instanceIndex * 3;
+    instanceColours[offset + 0] = colour.r;
+    instanceColours[offset + 1] = colour.g;
+    instanceColours[offset + 2] = colour.b;
+
+    instanceIndex += 1;
   });
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  object.instanceMatrix.needsUpdate = true;
+  object.instanceColor = new THREE.InstancedBufferAttribute(instanceColours, 3);
+  object.instanceColor.needsUpdate = true;
+  object.castShadow = false;
+  object.receiveShadow = false;
 
-  const material = new THREE.PointsMaterial({
-    size: 0.12,
-    sizeAttenuation: true,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-  });
-
-  const object = new THREE.Points(geometry, material);
-  return { object, disposables: [geometry, material] };
+  return { object, disposables: [geometry, material, object.instanceColor] };
 }
 
 function buildDirectionSegments(entries) {
