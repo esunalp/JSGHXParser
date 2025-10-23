@@ -6,13 +6,15 @@ const GRID_DIVISIONS = 20;
 const GRID_SIZE_MM = GRID_CELL_SIZE_MM * GRID_DIVISIONS;
 const AXES_LENGTH_MM = GRID_CELL_SIZE_MM * 5;
 const MAX_DRAW_DISTANCE_MM = 100000;
+const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
+const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.setClearColor(0x111111, 1);
+  renderer.setClearColor(0x060910, 1);
   return renderer;
 }
 
@@ -32,6 +34,66 @@ function addHelpers(scene) {
 
   const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
   scene.add(axes);
+}
+
+function createSkyDome(scene) {
+  const uniforms = {
+    topColor: { value: new THREE.Color(0x6fa7ff) },
+    horizonColor: { value: new THREE.Color(0x2a3f63) },
+    bottomColor: { value: new THREE.Color(0x05070f) },
+    horizonOffset: { value: 0 },
+    gradientExponent: { value: 1.25 },
+  };
+
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      varying vec3 vWorldPosition;
+      void main() {
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 horizonColor;
+      uniform vec3 bottomColor;
+      uniform float horizonOffset;
+      uniform float gradientExponent;
+      varying vec3 vWorldPosition;
+
+      void main() {
+        vec3 direction = normalize(vWorldPosition);
+        float base = clamp(direction.y * 0.5 + 0.5 + horizonOffset, 0.0, 1.0);
+        float shaped = pow(base, gradientExponent);
+        vec3 color = mix(bottomColor, horizonColor, smoothstep(0.0, 0.65, base));
+        color = mix(color, topColor, smoothstep(0.25, 1.0, shaped));
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+    side: THREE.BackSide,
+    depthWrite: false,
+    depthTest: false,
+    fog: false,
+  });
+
+  const geometry = new THREE.SphereGeometry(SKY_DOME_RADIUS, 32, 24);
+  const skyMesh = new THREE.Mesh(geometry, material);
+  skyMesh.name = 'SkyGradient';
+  skyMesh.frustumCulled = false;
+  skyMesh.renderOrder = -1;
+
+  scene.add(skyMesh);
+
+  return {
+    update(camera) {
+      skyMesh.position.copy(camera.position);
+      camera.getWorldDirection(TEMP_CAMERA_DIRECTION);
+      const desiredOffset = THREE.MathUtils.clamp(TEMP_CAMERA_DIRECTION.y * 0.35, -0.4, 0.4);
+      uniforms.horizonOffset.value = THREE.MathUtils.lerp(uniforms.horizonOffset.value, desiredOffset, 0.08);
+    },
+  };
 }
 
 const FIELD_EPSILON = 1e-6;
@@ -351,7 +413,7 @@ function createFieldDisplayGroup(display) {
 
 export function initScene(canvas) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x050505);
+  scene.background = null;
 
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, MAX_DRAW_DISTANCE_MM);
   camera.position.set(6, 4, 8);
@@ -360,6 +422,7 @@ export function initScene(canvas) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
+  const sky = createSkyDome(scene);
   addDefaultLights(scene);
   addHelpers(scene);
 
@@ -569,6 +632,7 @@ export function initScene(canvas) {
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    sky.update(camera);
     renderer.render(scene, camera);
   }
   animate();
