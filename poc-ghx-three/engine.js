@@ -169,6 +169,88 @@ function extractRenderable(value, visited = new Set()) {
   return null;
 }
 
+function collectOverlayData(value, overlay, visited = new Set()) {
+  if (!overlay || value === undefined || value === null) {
+    return;
+  }
+
+  if (value?.isVector3) {
+    overlay.points.push(value.clone());
+    return;
+  }
+
+  const valueType = typeof value;
+  if (valueType !== 'object' && valueType !== 'function') {
+    return;
+  }
+
+  if (visited.has(value)) {
+    return;
+  }
+  visited.add(value);
+
+  if (value?.isObject3D || value?.isBufferGeometry || value?.isMaterial || value?.isTexture) {
+    return;
+  }
+
+  if (ArrayBuffer.isView(value) && !(value instanceof DataView)) {
+    return;
+  }
+
+  const hasStartEnd = value?.start?.isVector3 && value?.end?.isVector3;
+  if (hasStartEnd) {
+    overlay.segments.push({ start: value.start.clone(), end: value.end.clone() });
+  }
+
+  if (value?.point?.isVector3) {
+    overlay.points.push(value.point.clone());
+  }
+
+  const hasPointsArray = Array.isArray(value?.points);
+  if (hasPointsArray) {
+    const polyPoints = value.points.filter((pt) => pt?.isVector3);
+    if (polyPoints.length === 1) {
+      overlay.points.push(polyPoints[0].clone());
+    } else if (polyPoints.length > 1) {
+      for (let index = 0; index < polyPoints.length - 1; index += 1) {
+        overlay.segments.push({
+          start: polyPoints[index].clone(),
+          end: polyPoints[index + 1].clone(),
+        });
+      }
+      if (value.closed && polyPoints.length > 2) {
+        overlay.segments.push({
+          start: polyPoints[polyPoints.length - 1].clone(),
+          end: polyPoints[0].clone(),
+        });
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectOverlayData(entry, overlay, visited);
+    }
+    return;
+  }
+
+  const skipKeys = new Set();
+  if (hasStartEnd) {
+    skipKeys.add('start');
+    skipKeys.add('end');
+  }
+  if (hasPointsArray) {
+    skipKeys.add('points');
+  }
+
+  for (const [key, entry] of Object.entries(value)) {
+    if (skipKeys.has(key)) {
+      continue;
+    }
+    collectOverlayData(entry, overlay, visited);
+  }
+}
+
 class Engine {
   constructor({ registry, updateMesh, onLog, onError }) {
     this.registry = registry;
@@ -244,6 +326,9 @@ class Engine {
     }
 
     const outputs = new Map();
+    const overlay = { segments: [], points: [] };
+    const overlayVisited = new Set();
+    let lastRenderable = null;
     for (const nodeId of this.topology) {
       const node = this.nodeById.get(nodeId);
       if (!node) continue;
@@ -274,13 +359,19 @@ class Engine {
       outputs.set(nodeId, result);
       this.nodeOutputs.set(nodeId, result);
 
+      collectOverlayData(result, overlay, overlayVisited);
+
       let renderable = result.mesh ?? result.geom ?? result.geometry;
       if (!renderable) {
         renderable = extractRenderable(result);
       }
       if (renderable) {
-        this.updateMesh?.(renderable);
+        lastRenderable = renderable;
       }
+    }
+
+    if (typeof this.updateMesh === 'function') {
+      this.updateMesh({ type: 'ghx-display', main: lastRenderable, overlays: overlay });
     }
 
     const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;
