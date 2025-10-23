@@ -1549,6 +1549,49 @@ export function registerSurfacePrimitiveComponents({
     return frames;
   }
 
+  function alignFramesWithPlane(frames, planeInput) {
+    if (!Array.isArray(frames) || !frames.length) {
+      return frames;
+    }
+    const firstFrame = frames[0];
+    if (!firstFrame?.xAxis || !firstFrame?.yAxis || !firstFrame?.zAxis) {
+      return frames;
+    }
+    const normalizedPlane = planeInput?.origin && planeInput?.xAxis && planeInput?.yAxis
+      ? normalizePlaneAxes(
+        ensurePoint(planeInput.origin, new THREE.Vector3()),
+        ensurePoint(planeInput.xAxis, new THREE.Vector3(1, 0, 0)),
+        ensurePoint(planeInput.yAxis, new THREE.Vector3(0, 1, 0)),
+        planeInput.zAxis ? ensurePoint(planeInput.zAxis, new THREE.Vector3(0, 0, 1)) : undefined,
+      )
+      : defaultPlane();
+    const frameMatrix = new THREE.Matrix4().makeBasis(
+      firstFrame.xAxis.clone(),
+      firstFrame.yAxis.clone(),
+      firstFrame.zAxis.clone(),
+    );
+    const planeMatrix = new THREE.Matrix4().makeBasis(
+      normalizedPlane.xAxis.clone(),
+      normalizedPlane.yAxis.clone(),
+      normalizedPlane.zAxis.clone(),
+    );
+    const frameQuat = new THREE.Quaternion().setFromRotationMatrix(frameMatrix);
+    if (frameQuat.lengthSq() <= EPSILON) {
+      return frames;
+    }
+    const planeQuat = new THREE.Quaternion().setFromRotationMatrix(planeMatrix);
+    if (planeQuat.lengthSq() <= EPSILON) {
+      return frames;
+    }
+    const correction = planeQuat.clone().multiply(frameQuat.clone().invert());
+    frames.forEach((frame) => {
+      frame.xAxis.applyQuaternion(correction);
+      frame.yAxis.applyQuaternion(correction);
+      frame.zAxis.applyQuaternion(correction);
+    });
+    return frames;
+  }
+
   function cloneFrame(frame) {
     if (!frame) {
       return null;
@@ -6953,6 +6996,7 @@ export function registerSurfacePrimitiveComponents({
         if (!pathFrames.length) {
           return {};
         }
+        alignFramesWithPlane(pathFrames, basePlane);
         const toSweepFrame = (frame) => {
           if (!frame) {
             return null;
