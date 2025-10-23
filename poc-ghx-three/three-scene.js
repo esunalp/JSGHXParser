@@ -780,7 +780,7 @@ export function initScene(canvas) {
       setOverlayData(overlayData);
       const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
       const sphere = computeWorldBoundingSphere(fitTarget);
-      if (sphere) {
+      if (sphere && needsFit) {
         fitCameraToSphere(sphere);
         needsFit = false;
       }
@@ -798,8 +798,10 @@ export function initScene(canvas) {
       const fitTarget = overlayEnabled ? currentOverlayGroup : null;
       const sphere = computeWorldBoundingSphere(fitTarget);
       if (sphere) {
-        fitCameraToSphere(sphere);
-        needsFit = false;
+        if (needsFit) {
+          fitCameraToSphere(sphere);
+          needsFit = false;
+        }
       } else {
         needsFit = true;
       }
@@ -831,8 +833,10 @@ export function initScene(canvas) {
     const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
     const sphere = computeWorldBoundingSphere(fitTarget);
     if (sphere) {
-      fitCameraToSphere(sphere);
-      needsFit = false;
+      if (needsFit) {
+        fitCameraToSphere(sphere);
+        needsFit = false;
+      }
     } else if (needsFit) {
       controls.target.set(0, 0, 0);
       controls.update();
