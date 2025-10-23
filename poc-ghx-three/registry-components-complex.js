@@ -1,12 +1,12 @@
-export function registerComplexPolynomialsComponents({ register, toNumber }) {
-  if (typeof register !== 'function') {
-    throw new Error('register function is required to register complex polynomial components.');
-  }
+const DEFAULT_COMPLEX_EPSILON = 1e-12;
+
+function createComplexToolkit(toNumber, options = {}) {
   if (typeof toNumber !== 'function') {
-    throw new Error('toNumber function is required to register complex polynomial components.');
+    throw new Error('toNumber function is required to create complex toolkit.');
   }
 
-  const EPSILON = 1e-12;
+  const epsilonOption = options?.epsilon;
+  const EPSILON = Number.isFinite(epsilonOption) && epsilonOption > 0 ? epsilonOption : DEFAULT_COMPLEX_EPSILON;
   const ZERO_COMPLEX = Object.freeze({ real: 0, imag: 0 });
 
   function toFiniteNumber(value, fallback = 0) {
@@ -196,6 +196,34 @@ export function registerComplexPolynomialsComponents({ register, toNumber }) {
     return isApproximatelyZero(value.real) && isApproximatelyZero(value.imag);
   }
 
+  function addComplex(a, b) {
+    return createComplex(a.real + b.real, a.imag + b.imag);
+  }
+
+  function subtractComplex(a, b) {
+    return createComplex(a.real - b.real, a.imag - b.imag);
+  }
+
+  function multiplyComplex(a, b) {
+    const real = a.real * b.real - a.imag * b.imag;
+    const imag = a.real * b.imag + a.imag * b.real;
+    return createComplex(real, imag);
+  }
+
+  function conjugateComplex(value) {
+    return createComplex(value.real, -value.imag);
+  }
+
+  function divideComplex(a, b) {
+    const denominator = b.real * b.real + b.imag * b.imag;
+    if (denominator <= EPSILON * EPSILON) {
+      return createComplex(Number.NaN, Number.NaN);
+    }
+    const real = (a.real * b.real + a.imag * b.imag) / denominator;
+    const imag = (a.imag * b.real - a.real * b.imag) / denominator;
+    return createComplex(real, imag);
+  }
+
   function squareComplex(value) {
     const real = value.real * value.real - value.imag * value.imag;
     const imag = 2 * value.real * value.imag;
@@ -259,6 +287,45 @@ export function registerComplexPolynomialsComponents({ register, toNumber }) {
     const imag = resultModulus * Math.sin(resultAngle);
     return createComplex(real, imag);
   }
+
+  return {
+    EPSILON,
+    ZERO_COMPLEX,
+    toFiniteNumber,
+    createComplex,
+    parseComplexString,
+    ensureComplex,
+    isApproximatelyZero,
+    isZeroComplex,
+    addComplex,
+    subtractComplex,
+    multiplyComplex,
+    divideComplex,
+    conjugateComplex,
+    squareComplex,
+    sqrtComplex,
+    expComplex,
+    logComplex,
+    powComplex,
+  };
+}
+
+export function registerComplexPolynomialsComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register complex polynomial components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register complex polynomial components.');
+  }
+
+  const {
+    ensureComplex,
+    squareComplex,
+    sqrtComplex,
+    expComplex,
+    logComplex,
+    powComplex,
+  } = createComplexToolkit(toNumber);
 
   register([
     '{0b0f1203-2ea8-4250-a45a-cca7ad2e5b76}',
@@ -351,3 +418,206 @@ export function registerComplexPolynomialsComponents({ register, toNumber }) {
   });
 }
 
+export function registerComplexTrigComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register complex trigonometry components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register complex trigonometry components.');
+  }
+
+  const {
+    ensureComplex,
+    createComplex,
+    addComplex,
+    subtractComplex,
+    multiplyComplex,
+    divideComplex,
+    sqrtComplex,
+    logComplex,
+  } = createComplexToolkit(toNumber);
+
+  const ONE = createComplex(1, 0);
+  const IMAG_UNIT = createComplex(0, 1);
+  const NEG_IMAG_UNIT = createComplex(0, -1);
+  const HALF_IMAG_UNIT = createComplex(0, 0.5);
+
+  function sinComplex(value) {
+    const real = Math.sin(value.real) * Math.cosh(value.imag);
+    const imag = Math.cos(value.real) * Math.sinh(value.imag);
+    return createComplex(real, imag);
+  }
+
+  function cosComplex(value) {
+    const real = Math.cos(value.real) * Math.cosh(value.imag);
+    const imag = -Math.sin(value.real) * Math.sinh(value.imag);
+    return createComplex(real, imag);
+  }
+
+  function tanComplex(value) {
+    return divideComplex(sinComplex(value), cosComplex(value));
+  }
+
+  function secComplex(value) {
+    return divideComplex(ONE, cosComplex(value));
+  }
+
+  function cosecComplex(value) {
+    return divideComplex(ONE, sinComplex(value));
+  }
+
+  function cotComplex(value) {
+    return divideComplex(cosComplex(value), sinComplex(value));
+  }
+
+  function asinComplex(value) {
+    const zSquared = multiplyComplex(value, value);
+    const underRoot = subtractComplex(ONE, zSquared);
+    const sqrtTerm = sqrtComplex(underRoot);
+    const iTimesZ = multiplyComplex(IMAG_UNIT, value);
+    const inside = addComplex(iTimesZ, sqrtTerm);
+    const logValue = logComplex(inside);
+    return multiplyComplex(NEG_IMAG_UNIT, logValue);
+  }
+
+  function acosComplex(value) {
+    const zSquared = multiplyComplex(value, value);
+    const zSquaredMinusOne = subtractComplex(zSquared, ONE);
+    const sqrtTerm = sqrtComplex(zSquaredMinusOne);
+    const inside = addComplex(value, sqrtTerm);
+    const logValue = logComplex(inside);
+    return multiplyComplex(NEG_IMAG_UNIT, logValue);
+  }
+
+  function atanComplex(value) {
+    const iTimesZ = multiplyComplex(IMAG_UNIT, value);
+    const oneMinusIZ = subtractComplex(ONE, iTimesZ);
+    const onePlusIZ = addComplex(ONE, iTimesZ);
+    const logMinus = logComplex(oneMinusIZ);
+    const logPlus = logComplex(onePlusIZ);
+    const difference = subtractComplex(logMinus, logPlus);
+    return multiplyComplex(HALF_IMAG_UNIT, difference);
+  }
+
+  const pinMap = {
+    inputs: { x: 'value', X: 'value', Input: 'value', input: 'value', Value: 'value', value: 'value' },
+    outputs: { y: 'result', Y: 'result', Output: 'result', output: 'result', Result: 'result', result: 'result' },
+  };
+
+  register([
+    '{c53932eb-7c8c-4825-ae98-e36bba97232d}',
+    'sine',
+    'sin',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: sinComplex(value) };
+    },
+  });
+
+  register([
+    '{7874f26c-6f76-4da8-b527-2d567184b2bd}',
+    'cosine',
+    'cos',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: cosComplex(value) };
+    },
+  });
+
+  register([
+    '{0bc93049-e1a7-44b5-8068-c7ddc85a9f46}',
+    'tangent',
+    'tan',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: tanComplex(value) };
+    },
+  });
+
+  register([
+    '{d879e74c-6fe3-4cbf-b3fa-60a7c48b73e7}',
+    'secant',
+    'sec',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: secComplex(value) };
+    },
+  });
+
+  register([
+    '{99197a17-d5c7-419b-acde-eca2737f3c58}',
+    'cosecant',
+    'cosec',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: cosecComplex(value) };
+    },
+  });
+
+  register([
+    '{39461433-ac44-4298-94a9-988f983e347c}',
+    'cotangent',
+    'cotan',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: cotComplex(value) };
+    },
+  });
+
+  register([
+    '{4e8aad42-9111-470c-9acd-7ae365d8bba4}',
+    'arctangent',
+    'atan',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: atanComplex(value) };
+    },
+  });
+
+  register([
+    '{8640c519-9bf6-4e9a-a108-75f9d89b2c58}',
+    'arccosine',
+    'acos',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: acosComplex(value) };
+    },
+  });
+
+  register([
+    '{f18091e9-3264-4dd4-9ba6-32c77fca0ac0}',
+    'arcsine',
+    'asin',
+  ], {
+    type: 'complex',
+    pinMap,
+    eval: ({ inputs }) => {
+      const value = ensureComplex(inputs.value);
+      return { result: asinComplex(value) };
+    },
+  });
+}

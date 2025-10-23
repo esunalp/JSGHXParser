@@ -43,6 +43,7 @@ const [
   },
   {
     registerComplexPolynomialsComponents,
+    registerComplexTrigComponents,
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
@@ -273,6 +274,7 @@ registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorGridComponents({ register, toNumber, toVector3 });
 registerVectorColourComponents({ register, toNumber, toVector3 });
 registerComplexPolynomialsComponents({ register, toNumber });
+registerComplexTrigComponents({ register, toNumber });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
