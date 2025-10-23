@@ -15,6 +15,7 @@ const [
   },
   {
     registerScalarOperatorsComponents,
+    registerScalarPolynomialsComponents,
     registerScalarTrigComponents,
   },
   {
@@ -260,6 +261,7 @@ registerMathPolynomialComponents({ register, toNumber });
 registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
 registerScalarOperatorsComponents({ register, toNumber });
+registerScalarPolynomialsComponents({ register, toNumber });
 registerScalarTrigComponents({ register, toNumber });
 registerCurvePrimitiveComponents({ register, toNumber, toVector3 });
 registerCurveDivisionComponents({ register, toNumber, toVector3 });

@@ -316,6 +316,109 @@ export function registerScalarOperatorsComponents({ register, toNumber }) {
   }));
 }
 
+export function registerScalarPolynomialsComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const registerUnaryOperation = (keys, evaluator) => {
+    const uniqueKeys = Array.from(new Set(keys));
+    register(uniqueKeys, {
+      type: 'math',
+      pinMap: UNARY_PIN_MAP,
+      eval: evaluator,
+    });
+  };
+
+  const registerBinaryOperation = (keys, evaluator) => {
+    const uniqueKeys = Array.from(new Set(keys));
+    register(uniqueKeys, {
+      type: 'math',
+      pinMap: BINARY_PIN_MAP,
+      eval: evaluator,
+    });
+  };
+
+  registerUnaryOperation([
+    ...createGuidKeys('5f212b16-82a0-4699-be4c-11529a9810ae'),
+    'scalar:power-of-e',
+    'scalar-polynomials:power-of-e',
+    'scalar:exp',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.exp(value),
+  }));
+
+  registerUnaryOperation([
+    ...createGuidKeys('8b62751f-6fb4-4d03-a238-11ad6db7483e'),
+    'scalar:natural-logarithm',
+    'scalar-polynomials:natural-logarithm',
+    'scalar:ln',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      if (value <= 0) {
+        return null;
+      }
+      return Math.log(value);
+    },
+  }));
+
+  registerBinaryOperation([
+    ...createGuidKeys('96c8c5f2-5f8e-4bb3-b19f-eb61d9cefa46'),
+    'scalar:power',
+    'scalar-polynomials:power',
+    'scalar:pow',
+  ], createBinaryEvaluator({
+    toNumber,
+    firstFallback: 1,
+    secondFallback: 1,
+    compute: ({ firstValue, secondValue, firstValid, secondValid }) => {
+      if (!firstValid || !secondValid) {
+        return null;
+      }
+      return Math.pow(firstValue, secondValue);
+    },
+  }));
+
+  registerUnaryOperation([
+    ...createGuidKeys('a8bc9c24-1bce-4b92-b7ba-abced2457c22'),
+    'scalar:power-of-two',
+    'scalar-polynomials:power-of-two',
+    'scalar:pow2',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.pow(2, value),
+  }));
+
+  registerUnaryOperation([
+    ...createGuidKeys('d0787f37-d976-48c9-a4b0-29d6c4059cf3'),
+    'scalar:logarithm',
+    'scalar-polynomials:logarithm',
+    'scalar:log10',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => {
+      if (value <= 0) {
+        return null;
+      }
+      if (typeof Math.log10 === 'function') {
+        return Math.log10(value);
+      }
+      return Math.log(value) / Math.LN10;
+    },
+  }));
+
+  registerUnaryOperation([
+    ...createGuidKeys('ed766861-662d-4462-90f6-29f87f8529cf'),
+    'scalar:power-of-ten',
+    'scalar-polynomials:power-of-ten',
+    'scalar:pow10',
+  ], createUnaryEvaluator({
+    toNumber,
+    compute: ({ value }) => Math.pow(10, value),
+  }));
+}
+
 export function registerScalarTrigComponents({ register, toNumber }) {
   ensureRegisterFunction(register);
   ensureToNumberFunction(toNumber);
