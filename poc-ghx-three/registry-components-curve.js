@@ -115,8 +115,14 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
       return null;
     }
     const safeSegments = Math.max(segments, 8);
-    const spaced = path.getSpacedPoints(safeSegments);
-    const points = spaced.map((pt) => new THREE.Vector3(pt.x, pt.y, pt.z ?? 0));
+    const spaced = path.getSpacedPoints(safeSegments) ?? [];
+    const points = spaced.map((pt, index) => {
+      if (pt && (Number.isFinite(pt.x) || Number.isFinite(pt.y) || Number.isFinite(pt.z))) {
+        return new THREE.Vector3(pt.x ?? 0, pt.y ?? 0, pt.z ?? 0);
+      }
+      const fallback = spaced[index - 1] ?? spaced[index + 1] ?? { x: 0, y: 0, z: 0 };
+      return new THREE.Vector3(fallback.x ?? 0, fallback.y ?? 0, fallback.z ?? 0);
+    });
     let length = 0;
     if (typeof path.getLength === 'function') {
       length = path.getLength();
