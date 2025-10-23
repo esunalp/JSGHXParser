@@ -6960,8 +6960,8 @@ export function registerSurfacePrimitiveComponents({
           return {
             origin: frame.origin.clone(),
             xAxis: frame.xAxis.clone(),
-            yAxis: frame.zAxis.clone(),
-            zAxis: frame.yAxis.clone(),
+            yAxis: frame.yAxis.clone(),
+            zAxis: frame.zAxis.clone(),
           };
         };
         const sectionData = [];
@@ -7013,7 +7013,7 @@ export function registerSurfacePrimitiveComponents({
           const resampled = resamplePolyline(section.samplePoints, countU, { closed: section.closed });
           section.coords = resampled.map((pt) => {
             const coords = planeCoordinates(pt, section.profile.plane);
-            return new THREE.Vector3(coords.x ?? 0, coords.z ?? 0, coords.y ?? 0);
+            return new THREE.Vector3(coords.x ?? 0, coords.y ?? 0, coords.z ?? 0);
           });
           section.offsetVector = section.offsetVector ? section.offsetVector.clone() : new THREE.Vector3();
           section.orientedPoints = section.coords.map((coord) => {
