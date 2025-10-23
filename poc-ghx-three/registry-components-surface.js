@@ -1428,118 +1428,106 @@ export function registerSurfacePrimitiveComponents({
     if (!pathPoints.length) {
       return [];
     }
-    const upAxis = new THREE.Vector3(0, 0, 1);
-    const projectHorizontal = (vector) => {
-      if (!vector) {
-        return null;
-      }
-      const projected = new THREE.Vector3(vector.x, vector.y, 0);
-      return projected.lengthSq() > EPSILON ? projected : null;
-    };
-    const baseXAxis = (() => {
-      const projected = projectHorizontal(basePlane?.xAxis);
-      if (projected) {
-        return projected.normalize();
-      }
-      return new THREE.Vector3(1, 0, 0);
-    })();
-    const baseYAxis = (() => {
-      const projected = projectHorizontal(basePlane?.yAxis);
-      if (projected) {
-        const orthogonalized = projected.clone()
-          .sub(baseXAxis.clone().multiplyScalar(projected.dot(baseXAxis)));
-        if (orthogonalized.lengthSq() > EPSILON) {
-          if (orthogonalized.dot(projected) < 0) {
-            orthogonalized.negate();
-          }
-          orthogonalized.normalize();
-          return orthogonalized;
-        }
-      }
-      const fallback = upAxis.clone().cross(baseXAxis);
-      if (fallback.lengthSq() <= EPSILON) {
-        return new THREE.Vector3(0, 1, 0);
-      }
-      return fallback.normalize();
-    })();
+    const normalizedBasePlane = basePlane?.origin && basePlane?.xAxis && basePlane?.yAxis
+      ? normalizePlaneAxes(
+        ensurePoint(basePlane.origin, new THREE.Vector3()),
+        ensurePoint(basePlane.xAxis, new THREE.Vector3(1, 0, 0)),
+        ensurePoint(basePlane.yAxis, new THREE.Vector3(0, 1, 0)),
+        basePlane.zAxis ? ensurePoint(basePlane.zAxis, new THREE.Vector3(0, 0, 1)) : undefined,
+      )
+      : defaultPlane();
+    if (pathPoints.length === 1) {
+      return [{
+        origin: pathPoints[0].clone(),
+        xAxis: normalizedBasePlane.xAxis.clone(),
+        yAxis: normalizedBasePlane.yAxis.clone(),
+        zAxis: normalizedBasePlane.zAxis.clone(),
+      }];
+    }
     const frames = [];
-    let previousXAxis = baseXAxis.clone();
-    let previousYAxis = baseYAxis.clone();
-    let alignTangentWith = null;
+    let previousXAxis = normalizedBasePlane.xAxis.clone();
+    let previousYAxis = normalizedBasePlane.yAxis.clone();
+    let previousTangent = null;
+    const getIndex = (index) => {
+      if (index < 0) {
+        return closed ? ((index % pathPoints.length) + pathPoints.length) % pathPoints.length : 0;
+      }
+      if (index >= pathPoints.length) {
+        return closed ? index % pathPoints.length : pathPoints.length - 1;
+      }
+      return index;
+    };
     for (let i = 0; i < pathPoints.length; i += 1) {
-      const current = pathPoints[i];
-      const prev = pathPoints[i - 1] ?? (closed ? pathPoints[pathPoints.length - 1] : pathPoints[i]);
-      const next = pathPoints[i + 1] ?? (closed ? pathPoints[(i + 1) % pathPoints.length] : pathPoints[i]);
-      const tangent = next.clone().sub(prev);
-      const horizontalTangent = new THREE.Vector3(tangent.x, tangent.y, 0);
-      let tangentAxis = null;
-      if (horizontalTangent.lengthSq() > EPSILON) {
-        tangentAxis = horizontalTangent.normalize();
-        if (!alignTangentWith) {
-          const dotWithX = Math.abs(tangentAxis.dot(baseXAxis));
-          const dotWithY = Math.abs(tangentAxis.dot(baseYAxis));
-          alignTangentWith = dotWithY > dotWithX ? 'y' : 'x';
-        }
+      const prevIndex = getIndex(i - 1);
+      const nextIndex = getIndex(i + 1);
+      const prevPoint = pathPoints[prevIndex];
+      const nextPoint = pathPoints[nextIndex];
+      let tangent = nextPoint.clone().sub(prevPoint);
+      if (tangent.lengthSq() <= EPSILON) {
+        const forward = pathPoints[nextIndex]?.clone().sub(pathPoints[i]) ?? new THREE.Vector3();
+        const backward = pathPoints[i]?.clone().sub(pathPoints[prevIndex]) ?? new THREE.Vector3();
+        tangent = forward.lengthSq() > backward.lengthSq() ? forward : backward;
       }
-      let xAxis;
-      let yAxis;
-      if (tangentAxis && alignTangentWith === 'y') {
-        yAxis = tangentAxis.clone();
-        xAxis = upAxis.clone().cross(yAxis);
+      if (tangent.lengthSq() <= EPSILON) {
+        tangent = previousTangent ? previousTangent.clone() : normalizedBasePlane.zAxis.clone();
+      }
+      tangent.normalize();
+      const zAxis = tangent.clone();
+      let xAxis = previousXAxis.clone();
+      xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
+      if (xAxis.lengthSq() <= EPSILON) {
+        xAxis = normalizedBasePlane.xAxis.clone();
+        xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
         if (xAxis.lengthSq() <= EPSILON) {
-          xAxis = previousXAxis.lengthSq() > EPSILON ? previousXAxis.clone() : baseXAxis.clone();
-        } else {
-          xAxis.normalize();
-        }
-      } else if (tangentAxis) {
-        xAxis = tangentAxis.clone();
-      }
-      if (!xAxis || xAxis.lengthSq() <= EPSILON) {
-        if (previousXAxis.lengthSq() > EPSILON) {
-          xAxis = previousXAxis.clone();
-        } else {
-          xAxis = baseXAxis.clone();
+          xAxis = orthogonalVector(zAxis);
         }
       }
-      if (!yAxis || yAxis.lengthSq() <= EPSILON) {
-        yAxis = upAxis.clone().cross(xAxis);
-        if (yAxis.lengthSq() <= EPSILON) {
-          yAxis = previousYAxis.lengthSq() > EPSILON ? previousYAxis.clone() : baseYAxis.clone();
-        } else {
-          yAxis.normalize();
-        }
-      }
-      if (!frames.length) {
-        if (xAxis.dot(baseXAxis) < 0) {
-          xAxis.negate();
-        }
-        if (yAxis.dot(baseYAxis) < 0) {
-          yAxis.negate();
-        }
-      } else {
-        const prevFrame = frames[frames.length - 1];
-        if (prevFrame.xAxis.dot(xAxis) < 0) {
-          xAxis.negate();
-        }
-        if (prevFrame.yAxis.dot(yAxis) < 0) {
-          yAxis.negate();
-        }
-      }
-      yAxis.sub(xAxis.clone().multiplyScalar(yAxis.dot(xAxis)));
+      xAxis.normalize();
+      let yAxis = zAxis.clone().cross(xAxis);
       if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = upAxis.clone().cross(xAxis);
+        yAxis = previousYAxis.clone();
+        yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
         if (yAxis.lengthSq() <= EPSILON) {
-          yAxis = baseYAxis.clone();
-        } else {
-          yAxis.normalize();
+          yAxis = normalizedBasePlane.yAxis.clone();
+          yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
+          if (yAxis.lengthSq() <= EPSILON) {
+            yAxis = orthogonalVector(zAxis);
+          }
+        }
+      }
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = orthogonalVector(zAxis);
+      }
+      yAxis.normalize();
+      xAxis = yAxis.clone().cross(zAxis);
+      if (xAxis.lengthSq() <= EPSILON) {
+        xAxis = orthogonalVector(zAxis);
+      }
+      xAxis.normalize();
+      yAxis = zAxis.clone().cross(xAxis);
+      if (yAxis.lengthSq() <= EPSILON) {
+        yAxis = orthogonalVector(zAxis);
+      }
+      yAxis.normalize();
+      if (frames.length) {
+        if (xAxis.dot(previousXAxis) < 0) {
+          xAxis.negate();
+        }
+        if (yAxis.dot(previousYAxis) < 0) {
+          yAxis.negate();
         }
       } else {
-        yAxis.normalize();
+        if (xAxis.dot(normalizedBasePlane.xAxis) < 0) {
+          xAxis.negate();
+        }
+        if (yAxis.dot(normalizedBasePlane.yAxis) < 0) {
+          yAxis.negate();
+        }
       }
-      const zAxis = upAxis.clone();
-      frames.push({ origin: current.clone(), xAxis, yAxis, zAxis });
+      frames.push({ origin: pathPoints[i].clone(), xAxis: xAxis.clone(), yAxis: yAxis.clone(), zAxis });
       previousXAxis = xAxis.clone();
       previousYAxis = yAxis.clone();
+      previousTangent = zAxis.clone();
     }
     return frames;
   }
@@ -1679,14 +1667,22 @@ export function registerSurfacePrimitiveComponents({
     };
   }
 
-  function createExtrusionSurface(profileData, pathFrames, { metadata = {}, closedPath = false } = {}) {
+  function createExtrusionSurface(profileData, pathFrames, { metadata = {}, closedPath = false, offset = null } = {}) {
     if (!profileData || !profileData.coords.length || !pathFrames.length) {
       return null;
     }
+    const offsetVector = offset ? ensurePoint(offset, new THREE.Vector3()) : null;
     const rows = pathFrames.map((frame) => profileData.coords.map((coord) => {
       const point = frame.origin.clone()
         .add(frame.xAxis.clone().multiplyScalar(coord.x))
         .add(frame.yAxis.clone().multiplyScalar(coord.y));
+      const coordZ = coord.z !== undefined ? coord.z : 0;
+      if (Math.abs(coordZ) > EPSILON) {
+        point.add(frame.zAxis.clone().multiplyScalar(coordZ));
+      }
+      if (offsetVector) {
+        point.add(offsetVector);
+      }
       return point;
     }));
     return createGridSurface(rows, {
@@ -1698,6 +1694,7 @@ export function registerSurfacePrimitiveComponents({
           yAxis: frame.yAxis.clone(),
           zAxis: frame.zAxis.clone(),
         })),
+        offset: offsetVector ? offsetVector.clone() : null,
       },
       closedU: profileData.closed,
       closedV: closedPath,
@@ -7150,9 +7147,13 @@ export function registerSurfacePrimitiveComponents({
         }
         const pathPoints = resamplePolyline(pathSample.points, Math.max(pathSample.points.length, 16), { closed: pathSample.closed });
         const frames = createFramesAlongPath(pathPoints, profile.plane, { closed: pathSample.closed });
+        const projection = projectPointOntoPolyline(profile.centroid, pathPoints, { closed: pathSample.closed });
+        const offsetVector = projection ? profile.centroid.clone().sub(projection.position) : new THREE.Vector3();
+        const hasOffset = offsetVector.lengthSq() > EPSILON;
         const surface = createExtrusionSurface(profile, frames, {
           metadata: { type: 'extrude-along' },
           closedPath: pathSample.closed,
+          offset: hasOffset ? offsetVector : null,
         });
         if (!surface) {
           return {};
@@ -7161,6 +7162,7 @@ export function registerSurfacePrimitiveComponents({
           extrusion: wrapSurface(surface, {
             path: pathPoints.map((pt) => pt.clone()),
             closed: pathSample.closed,
+            offset: hasOffset ? offsetVector.clone() : null,
           }),
         };
       },
