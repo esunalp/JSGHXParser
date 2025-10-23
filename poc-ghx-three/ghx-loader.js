@@ -248,6 +248,32 @@ function parseParamChunk(paramChunk) {
   return info;
 }
 
+function collectParamChunks(containerChunk, type) {
+  if (!containerChunk || !type) return [];
+
+  const results = [];
+  const seen = new Set();
+  const addChunk = (chunk) => {
+    if (!chunk || seen.has(chunk)) return;
+    seen.add(chunk);
+    results.push(chunk);
+  };
+
+  const normalizedType = String(type).toLowerCase();
+  const legacyName = `param_${normalizedType}`;
+  getDirectChildChunks(containerChunk, legacyName).forEach(addChunk);
+
+  const parameterDataChunks = getDirectChildChunks(containerChunk, 'parameterdata');
+  if (parameterDataChunks.length) {
+    const altName = `${normalizedType}param`;
+    parameterDataChunks.forEach((parameterDataChunk) => {
+      getDirectChildChunks(parameterDataChunk, altName).forEach(addChunk);
+    });
+  }
+
+  return results;
+}
+
 function getFirstText(root, selectors) {
   for (const selector of selectors) {
     const element = root.querySelector(selector);
@@ -499,7 +525,7 @@ export async function parseGHX(file) {
       }
     }
 
-    const outputChunks = getDirectChildChunks(containerChunk, 'param_output');
+    const outputChunks = collectParamChunks(containerChunk, 'output');
     if (outputChunks.length) {
       outputChunks.forEach((outputChunk, outputIndex) => {
         const paramInfo = parseParamChunk(outputChunk);
@@ -518,7 +544,7 @@ export async function parseGHX(file) {
       });
     }
 
-    const inputChunks = getDirectChildChunks(containerChunk, 'param_input');
+    const inputChunks = collectParamChunks(containerChunk, 'input');
     if (inputChunks.length) {
       inputChunks.forEach((inputChunk, inputIndex) => {
         const paramInfo = parseParamChunk(inputChunk);
