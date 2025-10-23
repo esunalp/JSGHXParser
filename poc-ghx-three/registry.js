@@ -14,6 +14,9 @@ const [
     registerMathScriptComponents,
   },
   {
+    registerScalarOperatorsComponents,
+  },
+  {
     registerCurveAnalysisComponents,
     registerCurveDivisionComponents,
     registerCurvePrimitiveComponents,
@@ -48,6 +51,7 @@ const [
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
+  versionedImport('./registry-components-scalar.js'),
   versionedImport('./registry-components-curve.js'),
   versionedImport('./registry-components-surface.js'),
   versionedImport('./registry-components-transform.js'),
@@ -254,6 +258,7 @@ registerMathBooleanComponents({ register });
 registerMathPolynomialComponents({ register, toNumber });
 registerMathScriptComponents({ register, toNumber, toVector3 });
 registerMathOperatorComponents({ register, toNumber, toVector3 });
+registerScalarOperatorsComponents({ register, toNumber });
 registerCurvePrimitiveComponents({ register, toNumber, toVector3 });
 registerCurveDivisionComponents({ register, toNumber, toVector3 });
 registerCurveSplineComponents({ register, toNumber, toVector3 });
