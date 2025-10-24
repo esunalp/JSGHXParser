@@ -61,6 +61,7 @@ const [
   },
   {
     registerParamsInputComponents,
+    registerParamsUtilComponents,
   },
   {
     registerIntersectShapeComponents,
@@ -321,6 +322,7 @@ registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
 registerSetsTreeComponents({ register, toNumber });
 registerParamsInputComponents({ register });
+registerParamsUtilComponents({ register });
 registerDisplayPreviewComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {

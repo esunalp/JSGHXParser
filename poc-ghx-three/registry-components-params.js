@@ -3,6 +3,12 @@ const PANEL_GUIDS = [
   'panel',
 ];
 
+const RELAY_GUIDS = [
+  '{b6236720-8d88-4289-93c3-ac4c99f9b97b}',
+  'relay',
+  'params:relay',
+];
+
 function isDefined(value) {
   return value !== undefined && value !== null;
 }
@@ -214,5 +220,38 @@ export function registerParamsInputComponents({ register }) {
     createState: createPanelState,
     eval: evaluatePanel,
     describe: (state) => state?.text ?? '',
+  });
+}
+
+export function registerParamsUtilComponents({ register }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register params util components.');
+  }
+
+  register(RELAY_GUIDS, {
+    type: 'params',
+    pinMap: {
+      inputs: {
+        D: 'value',
+        d: 'value',
+        In: 'value',
+        in: 'value',
+        Data: 'value',
+        data: 'value',
+        Value: 'value',
+        value: 'value',
+      },
+      outputs: {
+        D: 'value',
+        d: 'value',
+        Out: 'value',
+        out: 'value',
+        Data: 'value',
+        data: 'value',
+        Value: 'value',
+        value: 'value',
+      },
+    },
+    eval: ({ inputs }) => ({ value: inputs?.value }),
   });
 }
