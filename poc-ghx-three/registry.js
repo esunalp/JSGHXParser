@@ -62,6 +62,9 @@ const [
   {
     registerParamsInputComponents,
   },
+  {
+    registerIntersectShapeComponents,
+  },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-scalar.js'),
@@ -72,6 +75,7 @@ const [
   versionedImport('./registry-components-complex.js'),
   versionedImport('./registry-components-sets.js'),
   versionedImport('./registry-components-params.js'),
+  versionedImport('./registry-components-intersect.js'),
 ]);
 
 const entries = new Map();
@@ -297,6 +301,7 @@ registerVectorPlaneComponents({ register, toNumber, toVector3 });
 registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorGridComponents({ register, toNumber, toVector3 });
 registerVectorColourComponents({ register, toNumber, toVector3 });
+registerIntersectShapeComponents({ register, toNumber });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
