@@ -1592,6 +1592,121 @@ export function registerSurfacePrimitiveComponents({
     return frames;
   }
 
+  function alignFrameWithProfilePlane(frameInput, profilePlane) {
+    const frame = cloneFrame(frameInput);
+    if (!frame || !profilePlane) {
+      return { frame, correction: null };
+    }
+    const zAxis = frame.zAxis.clone();
+    if (zAxis.lengthSq() <= EPSILON) {
+      return { frame, correction: null };
+    }
+    zAxis.normalize();
+    const projectOntoPlane = (vector) => {
+      if (!vector) {
+        return null;
+      }
+      const projected = vector.clone().sub(zAxis.clone().multiplyScalar(vector.dot(zAxis)));
+      if (projected.lengthSq() <= EPSILON) {
+        return null;
+      }
+      return projected.normalize();
+    };
+    let targetX = projectOntoPlane(profilePlane.xAxis ?? null);
+    let targetY = projectOntoPlane(profilePlane.yAxis ?? null);
+    if (!targetX && targetY) {
+      targetX = zAxis.clone().cross(targetY).normalize();
+    }
+    if (!targetX && !targetY) {
+      return { frame, correction: null };
+    }
+    if (!targetY) {
+      targetY = zAxis.clone().cross(targetX).normalize();
+    }
+    let currentX = projectOntoPlane(frame.xAxis ?? null);
+    if (!currentX) {
+      currentX = orthogonalVector(zAxis);
+    }
+    const dot = THREE.MathUtils.clamp(currentX.dot(targetX), -1, 1);
+    let angle = Math.acos(dot);
+    if (angle <= EPSILON) {
+      const alignedFrame = normalizePlaneAxes(frame.origin, frame.xAxis, frame.yAxis, frame.zAxis);
+      return { frame: alignedFrame, correction: new THREE.Quaternion() };
+    }
+    const cross = currentX.clone().cross(targetX);
+    if (cross.dot(zAxis) < 0) {
+      angle *= -1;
+    }
+    const correction = new THREE.Quaternion().setFromAxisAngle(zAxis, angle);
+    const alignedFrame = {
+      origin: frame.origin.clone(),
+      xAxis: frame.xAxis.clone().applyQuaternion(correction),
+      yAxis: frame.yAxis.clone().applyQuaternion(correction),
+      zAxis: zAxis.clone(),
+    };
+    const normalized = normalizePlaneAxes(
+      alignedFrame.origin,
+      alignedFrame.xAxis,
+      alignedFrame.yAxis,
+      alignedFrame.zAxis,
+    );
+    const projectedY = projectOntoPlane(profilePlane.yAxis ?? null);
+    if (projectedY && normalized.yAxis.dot(projectedY) < 0) {
+      const flip = new THREE.Quaternion().setFromAxisAngle(normalized.zAxis, Math.PI);
+      normalized.xAxis.applyQuaternion(flip);
+      normalized.yAxis.applyQuaternion(flip);
+      normalized.zAxis.applyQuaternion(flip);
+    }
+    return { frame: normalized, correction };
+  }
+
+  function createOrientationInterpolator(samples) {
+    if (!Array.isArray(samples) || !samples.length) {
+      return () => null;
+    }
+    const sorted = samples
+      .map((sample) => ({
+        parameter: Number.isFinite(sample.parameter) ? sample.parameter : 0,
+        correction: sample.correction ? sample.correction.clone().normalize() : new THREE.Quaternion(),
+      }))
+      .sort((a, b) => a.parameter - b.parameter);
+    for (let i = 1; i < sorted.length; i += 1) {
+      const prev = sorted[i - 1].correction;
+      const current = sorted[i].correction;
+      if (prev && current && prev.dot(current) < 0) {
+        sorted[i].correction = current.clone().multiplyScalar(-1);
+      }
+    }
+    return (parameter) => {
+      if (!sorted.length) {
+        return null;
+      }
+      if (!Number.isFinite(parameter)) {
+        return sorted[sorted.length - 1].correction.clone();
+      }
+      const first = sorted[0];
+      const last = sorted[sorted.length - 1];
+      const clamped = THREE.MathUtils.clamp(parameter, first.parameter, last.parameter);
+      if (clamped <= first.parameter || sorted.length === 1) {
+        return first.correction.clone();
+      }
+      if (clamped >= last.parameter) {
+        return last.correction.clone();
+      }
+      for (let i = 0; i < sorted.length - 1; i += 1) {
+        const current = sorted[i];
+        const next = sorted[i + 1];
+        if (clamped <= next.parameter || i === sorted.length - 2) {
+          const span = next.parameter - current.parameter;
+          const factor = span > EPSILON ? (clamped - current.parameter) / span : 0;
+          const interpolated = current.correction.clone();
+          return interpolated.slerp(next.correction, THREE.MathUtils.clamp(factor, 0, 1));
+        }
+      }
+      return sorted[sorted.length - 1].correction.clone();
+    };
+  }
+
   function cloneFrame(frame) {
     if (!frame) {
       return null;
@@ -6997,17 +7112,6 @@ export function registerSurfacePrimitiveComponents({
           return {};
         }
         alignFramesWithPlane(pathFrames, basePlane);
-        const toSweepFrame = (frame) => {
-          if (!frame) {
-            return null;
-          }
-          return {
-            origin: frame.origin.clone(),
-            xAxis: frame.xAxis.clone(),
-            yAxis: frame.yAxis.clone(),
-            zAxis: frame.zAxis.clone(),
-          };
-        };
         const sectionData = [];
         let maxSectionPoints = 0;
         for (const entry of sectionEntries) {
@@ -7025,10 +7129,8 @@ export function registerSurfacePrimitiveComponents({
             continue;
           }
           rawFrame.origin = projection.position.clone();
-          const sweepFrame = toSweepFrame(rawFrame);
-          if (!sweepFrame) {
-            continue;
-          }
+          const alignment = alignFrameWithProfilePlane(rawFrame, profile.plane);
+          const sweepFrame = alignment.frame ?? cloneFrame(rawFrame);
           const offsetVector = profile.centroid.clone().sub(sweepFrame.origin);
           const offset = {
             x: offsetVector.dot(sweepFrame.xAxis),
@@ -7041,6 +7143,7 @@ export function registerSurfacePrimitiveComponents({
             samplePoints: entry.sample.points.map((pt) => pt.clone()),
             profile,
             frame: sweepFrame,
+            correction: alignment.correction ? alignment.correction.clone().normalize() : new THREE.Quaternion(),
             offset,
             offsetVector: offsetVector.clone(),
             projection,
@@ -7091,6 +7194,32 @@ export function registerSurfacePrimitiveComponents({
           }
           return cumulative.map((value) => value / total);
         })();
+        const orientationInterpolator = createOrientationInterpolator(
+          sectionData.map((section) => ({
+            parameter: section.projection?.normalized ?? 0,
+            correction: section.correction ?? new THREE.Quaternion(),
+          })),
+        );
+        const toSweepFrame = (frame, parameter) => {
+          if (!frame) {
+            return null;
+          }
+          const sweepFrame = cloneFrame(frame);
+          const correction = orientationInterpolator(parameter);
+          if (correction) {
+            sweepFrame.xAxis.applyQuaternion(correction);
+            sweepFrame.yAxis.applyQuaternion(correction);
+            sweepFrame.zAxis.applyQuaternion(correction);
+            const normalized = normalizePlaneAxes(
+              sweepFrame.origin,
+              sweepFrame.xAxis,
+              sweepFrame.yAxis,
+              sweepFrame.zAxis,
+            );
+            return normalized;
+          }
+          return sweepFrame;
+        };
         const interpolateSection = (parameter) => {
           if (!sectionData.length) {
             return null;
@@ -7138,7 +7267,7 @@ export function registerSurfacePrimitiveComponents({
           if (!sample) {
             return [];
           }
-          const sweepFrame = toSweepFrame(frame);
+          const sweepFrame = toSweepFrame(frame, parameter);
           if (!sweepFrame) {
             return [];
           }
@@ -7179,7 +7308,8 @@ export function registerSurfacePrimitiveComponents({
           return {};
         }
         const sweepFrames = pathFrames.map((frame, index) => {
-          const sweepFrame = toSweepFrame(frame) ?? frame;
+          const parameter = frameParameters[index] ?? (pathFrames.length > 1 ? index / (pathFrames.length - 1) : 0);
+          const sweepFrame = toSweepFrame(frame, parameter) ?? frame;
           return {
             origin: sweepFrame.origin.clone(),
             xAxis: sweepFrame.xAxis.clone(),
