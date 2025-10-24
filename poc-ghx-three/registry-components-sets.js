@@ -702,6 +702,1136 @@ function createUniqueSetWithMap(list) {
   return { unique, map };
 }
 
+function createSeededRandom(seedInput, toNumber) {
+  const numericSeed = toInteger(seedInput, Number.NaN, toNumber);
+  if (!Number.isFinite(numericSeed)) {
+    return () => Math.random();
+  }
+  let state = numericSeed % 2147483647;
+  if (state <= 0) {
+    state += 2147483646;
+  }
+  return () => {
+    state = (state * 16807) % 2147483647;
+    return state / 2147483647;
+  };
+}
+
+function createNumericRange(startCandidate, endCandidate, toNumber, fallbackRange) {
+  const start = toNumber ? toNumber(startCandidate, Number.NaN) : Number(startCandidate);
+  const end = toNumber ? toNumber(endCandidate, Number.NaN) : Number(endCandidate);
+  if (Number.isFinite(start) && Number.isFinite(end)) {
+    const min = Math.min(start, end);
+    const max = Math.max(start, end);
+    return {
+      start,
+      end,
+      min,
+      max,
+      span: end - start,
+      length: max - min,
+      center: (start + end) / 2,
+    };
+  }
+  return fallbackRange;
+}
+
+function ensureNumericRange(rangeInput, toNumber, fallbackStart = 0, fallbackEnd = 1) {
+  const fallbackRange = createNumericRange(
+    fallbackStart,
+    fallbackEnd,
+    toNumber,
+    {
+      start: fallbackStart,
+      end: fallbackEnd,
+      min: Math.min(fallbackStart, fallbackEnd),
+      max: Math.max(fallbackStart, fallbackEnd),
+      span: fallbackEnd - fallbackStart,
+      length: Math.abs(fallbackEnd - fallbackStart),
+      center: (fallbackStart + fallbackEnd) / 2,
+    }
+  );
+
+  const resolveRange = (startCandidate, endCandidate) =>
+    createNumericRange(startCandidate ?? fallbackRange.start, endCandidate ?? fallbackRange.end, toNumber, fallbackRange);
+
+  if (rangeInput === undefined || rangeInput === null) {
+    return fallbackRange;
+  }
+
+  if (Array.isArray(rangeInput)) {
+    if (rangeInput.length >= 2) {
+      return resolveRange(rangeInput[0], rangeInput[1]);
+    }
+    if (rangeInput.length === 1) {
+      return resolveRange(fallbackRange.start, rangeInput[0]);
+    }
+    return fallbackRange;
+  }
+
+  if (typeof rangeInput === 'object') {
+    if (Array.isArray(rangeInput.values)) {
+      const valuesRange = ensureNumericRange(rangeInput.values, toNumber, fallbackRange.start, fallbackRange.end);
+      if (valuesRange) {
+        return valuesRange;
+      }
+    }
+    if (Object.prototype.hasOwnProperty.call(rangeInput, 'value')) {
+      const valueRange = ensureNumericRange(rangeInput.value, toNumber, fallbackRange.start, fallbackRange.end);
+      if (valueRange) {
+        return valueRange;
+      }
+    }
+    if (Array.isArray(rangeInput.range)) {
+      const nested = ensureNumericRange(rangeInput.range, toNumber, fallbackRange.start, fallbackRange.end);
+      if (nested) {
+        return nested;
+      }
+    }
+    if (Array.isArray(rangeInput.domain)) {
+      const nested = ensureNumericRange(rangeInput.domain, toNumber, fallbackRange.start, fallbackRange.end);
+      if (nested) {
+        return nested;
+      }
+    }
+    if (rangeInput.dimension === 1 && rangeInput.start !== undefined && rangeInput.end !== undefined) {
+      return resolveRange(rangeInput.start, rangeInput.end);
+    }
+    const startCandidate =
+      rangeInput.start ??
+      rangeInput.Start ??
+      rangeInput.s ??
+      rangeInput.S ??
+      rangeInput.a ??
+      rangeInput.A ??
+      rangeInput.min ??
+      rangeInput.Min ??
+      rangeInput.from ??
+      rangeInput.From ??
+      rangeInput.lower ??
+      rangeInput.Lower ??
+      rangeInput.t0 ??
+      rangeInput.T0 ??
+      rangeInput[0];
+    const endCandidate =
+      rangeInput.end ??
+      rangeInput.End ??
+      rangeInput.e ??
+      rangeInput.E ??
+      rangeInput.b ??
+      rangeInput.B ??
+      rangeInput.max ??
+      rangeInput.Max ??
+      rangeInput.to ??
+      rangeInput.To ??
+      rangeInput.upper ??
+      rangeInput.Upper ??
+      rangeInput.t1 ??
+      rangeInput.T1 ??
+      rangeInput[1];
+    if (startCandidate !== undefined || endCandidate !== undefined) {
+      return resolveRange(startCandidate, endCandidate);
+    }
+    if (rangeInput.min !== undefined && rangeInput.max !== undefined) {
+      return resolveRange(rangeInput.min, rangeInput.max);
+    }
+    if (rangeInput.t0 !== undefined && rangeInput.t1 !== undefined) {
+      return resolveRange(rangeInput.t0, rangeInput.t1);
+    }
+    if (rangeInput.value !== undefined) {
+      return resolveRange(rangeInput.value, rangeInput.value);
+    }
+  }
+
+  const numeric = toNumber(rangeInput, Number.NaN);
+  if (Number.isFinite(numeric)) {
+    return resolveRange(fallbackRange.start, numeric);
+  }
+
+  if (typeof rangeInput === 'string') {
+    const matches = rangeInput.match(/-?\d+(?:\.\d+)?/g);
+    if (matches && matches.length) {
+      if (matches.length === 1) {
+        return resolveRange(fallbackRange.start, Number.parseFloat(matches[0]));
+      }
+      return resolveRange(Number.parseFloat(matches[0]), Number.parseFloat(matches[1]));
+    }
+  }
+
+  return fallbackRange;
+}
+
+const DEFAULT_CHAR_POOL = Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+
+function normalizeCharPool(poolInput) {
+  const tokens = [];
+
+  const process = (value) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (/[;,\s]/.test(trimmed)) {
+        const parts = trimmed.split(/[;,\s]+/).filter(Boolean);
+        if (parts.length) {
+          tokens.push(...parts);
+          return;
+        }
+      }
+      for (const char of trimmed) {
+        tokens.push(char);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        process(entry);
+      }
+      return;
+    }
+    if (typeof value === 'object') {
+      if (Array.isArray(value.values)) {
+        process(value.values);
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(value, 'value')) {
+        process(value.value);
+        return;
+      }
+    }
+    const text = String(value);
+    if (text) {
+      tokens.push(text);
+    }
+  };
+
+  process(poolInput);
+
+  if (!tokens.length) {
+    return DEFAULT_CHAR_POOL.slice();
+  }
+
+  return tokens;
+}
+
+function createCharTokenFromIndex(index, tokens) {
+  if (!Array.isArray(tokens) || !tokens.length) {
+    return '';
+  }
+  const base = tokens.length;
+  let n = index + 1;
+  const digits = [];
+  while (n > 0) {
+    const remainder = (n - 1) % base;
+    digits.push(remainder);
+    n = Math.floor((n - 1) / base);
+  }
+  let result = '';
+  for (let digitIndex = digits.length - 1; digitIndex >= 0; digitIndex -= 1) {
+    const token = tokens[digits[digitIndex]];
+    result += token !== undefined ? String(token) : '';
+  }
+  return result;
+}
+
+function applyFormatMask(value, mask, index) {
+  const textValue = value === undefined || value === null ? '' : String(value);
+  if (mask === undefined || mask === null) {
+    return textValue;
+  }
+  let formatted = String(mask);
+  let replaced = false;
+  const valueTokens = ['{0}', '{}', '%s', '{value}', '${value}'];
+  for (const token of valueTokens) {
+    if (formatted.includes(token)) {
+      formatted = formatted.split(token).join(textValue);
+      replaced = true;
+    }
+  }
+  const zeroBased = String(index);
+  const oneBased = String(index + 1);
+  const indexTokens = [
+    ['{i}', zeroBased],
+    ['{n}', zeroBased],
+    ['{index}', zeroBased],
+    ['${index}', zeroBased],
+    ['{index0}', zeroBased],
+    ['{index1}', oneBased],
+    ['{1-based}', oneBased],
+    ['{n1}', oneBased],
+  ];
+  for (const [token, replacement] of indexTokens) {
+    if (formatted.includes(token)) {
+      formatted = formatted.split(token).join(replacement);
+    }
+  }
+  if (!replaced) {
+    if (formatted) {
+      formatted += textValue;
+    } else {
+      formatted = textValue;
+    }
+  }
+  return formatted;
+}
+
+function compileSequenceExpression(notation) {
+  if (notation === undefined || notation === null) {
+    return null;
+  }
+  const text = String(notation).trim();
+  if (!text) {
+    return null;
+  }
+  const expression = text.includes('=') ? text.split('=').pop() : text;
+  try {
+    const body = `'use strict'; return (${expression});`;
+    return new Function('n', 'i', 'prev', 'prev1', 'prev2', 'values', 'initial', body);
+  } catch (error) {
+    return null;
+  }
+}
+
+
+export function registerSetsSequenceComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const parseCount = (value, fallback = 0) => Math.max(0, toInteger(value, fallback, toNumber));
+  const parseNumber = (value, fallback = 0) => {
+    const numeric = toNumber(value, Number.NaN);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  };
+
+  const generateRandomValues = (rangeInput, countInput, seedInput, { integers = false } = {}) => {
+    const range = ensureNumericRange(rangeInput, toNumber, 0, 1);
+    const count = parseCount(countInput, 10);
+    const rng = createSeededRandom(seedInput, toNumber);
+    const values = [];
+    if (count <= 0) {
+      return values;
+    }
+    if (integers) {
+      const minValue = Math.ceil(range.min);
+      const maxValue = Math.floor(range.max);
+      if (maxValue < minValue) {
+        const fallback = Math.round(range.min);
+        for (let index = 0; index < count; index += 1) {
+          values.push(fallback);
+        }
+        return values;
+      }
+      if (maxValue === minValue) {
+        for (let index = 0; index < count; index += 1) {
+          values.push(minValue);
+        }
+        return values;
+      }
+      const span = maxValue - minValue + 1;
+      for (let index = 0; index < count; index += 1) {
+        const value = minValue + Math.floor(rng() * span);
+        values.push(value);
+      }
+      return values;
+    }
+    const delta = range.max - range.min;
+    for (let index = 0; index < count; index += 1) {
+      const value = range.min + rng() * delta;
+      values.push(value);
+    }
+    return values;
+  };
+
+  register([
+    ...GUID_KEYS(['008e9a6f-478a-4813-8c8a-546273bc3a6b']),
+    'Cull Pattern',
+    'cull pattern',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L: 'list',
+        List: 'list',
+        list: 'list',
+        P: 'pattern',
+        Pattern: 'pattern',
+        'Cull Pattern': 'pattern',
+        pattern: 'pattern',
+      },
+      outputs: {
+        L: 'result',
+        List: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const list = toList(inputs.list);
+      const pattern = toList(inputs.pattern);
+      if (!pattern.length) {
+        return { result: list.slice() };
+      }
+      const normalized = pattern.map((entry) => toBoolean(entry, false));
+      if (!normalized.length) {
+        return { result: list.slice() };
+      }
+      const result = [];
+      for (let index = 0; index < list.length; index += 1) {
+        const shouldCull = normalized[index % normalized.length];
+        if (!shouldCull) {
+          result.push(list[index]);
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['01640871-69ea-40ac-9380-4660d6d28bd2']),
+    'Char Sequence',
+    'char sequence',
+    'charseq',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        C: 'count',
+        Count: 'count',
+        count: 'count',
+        P: 'pool',
+        'Char Pool': 'pool',
+        pool: 'pool',
+        F: 'format',
+        Format: 'format',
+        format: 'format',
+      },
+      outputs: {
+        S: 'sequence',
+        Sequence: 'sequence',
+      },
+    },
+    eval: ({ inputs }) => {
+      const count = parseCount(inputs.count, 0);
+      if (count <= 0) {
+        return { sequence: [] };
+      }
+      const tokens = normalizeCharPool(inputs.pool);
+      const sequence = [];
+      for (let index = 0; index < count; index += 1) {
+        const token = createCharTokenFromIndex(index, tokens);
+        sequence.push(applyFormatMask(token, inputs.format, index));
+      }
+      return { sequence };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '2ab17f9a-d852-4405-80e1-938c5e57e78d',
+      'b7e4e0ef-a01d-48c4-93be-2a12d4417e22',
+    ]),
+    'Random',
+    'random',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        R: 'range',
+        Range: 'range',
+        range: 'range',
+        D: 'range',
+        Domain: 'range',
+        N: 'count',
+        Number: 'count',
+        count: 'count',
+        S: 'seed',
+        Seed: 'seed',
+        seed: 'seed',
+        I: 'integers',
+        Integers: 'integers',
+        integers: 'integers',
+      },
+      outputs: {
+        R: 'values',
+        Random: 'values',
+        Range: 'values',
+        Values: 'values',
+      },
+    },
+    eval: ({ inputs }) => {
+      const values = generateRandomValues(inputs.range ?? inputs.domain, inputs.count ?? inputs.number, inputs.seed, {
+        integers: toBoolean(inputs.integers, false),
+      });
+      return { values };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['455925fd-23ff-4e57-a0e7-913a4165e659']),
+    'Random Reduce',
+    'random reduce',
+    'reduce',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L: 'list',
+        List: 'list',
+        list: 'list',
+        R: 'reduction',
+        Reduction: 'reduction',
+        reduction: 'reduction',
+        S: 'seed',
+        Seed: 'seed',
+        seed: 'seed',
+      },
+      outputs: {
+        L: 'result',
+        List: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const list = toList(inputs.list);
+      const reduction = parseCount(inputs.reduction, 0);
+      if (!list.length || reduction <= 0) {
+        return { result: list.slice() };
+      }
+      const removeCount = Math.min(reduction, list.length);
+      if (removeCount === list.length) {
+        return { result: [] };
+      }
+      const rng = createSeededRandom(inputs.seed, toNumber);
+      const indices = list.map((_, index) => index);
+      for (let index = indices.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(rng() * (index + 1));
+        const temp = indices[index];
+        indices[index] = indices[swapIndex];
+        indices[swapIndex] = temp;
+      }
+      const removal = new Set(indices.slice(0, removeCount));
+      const result = [];
+      for (let index = 0; index < list.length; index += 1) {
+        if (!removal.has(index)) {
+          result.push(list[index]);
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '501aecbb-c191-4d13-83d6-7ee32445ac50',
+      '6568e019-f59c-4984-84d6-96bd5bfbe9e7',
+    ]),
+    'Cull Index',
+    'cull index',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L: 'list',
+        List: 'list',
+        list: 'list',
+        I: 'indices',
+        Indices: 'indices',
+        indices: 'indices',
+        W: 'wrap',
+        Wrap: 'wrap',
+        wrap: 'wrap',
+      },
+      outputs: {
+        L: 'result',
+        List: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const list = toList(inputs.list);
+      const length = list.length;
+      if (!length) {
+        return { result: [] };
+      }
+      const indices = toList(inputs.indices);
+      if (!indices.length) {
+        return { result: list.slice() };
+      }
+      const wrap = toBoolean(inputs.wrap, false);
+      const removal = new Set();
+      for (const entry of indices) {
+        const rawIndex = toInteger(entry, Number.NaN, toNumber);
+        if (!Number.isFinite(rawIndex)) {
+          continue;
+        }
+        let resolved = rawIndex;
+        if (wrap) {
+          resolved = wrapIndex(rawIndex, length);
+        }
+        if (resolved < 0 || resolved >= length) {
+          continue;
+        }
+        removal.add(resolved);
+      }
+      if (!removal.size) {
+        return { result: list.slice() };
+      }
+      const result = list.filter((_, index) => !removal.has(index));
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['5fa4e736-0d82-4af0-97fb-30a79f4cbf41']),
+    'Stack Data',
+    'stack data',
+    'stack',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'data',
+        Data: 'data',
+        data: 'data',
+        S: 'stack',
+        Stack: 'stack',
+        stack: 'stack',
+      },
+      outputs: {
+        D: 'result',
+        Data: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const data = toList(inputs.data);
+      if (!data.length) {
+        return { result: [] };
+      }
+      const patternValues = toList(inputs.stack);
+      const counts = patternValues.length
+        ? patternValues.map((entry) => Math.max(0, toInteger(entry, 0, toNumber)))
+        : [1];
+      const result = [];
+      for (let index = 0; index < data.length; index += 1) {
+        const repeat = counts[index % counts.length] ?? 0;
+        for (let iteration = 0; iteration < repeat; iteration += 1) {
+          result.push(data[index]);
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['932b9817-fcc6-4ac3-b5fd-c0e8eeadc53f']),
+    'Cull Nth',
+    'cull nth',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L: 'list',
+        List: 'list',
+        list: 'list',
+        N: 'frequency',
+        'Cull frequency': 'frequency',
+        frequency: 'frequency',
+      },
+      outputs: {
+        L: 'result',
+        List: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const list = toList(inputs.list);
+      const frequency = parseCount(inputs.frequency, 0);
+      if (!list.length || frequency <= 0) {
+        return { result: list.slice() };
+      }
+      if (frequency === 1) {
+        return { result: [] };
+      }
+      const result = list.filter((_, index) => ((index + 1) % frequency) !== 0);
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['9445ca40-cc73-4861-a455-146308676855']),
+    'Range',
+    'range',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'domain',
+        Domain: 'domain',
+        domain: 'domain',
+        R: 'domain',
+        Range: 'domain',
+        N: 'steps',
+        Steps: 'steps',
+        steps: 'steps',
+      },
+      outputs: {
+        R: 'range',
+        Range: 'range',
+        Values: 'range',
+      },
+    },
+    eval: ({ inputs }) => {
+      const domain = ensureNumericRange(inputs.domain ?? inputs.range, toNumber, 0, 1);
+      const steps = parseCount(inputs.steps, 10);
+      if (steps <= 0) {
+        return { range: [domain.start] };
+      }
+      const values = [];
+      const increment = (domain.end - domain.start) / steps;
+      for (let index = 0; index <= steps; index += 1) {
+        values.push(domain.start + increment * index);
+      }
+      return { range: values };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['a12dddbf-bb49-4ef4-aeb8-5653bc882cbd']),
+    'RandomEx',
+    'randomex',
+    'random ex',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L0: 'min',
+        Min: 'min',
+        min: 'min',
+        Lower: 'min',
+        L1: 'max',
+        Max: 'max',
+        max: 'max',
+        Upper: 'max',
+        N: 'count',
+        Count: 'count',
+        count: 'count',
+        S: 'seed',
+        Seed: 'seed',
+        seed: 'seed',
+      },
+      outputs: {
+        V: 'values',
+        Values: 'values',
+        Result: 'values',
+      },
+    },
+    eval: ({ inputs }) => {
+      const min = parseNumber(inputs.min ?? inputs.lower ?? inputs.l0, 0);
+      const max = parseNumber(inputs.max ?? inputs.upper ?? inputs.l1, 1);
+      const lower = Math.min(min, max);
+      const upper = Math.max(min, max);
+      const count = parseCount(inputs.count, 10);
+      const rng = createSeededRandom(inputs.seed, toNumber);
+      const values = [];
+      if (count <= 0) {
+        return { values };
+      }
+      if (upper === lower) {
+        for (let index = 0; index < count; index += 1) {
+          values.push(lower);
+        }
+        return { values };
+      }
+      const delta = upper - lower;
+      for (let index = 0; index < count; index += 1) {
+        values.push(lower + rng() * delta);
+      }
+      return { values };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['c40dc145-9e36-4a69-ac1a-6d825c654993']),
+    'Repeat Data',
+    'repeat data',
+    'repeat',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'data',
+        Data: 'data',
+        data: 'data',
+        L: 'length',
+        Length: 'length',
+        length: 'length',
+      },
+      outputs: {
+        D: 'result',
+        Data: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const data = toList(inputs.data);
+      const targetLength = parseCount(inputs.length, data.length || 0);
+      if (!targetLength) {
+        return { result: [] };
+      }
+      if (!data.length) {
+        return { result: [] };
+      }
+      const result = [];
+      for (let index = 0; index < targetLength; index += 1) {
+        result.push(data[index % data.length]);
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['dd8134c0-109b-4012-92be-51d843edfff7']),
+    'Duplicate Data',
+    'duplicate data',
+    'dup data',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'data',
+        Data: 'data',
+        data: 'data',
+        N: 'count',
+        Number: 'count',
+        count: 'count',
+        O: 'order',
+        Order: 'order',
+        order: 'order',
+      },
+      outputs: {
+        D: 'result',
+        Data: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const data = toList(inputs.data);
+      const duplicates = parseCount(inputs.count, 1);
+      if (!data.length || duplicates <= 0) {
+        return { result: [] };
+      }
+      const keepOrder = toBoolean(inputs.order, true);
+      const result = [];
+      if (keepOrder) {
+        for (let iteration = 0; iteration < duplicates; iteration += 1) {
+          result.push(...data);
+        }
+      } else {
+        for (const item of data) {
+          for (let iteration = 0; iteration < duplicates; iteration += 1) {
+            result.push(item);
+          }
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e64c5fb1-845c-4ab1-8911-5f338516ba67']),
+    'Series',
+    'series',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        S: 'start',
+        Start: 'start',
+        start: 'start',
+        N: 'step',
+        Step: 'step',
+        step: 'step',
+        C: 'count',
+        Count: 'count',
+        count: 'count',
+      },
+      outputs: {
+        S: 'series',
+        Series: 'series',
+        Result: 'series',
+      },
+    },
+    eval: ({ inputs }) => {
+      const start = parseNumber(inputs.start ?? inputs.s, 0);
+      const step = parseNumber(inputs.step ?? inputs.n, 1);
+      const count = parseCount(inputs.count, 10);
+      const series = [];
+      for (let index = 0; index < count; index += 1) {
+        series.push(start + step * index);
+      }
+      return { series };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e6e344aa-f45b-43d5-a2d9-9cf8e8e608dc']),
+    'Duplicate data [OBSOLETE]',
+    'duplicate data obsolete',
+    'dup obsolete',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'data',
+        Data: 'data',
+        data: 'data',
+        N: 'count',
+        Number: 'count',
+        count: 'count',
+      },
+      outputs: {
+        D: 'result',
+        Data: 'result',
+        Result: 'result',
+      },
+    },
+    eval: ({ inputs }) => {
+      const data = toList(inputs.data);
+      const duplicates = parseCount(inputs.count, 1);
+      if (!data.length || duplicates <= 0) {
+        return { result: [] };
+      }
+      const result = [];
+      for (const item of data) {
+        for (let iteration = 0; iteration < duplicates; iteration += 1) {
+          result.push(item);
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e9b2d2a6-0377-4c1c-a89e-b3f219a95b4d']),
+    'Sequence',
+    'sequence',
+    'seq',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        N: 'notation',
+        Notation: 'notation',
+        notation: 'notation',
+        L: 'length',
+        Length: 'length',
+        length: 'length',
+        I: 'initial',
+        Initial: 'initial',
+        initial: 'initial',
+      },
+      outputs: {
+        S: 'sequence',
+        Sequence: 'sequence',
+      },
+    },
+    eval: ({ inputs }) => {
+      const initialValues = toList(inputs.initial);
+      const normalizedSeeds = initialValues.length
+        ? initialValues.map((value) => {
+            const numeric = toNumber(value, Number.NaN);
+            return Number.isFinite(numeric) ? numeric : value;
+          })
+        : [0];
+      const length = parseCount(inputs.length, normalizedSeeds.length || 1);
+      if (length <= 0) {
+        return { sequence: [] };
+      }
+      const evaluator = compileSequenceExpression(inputs.notation);
+      const sequence = [];
+      for (let index = 0; index < normalizedSeeds.length && sequence.length < length; index += 1) {
+        sequence.push(normalizedSeeds[index]);
+      }
+      const seeds = sequence.length ? sequence.slice() : [0];
+      if (evaluator) {
+        while (sequence.length < length) {
+          const index = sequence.length;
+          const prev = index > 0 ? sequence[index - 1] : seeds[seeds.length - 1] ?? 0;
+          const prev1 = index > 1 ? sequence[index - 2] : prev;
+          const prev2 = index > 2 ? sequence[index - 3] : prev1;
+          let next;
+          try {
+            next = evaluator(index + 1, index, prev, prev1, prev2, sequence, seeds);
+          } catch (error) {
+            next = prev;
+          }
+          const numeric = toNumber(next, Number.NaN);
+          sequence.push(Number.isFinite(numeric) ? numeric : next);
+        }
+      } else {
+        const pattern = seeds.length ? seeds : [0];
+        while (sequence.length < length) {
+          sequence.push(pattern[sequence.length % pattern.length]);
+        }
+      }
+      if (sequence.length > length) {
+        sequence.length = length;
+      }
+      return { sequence };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['f02a20f6-bb49-4e3d-b155-8ed5d3c6b000']),
+    'Jitter',
+    'jitter',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        L: 'list',
+        List: 'list',
+        list: 'list',
+        J: 'strength',
+        Jitter: 'strength',
+        jitter: 'strength',
+        S: 'seed',
+        Seed: 'seed',
+        seed: 'seed',
+      },
+      outputs: {
+        V: 'values',
+        Values: 'values',
+        I: 'indices',
+        Indices: 'indices',
+      },
+    },
+    eval: ({ inputs }) => {
+      const values = toList(inputs.list);
+      const indices = values.map((_, index) => index);
+      const strength = Math.min(1, Math.max(0, parseNumber(inputs.strength, 1)));
+      if (values.length <= 1 || strength <= 0) {
+        return { values, indices };
+      }
+      const rng = createSeededRandom(inputs.seed, toNumber);
+      if (strength >= 1) {
+        for (let index = values.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(rng() * (index + 1));
+          const tempValue = values[index];
+          values[index] = values[swapIndex];
+          values[swapIndex] = tempValue;
+          const tempIndex = indices[index];
+          indices[index] = indices[swapIndex];
+          indices[swapIndex] = tempIndex;
+        }
+        return { values, indices };
+      }
+      const swapCount = Math.max(1, Math.round(strength * values.length));
+      for (let iteration = 0; iteration < swapCount; iteration += 1) {
+        const first = Math.floor(rng() * values.length);
+        let second = Math.floor(rng() * values.length);
+        if (values.length > 1) {
+          let attempts = 0;
+          while (second === first && attempts < 5) {
+            second = Math.floor(rng() * values.length);
+            attempts += 1;
+          }
+          if (second === first) {
+            continue;
+          }
+        }
+        const tempValue = values[first];
+        values[first] = values[second];
+        values[second] = tempValue;
+        const tempIndex = indices[first];
+        indices[first] = indices[second];
+        indices[second] = tempIndex;
+      }
+      return { values, indices };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['fbcf0d42-c9a5-4ca5-8d5b-567fb54abc43']),
+    'Split [OBSOLETE]',
+    'split obsolete',
+    'split',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        D: 'data',
+        Data: 'data',
+        data: 'data',
+        B: 'flag',
+        Boolean: 'flag',
+        flag: 'flag',
+      },
+      outputs: {
+        F: 'falseResult',
+        False: 'falseResult',
+        T: 'trueResult',
+        True: 'trueResult',
+      },
+    },
+    eval: ({ inputs }) => {
+      const data = toList(inputs.data);
+      const flag = toBoolean(inputs.flag, false);
+      if (flag) {
+        return { trueResult: data, falseResult: [] };
+      }
+      return { trueResult: [], falseResult: data };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['fe99f302-3d0d-4389-8494-bd53f7935a02']),
+    'Fibonacci',
+    'fibonacci',
+    'fib',
+  ], {
+    type: 'sets:sequence',
+    pinMap: {
+      inputs: {
+        A: 'seedA',
+        'Seed A': 'seedA',
+        seedA: 'seedA',
+        B: 'seedB',
+        'Seed B': 'seedB',
+        seedB: 'seedB',
+        N: 'count',
+        Number: 'count',
+        count: 'count',
+      },
+      outputs: {
+        S: 'series',
+        Series: 'series',
+      },
+    },
+    eval: ({ inputs }) => {
+      const seedA = parseNumber(inputs.seedA ?? inputs.a, 0);
+      const seedB = parseNumber(inputs.seedB ?? inputs.b, 1);
+      const count = parseCount(inputs.count, 10);
+      const series = [];
+      if (count <= 0) {
+        return { series };
+      }
+      series.push(seedA);
+      if (count > 1) {
+        series.push(seedB);
+      }
+      for (let index = 2; index < count; index += 1) {
+        series.push(parseNumber(series[index - 1], 0) + parseNumber(series[index - 2], 0));
+      }
+      return { series };
+    },
+  });
+}
+
 export function registerSetsListComponents({ register, toNumber }) {
   ensureRegisterFunction(register);
   ensureToNumberFunction(toNumber);

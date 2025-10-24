@@ -53,6 +53,7 @@ const [
     registerComplexOperatorsComponents,
   },
   {
+    registerSetsSequenceComponents,
     registerSetsListComponents,
     registerSetsSetsComponents,
     registerSetsTreeComponents,
@@ -298,6 +299,7 @@ registerVectorColourComponents({ register, toNumber, toVector3 });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
+registerSetsSequenceComponents({ register, toNumber });
 registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
 registerSetsTreeComponents({ register, toNumber });
