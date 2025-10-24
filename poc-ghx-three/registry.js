@@ -64,6 +64,7 @@ const [
   },
   {
     registerIntersectShapeComponents,
+    registerIntersectPhysicalComponents,
   },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
@@ -302,6 +303,7 @@ registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorGridComponents({ register, toNumber, toVector3 });
 registerVectorColourComponents({ register, toNumber, toVector3 });
 registerIntersectShapeComponents({ register, toNumber });
+registerIntersectPhysicalComponents({ register, toNumber });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });

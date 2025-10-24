@@ -1,11 +1,4 @@
-export function registerIntersectShapeComponents({ register, toNumber }) {
-  if (typeof register !== 'function') {
-    throw new Error('register function is required to register intersect shape components.');
-  }
-  if (typeof toNumber !== 'function') {
-    throw new Error('toNumber function is required to register intersect shape components.');
-  }
-
+function createIntersectComponentUtils({ toNumber }) {
   function ensureNumber(value, fallback = 0) {
     const numeric = toNumber(value, Number.NaN);
     return Number.isFinite(numeric) ? numeric : fallback;
@@ -129,6 +122,39 @@ export function registerIntersectShapeComponents({ register, toNumber }) {
       return { path: [index], values: mapped };
     }));
   }
+
+  return {
+    ensureNumber,
+    isDataTree,
+    ensureSimpleArray,
+    ensureArray,
+    resolveItem,
+    isPlainObject,
+    cloneShape,
+    annotateShape,
+    prepareList,
+    createDataTree,
+    createTreeFromItems,
+  };
+}
+
+export function registerIntersectShapeComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register intersect shape components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register intersect shape components.');
+  }
+
+  const {
+    ensureNumber,
+    ensureArray,
+    resolveItem,
+    annotateShape,
+    prepareList,
+    createDataTree,
+    createTreeFromItems,
+  } = createIntersectComponentUtils({ toNumber });
 
   function createBrepBooleanSummary(operation, primaryValues, secondaryValues = [], extras = {}, planeValue = null) {
     const primary = prepareList(primaryValues, { kind: 'brep', operation, role: 'primary' });
@@ -728,6 +754,607 @@ export function registerIntersectShapeComponents({ register, toNumber }) {
     eval: ({ inputs }) => {
       const summary = createBrepBooleanSummary('difference', inputs.brepsA, inputs.brepsB);
       return { result: summary ? [summary] : [] };
+    },
+  });
+}
+
+export function registerIntersectPhysicalComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register intersect physical components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register intersect physical components.');
+  }
+
+  const {
+    ensureNumber,
+    ensureArray,
+    resolveItem,
+    annotateShape,
+  } = createIntersectComponentUtils({ toNumber });
+
+  function createPrimarySecondarySummary({
+    type,
+    operation,
+    primaryValue,
+    primaryKind,
+    secondaryValues = [],
+    secondaryKind = null,
+    extras = {},
+  }) {
+    const primary = primaryValue
+      ? annotateShape(primaryValue, { operation, role: 'primary' }, { kind: primaryKind ?? 'shape' })
+      : null;
+    const secondary = ensureArray(secondaryValues).map((value, index) =>
+      annotateShape(value, { operation, role: 'secondary', index }, { kind: secondaryKind ?? primaryKind ?? 'shape' })
+    );
+    if (!primary && !secondary.length) {
+      return null;
+    }
+    const summary = {
+      type,
+      operation,
+      metadata: {
+        operation,
+        hasPrimary: Boolean(primary),
+        secondaryCount: secondary.length,
+        ...extras,
+      },
+    };
+    const shapes = [];
+    if (primary) {
+      summary.primary = primary;
+      shapes.push(primary);
+    }
+    if (secondary.length) {
+      summary.secondary = secondary;
+      shapes.push(...secondary);
+    }
+    if (shapes.length) {
+      summary.shapes = shapes;
+    }
+    return summary;
+  }
+
+  function createCollectionSummary({
+    type,
+    operation,
+    values,
+    kind = 'shape',
+    role = 'participant',
+    collectionName = 'participants',
+    extras = {},
+  }) {
+    const list = ensureArray(values).map((value, index) =>
+      annotateShape(value, { operation, role, index }, { kind })
+    );
+    if (!list.length) {
+      return null;
+    }
+    const summary = {
+      type,
+      operation,
+      metadata: {
+        operation,
+        [collectionName === 'participants' ? 'participantCount' : `${collectionName}Count`]: list.length,
+        role,
+        ...extras,
+      },
+      shapes: list,
+    };
+    summary[collectionName] = list;
+    return summary;
+  }
+
+  function createSummaryOutput(summary, role, extras = {}) {
+    if (!summary) {
+      return null;
+    }
+    return {
+      type: 'intersect-output',
+      role,
+      summary,
+      metadata: {
+        role,
+        operation: summary.operation,
+        ...extras,
+      },
+    };
+  }
+
+  function outputList(summary, role, extras = {}) {
+    const entry = createSummaryOutput(summary, role, extras);
+    return entry ? [entry] : [];
+  }
+
+  function outputItem(summary, role, extras = {}) {
+    return createSummaryOutput(summary, role, extras);
+  }
+
+  function createCollisionSummary({ mode, colliderValue, obstacleValues = [] }) {
+    if (mode === 'one-many') {
+      return createPrimarySecondarySummary({
+        type: 'collision-query',
+        operation: 'collision',
+        primaryValue: colliderValue,
+        primaryKind: 'shape',
+        secondaryValues: obstacleValues,
+        extras: {
+          mode,
+        },
+      });
+    }
+    return createCollectionSummary({
+      type: 'collision-query',
+      operation: 'collision',
+      values: colliderValue,
+      kind: 'shape',
+      role: 'collider',
+      collectionName: 'colliders',
+      extras: {
+        mode,
+      },
+    });
+  }
+
+  register('{0991ac99-6a0b-47a9-b07d-dd510ca57f0f}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        t: 'params',
+        Params: 'params',
+        params: 'params',
+      },
+    },
+    eval: ({ inputs }) => {
+      const curve = resolveItem(inputs.curve);
+      const summary = createPrimarySecondarySummary({
+        type: 'curve-self-intersection',
+        operation: 'curve-self',
+        primaryValue: curve,
+        primaryKind: 'curve',
+        extras: { mode: 'self' },
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        params: outputList(summary, 'parameters', { expects: 'parameters' }),
+      };
+    },
+  });
+
+  register('{19632848-4b95-4e5e-9e86-b79b47987a46}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        M: 'mesh',
+        Mesh: 'mesh',
+        mesh: 'mesh',
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+      },
+      outputs: {
+        X: 'points',
+        Points: 'points',
+        points: 'points',
+        F: 'faces',
+        Faces: 'faces',
+        faces: 'faces',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'mesh-curve-intersection',
+        operation: 'mesh-curve',
+        primaryValue: resolveItem(inputs.mesh),
+        primaryKind: 'mesh',
+        secondaryValues: inputs.curve,
+        secondaryKind: 'curve',
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        faces: outputList(summary, 'faces', { expects: 'face-indices' }),
+      };
+    },
+  });
+
+  register('{20ef81e8-df15-4a0c-acf1-993a7607cafb}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'brep-curve-intersection',
+        operation: 'brep-curve',
+        primaryValue: resolveItem(inputs.brep),
+        primaryKind: 'brep',
+        secondaryValues: inputs.curve,
+        secondaryKind: 'curve',
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{2168853c-acd8-4a63-9c9b-ecde9e239eae}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'colliders',
+        Colliders: 'colliders',
+        colliders: 'colliders',
+      },
+      outputs: {
+        C: 'collision',
+        Collision: 'collision',
+        collision: 'collision',
+        I: 'indices',
+        Indices: 'indices',
+        indices: 'indices',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCollisionSummary({ mode: 'many-many', colliderValue: inputs.colliders });
+      return {
+        collision: outputList(summary, 'collisions', { expects: 'collider-status' }),
+        indices: outputList(summary, 'indices', { expects: 'collider-index' }),
+      };
+    },
+  });
+
+  register('{21b6a605-9568-4bf8-acc1-631565d609d7}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'meshA',
+        'Mesh A': 'meshA',
+        B: 'meshB',
+        'Mesh B': 'meshB',
+      },
+      outputs: {
+        X: 'intersections',
+        Intersections: 'intersections',
+        intersections: 'intersections',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'mesh-mesh-intersection',
+        operation: 'mesh-mesh',
+        primaryValue: resolveItem(inputs.meshA),
+        primaryKind: 'mesh',
+        secondaryValues: resolveItem(inputs.meshB),
+        secondaryKind: 'mesh',
+      });
+      return {
+        intersections: outputList(summary, 'curves', { expects: 'intersection-curves' }),
+      };
+    },
+  });
+
+  register('{4439a51b-8d24-4924-b8e2-f77e7f8f5bec}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'firstSet',
+        'First Set': 'firstSet',
+        B: 'secondSet',
+        'Second Set': 'secondSet',
+        D: 'distance',
+        Distance: 'distance',
+        d: 'distance',
+        L: 'limit',
+        'Result Limit': 'limit',
+        limit: 'limit',
+      },
+      outputs: {
+        N: 'count',
+        'Clash Count': 'count',
+        count: 'count',
+        P: 'points',
+        'Clash Points': 'points',
+        points: 'points',
+        R: 'radii',
+        'Clash Radii': 'radii',
+        radii: 'radii',
+        i: 'firstIndex',
+        'First Index': 'firstIndex',
+        first: 'firstIndex',
+        j: 'secondIndex',
+        'Second index': 'secondIndex',
+        second: 'secondIndex',
+      },
+    },
+    eval: ({ inputs }) => {
+      const firstSet = ensureArray(inputs.firstSet).map((value, index) =>
+        annotateShape(value, { operation: 'clash', role: 'first', index }, { kind: 'shape' })
+      );
+      const secondSet = ensureArray(inputs.secondSet).map((value, index) =>
+        annotateShape(value, { operation: 'clash', role: 'second', index }, { kind: 'shape' })
+      );
+      const distance = ensureNumber(inputs.distance, 0);
+      const limit = ensureNumber(inputs.limit, 0);
+      const summary = {
+        type: 'clash-analysis',
+        operation: 'clash',
+        first: firstSet,
+        second: secondSet,
+        shapes: [...firstSet, ...secondSet],
+        metadata: {
+          operation: 'clash',
+          firstCount: firstSet.length,
+          secondCount: secondSet.length,
+          distance,
+          limit,
+        },
+      };
+      return {
+        count: outputItem(summary, 'count', { expects: 'clash-count' }),
+        points: outputList(summary, 'points', { expects: 'clash-points' }),
+        radii: outputList(summary, 'radii', { expects: 'clash-radii' }),
+        firstIndex: outputList(summary, 'first-index', { expects: 'first-collider-index' }),
+        secondIndex: outputList(summary, 'second-index', { expects: 'second-collider-index' }),
+      };
+    },
+  });
+
+  register('{68546dd0-aa82-471c-87e9-81cb16ac50ed}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'surface',
+        Surface: 'surface',
+        surface: 'surface',
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        uv: 'uvPoints',
+        'UV Points': 'uvPoints',
+        UV: 'uvPoints',
+        N: 'normals',
+        Normals: 'normals',
+        normals: 'normals',
+        t: 'parameters',
+        Parameters: 'parameters',
+        parameters: 'parameters',
+        T: 'tangents',
+        Tangents: 'tangents',
+        tangents: 'tangents',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'surface-curve-intersection',
+        operation: 'surface-curve',
+        primaryValue: resolveItem(inputs.surface),
+        primaryKind: 'surface',
+        secondaryValues: inputs.curve,
+        secondaryKind: 'curve',
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+        uvPoints: outputList(summary, 'uv', { expects: 'uv-coordinates' }),
+        normals: outputList(summary, 'normals', { expects: 'normals' }),
+        parameters: outputList(summary, 'parameters', { expects: 'curve-parameters' }),
+        tangents: outputList(summary, 'tangents', { expects: 'curve-tangents' }),
+      };
+    },
+  });
+
+  register('{7db14002-c09c-4d7b-9f80-e4e2b00dfa1d}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'surface',
+        Surface: 'surface',
+        surface: 'surface',
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+      },
+      outputs: {
+        F: 'fragments',
+        Fragments: 'fragments',
+        fragments: 'fragments',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'surface-split',
+        operation: 'surface-split',
+        primaryValue: resolveItem(inputs.surface),
+        primaryKind: 'surface',
+        secondaryValues: inputs.curves,
+        secondaryKind: 'curve',
+      });
+      return {
+        fragments: outputList(summary, 'fragments', { expects: 'surface-fragments' }),
+      };
+    },
+  });
+
+  register('{84627490-0fb2-4498-8138-ad134ee4cb36}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'curveA',
+        'Curve A': 'curveA',
+        B: 'curveB',
+        'Curve B': 'curveB',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        tA: 'paramsA',
+        'Params A': 'paramsA',
+        paramsA: 'paramsA',
+        tB: 'paramsB',
+        'Params B': 'paramsB',
+        paramsB: 'paramsB',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'curve-curve-intersection',
+        operation: 'curve-curve',
+        primaryValue: resolveItem(inputs.curveA),
+        primaryKind: 'curve',
+        secondaryValues: resolveItem(inputs.curveB),
+        secondaryKind: 'curve',
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        paramsA: outputList(summary, 'params-a', { expects: 'curve-a-parameters' }),
+        paramsB: outputList(summary, 'params-b', { expects: 'curve-b-parameters' }),
+      };
+    },
+  });
+
+  register('{904e4b56-484a-4814-b35f-aa4baf362117}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'brepA',
+        'Brep A': 'brepA',
+        B: 'brepB',
+        'Brep B': 'brepB',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createPrimarySecondarySummary({
+        type: 'brep-brep-intersection',
+        operation: 'brep-brep',
+        primaryValue: resolveItem(inputs.brepA),
+        primaryKind: 'brep',
+        secondaryValues: resolveItem(inputs.brepB),
+        secondaryKind: 'brep',
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{931e6030-ccb3-4a7b-a89a-99dcce8770cd}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        iA: 'indexA',
+        'Index A': 'indexA',
+        indexA: 'indexA',
+        iB: 'indexB',
+        'Index B': 'indexB',
+        indexB: 'indexB',
+        tA: 'paramA',
+        'Param A': 'paramA',
+        paramA: 'paramA',
+        tB: 'paramB',
+        'Param B': 'paramB',
+        paramB: 'paramB',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCollectionSummary({
+        type: 'multi-curve-intersection',
+        operation: 'curve-multi',
+        values: inputs.curves,
+        kind: 'curve',
+        role: 'curve',
+        collectionName: 'curves',
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        indexA: outputList(summary, 'index-a', { expects: 'curve-a-index' }),
+        indexB: outputList(summary, 'index-b', { expects: 'curve-b-index' }),
+        paramA: outputList(summary, 'param-a', { expects: 'curve-a-parameter' }),
+        paramB: outputList(summary, 'param-b', { expects: 'curve-b-parameter' }),
+      };
+    },
+  });
+
+  register('{bb6c6501-0500-4678-859b-b838348981d1}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'collider',
+        Collider: 'collider',
+        collider: 'collider',
+        O: 'obstacles',
+        Obstacles: 'obstacles',
+        obstacles: 'obstacles',
+      },
+      outputs: {
+        C: 'collision',
+        Collision: 'collision',
+        collision: 'collision',
+        I: 'index',
+        Index: 'index',
+        index: 'index',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCollisionSummary({
+        mode: 'one-many',
+        colliderValue: resolveItem(inputs.collider),
+        obstacleValues: inputs.obstacles,
+      });
+      return {
+        collision: outputItem(summary, 'collisions', { expects: 'collision-flag' }),
+        index: outputItem(summary, 'index', { expects: 'obstacle-index' }),
+      };
     },
   });
 }
