@@ -54,6 +54,7 @@ const [
   },
   {
     registerSetsSequenceComponents,
+    registerSetsTextComponents,
     registerSetsListComponents,
     registerSetsSetsComponents,
     registerSetsTreeComponents,
@@ -300,6 +301,7 @@ registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
 registerSetsSequenceComponents({ register, toNumber });
+registerSetsTextComponents({ register, toNumber });
 registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
 registerSetsTreeComponents({ register, toNumber });

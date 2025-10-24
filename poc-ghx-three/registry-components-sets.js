@@ -979,6 +979,261 @@ function applyFormatMask(value, mask, index) {
   return formatted;
 }
 
+function getFirstValue(input) {
+  const list = toList(input);
+  return list.length ? list[0] : undefined;
+}
+
+function toTextValue(input, fallback = '') {
+  const value = getFirstValue(input);
+  if (value === undefined || value === null) {
+    return fallback;
+  }
+  return String(value);
+}
+
+function toTextList(input) {
+  return toList(input).map((entry) => (entry === undefined || entry === null ? '' : String(entry)));
+}
+
+function normalizeSeparatorCharacters(input) {
+  const tokens = [];
+  const seen = new Set();
+
+  const process = (value) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+    if (typeof value === 'string') {
+      for (const char of value) {
+        if (!seen.has(char)) {
+          seen.add(char);
+          tokens.push(char);
+        }
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        process(entry);
+      }
+      return;
+    }
+    if (typeof value === 'object') {
+      if (Object.prototype.hasOwnProperty.call(value, 'value')) {
+        process(value.value);
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(value, 'values')) {
+        process(value.values);
+        return;
+      }
+    }
+    const text = String(value);
+    for (const char of text) {
+      if (!seen.has(char)) {
+        seen.add(char);
+        tokens.push(char);
+      }
+    }
+  };
+
+  process(input);
+
+  return tokens;
+}
+
+function escapeRegexToken(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\-]/g, '\\$&');
+}
+
+function splitTextBySeparators(text, separators) {
+  if (!separators || !separators.length) {
+    return text ? [text] : [];
+  }
+  const pattern = `[${separators.map(escapeRegexToken).join('')}]`;
+  const regex = new RegExp(pattern, 'g');
+  return text.split(regex).filter((fragment) => fragment !== '');
+}
+
+function compileWildcardPattern(wildcard, caseSensitive) {
+  if (wildcard === undefined || wildcard === null) {
+    return null;
+  }
+  const text = String(wildcard);
+  if (!text) {
+    return null;
+  }
+  const escaped = escapeRegexToken(text);
+  const source = `^${escaped.replace(/\\\*/g, '.*').replace(/\\\?/g, '.')}$`;
+  try {
+    return new RegExp(source, caseSensitive ? '' : 'i');
+  } catch (error) {
+    return null;
+  }
+}
+
+function compileUserRegex(pattern, caseSensitive) {
+  if (pattern === undefined || pattern === null) {
+    return null;
+  }
+  if (pattern instanceof RegExp) {
+    const flags = pattern.flags ?? '';
+    if (!caseSensitive && !flags.includes('i')) {
+      return new RegExp(pattern.source, `${flags}i`);
+    }
+    if (caseSensitive && flags.includes('i')) {
+      return new RegExp(pattern.source, flags.replace(/i/g, ''));
+    }
+    return pattern;
+  }
+  const text = String(pattern);
+  if (!text) {
+    return null;
+  }
+  let source = text;
+  let flags = '';
+  const literalMatch = text.match(/^\/(.*)\/([a-z]*)$/i);
+  if (literalMatch) {
+    source = literalMatch[1];
+    flags = literalMatch[2] ?? '';
+  }
+  if (!caseSensitive && !flags.includes('i')) {
+    flags += 'i';
+  }
+  if (caseSensitive && flags.includes('i')) {
+    flags = flags.replace(/i/g, '');
+  }
+  try {
+    return new RegExp(source, flags);
+  } catch (error) {
+    return null;
+  }
+}
+
+function gatherFormatDataInputs(inputs = {}) {
+  const entries = [];
+  for (const [key, value] of Object.entries(inputs)) {
+    if (value === undefined) continue;
+    const normalized = String(key).trim();
+    if (!normalized) continue;
+    const match = normalized.match(/^(?:data\s*)?(\d+)$/i);
+    if (!match) continue;
+    const index = Number.parseInt(match[1], 10);
+    if (!Number.isFinite(index)) continue;
+    entries[index] = getFirstValue(value);
+  }
+  return entries;
+}
+
+function tryCreateCollator(culture, { caseSensitive = true } = {}) {
+  const sensitivity = caseSensitive ? 'variant' : 'base';
+  try {
+    return new Intl.Collator(culture || undefined, { sensitivity });
+  } catch (error) {
+    return new Intl.Collator(undefined, { sensitivity });
+  }
+}
+
+function formatNumberWithSpec(number, spec, culture) {
+  if (!Number.isFinite(number)) {
+    return String(number);
+  }
+  if (!spec) {
+    try {
+      return new Intl.NumberFormat(culture || undefined).format(number);
+    } catch (error) {
+      return new Intl.NumberFormat().format(number);
+    }
+  }
+  const trimmed = String(spec).trim();
+  if (!trimmed) {
+    try {
+      return new Intl.NumberFormat(culture || undefined).format(number);
+    } catch (error) {
+      return new Intl.NumberFormat().format(number);
+    }
+  }
+  const upper = trimmed.toUpperCase();
+  const styleMatch = upper.match(/^([PFN])(\d+)?$/);
+  const options = {};
+  if (styleMatch) {
+    const [, style, digitsText] = styleMatch;
+    const digits = digitsText ? Number.parseInt(digitsText, 10) : undefined;
+    if (Number.isFinite(digits)) {
+      options.minimumFractionDigits = digits;
+      options.maximumFractionDigits = digits;
+    }
+    if (style === 'P') {
+      options.style = 'percent';
+    } else if (style === 'N') {
+      options.useGrouping = true;
+    }
+  } else {
+    const decimalMatch = trimmed.match(/^0+(?:\.(0+|#+))?$/);
+    if (decimalMatch) {
+      const decimals = decimalMatch[1] ? decimalMatch[1].replace(/#/g, '').length : 0;
+      options.minimumFractionDigits = decimals;
+      options.maximumFractionDigits = decimalMatch[1] ? decimalMatch[1].length : decimals;
+    }
+  }
+  try {
+    return new Intl.NumberFormat(culture || undefined, options).format(number);
+  } catch (error) {
+    return new Intl.NumberFormat(undefined, options).format(number);
+  }
+}
+
+function formatPlaceholderValue(value, spec, culture) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  if (!spec) {
+    return String(value);
+  }
+  const trimmed = String(spec).trim();
+  if (!trimmed) {
+    return String(value);
+  }
+  const lower = trimmed.toLowerCase();
+  if (lower === 'upper' || lower === 'uppercase') {
+    return String(value).toUpperCase();
+  }
+  if (lower === 'lower' || lower === 'lowercase') {
+    return String(value).toLowerCase();
+  }
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return formatNumberWithSpec(numeric, trimmed, culture);
+  }
+  return String(value);
+}
+
+function toLocaleCase(text, culture, method) {
+  if (!text) {
+    return text;
+  }
+  try {
+    if (culture) {
+      if (method === 'upper') {
+        return text.toLocaleUpperCase(culture);
+      }
+      if (method === 'lower') {
+        return text.toLocaleLowerCase(culture);
+      }
+    }
+  } catch (error) {
+    // Ignore culture errors and fall back to default casing methods.
+  }
+  if (method === 'upper') {
+    return text.toUpperCase();
+  }
+  if (method === 'lower') {
+    return text.toLowerCase();
+  }
+  return text;
+}
+
 function compileSequenceExpression(notation) {
   if (notation === undefined || notation === null) {
     return null;
@@ -1828,6 +2083,443 @@ export function registerSetsSequenceComponents({ register, toNumber }) {
         series.push(parseNumber(series[index - 1], 0) + parseNumber(series[index - 2], 0));
       }
       return { series };
+    },
+  });
+}
+
+export function registerSetsTextComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const gatherCulture = (value) => {
+    const culture = toTextValue(value, '').trim();
+    return culture || null;
+  };
+
+  register([
+    ...GUID_KEYS([
+      '01cbd6e3-ccbe-4c24-baeb-46e10553e18b',
+      '2013e425-8713-42e2-a661-b57e78840337',
+    ]),
+    'Concatenate',
+    'concatenate',
+    'Concat',
+    'concat',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        A: 'a',
+        a: 'a',
+        Start: 'a',
+        start: 'a',
+        'Fragment A': 'a',
+        B: 'b',
+        b: 'b',
+        End: 'b',
+        end: 'b',
+        'Fragment B': 'b',
+      },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const fragments = [];
+      fragments.push(toTextValue(inputs.a, ''));
+      fragments.push(toTextValue(inputs.b, ''));
+      for (const [key, value] of Object.entries(inputs || {})) {
+        if (value === undefined || value === null) continue;
+        if (key === 'a' || key === 'b' || key === 'result') continue;
+        const normalized = String(key).trim().toLowerCase();
+        const match = normalized.match(/^(?:fragment\s*)?([c-z])$/);
+        if (match) {
+          fragments.push(toTextValue(value, ''));
+        }
+      }
+      return { result: fragments.join('') };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['04887d01-504c-480e-b2a2-01ea19cc5922']),
+    'Text Split',
+    'text split',
+    'Split',
+    'split',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text', C: 'separators', Separators: 'separators' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const separators = normalizeSeparatorCharacters(inputs.separators);
+      const result = splitTextBySeparators(text, separators);
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['07e0811f-034a-4504-bca0-2d03b2c46217']),
+    'Text Fragment',
+    'text fragment',
+    'Fragment',
+    'fragment',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text', i: 'start', I: 'start', Start: 'start', start: 'start', N: 'count', Count: 'count' },
+      outputs: { F: 'fragment', Fragment: 'fragment' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const length = text.length;
+      const start = Math.min(Math.max(toInteger(inputs.start, 0, toNumber), 0), length);
+      const hasCount = inputs.count !== undefined && inputs.count !== null;
+      const count = hasCount ? Math.max(toInteger(inputs.count, length - start, toNumber), 0) : length - start;
+      const fragment = text.slice(start, start + count);
+      return { fragment };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['1274d51a-81e6-4ccf-ad1f-0edf4c769cac']),
+    'Text Join',
+    'text join',
+    'Join',
+    'join',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text', J: 'join', Join: 'join' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const fragments = toTextList(inputs.text);
+      const joiner = toTextValue(inputs.join, '');
+      return { result: fragments.join(joiner) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '1ff80a00-1b1d-4fb3-926a-0c246261fc55',
+      'cec16c67-7b8b-41f7-a5a5-f675177e524b',
+    ]),
+    'Sort Text',
+    'sort text',
+    'TSort',
+    'tsort',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        K: 'keys',
+        Keys: 'keys',
+        V: 'values',
+        Values: 'values',
+        C: 'culture',
+        Culture: 'culture',
+      },
+      outputs: { K: 'keys', Keys: 'keys', V: 'values', Values: 'values' },
+    },
+    eval: ({ inputs }) => {
+      const keys = toTextList(inputs.keys);
+      const hasValues = inputs.values !== undefined;
+      const values = hasValues ? toList(inputs.values) : [];
+      const culture = gatherCulture(inputs.culture);
+      const collator = tryCreateCollator(culture, { caseSensitive: true });
+      const entries = keys.map((key, index) => ({
+        key,
+        value: hasValues ? values[index] : undefined,
+      }));
+      entries.sort((a, b) => collator.compare(a.key, b.key));
+      const sortedKeys = entries.map((entry) => entry.key);
+      const result = { keys: sortedKeys };
+      if (hasValues) {
+        result.values = entries.map((entry) => entry.value);
+      }
+      return result;
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['28504f1f-a8d9-40c8-b8aa-529413456258']),
+    'Text On Surface',
+    'text on surface',
+    'TextSrf',
+    'textsrf',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        T: 'text',
+        Text: 'text',
+        F: 'font',
+        Font: 'font',
+        H: 'height',
+        Height: 'height',
+        D: 'depth',
+        Depth: 'depth',
+        B: 'baseline',
+        'Base Line': 'baseline',
+        S: 'surface',
+        'Base Surface': 'surface',
+      },
+      outputs: { S: 'symbols', Symbols: 'symbols' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const font = toTextValue(inputs.font, 'Arial');
+      const heightValue = toNumber(inputs.height, Number.NaN);
+      const depthValue = toNumber(inputs.depth, Number.NaN);
+      const height = Number.isFinite(heightValue) ? Math.max(heightValue, 0) : 1;
+      const depth = Number.isFinite(depthValue) ? Math.max(depthValue, 0) : 0;
+      const baseline = inputs.baseline;
+      const surface = inputs.surface;
+      const symbols = [];
+      const characters = Array.from(text);
+      for (let index = 0; index < characters.length; index += 1) {
+        symbols.push({
+          type: 'text-symbol',
+          char: characters[index],
+          index,
+          font,
+          height,
+          depth,
+          baseline,
+          surface,
+        });
+      }
+      return { symbols };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['3756c55f-95c3-442c-a027-6b3ab0455a94']),
+    'Match Text',
+    'match text',
+    'TMatch',
+    'tmatch',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        T: 'text',
+        Text: 'text',
+        P: 'pattern',
+        Pattern: 'pattern',
+        R: 'regex',
+        RegEx: 'regex',
+        C: 'caseSensitive',
+        Case: 'caseSensitive',
+      },
+      outputs: { M: 'match', Match: 'match' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const caseSensitive = toBoolean(inputs.caseSensitive, false);
+      const wildcard = compileWildcardPattern(inputs.pattern, caseSensitive);
+      const regex = compileUserRegex(inputs.regex, caseSensitive);
+      let isMatch = true;
+      if (wildcard) {
+        isMatch = isMatch && wildcard.test(text);
+      }
+      if (regex) {
+        isMatch = isMatch && regex.test(text);
+      }
+      return { match: isMatch };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['4df8df00-3635-45bd-95e6-f9206296c110']),
+    'Replace Text',
+    'replace text',
+    'Rep',
+    'rep',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text', F: 'find', Find: 'find', R: 'replace', Replace: 'replace' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const find = toTextValue(inputs.find, '');
+      if (!find) {
+        return { result: text };
+      }
+      const replacement = toTextValue(inputs.replace, '');
+      const pattern = new RegExp(escapeRegexToken(find), 'g');
+      const result = text.replace(pattern, replacement);
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '758d91a0-4aec-47f8-9671-16739a8a2c5d',
+      'c8203c3c-6bcd-4f8c-a906-befd92ebf0cb',
+    ]),
+    'Format',
+    'format',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        F: 'format',
+        Format: 'format',
+        C: 'culture',
+        Culture: 'culture',
+      },
+      outputs: { T: 'text', Text: 'text' },
+    },
+    eval: ({ inputs }) => {
+      const format = toTextValue(inputs.format, '');
+      if (!format) {
+        return { text: '' };
+      }
+      const culture = gatherCulture(inputs.culture);
+      const data = gatherFormatDataInputs(inputs);
+      const formatted = format.replace(/\{(\d+)(?::([^}]+))?\}/g, (match, indexText, spec) => {
+        const index = Number.parseInt(indexText, 10);
+        if (!Number.isFinite(index) || index < 0 || index >= data.length) {
+          return '';
+        }
+        return formatPlaceholderValue(data[index], spec, culture);
+      });
+      return { text: formatted };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['86503240-d884-43f9-9323-efe30488a6e1']),
+    'Characters',
+    'characters',
+    'Chars',
+    'chars',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text' },
+      outputs: { C: 'characters', Result: 'characters', U: 'unicode', Unicode: 'unicode' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const characters = Array.from(text);
+      const unicode = characters.map((char) => char.codePointAt(0));
+      return { characters, unicode };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      'b1991128-8bf1-4dea-8497-4b7188a64e9d',
+      'bdd2a14a-1302-4152-a484-7198716d1a11',
+    ]),
+    'Text Case',
+    'text case',
+    'Case',
+    'case',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text', C: 'culture', Culture: 'culture' },
+      outputs: { U: 'upper', 'Upper Case': 'upper', L: 'lower', 'Lower Case': 'lower' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const culture = gatherCulture(inputs.culture);
+      const upper = toLocaleCase(text, culture, 'upper');
+      const lower = toLocaleCase(text, culture, 'lower');
+      return { upper, lower };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['dca05f6f-e3d9-42e3-b3bb-eb20363fb335']),
+    'Text Length',
+    'text length',
+    'Len',
+    'len',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: { T: 'text', Text: 'text' },
+      outputs: { L: 'length', Length: 'length' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const length = Array.from(text).length;
+      return { length };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e4cb7168-5e32-4c54-b425-5a31c6fd685a']),
+    'Text Trim',
+    'text trim',
+    'Trim',
+    'trim',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        T: 'text',
+        Text: 'text',
+        S: 'trimStart',
+        Start: 'trimStart',
+        E: 'trimEnd',
+        End: 'trimEnd',
+      },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const text = toTextValue(inputs.text, '');
+      const trimStart = inputs.trimStart === undefined ? true : toBoolean(inputs.trimStart, true);
+      const trimEnd = inputs.trimEnd === undefined ? true : toBoolean(inputs.trimEnd, true);
+      let result = text;
+      if (trimStart && trimEnd) {
+        result = text.trim();
+      } else if (trimStart) {
+        result = text.replace(/^[\s\uFEFF\xA0]+/, '');
+      } else if (trimEnd) {
+        result = text.replace(/[\s\uFEFF\xA0]+$/, '');
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['f7608c4d-836c-4adf-9d1f-3b04e6a2647d']),
+    'Text Distance',
+    'text distance',
+    'TDist',
+    'tdist',
+  ], {
+    type: 'sets:text',
+    pinMap: {
+      inputs: {
+        A: 'textA',
+        'Text A': 'textA',
+        B: 'textB',
+        'Text B': 'textB',
+        C: 'caseSensitive',
+        Case: 'caseSensitive',
+      },
+      outputs: { D: 'distance', Distance: 'distance' },
+    },
+    eval: ({ inputs }) => {
+      let textA = toTextValue(inputs.textA, '');
+      let textB = toTextValue(inputs.textB, '');
+      const caseSensitive = toBoolean(inputs.caseSensitive, false);
+      if (!caseSensitive) {
+        textA = textA.toLowerCase();
+        textB = textB.toLowerCase();
+      }
+      const distance = levenshteinDistance(textA, textB);
+      return { distance };
     },
   });
 }
