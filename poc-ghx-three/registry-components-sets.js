@@ -278,6 +278,93 @@ function valuesEqual(a, b) {
   return a === b;
 }
 
+function levenshteinDistance(a, b) {
+  if (a === b) {
+    return 0;
+  }
+  const stringA = `${a}`;
+  const stringB = `${b}`;
+  const lengthA = stringA.length;
+  const lengthB = stringB.length;
+  if (lengthA === 0) {
+    return lengthB;
+  }
+  if (lengthB === 0) {
+    return lengthA;
+  }
+
+  let previous = new Array(lengthB + 1);
+  let current = new Array(lengthB + 1);
+
+  for (let index = 0; index <= lengthB; index += 1) {
+    previous[index] = index;
+  }
+
+  for (let row = 1; row <= lengthA; row += 1) {
+    current[0] = row;
+    const charCodeA = stringA.charCodeAt(row - 1);
+    for (let column = 1; column <= lengthB; column += 1) {
+      const charCodeB = stringB.charCodeAt(column - 1);
+      const substitutionCost = charCodeA === charCodeB ? 0 : 1;
+      const deletion = previous[column] + 1;
+      const insertion = current[column - 1] + 1;
+      const substitution = previous[column - 1] + substitutionCost;
+      current[column] = Math.min(deletion, insertion, substitution);
+    }
+    const swap = previous;
+    previous = current;
+    current = swap;
+  }
+
+  return previous[lengthB];
+}
+
+function findValueIndex(list, target) {
+  if (!Array.isArray(list) || !list.length) {
+    return -1;
+  }
+  for (let index = 0; index < list.length; index += 1) {
+    if (valuesEqual(list[index], target)) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+function includesValue(list, value) {
+  return findValueIndex(list, value) !== -1;
+}
+
+function uniqueValues(list) {
+  const result = [];
+  if (!Array.isArray(list)) {
+    return result;
+  }
+  for (const value of list) {
+    if (!includesValue(result, value)) {
+      result.push(value);
+    }
+  }
+  return result;
+}
+
+function createUniqueSetWithMap(list) {
+  const unique = [];
+  const map = [];
+  if (!Array.isArray(list)) {
+    return { unique, map };
+  }
+  for (const value of list) {
+    let index = findValueIndex(unique, value);
+    if (index === -1) {
+      index = unique.length;
+      unique.push(value);
+    }
+    map.push(index);
+  }
+  return { unique, map };
+}
+
 export function registerSetsListComponents({ register, toNumber }) {
   ensureRegisterFunction(register);
   ensureToNumberFunction(toNumber);
@@ -1084,6 +1171,429 @@ export function registerSetsListComponents({ register, toNumber }) {
         invalidFlag: isInvalid,
         description: describeValueState(value, isNull, isInvalid),
       };
+    },
+  });
+}
+
+export function registerSetsSetsComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  register([
+    ...GUID_KEYS(['190d042c-2270-4bc1-81c0-4f90c170c9c9']),
+    'Delete Consecutive',
+    'delete consecutive',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { S: 'set', Set: 'set', set: 'set', W: 'wrap', Wrap: 'wrap' },
+      outputs: { S: 'result', Set: 'result', N: 'count', Count: 'count' },
+    },
+    eval: ({ inputs }) => {
+      const source = toList(inputs.set);
+      if (!source.length) {
+        return { result: [], count: 0 };
+      }
+      const wrap = toBoolean(inputs.wrap, false);
+      const result = [];
+      let removed = 0;
+      for (let index = 0; index < source.length; index += 1) {
+        const value = source[index];
+        if (!result.length) {
+          result.push(value);
+          continue;
+        }
+        const previous = source[index - 1];
+        if (valuesEqual(previous, value)) {
+          removed += 1;
+          continue;
+        }
+        result.push(value);
+      }
+      if (wrap && result.length > 1 && valuesEqual(result[0], result[result.length - 1])) {
+        result.pop();
+        removed += 1;
+      }
+      return { result, count: removed };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['1edcc3cf-cf84-41d4-8204-561162cfe510']),
+    'Key/Value Search',
+    'key value search',
+    'key search',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { K: 'keys', Keys: 'keys', V: 'values', Values: 'values', S: 'search', Search: 'search' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const keys = toList(inputs.keys);
+      const values = toList(inputs.values);
+      const search = inputs.search;
+      const index = findValueIndex(keys, search);
+      return { result: index >= 0 ? values[index] ?? null : null };
+    },
+  });
+
+  const registerCreateSet = (guid, includeMap) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Create Set',
+      'create set',
+      'set:create',
+    ], {
+      type: 'sets:sets',
+      pinMap: {
+        inputs: { L: 'list', List: 'list' },
+        outputs: includeMap
+          ? { S: 'set', Set: 'set', M: 'map', Map: 'map' }
+          : { S: 'set', Set: 'set' },
+      },
+      eval: ({ inputs }) => {
+        const list = toList(inputs.list);
+        const { unique, map } = createUniqueSetWithMap(list);
+        if (includeMap) {
+          return { set: unique, map };
+        }
+        return { set: unique };
+      },
+    });
+  };
+
+  registerCreateSet('2cb4bf85-a282-464c-b42c-8e735d2a0a74', false);
+  registerCreateSet('98c3c63a-e78a-43ea-a111-514fcf312c95', true);
+
+  register([
+    ...GUID_KEYS(['3ff27857-b988-417a-b495-b24c733dbd00']),
+    'Member Index',
+    'member index',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { S: 'set', Set: 'set', set: 'set', M: 'member', Member: 'member' },
+      outputs: { I: 'indices', Index: 'indices', indices: 'indices', N: 'count', Count: 'count' },
+    },
+    eval: ({ inputs }) => {
+      const set = toList(inputs.set);
+      const member = inputs.member;
+      const indices = [];
+      for (let index = 0; index < set.length; index += 1) {
+        if (valuesEqual(set[index], member)) {
+          indices.push(index);
+        }
+      }
+      return { indices, count: indices.length };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['4cfc0bb0-0745-4772-a520-39f9bf3d99bc']),
+    'SubSet',
+    'subset',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const setA = uniqueValues(toList(inputs.setA));
+      const setB = uniqueValues(toList(inputs.setB));
+      const result = setB.every((value) => includesValue(setA, value));
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['81800098-1060-4e2b-80d4-17f835cc825f']),
+    'Disjoint',
+    'disjoint',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const setA = uniqueValues(toList(inputs.setA));
+      const setB = uniqueValues(toList(inputs.setB));
+      const result = setA.every((value) => !includesValue(setB, value));
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '82f19c48-9e73-43a4-ae6c-3a8368099b08',
+      '8a55f680-cf53-4634-a486-b828de92b71d',
+    ]),
+    'Set Intersection',
+    'set intersection',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { U: 'intersection', Union: 'intersection', Intersection: 'intersection' },
+    },
+    eval: ({ inputs }) => {
+      const setA = uniqueValues(toList(inputs.setA));
+      const setB = uniqueValues(toList(inputs.setB));
+      const intersection = [];
+      for (const value of setA) {
+        if (includesValue(setB, value)) {
+          intersection.push(value);
+        }
+      }
+      return { intersection };
+    },
+  });
+
+  register([
+    ...GUID_KEYS([
+      '8eed5d78-7810-4ba1-968e-8a1f1db98e39',
+      'ab34845d-4ab9-4ff4-8870-eedd0c5594cb',
+    ]),
+    'Set Union',
+    'set union',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { U: 'union', Union: 'union' },
+    },
+    eval: ({ inputs }) => {
+      const union = [];
+      const appendUnique = (values) => {
+        for (const value of values) {
+          if (!includesValue(union, value)) {
+            union.push(value);
+          }
+        }
+      };
+      appendUnique(toList(inputs.setA));
+      appendUnique(toList(inputs.setB));
+      return { union };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['b4d4235f-14ff-4d4e-a29a-b358dcd2baf4']),
+    'Find similar member',
+    'find similar member',
+    'find similar',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { D: 'data', Data: 'data', S: 'set', Set: 'set' },
+      outputs: { H: 'hit', Hit: 'hit', i: 'index', Index: 'index' },
+    },
+    eval: ({ inputs }) => {
+      const data = inputs.data;
+      const set = toList(inputs.set);
+      if (!set.length) {
+        return { hit: null, index: -1 };
+      }
+
+      let bestIndex = -1;
+      let bestScore = Number.POSITIVE_INFINITY;
+      let bestValue = null;
+
+      const numericTarget = toNumber(data, Number.NaN);
+      const hasNumericTarget = Number.isFinite(numericTarget);
+      const targetString = data === undefined || data === null ? '' : String(data).toLowerCase();
+
+      for (let index = 0; index < set.length; index += 1) {
+        const candidate = set[index];
+        if (valuesEqual(candidate, data)) {
+          bestIndex = index;
+          bestValue = candidate;
+          bestScore = Number.NEGATIVE_INFINITY;
+          break;
+        }
+
+        let score = Number.POSITIVE_INFINITY;
+
+        if (hasNumericTarget) {
+          const numericCandidate = toNumber(candidate, Number.NaN);
+          if (Number.isFinite(numericCandidate)) {
+            score = Math.abs(numericCandidate - numericTarget);
+          }
+        }
+
+        if (!Number.isFinite(score)) {
+          const candidateString = candidate === undefined || candidate === null ? '' : String(candidate).toLowerCase();
+          if (targetString || candidateString) {
+            score = levenshteinDistance(targetString, candidateString) + 1;
+          } else {
+            score = 1;
+          }
+        }
+
+        if (!Number.isFinite(score)) {
+          score = Number.MAX_VALUE;
+        }
+
+        if (score < bestScore) {
+          bestScore = score;
+          bestIndex = index;
+          bestValue = candidate;
+        }
+      }
+
+      if (bestIndex === -1) {
+        bestIndex = 0;
+        bestValue = set[0];
+      }
+
+      return { hit: bestValue ?? null, index: bestIndex };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['bafac914-ede4-4a59-a7b2-cc41bc3de961']),
+    'Replace Members',
+    'replace members',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { S: 'set', Set: 'set', set: 'set', F: 'find', Find: 'find', R: 'replace', Replace: 'replace' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const base = toList(inputs.set);
+      if (!base.length) {
+        return { result: [] };
+      }
+      const find = toList(inputs.find);
+      const replace = toList(inputs.replace);
+      if (!find.length) {
+        return { result: base.slice() };
+      }
+      const pairs = find.map((value, index) => ({ value, replacement: replace[index] ?? null }));
+      const result = base.map((value) => {
+        for (const pair of pairs) {
+          if (valuesEqual(value, pair.value)) {
+            return pair.replacement;
+          }
+        }
+        return value;
+      });
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['d2461702-3164-4894-8c10-ed1fc4b52965']),
+    'Set Difference (S)',
+    'symmetric difference',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { X: 'symmetricDifference', ExDifference: 'symmetricDifference' },
+    },
+    eval: ({ inputs }) => {
+      const setA = uniqueValues(toList(inputs.setA));
+      const setB = uniqueValues(toList(inputs.setB));
+      const result = [];
+      for (const value of setA) {
+        if (!includesValue(setB, value)) {
+          result.push(value);
+        }
+      }
+      for (const value of setB) {
+        if (!includesValue(setA, value) && !includesValue(result, value)) {
+          result.push(value);
+        }
+      }
+      return { symmetricDifference: result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['d4136a7b-7422-4660-9404-640474bd2725']),
+    'Set Majority',
+    'set majority',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB', C: 'setC', 'Set C': 'setC' },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const sets = [inputs.setA, inputs.setB, inputs.setC].map((entry) => uniqueValues(toList(entry)));
+      const candidates = [];
+      for (const unique of sets) {
+        for (const value of unique) {
+          if (!includesValue(candidates, value)) {
+            candidates.push(value);
+          }
+        }
+      }
+      const result = [];
+      for (const candidate of candidates) {
+        let count = 0;
+        for (const unique of sets) {
+          if (includesValue(unique, candidate)) {
+            count += 1;
+          }
+        }
+        if (count >= 2 && !includesValue(result, candidate)) {
+          result.push(candidate);
+        }
+      }
+      return { result };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['deffaf1e-270a-4c15-a693-9216b68afd4a']),
+    'Carthesian Product',
+    'cartesian product',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { P: 'product', Product: 'product' },
+    },
+    eval: ({ inputs }) => {
+      const setA = toList(inputs.setA);
+      const setB = toList(inputs.setB);
+      const branches = [];
+      for (let indexA = 0; indexA < setA.length; indexA += 1) {
+        const branch = [];
+        for (let indexB = 0; indexB < setB.length; indexB += 1) {
+          branch.push([setA[indexA], setB[indexB]]);
+        }
+        branches.push(branch);
+      }
+      return { product: createDataTree(branches) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e3b1a10c-4d49-4140-b8e6-0b5732a26c31']),
+    'Set Difference',
+    'set difference',
+  ], {
+    type: 'sets:sets',
+    pinMap: {
+      inputs: { A: 'setA', 'Set A': 'setA', B: 'setB', 'Set B': 'setB' },
+      outputs: { U: 'difference', Union: 'difference', Difference: 'difference' },
+    },
+    eval: ({ inputs }) => {
+      const setA = uniqueValues(toList(inputs.setA));
+      const setB = uniqueValues(toList(inputs.setB));
+      const difference = [];
+      for (const value of setA) {
+        if (!includesValue(setB, value)) {
+          difference.push(value);
+        }
+      }
+      return { difference };
     },
   });
 }
