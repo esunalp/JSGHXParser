@@ -53,6 +53,9 @@ const [
     registerComplexOperatorsComponents,
   },
   {
+    registerSetsListComponents,
+  },
+  {
     registerParamsInputComponents,
   },
 ] = await Promise.all([
@@ -63,6 +66,7 @@ const [
   versionedImport('./registry-components-transform.js'),
   versionedImport('./registry-components-vector.js'),
   versionedImport('./registry-components-complex.js'),
+  versionedImport('./registry-components-sets.js'),
   versionedImport('./registry-components-params.js'),
 ]);
 
@@ -292,6 +296,7 @@ registerVectorColourComponents({ register, toNumber, toVector3 });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
+registerSetsListComponents({ register, toNumber });
 registerParamsInputComponents({ register });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
