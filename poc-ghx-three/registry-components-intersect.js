@@ -758,6 +758,1094 @@ export function registerIntersectShapeComponents({ register, toNumber }) {
   });
 }
 
+export function registerIntersectMathematicalComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register intersect mathematical components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register intersect mathematical components.');
+  }
+
+  const {
+    ensureNumber,
+    ensureArray,
+    resolveItem,
+    annotateShape,
+    createTreeFromItems,
+  } = createIntersectComponentUtils({ toNumber });
+
+  function toBooleanValue(value, fallback = false) {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true' || normalized === 'yes' || normalized === 'on') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === 'no' || normalized === 'off') {
+        return false;
+      }
+      if (!normalized.length) {
+        return fallback;
+      }
+    }
+    const numeric = toNumber(value, fallback ? 1 : 0);
+    return !!numeric;
+  }
+
+  function collectNumbers(values) {
+    return ensureArray(values)
+      .map((value) => ensureNumber(value, Number.NaN))
+      .filter((value) => Number.isFinite(value));
+  }
+
+  function createIntersectionSummary({ type, operation, participants = [], extras = {}, requireShapes = true }) {
+    const summary = {
+      type,
+      operation,
+      metadata: {
+        operation,
+        ...extras,
+      },
+    };
+    const shapes = [];
+    for (const participant of participants) {
+      if (!participant) continue;
+      const {
+        role = 'participant',
+        value,
+        kind = 'shape',
+        collection = 'single',
+        property = role,
+        includeInShapes = true,
+        countKey = null,
+        onEmpty = null,
+      } = participant;
+      const values = collection === 'list' ? ensureArray(value) : [value];
+      const annotated = values
+        .map((entry, index) => {
+          if (entry === undefined || entry === null) {
+            return null;
+          }
+          const annotationMeta = { operation, role };
+          if (collection === 'list') {
+            annotationMeta.index = index;
+          }
+          return annotateShape(entry, annotationMeta, { kind });
+        })
+        .filter(Boolean);
+      if (!annotated.length) {
+        if (onEmpty === 'abort') {
+          return null;
+        }
+        continue;
+      }
+      if (collection === 'single') {
+        summary[property] = annotated[0];
+        if (includeInShapes) {
+          shapes.push(annotated[0]);
+        }
+      } else {
+        summary[property] = annotated;
+        if (includeInShapes) {
+          shapes.push(...annotated);
+        }
+      }
+      if (countKey) {
+        summary.metadata[countKey] = annotated.length;
+      }
+    }
+    if (requireShapes && !shapes.length) {
+      return null;
+    }
+    if (shapes.length) {
+      summary.shapes = shapes;
+    }
+    return summary;
+  }
+
+  function createSummaryOutput(summary, role, extras = {}) {
+    if (!summary) {
+      return null;
+    }
+    return {
+      type: 'intersect-output',
+      role,
+      summary,
+      metadata: {
+        role,
+        operation: summary.operation,
+        ...extras,
+      },
+    };
+  }
+
+  function outputList(summary, role, extras = {}) {
+    const entry = createSummaryOutput(summary, role, extras);
+    return entry ? [entry] : [];
+  }
+
+  function outputItem(summary, role, extras = {}) {
+    return createSummaryOutput(summary, role, extras);
+  }
+
+  function outputSummaryTree(summaries, role, extrasFactory = () => ({})) {
+    if (!Array.isArray(summaries) || !summaries.length) {
+      return createTreeFromItems([], () => []);
+    }
+    return createTreeFromItems(summaries, (summary, index) => {
+      const extras = extrasFactory(summary, index) ?? {};
+      const entry = createSummaryOutput(summary, role, extras);
+      return entry ? [entry] : [];
+    });
+  }
+
+  function createCurveLineSummary({ curveValue, lineValue, firstOnly = false }) {
+    return createIntersectionSummary({
+      type: 'curve-line-intersection',
+      operation: 'curve-line',
+      extras: { firstOnly },
+      participants: [
+        { role: 'curve', value: curveValue, kind: 'curve', property: 'curve' },
+        { role: 'line', value: lineValue, kind: 'line', property: 'line' },
+      ],
+    });
+  }
+
+  function createCurvePlaneSummary({ curveValue, planeValue }) {
+    return createIntersectionSummary({
+      type: 'curve-plane-intersection',
+      operation: 'curve-plane',
+      participants: [
+        { role: 'curve', value: curveValue, kind: 'curve', property: 'curve' },
+        { role: 'plane', value: planeValue, kind: 'plane', property: 'plane' },
+      ],
+    });
+  }
+
+  function createSurfaceLineSummary({ surfaceValue, lineValue, firstOnly = false }) {
+    return createIntersectionSummary({
+      type: 'surface-line-intersection',
+      operation: 'surface-line',
+      extras: { firstOnly },
+      participants: [
+        { role: 'surface', value: surfaceValue, kind: 'surface', property: 'surface' },
+        { role: 'line', value: lineValue, kind: 'line', property: 'line' },
+      ],
+    });
+  }
+
+  function createBrepLineSummary({ brepValue, lineValue, firstOnly = false }) {
+    return createIntersectionSummary({
+      type: 'brep-line-intersection',
+      operation: 'brep-line',
+      extras: { firstOnly },
+      participants: [
+        { role: 'brep', value: brepValue, kind: 'brep', property: 'brep' },
+        { role: 'line', value: lineValue, kind: 'line', property: 'line' },
+      ],
+    });
+  }
+
+  function createIsoVistSummary({ sampleValue, obstaclesValue, radiusValue, variant, sampleKind = 'ray' }) {
+    const summary = createIntersectionSummary({
+      type: 'isovist',
+      operation: 'isovist',
+      extras: { radius: radiusValue ?? 0, variant },
+      participants: [
+        { role: 'sample', value: sampleValue, kind: sampleKind, property: 'sample' },
+        { role: 'obstacle', value: obstaclesValue, kind: 'shape', property: 'obstacles', collection: 'list', countKey: 'obstacleCount' },
+      ],
+    });
+    if (summary) {
+      summary.metadata.radius = radiusValue ?? 0;
+    }
+    return summary;
+  }
+
+  register('{0e3173b6-91c6-4845-a748-e45d4fdbc262}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        t: 'params',
+        Params: 'params',
+        params: 'params',
+        N: 'count',
+        Count: 'count',
+        count: 'count',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveLineSummary({
+        curveValue: resolveItem(inputs.curve),
+        lineValue: resolveItem(inputs.line),
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        params: outputList(summary, 'parameters', { expects: 'curve-parameters' }),
+        count: outputItem(summary, 'count', { expects: 'intersection-count' }),
+      };
+    },
+  });
+
+  register('{246cda78-5e88-4087-ba09-ae082bbc4af8}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'shape',
+        Shape: 'shape',
+        shape: 'shape',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+        O: 'offsets',
+        Offsets: 'offsets',
+        offsets: 'offsets',
+        D: 'distances',
+        Distances: 'distances',
+        distances: 'distances',
+      },
+      outputs: {
+        C: 'contours',
+        Contours: 'contours',
+        contours: 'contours',
+      },
+    },
+    eval: ({ inputs }) => {
+      const shape = resolveItem(inputs.shape);
+      const plane = resolveItem(inputs.plane);
+      const offsets = collectNumbers(inputs.offsets);
+      const distances = collectNumbers(inputs.distances);
+      const offsetValues = offsets.length ? offsets : (distances.length ? distances : [0]);
+      const sliceSummaries = offsetValues.map((offset, index) =>
+        createIntersectionSummary({
+          type: 'contour-slice',
+          operation: 'contour-ex',
+          extras: {
+            offset,
+            distance: distances[index] ?? null,
+            offsetIndex: index,
+            offsetCount: offsetValues.length,
+            distanceCount: distances.length,
+          },
+          participants: [
+            { role: 'shape', value: shape, kind: 'shape', property: 'shape' },
+            { role: 'plane', value: plane, kind: 'plane', property: 'plane' },
+          ],
+        })
+      ).filter(Boolean);
+      const contours = outputSummaryTree(sliceSummaries, 'contour', (summary) => summary?.metadata ? { ...summary.metadata, expects: 'contour-curves' } : { expects: 'contour-curves' });
+      return { contours };
+    },
+  });
+
+  register('{290cf9c4-0711-4704-851e-4c99e3343ac5}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'planeA',
+        'Plane A': 'planeA',
+        planeA: 'planeA',
+        B: 'planeB',
+        'Plane B': 'planeB',
+        planeB: 'planeB',
+      },
+      outputs: {
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'plane-plane-intersection',
+        operation: 'plane-plane',
+        participants: [
+          { role: 'plane-a', value: resolveItem(inputs.planeA), kind: 'plane', property: 'planeA' },
+          { role: 'plane-b', value: resolveItem(inputs.planeB), kind: 'plane', property: 'planeB' },
+        ],
+      });
+      return {
+        line: outputItem(summary, 'line', { expects: 'intersection-line' }),
+      };
+    },
+  });
+
+  register('{3b112fb6-3eba-42d2-ba75-0f903c18faab}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'shape',
+        Shape: 'shape',
+        shape: 'shape',
+        P: 'point',
+        Point: 'point',
+        point: 'point',
+        N: 'direction',
+        Direction: 'direction',
+        direction: 'direction',
+        D: 'distance',
+        Distance: 'distance',
+        distance: 'distance',
+      },
+      outputs: {
+        C: 'contours',
+        Contours: 'contours',
+        contours: 'contours',
+      },
+    },
+    eval: ({ inputs }) => {
+      const shape = resolveItem(inputs.shape);
+      const basePoint = resolveItem(inputs.point);
+      const direction = resolveItem(inputs.direction);
+      const distance = ensureNumber(inputs.distance, 0);
+      const sliceSummaries = [createIntersectionSummary({
+        type: 'contour',
+        operation: 'contour',
+        extras: {
+          distance,
+        },
+        participants: [
+          { role: 'shape', value: shape, kind: 'shape', property: 'shape' },
+          { role: 'point', value: basePoint, kind: 'point', property: 'origin', includeInShapes: true },
+          { role: 'direction', value: direction, kind: 'vector', property: 'direction', includeInShapes: false },
+        ],
+      })].filter(Boolean);
+      const contours = outputSummaryTree(sliceSummaries, 'contour', () => ({ expects: 'contour-curves' }));
+      return { contours };
+    },
+  });
+
+  register('{3b1ae469-0e9b-461d-8c30-fa5a7de8b7a9}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        M: 'mesh',
+        Mesh: 'mesh',
+        mesh: 'mesh',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'mesh-plane-intersection',
+        operation: 'mesh-plane',
+        participants: [
+          { role: 'mesh', value: resolveItem(inputs.mesh), kind: 'mesh', property: 'mesh' },
+          { role: 'plane', value: resolveItem(inputs.plane), kind: 'plane', property: 'plane' },
+        ],
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+      };
+    },
+  });
+
+  register('{4c02a168-9aba-4f42-8951-2719f24d391f}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        M: 'mesh',
+        Mesh: 'mesh',
+        mesh: 'mesh',
+        P: 'point',
+        Point: 'point',
+        point: 'point',
+        D: 'direction',
+        Direction: 'direction',
+        direction: 'direction',
+      },
+      outputs: {
+        X: 'point',
+        Point: 'point',
+        point: 'point',
+        H: 'hit',
+        Hit: 'hit',
+        hit: 'hit',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'mesh-ray-intersection',
+        operation: 'mesh-ray',
+        participants: [
+          { role: 'mesh', value: resolveItem(inputs.mesh), kind: 'mesh', property: 'mesh' },
+          { role: 'origin', value: resolveItem(inputs.point), kind: 'point', property: 'origin' },
+          { role: 'direction', value: resolveItem(inputs.direction), kind: 'vector', property: 'direction', includeInShapes: false },
+        ],
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        hit: outputItem(summary, 'hit', { expects: 'hit-status' }),
+      };
+    },
+  });
+
+  register('{4fe828e8-fa95-4cc5-9a8c-c33856ecc783}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'brep-plane-intersection',
+        operation: 'brep-plane',
+        participants: [
+          { role: 'brep', value: resolveItem(inputs.brep), kind: 'brep', property: 'brep' },
+          { role: 'plane', value: resolveItem(inputs.plane), kind: 'plane', property: 'plane' },
+        ],
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{6d4b82a7-8c1d-4bec-af7b-ca321ba4beb1}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'lineA',
+        'Line 1': 'lineA',
+        lineA: 'lineA',
+        B: 'lineB',
+        'Line 2': 'lineB',
+        lineB: 'lineB',
+      },
+      outputs: {
+        tA: 'paramA',
+        'Param A': 'paramA',
+        paramA: 'paramA',
+        tB: 'paramB',
+        'Param B': 'paramB',
+        paramB: 'paramB',
+        pA: 'pointA',
+        'Point A': 'pointA',
+        pointA: 'pointA',
+        pB: 'pointB',
+        'Point B': 'pointB',
+        pointB: 'pointB',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'line-line-intersection',
+        operation: 'line-line',
+        participants: [
+          { role: 'line-a', value: resolveItem(inputs.lineA), kind: 'line', property: 'lineA' },
+          { role: 'line-b', value: resolveItem(inputs.lineB), kind: 'line', property: 'lineB' },
+        ],
+      });
+      return {
+        paramA: outputItem(summary, 'param-a', { expects: 'line-a-parameter' }),
+        paramB: outputItem(summary, 'param-b', { expects: 'line-b-parameter' }),
+        pointA: outputItem(summary, 'point-a', { expects: 'line-a-point' }),
+        pointB: outputItem(summary, 'point-b', { expects: 'line-b-point' }),
+      };
+    },
+  });
+
+  register('{75d0442c-1aa3-47cf-bd94-457b42c16e9f}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        P: 'point',
+        Point: 'point',
+        point: 'point',
+        t: 'paramLine',
+        'Param L': 'paramLine',
+        paramLine: 'paramLine',
+        uv: 'paramPlane',
+        'Param P': 'paramPlane',
+        paramPlane: 'paramPlane',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'line-plane-intersection',
+        operation: 'line-plane',
+        participants: [
+          { role: 'line', value: resolveItem(inputs.line), kind: 'line', property: 'line' },
+          { role: 'plane', value: resolveItem(inputs.plane), kind: 'plane', property: 'plane' },
+        ],
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        paramLine: outputItem(summary, 'line-parameter', { expects: 'line-parameter' }),
+        paramPlane: outputItem(summary, 'plane-parameter', { expects: 'plane-uv' }),
+      };
+    },
+  });
+
+  register('{769f5b35-1780-4823-b593-118ecc3560e0}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'sample',
+        Sample: 'sample',
+        sample: 'sample',
+        R: 'radius',
+        Radius: 'radius',
+        radius: 'radius',
+        O: 'obstacles',
+        Obstacles: 'obstacles',
+        obstacles: 'obstacles',
+      },
+      outputs: {
+        P: 'point',
+        Point: 'point',
+        point: 'point',
+        D: 'distance',
+        Distance: 'distance',
+        distance: 'distance',
+        H: 'hit',
+        Hit: 'hit',
+        hit: 'hit',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIsoVistSummary({
+        sampleValue: resolveItem(inputs.sample),
+        obstaclesValue: inputs.obstacles,
+        radiusValue: ensureNumber(inputs.radius, 0),
+        variant: 'ray-hit',
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        distance: outputItem(summary, 'distance', { expects: 'distance' }),
+        hit: outputItem(summary, 'hit', { expects: 'hit-status' }),
+      };
+    },
+  });
+
+  register('{80e3614a-25ae-43e7-bb0a-760e68ade864}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+        B: 'bounds',
+        Bounds: 'bounds',
+        bounds: 'bounds',
+      },
+      outputs: {
+        R: 'region',
+        Region: 'region',
+        region: 'region',
+      },
+    },
+    eval: ({ inputs }) => {
+      const bounds = collectNumbers(inputs.bounds);
+      const summary = createIntersectionSummary({
+        type: 'plane-region',
+        operation: 'plane-region',
+        extras: {
+          boundCount: bounds.length,
+          bounds,
+        },
+        participants: [
+          { role: 'plane', value: resolveItem(inputs.plane), kind: 'plane', property: 'plane' },
+        ],
+      });
+      return {
+        region: outputItem(summary, 'region', { expects: 'plane-region' }),
+      };
+    },
+  });
+
+  register('{9396be03-8159-43bf-b3e7-2c86c8d04fc0}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+        F: 'first',
+        First: 'first',
+        first: 'first',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        t: 'params',
+        Params: 'params',
+        params: 'params',
+        N: 'count',
+        Count: 'count',
+        count: 'count',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveLineSummary({
+        curveValue: resolveItem(inputs.curve),
+        lineValue: resolveItem(inputs.line),
+        firstOnly: toBooleanValue(inputs.first, false),
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        params: outputList(summary, 'parameters', { expects: 'curve-parameters' }),
+        count: outputItem(summary, 'count', { expects: 'intersection-count' }),
+      };
+    },
+  });
+
+  register('{93d0dcbc-6207-4745-aaf7-fe57a880f959}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'sample',
+        Sample: 'sample',
+        sample: 'sample',
+        R: 'radius',
+        Radius: 'radius',
+        radius: 'radius',
+        O: 'obstacles',
+        Obstacles: 'obstacles',
+        obstacles: 'obstacles',
+      },
+      outputs: {
+        P: 'point',
+        Point: 'point',
+        point: 'point',
+        D: 'distance',
+        Distance: 'distance',
+        distance: 'distance',
+        I: 'index',
+        Index: 'index',
+        index: 'index',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIsoVistSummary({
+        sampleValue: resolveItem(inputs.sample),
+        obstaclesValue: inputs.obstacles,
+        radiusValue: ensureNumber(inputs.radius, 0),
+        variant: 'ray-index',
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        distance: outputItem(summary, 'distance', { expects: 'distance' }),
+        index: outputItem(summary, 'index', { expects: 'obstacle-index' }),
+      };
+    },
+  });
+
+  register('{a834e823-ae01-44d8-9066-c138eeb6f391}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'surface',
+        Surface: 'surface',
+        surface: 'surface',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        uv: 'uvPoints',
+        'UV Points': 'uvPoints',
+        UV: 'uvPoints',
+        N: 'normals',
+        Normal: 'normals',
+        Normals: 'normals',
+        normals: 'normals',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createSurfaceLineSummary({
+        surfaceValue: resolveItem(inputs.surface),
+        lineValue: resolveItem(inputs.line),
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+        uvPoints: outputList(summary, 'uv', { expects: 'uv-coordinates' }),
+        normals: outputList(summary, 'normals', { expects: 'normals' }),
+      };
+    },
+  });
+
+  register('{b7c12ed1-b09a-4e15-996f-3fa9f3f16b1c}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        t: 'curveParams',
+        'Params C': 'curveParams',
+        curveParams: 'curveParams',
+        uv: 'planeParams',
+        'Params P': 'planeParams',
+        planeParams: 'planeParams',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurvePlaneSummary({
+        curveValue: resolveItem(inputs.curve),
+        planeValue: resolveItem(inputs.plane),
+      });
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        curveParams: outputList(summary, 'curve-parameters', { expects: 'curve-parameters' }),
+        planeParams: outputList(summary, 'plane-parameters', { expects: 'plane-uv' }),
+      };
+    },
+  });
+
+  register('{c08ac8f7-cf90-4cdb-9862-2ba66b8408ef}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+        N: 'count',
+        Count: 'count',
+        count: 'count',
+        R: 'radius',
+        Radius: 'radius',
+        radius: 'radius',
+        O: 'obstacles',
+        Obstacles: 'obstacles',
+        obstacles: 'obstacles',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        D: 'distances',
+        Distance: 'distances',
+        distances: 'distances',
+        H: 'hits',
+        Hits: 'hits',
+        hits: 'hits',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIsoVistSummary({
+        sampleValue: resolveItem(inputs.plane),
+        obstaclesValue: inputs.obstacles,
+        radiusValue: ensureNumber(inputs.radius, 0),
+        variant: 'planar-hit',
+        sampleKind: 'plane',
+      });
+      if (summary) {
+        summary.metadata.sampleCount = ensureNumber(inputs.count, 0);
+      }
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        distances: outputList(summary, 'distances', { expects: 'distance' }),
+        hits: outputList(summary, 'hits', { expects: 'hit-status' }),
+      };
+    },
+  });
+
+  register('{c2c73357-bfd2-45af-89ff-40ca02a3442f}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        S: 'surface',
+        Surface: 'surface',
+        surface: 'surface',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+        F: 'first',
+        First: 'first',
+        first: 'first',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        uv: 'uvPoints',
+        'UV Points': 'uvPoints',
+        UV: 'uvPoints',
+        N: 'normals',
+        Normal: 'normals',
+        Normals: 'normals',
+        normals: 'normals',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createSurfaceLineSummary({
+        surfaceValue: resolveItem(inputs.surface),
+        lineValue: resolveItem(inputs.line),
+        firstOnly: toBooleanValue(inputs.first, false),
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+        uvPoints: outputList(summary, 'uv', { expects: 'uv-coordinates' }),
+        normals: outputList(summary, 'normals', { expects: 'normals' }),
+      };
+    },
+  });
+
+  register('{cab92254-1c79-4e5a-9972-0a4412b35c88}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+        N: 'count',
+        Count: 'count',
+        count: 'count',
+        R: 'radius',
+        Radius: 'radius',
+        radius: 'radius',
+        O: 'obstacles',
+        Obstacles: 'obstacles',
+        obstacles: 'obstacles',
+      },
+      outputs: {
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+        D: 'distances',
+        Distance: 'distances',
+        distances: 'distances',
+        I: 'indices',
+        Index: 'indices',
+        indices: 'indices',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIsoVistSummary({
+        sampleValue: resolveItem(inputs.plane),
+        obstaclesValue: inputs.obstacles,
+        radiusValue: ensureNumber(inputs.radius, 0),
+        variant: 'planar-index',
+        sampleKind: 'plane',
+      });
+      if (summary) {
+        summary.metadata.sampleCount = ensureNumber(inputs.count, 0);
+      }
+      return {
+        points: outputList(summary, 'points', { expects: 'points' }),
+        distances: outputList(summary, 'distances', { expects: 'distance' }),
+        indices: outputList(summary, 'indices', { expects: 'obstacle-index' }),
+      };
+    },
+  });
+
+  register('{ddaea1a9-d6bd-4a18-ac11-8a4993954a03}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+      },
+      outputs: {
+        P: 'point',
+        Points: 'point',
+        point: 'point',
+        t: 'param',
+        Params: 'param',
+        param: 'param',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveLineSummary({
+        curveValue: resolveItem(inputs.curve),
+        lineValue: resolveItem(inputs.line),
+        firstOnly: true,
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        param: outputItem(summary, 'parameter', { expects: 'curve-parameter' }),
+      };
+    },
+  });
+
+  register('{ed0742f9-6647-4d95-9dfd-9ad17080ae9c}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createBrepLineSummary({
+        brepValue: resolveItem(inputs.brep),
+        lineValue: resolveItem(inputs.line),
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{f1ea5a4b-1a4f-4cf4-ad94-1ecfb9302b6e}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        A: 'planeA',
+        'Plane A': 'planeA',
+        planeA: 'planeA',
+        B: 'planeB',
+        'Plane B': 'planeB',
+        planeB: 'planeB',
+        C: 'planeC',
+        'Plane C': 'planeC',
+        planeC: 'planeC',
+      },
+      outputs: {
+        Pt: 'point',
+        Point: 'point',
+        point: 'point',
+        AB: 'lineAB',
+        'Line AB': 'lineAB',
+        lineAB: 'lineAB',
+        AC: 'lineAC',
+        'Line AC': 'lineAC',
+        lineAC: 'lineAC',
+        BC: 'lineBC',
+        'Line BC': 'lineBC',
+        lineBC: 'lineBC',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createIntersectionSummary({
+        type: 'triple-plane-intersection',
+        operation: 'plane-plane-plane',
+        participants: [
+          { role: 'plane-a', value: resolveItem(inputs.planeA), kind: 'plane', property: 'planeA' },
+          { role: 'plane-b', value: resolveItem(inputs.planeB), kind: 'plane', property: 'planeB' },
+          { role: 'plane-c', value: resolveItem(inputs.planeC), kind: 'plane', property: 'planeC' },
+        ],
+      });
+      return {
+        point: outputItem(summary, 'point', { expects: 'point' }),
+        lineAB: outputItem(summary, 'line-ab', { expects: 'intersection-line' }),
+        lineAC: outputItem(summary, 'line-ac', { expects: 'intersection-line' }),
+        lineBC: outputItem(summary, 'line-bc', { expects: 'intersection-line' }),
+      };
+    },
+  });
+
+  register('{ff880808-6daf-4f6c-88c1-058120ad6ba9}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+        L: 'line',
+        Line: 'line',
+        line: 'line',
+        F: 'first',
+        First: 'first',
+        first: 'first',
+      },
+      outputs: {
+        C: 'curves',
+        Curves: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createBrepLineSummary({
+        brepValue: resolveItem(inputs.brep),
+        lineValue: resolveItem(inputs.line),
+        firstOnly: toBooleanValue(inputs.first, false),
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+}
+
 export function registerIntersectPhysicalComponents({ register, toNumber }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register intersect physical components.');

@@ -64,6 +64,7 @@ const [
   },
   {
     registerIntersectShapeComponents,
+    registerIntersectMathematicalComponents,
     registerIntersectPhysicalComponents,
   },
 ] = await Promise.all([
@@ -303,6 +304,7 @@ registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorGridComponents({ register, toNumber, toVector3 });
 registerVectorColourComponents({ register, toNumber, toVector3 });
 registerIntersectShapeComponents({ register, toNumber });
+registerIntersectMathematicalComponents({ register, toNumber });
 registerIntersectPhysicalComponents({ register, toNumber });
 registerComplexPolynomialsComponents({ register, toNumber });
 registerComplexTrigComponents({ register, toNumber });
