@@ -1528,13 +1528,15 @@ export function registerSurfacePrimitiveComponents({
       yAxis.normalize();
       const referenceXAxis = frames.length ? previousXAxis : baseXAxisReference;
       const referenceYAxis = frames.length ? previousYAxis : baseYAxisReference;
-      let shouldFlipAxes = false;
-      if (referenceXAxis && xAxis.dot(referenceXAxis) < 0) {
-        shouldFlipAxes = true;
-      }
-      if (referenceYAxis && yAxis.dot(referenceYAxis) < 0) {
-        shouldFlipAxes = true;
-      }
+      const shouldFlipAxes = (() => {
+        if (referenceXAxis) {
+          return xAxis.dot(referenceXAxis) < 0;
+        }
+        if (referenceYAxis) {
+          return yAxis.dot(referenceYAxis) < 0;
+        }
+        return false;
+      })();
       if (shouldFlipAxes) {
         xAxis.negate();
         yAxis.negate();
