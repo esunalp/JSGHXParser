@@ -1529,11 +1529,27 @@ export function registerSurfacePrimitiveComponents({
       const referenceXAxis = frames.length ? previousXAxis : baseXAxisReference;
       const referenceYAxis = frames.length ? previousYAxis : baseYAxisReference;
       const shouldFlipAxes = (() => {
-        if (referenceXAxis) {
-          return xAxis.dot(referenceXAxis) < 0;
+        const hasReferenceX = referenceXAxis && referenceXAxis.lengthSq() > EPSILON;
+        const hasReferenceY = referenceYAxis && referenceYAxis.lengthSq() > EPSILON;
+        const xAlignment = hasReferenceX ? xAxis.dot(referenceXAxis) : null;
+        const yAlignment = hasReferenceY ? yAxis.dot(referenceYAxis) : null;
+        if (hasReferenceX && hasReferenceY) {
+          if (xAlignment < 0 && yAlignment < 0) {
+            return true;
+          }
+          if (xAlignment < 0) {
+            return true;
+          }
+          if (yAlignment < 0) {
+            return true;
+          }
+          return false;
         }
-        if (referenceYAxis) {
-          return yAxis.dot(referenceYAxis) < 0;
+        if (hasReferenceX) {
+          return xAlignment < 0;
+        }
+        if (hasReferenceY) {
+          return yAlignment < 0;
         }
         return false;
       })();
