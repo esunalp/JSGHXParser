@@ -1526,25 +1526,29 @@ export function registerSurfacePrimitiveComponents({
         yAxis = orthogonalVector(zAxis);
       }
       yAxis.normalize();
-      if (frames.length) {
-        if (xAxis.dot(previousXAxis) < 0) {
-          xAxis.negate();
-        }
-        if (yAxis.dot(previousYAxis) < 0) {
-          yAxis.negate();
-        }
-      } else {
-        if (xAxis.dot(baseXAxisReference) < 0) {
-          xAxis.negate();
-        }
-        if (yAxis.dot(baseYAxisReference) < 0) {
-          yAxis.negate();
-        }
+      const referenceXAxis = frames.length ? previousXAxis : baseXAxisReference;
+      const referenceYAxis = frames.length ? previousYAxis : baseYAxisReference;
+      let shouldFlipAxes = false;
+      if (referenceXAxis && xAxis.dot(referenceXAxis) < 0) {
+        shouldFlipAxes = true;
       }
-      frames.push({ origin: pathPoints[i].clone(), xAxis: xAxis.clone(), yAxis: yAxis.clone(), zAxis });
-      previousXAxis = xAxis.clone();
-      previousYAxis = yAxis.clone();
-      previousTangent = zAxis.clone();
+      if (referenceYAxis && yAxis.dot(referenceYAxis) < 0) {
+        shouldFlipAxes = true;
+      }
+      if (shouldFlipAxes) {
+        xAxis.negate();
+        yAxis.negate();
+      }
+      const normalizedFrame = normalizePlaneAxes(
+        pathPoints[i].clone(),
+        xAxis.clone(),
+        yAxis.clone(),
+        zAxis.clone(),
+      );
+      frames.push(normalizedFrame);
+      previousXAxis = normalizedFrame.xAxis.clone();
+      previousYAxis = normalizedFrame.yAxis.clone();
+      previousTangent = normalizedFrame.zAxis.clone();
     }
     return frames;
   }
