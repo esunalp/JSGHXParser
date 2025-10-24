@@ -1444,130 +1444,123 @@ export function registerSurfacePrimitiveComponents({
         zAxis: normalizedBasePlane.zAxis.clone(),
       }];
     }
-    const frames = [];
-    let previousXAxis = normalizedBasePlane.xAxis.clone();
-    let previousYAxis = normalizedBasePlane.yAxis.clone();
-    let baseXAxisReference = previousXAxis.clone();
-    let baseYAxisReference = previousYAxis.clone();
-    const baseZAxis = normalizedBasePlane.zAxis.clone();
-    const baseZAxisLengthSq = baseZAxis.lengthSq();
-    const canAlignBaseAxes = baseZAxisLengthSq > EPSILON;
-    if (canAlignBaseAxes) {
-      baseZAxis.multiplyScalar(1 / Math.sqrt(baseZAxisLengthSq));
-    }
-    let baseAxesAligned = !canAlignBaseAxes;
-    let previousTangent = null;
+
     const getIndex = (index) => {
-      if (index < 0) {
-        return closed ? ((index % pathPoints.length) + pathPoints.length) % pathPoints.length : 0;
+      const count = pathPoints.length;
+      if (closed) {
+        return ((index % count) + count) % count;
       }
-      if (index >= pathPoints.length) {
-        return closed ? index % pathPoints.length : pathPoints.length - 1;
-      }
-      return index;
+      return Math.max(0, Math.min(count - 1, index));
     };
-    for (let i = 0; i < pathPoints.length; i += 1) {
-      const prevIndex = getIndex(i - 1);
-      const nextIndex = getIndex(i + 1);
-      const prevPoint = pathPoints[prevIndex];
-      const nextPoint = pathPoints[nextIndex];
-      let tangent = nextPoint.clone().sub(prevPoint);
+
+    const tangents = pathPoints.map((_, index) => {
+      const prevPoint = pathPoints[getIndex(index - 1)];
+      const nextPoint = pathPoints[getIndex(index + 1)];
+      const tangent = nextPoint.clone().sub(prevPoint);
       if (tangent.lengthSq() <= EPSILON) {
-        const forward = pathPoints[nextIndex]?.clone().sub(pathPoints[i]) ?? new THREE.Vector3();
-        const backward = pathPoints[i]?.clone().sub(pathPoints[prevIndex]) ?? new THREE.Vector3();
-        tangent = forward.lengthSq() > backward.lengthSq() ? forward : backward;
+        const forward = pathPoints[getIndex(index + 1)].clone().sub(pathPoints[index]);
+        const backward = pathPoints[index].clone().sub(pathPoints[getIndex(index - 1)]);
+        const candidate = forward.lengthSq() >= backward.lengthSq() ? forward : backward;
+        if (candidate.lengthSq() > EPSILON) {
+          return candidate.normalize();
+        }
       }
       if (tangent.lengthSq() <= EPSILON) {
-        tangent = previousTangent ? previousTangent.clone() : normalizedBasePlane.zAxis.clone();
+        return normalizedBasePlane.zAxis.clone();
       }
-      tangent.normalize();
-      const zAxis = tangent.clone();
-      if (!baseAxesAligned) {
-        const alignment = new THREE.Quaternion().setFromUnitVectors(baseZAxis, zAxis);
-        previousXAxis = normalizedBasePlane.xAxis.clone().applyQuaternion(alignment);
-        previousYAxis = normalizedBasePlane.yAxis.clone().applyQuaternion(alignment);
-        baseXAxisReference = previousXAxis.clone();
-        baseYAxisReference = previousYAxis.clone();
-        baseAxesAligned = true;
+      return tangent.normalize();
+    });
+
+    const frames = [];
+    const initialZ = tangents[0].clone();
+    let initialX = normalizedBasePlane.xAxis.clone();
+    initialX.sub(initialZ.clone().multiplyScalar(initialX.dot(initialZ)));
+    if (initialX.lengthSq() <= EPSILON) {
+      initialX = orthogonalVector(initialZ);
+    }
+    initialX.normalize();
+    let initialY = initialZ.clone().cross(initialX);
+    if (initialY.lengthSq() <= EPSILON) {
+      initialY = normalizedBasePlane.yAxis.clone();
+      initialY.sub(initialZ.clone().multiplyScalar(initialY.dot(initialZ)));
+      if (initialY.lengthSq() <= EPSILON) {
+        initialY = orthogonalVector(initialZ);
       }
-      let xAxis = previousXAxis.clone();
+    }
+    initialY.normalize();
+    const firstFrame = normalizePlaneAxes(
+      pathPoints[0].clone(),
+      initialX.clone(),
+      initialY.clone(),
+      initialZ.clone(),
+    );
+    frames.push(firstFrame);
+
+    let previousXAxis = firstFrame.xAxis.clone();
+    let previousYAxis = firstFrame.yAxis.clone();
+    let previousZAxis = firstFrame.zAxis.clone();
+
+    for (let i = 1; i < pathPoints.length; i += 1) {
+      const zAxis = tangents[i].clone();
+      let rotation;
+      const alignment = previousZAxis.clone().dot(zAxis);
+      if (alignment >= 1 - EPSILON) {
+        rotation = new THREE.Quaternion();
+      } else if (alignment <= -1 + EPSILON) {
+        const axis = previousXAxis.lengthSq() > EPSILON ? previousXAxis.clone() : orthogonalVector(previousZAxis);
+        rotation = new THREE.Quaternion().setFromAxisAngle(axis.normalize(), Math.PI);
+      } else {
+        rotation = new THREE.Quaternion().setFromUnitVectors(previousZAxis.clone(), zAxis.clone());
+      }
+
+      let xAxis = previousXAxis.clone().applyQuaternion(rotation);
       xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
-      if (xAxis.lengthSq() <= EPSILON) {
-        xAxis = normalizedBasePlane.xAxis.clone();
-        xAxis.sub(zAxis.clone().multiplyScalar(xAxis.dot(zAxis)));
-        if (xAxis.lengthSq() <= EPSILON) {
-          xAxis = orthogonalVector(zAxis);
-        }
-      }
-      xAxis.normalize();
-      let yAxis = zAxis.clone().cross(xAxis);
-      if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = previousYAxis.clone();
-        yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
-        if (yAxis.lengthSq() <= EPSILON) {
-          yAxis = normalizedBasePlane.yAxis.clone();
-          yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
-          if (yAxis.lengthSq() <= EPSILON) {
-            yAxis = orthogonalVector(zAxis);
-          }
-        }
-      }
-      if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = orthogonalVector(zAxis);
-      }
-      yAxis.normalize();
-      xAxis = yAxis.clone().cross(zAxis);
       if (xAxis.lengthSq() <= EPSILON) {
         xAxis = orthogonalVector(zAxis);
       }
       xAxis.normalize();
-      yAxis = zAxis.clone().cross(xAxis);
+
+      let yAxis = zAxis.clone().cross(xAxis);
       if (yAxis.lengthSq() <= EPSILON) {
-        yAxis = orthogonalVector(zAxis);
+        yAxis = previousYAxis.clone().applyQuaternion(rotation);
+        yAxis.sub(zAxis.clone().multiplyScalar(yAxis.dot(zAxis)));
+        if (yAxis.lengthSq() <= EPSILON) {
+          yAxis = orthogonalVector(zAxis);
+        }
       }
       yAxis.normalize();
-      const referenceXAxis = frames.length ? previousXAxis : baseXAxisReference;
-      const referenceYAxis = frames.length ? previousYAxis : baseYAxisReference;
-      const shouldFlipAxes = (() => {
-        const hasReferenceX = referenceXAxis && referenceXAxis.lengthSq() > EPSILON;
-        const hasReferenceY = referenceYAxis && referenceYAxis.lengthSq() > EPSILON;
-        const xAlignment = hasReferenceX ? xAxis.dot(referenceXAxis) : null;
-        const yAlignment = hasReferenceY ? yAxis.dot(referenceYAxis) : null;
-        if (hasReferenceX && hasReferenceY) {
-          if (xAlignment < 0 && yAlignment < 0) {
-            return true;
-          }
-          if (xAlignment < 0) {
-            return true;
-          }
-          if (yAlignment < 0) {
-            return true;
-          }
-          return false;
-        }
-        if (hasReferenceX) {
-          return xAlignment < 0;
-        }
-        if (hasReferenceY) {
-          return yAlignment < 0;
-        }
-        return false;
-      })();
-      if (shouldFlipAxes) {
+
+      if (xAxis.dot(previousXAxis) < -0.5 && yAxis.dot(previousYAxis) < -0.5) {
         xAxis.negate();
         yAxis.negate();
       }
-      const normalizedFrame = normalizePlaneAxes(
+
+      const frame = normalizePlaneAxes(
         pathPoints[i].clone(),
         xAxis.clone(),
         yAxis.clone(),
         zAxis.clone(),
       );
-      frames.push(normalizedFrame);
-      previousXAxis = normalizedFrame.xAxis.clone();
-      previousYAxis = normalizedFrame.yAxis.clone();
-      previousTangent = normalizedFrame.zAxis.clone();
+      frames.push(frame);
+      previousXAxis = frame.xAxis.clone();
+      previousYAxis = frame.yAxis.clone();
+      previousZAxis = frame.zAxis.clone();
     }
+
+    if (closed && frames.length > 1) {
+      const first = frames[0];
+      const last = frames[frames.length - 1];
+      const finalAlignment = last.zAxis.dot(first.zAxis);
+      if (finalAlignment > -1 + EPSILON) {
+        const correction = new THREE.Quaternion().setFromUnitVectors(last.zAxis.clone(), first.zAxis.clone());
+        for (let i = 1; i < frames.length; i += 1) {
+          frames[i].xAxis.applyQuaternion(correction);
+          frames[i].yAxis.applyQuaternion(correction);
+          frames[i].zAxis.applyQuaternion(correction);
+        }
+      }
+    }
+
     return frames;
   }
 
