@@ -55,6 +55,7 @@ const [
   {
     registerSetsListComponents,
     registerSetsSetsComponents,
+    registerSetsTreeComponents,
   },
   {
     registerParamsInputComponents,
@@ -299,6 +300,7 @@ registerComplexTrigComponents({ register, toNumber });
 registerComplexOperatorsComponents({ register, toNumber });
 registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
+registerSetsTreeComponents({ register, toNumber });
 registerParamsInputComponents({ register });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {

@@ -159,6 +159,343 @@ function mapStructure(value, mapper) {
   return mapper(value, null, 0);
 }
 
+function normalizePathSegment(value, toNumber, fallback = 0) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : fallback;
+  }
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+  return toInteger(value, fallback, toNumber);
+}
+
+function parsePathInput(value, toNumber) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value.map((segment) => normalizePathSegment(segment, toNumber, 0));
+  }
+  if (typeof value === 'object') {
+    if (Array.isArray(value?.path)) {
+      return value.path.map((segment) => normalizePathSegment(segment, toNumber, 0));
+    }
+    if (Array.isArray(value?.indices)) {
+      return value.indices.map((segment) => normalizePathSegment(segment, toNumber, 0));
+    }
+    if (Object.prototype.hasOwnProperty.call(value, 'value')) {
+      return parsePathInput(value.value, toNumber);
+    }
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return [];
+  }
+  const sanitized = text.replace(/^\{+/, '').replace(/\}+$/, '');
+  if (!sanitized) {
+    return [];
+  }
+  const parts = sanitized.split(/[;,\s]+/).filter(Boolean);
+  return parts.map((part) => normalizePathSegment(part, toNumber, 0));
+}
+
+function formatPathKey(path = []) {
+  return Array.isArray(path) ? path.join(';') : '';
+}
+
+function comparePaths(pathA = [], pathB = []) {
+  const length = Math.min(pathA.length, pathB.length);
+  for (let index = 0; index < length; index += 1) {
+    const valueA = pathA[index];
+    const valueB = pathB[index];
+    if (valueA < valueB) return -1;
+    if (valueA > valueB) return 1;
+  }
+  if (pathA.length < pathB.length) return -1;
+  if (pathA.length > pathB.length) return 1;
+  return 0;
+}
+
+function cloneBranch(branch) {
+  return {
+    path: Array.isArray(branch?.path) ? branch.path.slice() : [],
+    values: Array.isArray(branch?.values) ? branch.values.slice() : [],
+  };
+}
+
+function normalizeTreeBranches(input, toNumber) {
+  if (!input) {
+    return [];
+  }
+  if (input.type === 'tree' && Array.isArray(input.branches)) {
+    return input.branches.map((branch) => ({
+      path: parsePathInput(branch?.path ?? [], toNumber),
+      values: Array.isArray(branch?.values)
+        ? branch.values.slice()
+        : branch?.values === undefined || branch?.values === null
+          ? []
+          : [branch.values],
+    }));
+  }
+  if (Array.isArray(input)) {
+    return [{ path: [], values: input.slice() }];
+  }
+  return [{ path: [], values: input === undefined || input === null ? [] : [input] }];
+}
+
+function createTreeFromBranches(branches = []) {
+  return {
+    type: 'tree',
+    branches: branches.map((branch) => ({
+      path: Array.isArray(branch?.path) ? branch.path.slice() : [],
+      values: Array.isArray(branch?.values) ? branch.values.slice() : [],
+    })),
+  };
+}
+
+function mergeBranches(branches = []) {
+  const map = new Map();
+  for (const branch of branches) {
+    if (!branch) continue;
+    const key = formatPathKey(branch.path);
+    if (!map.has(key)) {
+      map.set(key, { path: Array.isArray(branch.path) ? branch.path.slice() : [], values: [] });
+    }
+    const target = map.get(key);
+    if (Array.isArray(branch.values)) {
+      target.values.push(...branch.values);
+    } else if (branch.values !== undefined && branch.values !== null) {
+      target.values.push(branch.values);
+    }
+  }
+  const merged = Array.from(map.values());
+  merged.sort((a, b) => comparePaths(a.path, b.path));
+  return merged;
+}
+
+function flattenBranchValues(branches = []) {
+  const values = [];
+  for (const branch of branches) {
+    if (!branch) continue;
+    if (Array.isArray(branch.values)) {
+      values.push(...branch.values);
+    } else if (branch.values !== undefined && branch.values !== null) {
+      values.push(branch.values);
+    }
+  }
+  return values;
+}
+
+function toPathString(path = []) {
+  if (!Array.isArray(path) || !path.length) {
+    return '{}';
+  }
+  return `{${path.join(';')}}`;
+}
+
+function gatherIndexedTreeInputs(inputs, prefixRegex, toNumber) {
+  const entries = [];
+  for (const [key, value] of Object.entries(inputs || {})) {
+    const normalized = String(key);
+    const match = normalized.match(prefixRegex);
+    if (!match) continue;
+    const index = Number.parseInt(match[1], 10);
+    if (!Number.isFinite(index)) continue;
+    entries[index] = normalizeTreeBranches(value, toNumber);
+  }
+  return entries.map((branches) => (Array.isArray(branches) ? branches : []));
+}
+
+function ensureTree(input, toNumber) {
+  return createTreeFromBranches(normalizeTreeBranches(input, toNumber));
+}
+
+function collectTreeValues(input, toNumber) {
+  return flattenBranchValues(normalizeTreeBranches(input, toNumber));
+}
+
+function simplifyBranches(branches = [], { frontOnly = false } = {}) {
+  if (!Array.isArray(branches) || branches.length <= 1) {
+    return branches.map(cloneBranch);
+  }
+  const maxLength = Math.max(...branches.map((branch) => (Array.isArray(branch?.path) ? branch.path.length : 0)));
+  if (maxLength === 0) {
+    return branches.map(cloneBranch);
+  }
+  const removable = new Array(maxLength).fill(true);
+  for (let position = 0; position < maxLength; position += 1) {
+    let sharedValue = null;
+    let comparable = true;
+    for (const branch of branches) {
+      const path = Array.isArray(branch?.path) ? branch.path : [];
+      if (position >= path.length) {
+        comparable = false;
+        break;
+      }
+      if (sharedValue === null) {
+        sharedValue = path[position];
+        continue;
+      }
+      if (path[position] !== sharedValue) {
+        comparable = false;
+        break;
+      }
+    }
+    removable[position] = comparable;
+  }
+  if (frontOnly) {
+    for (let index = 0; index < removable.length; index += 1) {
+      if (!removable[index]) {
+        for (let reset = index; reset < removable.length; reset += 1) {
+          removable[reset] = false;
+        }
+        break;
+      }
+    }
+  }
+  return branches.map((branch) => {
+    const path = Array.isArray(branch?.path) ? branch.path : [];
+    const values = Array.isArray(branch?.values) ? branch.values.slice() : [];
+    const simplifiedPath = [];
+    for (let index = 0; index < path.length; index += 1) {
+      if (!removable[index]) {
+        simplifiedPath.push(path[index]);
+      }
+    }
+    return { path: simplifiedPath, values };
+  });
+}
+
+function trimBranches(branches = [], depth = 0, { fromEnd = true } = {}) {
+  if (depth <= 0) {
+    return branches.map(cloneBranch);
+  }
+  return branches.map((branch) => {
+    const path = Array.isArray(branch?.path) ? branch.path : [];
+    const values = Array.isArray(branch?.values) ? branch.values.slice() : [];
+    if (!path.length) {
+      return { path: [], values };
+    }
+    if (fromEnd) {
+      return { path: path.slice(0, Math.max(0, path.length - depth)), values };
+    }
+    return { path: path.slice(Math.min(depth, path.length)), values };
+  });
+}
+
+function flattenTreeToPath(branches = [], targetPath = []) {
+  const values = flattenBranchValues(branches);
+  return [{ path: Array.isArray(targetPath) ? targetPath.slice() : [], values }];
+}
+
+function sortBranches(branches = []) {
+  return branches.slice().sort((a, b) => comparePaths(a?.path, b?.path));
+}
+
+function parsePathPattern(mask, toNumber) {
+  const tokens = [];
+  const segments = parsePathInput(mask, toNumber);
+  if (Array.isArray(mask) && mask.some((value) => value === '*' || value === '?')) {
+    for (const segment of mask) {
+      if (segment === '*') {
+        tokens.push({ type: 'wildcard' });
+      } else if (segment === '?') {
+        tokens.push({ type: 'single' });
+      } else {
+        tokens.push({ type: 'exact', value: normalizePathSegment(segment, toNumber, 0) });
+      }
+    }
+    return tokens;
+  }
+  if (typeof mask === 'string') {
+    const text = mask.trim();
+    if (!text) return segments.map((value) => ({ type: 'exact', value }));
+    const sanitized = text.replace(/^\{+/, '').replace(/\}+$/, '');
+    if (!sanitized) {
+      return [];
+    }
+    for (const part of sanitized.split(/[;,\s]+/).filter(Boolean)) {
+      if (part === '*') {
+        tokens.push({ type: 'wildcard' });
+      } else if (part === '?') {
+        tokens.push({ type: 'single' });
+      } else {
+        tokens.push({ type: 'exact', value: normalizePathSegment(part, toNumber, 0) });
+      }
+    }
+    return tokens;
+  }
+  return segments.map((value) => ({ type: 'exact', value }));
+}
+
+function matchPathWithPattern(path, pattern) {
+  const segments = Array.isArray(path) ? path : [];
+  const tokens = Array.isArray(pattern) ? pattern : [];
+  function match(pathIndex, tokenIndex) {
+    if (tokenIndex >= tokens.length) {
+      return pathIndex >= segments.length;
+    }
+    const token = tokens[tokenIndex];
+    if (!token) {
+      return pathIndex >= segments.length;
+    }
+    if (token.type === 'wildcard') {
+      for (let skip = pathIndex; skip <= segments.length; skip += 1) {
+        if (match(skip, tokenIndex + 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    if (pathIndex >= segments.length) {
+      return false;
+    }
+    if (token.type === 'single') {
+      return match(pathIndex + 1, tokenIndex + 1);
+    }
+    if (token.type === 'exact') {
+      if (segments[pathIndex] !== token.value) {
+        return false;
+      }
+      return match(pathIndex + 1, tokenIndex + 1);
+    }
+    return false;
+  }
+  return match(0, 0);
+}
+
+function parseMaskList(maskInput, toNumber) {
+  const masks = [];
+  if (maskInput === undefined || maskInput === null) {
+    return masks;
+  }
+  if (Array.isArray(maskInput)) {
+    for (const entry of maskInput) {
+      masks.push(parsePathPattern(entry, toNumber));
+    }
+    return masks;
+  }
+  masks.push(parsePathPattern(maskInput, toNumber));
+  return masks;
+}
+
+function findBranchByPath(branches, targetPath) {
+  const key = formatPathKey(targetPath);
+  for (const branch of branches ?? []) {
+    if (formatPathKey(branch?.path) === key) {
+      return branch;
+    }
+  }
+  return null;
+}
+
+function ensureArray(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+  return Array.isArray(value) ? value : [value];
+}
+
 function isNullLike(value) {
   if (value === undefined || value === null) {
     return true;
@@ -1594,6 +1931,873 @@ export function registerSetsSetsComponents({ register, toNumber }) {
         }
       }
       return { difference };
+    },
+  });
+}
+
+export function registerSetsTreeComponents({ register, toNumber }) {
+  ensureRegisterFunction(register);
+  ensureToNumberFunction(toNumber);
+
+  const mergeTrees = (trees = []) => {
+    const branches = [];
+    for (const tree of trees) {
+      const normalized = normalizeTreeBranches(tree, toNumber);
+      for (const branch of normalized) {
+        branches.push(cloneBranch(branch));
+      }
+    }
+    return createTreeFromBranches(mergeBranches(branches));
+  };
+
+  const registerSimplifyTree = (guid, frontOnly) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Simplify Tree',
+      'simplify tree',
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: { T: 'tree', Tree: 'tree', tree: 'tree', F: 'front', Front: 'front' },
+        outputs: { T: 'tree', Tree: 'tree' },
+      },
+      eval: ({ inputs }) => {
+        const branches = normalizeTreeBranches(inputs.tree, toNumber);
+        const simplified = mergeBranches(
+          simplifyBranches(branches, { frontOnly: frontOnly || toBoolean(inputs.front, false) })
+        );
+        return { tree: createTreeFromBranches(simplified) };
+      },
+    });
+  };
+
+  registerSimplifyTree('06b3086c-1e9d-41c2-bcfc-bb843156196e', false);
+  registerSimplifyTree('1303da7b-e339-4e65-a051-82c4dce8224d', true);
+
+  register([
+    ...GUID_KEYS(['071c3940-a12d-4b77-bb23-42b5d3314a0d']),
+    'Clean Tree',
+    'clean tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        N: 'removeNulls',
+        'Remove Nulls': 'removeNulls',
+        X: 'removeInvalid',
+        'Remove Invalid': 'removeInvalid',
+        E: 'removeEmpty',
+        'Remove Empty': 'removeEmpty',
+        T: 'tree',
+        Tree: 'tree',
+      },
+      outputs: { T: 'tree', Tree: 'tree' },
+    },
+    eval: ({ inputs }) => {
+      const removeNulls = toBoolean(inputs.removeNulls, true);
+      const removeInvalid = toBoolean(inputs.removeInvalid, true);
+      const removeEmpty = toBoolean(inputs.removeEmpty, true);
+      const branches = [];
+      for (const branch of normalizeTreeBranches(inputs.tree, toNumber)) {
+        const values = [];
+        for (const value of ensureArray(branch.values)) {
+          const nullLike = removeNulls && isNullLike(value);
+          const invalid = removeInvalid && isInvalidValue(value);
+          if (nullLike || invalid) {
+            continue;
+          }
+          values.push(value);
+        }
+        if (!values.length && removeEmpty) {
+          continue;
+        }
+        branches.push({ path: branch.path.slice(), values });
+      }
+      return { tree: createTreeFromBranches(mergeBranches(branches)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['7991bc5f-8a01-4768-bfb0-a39357ac6b84']),
+    'Clean Tree',
+    'clean tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        T: 'tree',
+        Tree: 'tree',
+        X: 'removeInvalid',
+        'Clean Invalid': 'removeInvalid',
+        E: 'removeEmpty',
+        'Clean Empty': 'removeEmpty',
+      },
+      outputs: { T: 'tree', Tree: 'tree' },
+    },
+    eval: ({ inputs }) => {
+      const removeInvalid = toBoolean(inputs.removeInvalid, true);
+      const removeEmpty = toBoolean(inputs.removeEmpty, true);
+      const cleaned = [];
+      for (const branch of normalizeTreeBranches(inputs.tree, toNumber)) {
+        const values = [];
+        for (const value of ensureArray(branch.values)) {
+          if (removeInvalid && isInvalidValue(value)) {
+            continue;
+          }
+          values.push(value);
+        }
+        if (!values.length && removeEmpty) {
+          continue;
+        }
+        cleaned.push({ path: branch.path.slice(), values });
+      }
+      return { tree: createTreeFromBranches(mergeBranches(cleaned)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['70ce4230-da08-4fce-b29d-63dc42a88585']),
+    'Clean Tree',
+    'clean tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: { T: 'tree', Tree: 'tree', X: 'removeInvalid', Invalid: 'removeInvalid' },
+      outputs: { D: 'data', Data: 'data' },
+    },
+    eval: ({ inputs }) => {
+      const removeInvalid = toBoolean(inputs.removeInvalid, true);
+      const values = [];
+      for (const branch of normalizeTreeBranches(inputs.tree, toNumber)) {
+        for (const value of ensureArray(branch.values)) {
+          if (removeInvalid && isInvalidValue(value)) {
+            continue;
+          }
+          values.push(value);
+        }
+      }
+      return { data: values };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['0b6c5dac-6c93-4158-b8d1-ca3187d45f25']),
+    'Merge Multiple',
+    'merge multiple',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        0: 'stream0',
+        'Stream 0': 'stream0',
+        1: 'stream1',
+        'Stream 1': 'stream1',
+        2: 'stream2',
+        'Stream 2': 'stream2',
+        3: 'stream3',
+        'Stream 3': 'stream3',
+        4: 'stream4',
+        'Stream 4': 'stream4',
+        5: 'stream5',
+        'Stream 5': 'stream5',
+        6: 'stream6',
+        'Stream 6': 'stream6',
+        7: 'stream7',
+        'Stream 7': 'stream7',
+        8: 'stream8',
+        'Stream 8': 'stream8',
+        9: 'stream9',
+        'Stream 9': 'stream9',
+      },
+      outputs: { S: 'stream', Stream: 'stream' },
+    },
+    eval: ({ inputs }) => {
+      const trees = gatherIndexedTreeInputs(inputs, /^(?:stream\s*)?(\d+)$/i, toNumber);
+      return { stream: mergeTrees(trees.map((branches) => createTreeFromBranches(branches))) };
+    },
+  });
+
+  const graftBranches = (branches, stripNulls) => {
+    const result = [];
+    for (const branch of branches) {
+      const path = Array.isArray(branch?.path) ? branch.path : [];
+      const values = ensureArray(branch?.values);
+      for (let index = 0; index < values.length; index += 1) {
+        const value = values[index];
+        if (stripNulls && isNullLike(value)) {
+          continue;
+        }
+        result.push({ path: [...path, index], values: [value] });
+      }
+    }
+    return result;
+  };
+
+  register([
+    ...GUID_KEYS(['10a8674b-f4bb-4fdf-a56e-94dc606ecf33']),
+    'Graft Tree',
+    'graft tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: { D: 'tree', Data: 'tree', T: 'tree', S: 'strip', Strip: 'strip' },
+      outputs: { T: 'tree', Tree: 'tree' },
+    },
+    eval: ({ inputs }) => {
+      const stripNulls = toBoolean(inputs.strip, false);
+      const branches = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber);
+      return { tree: createTreeFromBranches(graftBranches(branches, stripNulls)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['87e1d9ef-088b-4d30-9dda-8a7448a17329']),
+    'Graft Tree',
+    'graft tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree' }, outputs: { T: 'tree', Tree: 'tree' } },
+    eval: ({ inputs }) => {
+      const branches = normalizeTreeBranches(inputs.tree, toNumber);
+      return { tree: createTreeFromBranches(graftBranches(branches, false)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['1177d6ee-3993-4226-9558-52b7fd63e1e3']),
+    'Trim Tree',
+    'trim tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', D: 'depth', Depth: 'depth' }, outputs: { T: 'tree', Tree: 'tree' } },
+    eval: ({ inputs }) => {
+      const depth = Math.max(0, toInteger(inputs.depth, 1, toNumber));
+      const trimmed = trimBranches(normalizeTreeBranches(inputs.tree, toNumber), depth, { fromEnd: true });
+      return { tree: createTreeFromBranches(mergeBranches(trimmed)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['1d8b0e2c-e772-4fa9-b7f7-b158251b34b8']),
+    'Path Compare',
+    'path compare',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { P: 'path', Path: 'path', M: 'mask', Mask: 'mask' }, outputs: { C: 'comparison', Comparison: 'comparison' } },
+    eval: ({ inputs }) => {
+      const path = parsePathInput(inputs.path, toNumber);
+      const masks = parseMaskList(inputs.mask, toNumber);
+      const match = !masks.length || masks.some((mask) => matchPathWithPattern(path, mask));
+      return { comparison: match ? 'Match' : 'Mismatch' };
+    },
+  });
+
+  const registerMergeByLetters = (guid, label, count, outputName = 'stream') => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const pinInputs = {};
+    for (let index = 0; index < count; index += 1) {
+      const letter = letters[index];
+      pinInputs[letter] = `stream${letter}`;
+      pinInputs[`Stream ${letter}`] = `stream${letter}`;
+    }
+    register([
+      ...GUID_KEYS([guid]),
+      label,
+      label.toLowerCase(),
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: pinInputs,
+        outputs: { S: outputName, Stream: outputName, R: outputName, Result: outputName },
+      },
+      eval: ({ inputs }) => {
+        const trees = [];
+        for (let index = 0; index < count; index += 1) {
+          const letter = letters[index];
+          const value = inputs[`stream${letter}`];
+          if (value !== undefined) {
+            trees.push(value);
+          }
+        }
+        return { [outputName]: mergeTrees(trees) };
+      },
+    });
+  };
+
+  registerMergeByLetters('22f66ff6-d281-453c-bd8c-36ed24026783', 'Merge 10', 10);
+  registerMergeByLetters('481f0339-1299-43ba-b15c-c07891a8f822', 'Merge 03', 3);
+  registerMergeByLetters('86866576-6cc0-485a-9cd2-6f7d493f57f7', 'Merge', 2);
+  registerMergeByLetters('a70aa477-0109-4e75-ba73-78725dca0274', 'Merge 08', 8);
+  registerMergeByLetters('ac9b4faf-c9d5-4f6a-a5e9-58c0c2cac116', 'Merge 06', 6);
+  registerMergeByLetters('b5be5d1f-717f-493c-b958-816957f271fd', 'Merge 04', 4);
+  registerMergeByLetters('f4b0f7b4-5a10-46c4-8191-58d7d66ffdff', 'Merge 05', 5);
+
+  register([
+    ...GUID_KEYS(['2d61f4e0-47c5-41d6-a41d-6afa96ee63af']),
+    'Shift Paths',
+    'shift paths',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { D: 'tree', Data: 'tree', T: 'tree', O: 'offset', Offset: 'offset' }, outputs: { D: 'tree', Data: 'tree' } },
+    eval: ({ inputs }) => {
+      const offset = toInteger(inputs.offset, 0, toNumber);
+      const shifted = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber).map((branch) => ({
+        path: Array.isArray(branch?.path) ? branch.path.map((segment) => segment + offset) : [],
+        values: ensureArray(branch?.values),
+      }));
+      return { tree: createTreeFromBranches(mergeBranches(shifted)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['3a710c1e-1809-4e19-8c15-82adce31cd62']),
+    'Tree Branch',
+    'tree branch',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', P: 'path', Path: 'path' }, outputs: { B: 'branch', Branch: 'branch' } },
+    eval: ({ inputs }) => {
+      const treeBranches = normalizeTreeBranches(inputs.tree, toNumber);
+      const targetPath = parsePathInput(inputs.path, toNumber);
+      const branch = findBranchByPath(treeBranches, targetPath);
+      if (!branch) {
+        return { branch: createTreeFromBranches([]) };
+      }
+      return { branch: createTreeFromBranches([{ path: branch.path.slice(), values: ensureArray(branch.values) }]) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['3cadddef-1e2b-4c09-9390-0e8f78f7609f']),
+    'Merge',
+    'merge tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: { D1: 'streamA', 'Data 1': 'streamA', D2: 'streamB', 'Data 2': 'streamB' },
+      outputs: { R: 'result', Result: 'result', S: 'result', Stream: 'result' },
+    },
+    eval: ({ inputs }) => {
+      return { result: mergeTrees([inputs.streamA, inputs.streamB]) };
+    },
+  });
+
+  const registerStreamFilter = (guid) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Stream Filter',
+      'stream filter',
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: { G: 'gate', Gate: 'gate', 0: 'stream0', 'Stream 0': 'stream0', 1: 'stream1', 'Stream 1': 'stream1' },
+        outputs: { S: 'stream', Stream: 'stream' },
+      },
+      eval: ({ inputs }) => {
+        const gateIndex = toInteger(inputs.gate, 0, toNumber);
+        const streams = gatherIndexedTreeInputs(inputs, /^(?:stream\s*)?(\d+)$/i, toNumber);
+        const index = wrapIndex(gateIndex, streams.length || 1);
+        const selected = streams.length ? streams[index] : [];
+        return { stream: createTreeFromBranches(selected) };
+      },
+    });
+  };
+
+  registerStreamFilter('3e5582a1-901a-4f7c-b58d-f5d7e3166124');
+  registerStreamFilter('eeafc956-268e-461d-8e73-ee05c6f72c01');
+
+  register([
+    ...GUID_KEYS(['41aa4112-9c9b-42f4-847e-503b9d90e4c7']),
+    'Flip Matrix',
+    'flip matrix',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { D: 'tree', Data: 'tree', T: 'tree' }, outputs: { D: 'tree', Data: 'tree' } },
+    eval: ({ inputs }) => {
+      const branches = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber);
+      const maxColumns = Math.max(0, ...branches.map((branch) => ensureArray(branch.values).length));
+      const columns = [];
+      for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
+        const values = [];
+        for (const branch of branches) {
+          const branchValues = ensureArray(branch.values);
+          values.push(columnIndex < branchValues.length ? branchValues[columnIndex] : null);
+        }
+        columns.push({ path: [columnIndex], values });
+      }
+      return { tree: createTreeFromBranches(columns) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['46372d0d-82dc-4acb-adc3-25d1fde04c4e']),
+    'Match Tree',
+    'match tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', G: 'guide', Guide: 'guide' }, outputs: { T: 'tree', Tree: 'tree' } },
+    eval: ({ inputs }) => {
+      const values = collectTreeValues(inputs.tree, toNumber);
+      const guideBranches = sortBranches(normalizeTreeBranches(inputs.guide, toNumber));
+      const result = [];
+      let cursor = 0;
+      for (const branch of guideBranches) {
+        const count = ensureArray(branch.values).length || 1;
+        const branchValues = [];
+        for (let index = 0; index < count; index += 1) {
+          branchValues.push(cursor < values.length ? values[cursor] : null);
+          cursor += 1;
+        }
+        result.push({ path: branch.path.slice(), values: branchValues });
+      }
+      return { tree: createTreeFromBranches(result) };
+    },
+  });
+
+  const resolveRelativeItems = (treeAInput, treeBInput, offsetValue, wrapPathsValue, wrapItemsValue) => {
+    const branchesA = sortBranches(normalizeTreeBranches(treeAInput, toNumber));
+    const branchesB = sortBranches(normalizeTreeBranches(treeBInput, toNumber));
+    const wrapPaths = toBoolean(wrapPathsValue, false);
+    const wrapItems = toBoolean(wrapItemsValue, false);
+    const offset = toInteger(offsetValue, 0, toNumber);
+    const resultA = [];
+    const resultB = [];
+    const branchKeys = branchesB.map((branch) => formatPathKey(branch.path));
+    for (let index = 0; index < branchesA.length; index += 1) {
+      const branchA = branchesA[index];
+      const valuesA = ensureArray(branchA.values);
+      let branchB = findBranchByPath(branchesB, branchA.path);
+      if (!branchB && wrapPaths && branchesB.length) {
+        const wrappedIndex = wrapIndex(index, branchesB.length);
+        branchB = branchesB[wrappedIndex];
+      }
+      const valuesB = ensureArray(branchB?.values);
+      const pairedA = [];
+      const pairedB = [];
+      for (let itemIndex = 0; itemIndex < valuesA.length; itemIndex += 1) {
+        const valueA = valuesA[itemIndex];
+        let targetIndex = itemIndex + offset;
+        if (wrapItems && valuesB.length) {
+          targetIndex = wrapIndex(targetIndex, valuesB.length);
+        }
+        const valueB = targetIndex >= 0 && targetIndex < valuesB.length ? valuesB[targetIndex] : null;
+        pairedA.push(valueA);
+        pairedB.push(valueB);
+      }
+      resultA.push({ path: branchA.path.slice(), values: pairedA });
+      resultB.push({ path: branchA.path.slice(), values: pairedB });
+    }
+    return { resultA, resultB, branchKeys };
+  };
+
+  register([
+    ...GUID_KEYS(['2653b135-4df1-4a6b-820c-55e2ad3bc1e0']),
+    'Relative Items',
+    'relative items',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        A: 'treeA',
+        'Tree A': 'treeA',
+        B: 'treeB',
+        'Tree B': 'treeB',
+        O: 'offset',
+        Offset: 'offset',
+        Wp: 'wrapPaths',
+        'Wrap Paths': 'wrapPaths',
+        Wi: 'wrapItems',
+        'Wrap Items': 'wrapItems',
+      },
+      outputs: { A: 'resultA', 'Item A': 'resultA', B: 'resultB', 'Item B': 'resultB' },
+    },
+    eval: ({ inputs }) => {
+      const { resultA, resultB } = resolveRelativeItems(
+        inputs.treeA,
+        inputs.treeB,
+        inputs.offset,
+        inputs.wrapPaths,
+        inputs.wrapItems
+      );
+      return {
+        resultA: createTreeFromBranches(resultA),
+        resultB: createTreeFromBranches(resultB),
+      };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['fac0d5be-e3ff-4bbb-9742-ec9a54900d41']),
+    'Relative Item',
+    'relative item',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        T: 'tree',
+        Tree: 'tree',
+        O: 'offset',
+        Offset: 'offset',
+        Wp: 'wrapPaths',
+        'Wrap Paths': 'wrapPaths',
+        Wi: 'wrapItems',
+        'Wrap Items': 'wrapItems',
+      },
+      outputs: { A: 'resultA', 'Item A': 'resultA', B: 'resultB', 'Item B': 'resultB' },
+    },
+    eval: ({ inputs }) => {
+      const { resultA, resultB } = resolveRelativeItems(
+        inputs.tree,
+        inputs.tree,
+        inputs.offset,
+        inputs.wrapPaths,
+        inputs.wrapItems
+      );
+      return {
+        resultA: createTreeFromBranches(resultA),
+        resultB: createTreeFromBranches(resultB),
+      };
+    },
+  });
+
+  const registerStreamGate = (guid, outputAsTree) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Stream Gate',
+      'stream gate',
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: { S: 'stream', Stream: 'stream', G: 'gate', Gate: 'gate' },
+        outputs: outputAsTree
+          ? { 0: 'target0', 'Target 0': 'target0', 1: 'target1', 'Target 1': 'target1' }
+          : { 0: 'target0', 'Target 0': 'target0', 1: 'target1', 'Target 1': 'target1' },
+      },
+      eval: ({ inputs }) => {
+        const gate = toBoolean(inputs.gate, false);
+        const branches = normalizeTreeBranches(inputs.stream, toNumber);
+        if (outputAsTree) {
+          return {
+            target0: gate ? createTreeFromBranches([]) : createTreeFromBranches(branches),
+            target1: gate ? createTreeFromBranches(branches) : createTreeFromBranches([]),
+          };
+        }
+        const values = flattenBranchValues(branches);
+        return {
+          target0: gate ? [] : values,
+          target1: gate ? values : [],
+        };
+      },
+    });
+  };
+
+  registerStreamGate('71fcc052-6add-4d70-8d97-cfb37ea9d169', true);
+  registerStreamGate('d6313940-216b-487f-b511-6c8a5b87eae7', false);
+
+  const registerExplodeTree = (guid, outputNames) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Explode Tree',
+      'explode tree',
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: { D: 'tree', Data: 'tree', T: 'tree' },
+        outputs: outputNames.reduce((map, name, index) => {
+          map[name.gh] = name.key;
+          return map;
+        }, {}),
+      },
+      eval: ({ inputs }) => {
+        const branches = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber);
+        const result = {};
+        for (let index = 0; index < outputNames.length; index += 1) {
+          const branch = branches[index];
+          result[outputNames[index].key] = branch
+            ? createTreeFromBranches([{ path: branch.path.slice(), values: ensureArray(branch.values) }])
+            : createTreeFromBranches([]);
+        }
+        return result;
+      },
+    });
+  };
+
+  registerExplodeTree('74cad441-2264-45fe-a57d-85034751208a', [
+    { gh: '-', key: 'branch0' },
+    { gh: '-', key: 'branch1' },
+  ]);
+
+  registerExplodeTree('8a470a35-d673-4779-a65e-ba95765e59e4', [
+    { gh: '0', key: 'branch0' },
+    { gh: '1', key: 'branch1' },
+  ]);
+
+  register([
+    ...GUID_KEYS(['946cb61e-18d2-45e3-8840-67b0efa26528']),
+    'Construct Path',
+    'construct path',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { I: 'indices', Indices: 'indices' }, outputs: { B: 'branch', Branch: 'branch' } },
+    eval: ({ inputs }) => {
+      const path = parsePathInput(inputs.indices, toNumber);
+      return { branch: { path, text: toPathString(path) } };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['df6d9197-9a6e-41a2-9c9d-d2221accb49e']),
+    'Deconstruct Path',
+    'deconstruct path',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { B: 'branch', Branch: 'branch' }, outputs: { I: 'indices', Indices: 'indices' } },
+    eval: ({ inputs }) => {
+      const indices = parsePathInput(inputs.branch, toNumber);
+      return { indices };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['99bee19d-588c-41a0-b9b9-1d00fb03ea1a']),
+    'Tree Statistics',
+    'tree statistics',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree' }, outputs: { P: 'paths', Paths: 'paths', L: 'lengths', Length: 'lengths', C: 'count', Count: 'count' } },
+    eval: ({ inputs }) => {
+      const branches = sortBranches(normalizeTreeBranches(inputs.tree, toNumber));
+      const paths = [];
+      const lengths = [];
+      let count = 0;
+      for (const branch of branches) {
+        const values = ensureArray(branch.values);
+        paths.push(toPathString(branch.path));
+        lengths.push(values.length);
+        count += values.length;
+      }
+      return { paths, lengths, count };
+    },
+  });
+
+  const registerFlattenTree = (guid, includePathInput) => {
+    register([
+      ...GUID_KEYS([guid]),
+      'Flatten Tree',
+      'flatten tree',
+    ], {
+      type: 'sets:tree',
+      pinMap: {
+        inputs: includePathInput
+          ? { T: 'tree', Tree: 'tree', P: 'path', Path: 'path' }
+          : { D: 'tree', Data: 'tree', T: 'tree' },
+        outputs: { T: 'tree', Tree: 'tree', D: 'tree', Data: 'tree' },
+      },
+      eval: ({ inputs }) => {
+        const treeValue = includePathInput ? inputs.tree : inputs.tree ?? inputs.data;
+        const path = includePathInput ? parsePathInput(inputs.path, toNumber) : [];
+        const flattened = flattenTreeToPath(normalizeTreeBranches(treeValue, toNumber), path);
+        return { tree: createTreeFromBranches(flattened) };
+      },
+    });
+  };
+
+  registerFlattenTree('a13fcd5d-81af-4337-a32e-28dd7e23ae4c', false);
+  registerFlattenTree('f80cfe18-9510-4b89-8301-8e58faf423bb', true);
+
+  register([
+    ...GUID_KEYS(['b8e2aa8f-8830-4ee1-bb59-613ea279c281']),
+    'Unflatten Tree',
+    'unflatten tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', G: 'guide', Guide: 'guide' }, outputs: { T: 'tree', Tree: 'tree' } },
+    eval: ({ inputs }) => {
+      const values = collectTreeValues(inputs.tree, toNumber);
+      const guideBranches = sortBranches(normalizeTreeBranches(inputs.guide, toNumber));
+      const result = [];
+      let cursor = 0;
+      for (const branch of guideBranches) {
+        const templateValues = ensureArray(branch.values);
+        const count = templateValues.length || 1;
+        const branchValues = [];
+        for (let index = 0; index < count; index += 1) {
+          branchValues.push(cursor < values.length ? values[cursor] : null);
+          cursor += 1;
+        }
+        result.push({ path: branch.path.slice(), values: branchValues });
+      }
+      return { tree: createTreeFromBranches(result) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['bfaaf799-77dc-4f31-9ad8-2f7d1a80aeb0']),
+    'Replace Paths',
+    'replace paths',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { D: 'tree', Data: 'tree', S: 'search', Search: 'search', R: 'replace', Replace: 'replace' }, outputs: { D: 'tree', Data: 'tree' } },
+    eval: ({ inputs }) => {
+      const searchList = ensureArray(inputs.search).map((entry) => parsePathInput(entry, toNumber));
+      const replaceList = ensureArray(inputs.replace).map((entry) => parsePathInput(entry, toNumber));
+      const replacements = new Map();
+      for (let index = 0; index < searchList.length; index += 1) {
+        const key = formatPathKey(searchList[index]);
+        const replacement = replaceList[index] ?? replaceList[replaceList.length - 1] ?? [];
+        replacements.set(key, replacement);
+      }
+      const branches = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber).map((branch) => {
+        const key = formatPathKey(branch.path);
+        if (replacements.has(key)) {
+          return { path: replacements.get(key).slice(), values: ensureArray(branch.values) };
+        }
+        return { path: branch.path.slice(), values: ensureArray(branch.values) };
+      });
+      return { tree: createTreeFromBranches(mergeBranches(branches)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['c1ec65a3-bda4-4fad-87d0-edf86ed9d81c']),
+    'Tree Item',
+    'tree item',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', P: 'path', Path: 'path', i: 'index', I: 'index', Index: 'index', W: 'wrap', Wrap: 'wrap' }, outputs: { E: 'element', Element: 'element' } },
+    eval: ({ inputs }) => {
+      const branches = normalizeTreeBranches(inputs.tree, toNumber);
+      const path = parsePathInput(inputs.path, toNumber);
+      const branch = findBranchByPath(branches, path);
+      if (!branch) {
+        return { element: null };
+      }
+      const values = ensureArray(branch.values);
+      if (!values.length) {
+        return { element: null };
+      }
+      const wrap = toBoolean(inputs.wrap, false);
+      const indices = ensureArray(inputs.index).map((value) => toInteger(value, 0, toNumber));
+      const resolved = indices.length ? indices : [0];
+      const results = resolved.map((candidate) => {
+        let index = candidate;
+        if (wrap) {
+          index = wrapIndex(index, values.length);
+        }
+        if (index < 0 || index >= values.length) {
+          return null;
+        }
+        return values[index];
+      });
+      return { element: results.length <= 1 ? results[0] ?? null : results };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['c9785b8e-2f30-4f90-8ee3-cca710f82402']),
+    'Entwine',
+    'entwine',
+  ], {
+    type: 'sets:tree',
+    pinMap: {
+      inputs: {
+        '{0;0}': 'branch_0_0',
+        'Branch {0;0}': 'branch_0_0',
+        '{0;1}': 'branch_0_1',
+        'Branch {0;1}': 'branch_0_1',
+        '{0;2}': 'branch_0_2',
+        'Branch {0;2}': 'branch_0_2',
+        '{0;3}': 'branch_0_3',
+        'Branch {0;3}': 'branch_0_3',
+        '{0;4}': 'branch_0_4',
+        'Branch {0;4}': 'branch_0_4',
+        '{0;5}': 'branch_0_5',
+        'Branch {0;5}': 'branch_0_5',
+      },
+      outputs: { R: 'result', Result: 'result' },
+    },
+    eval: ({ inputs }) => {
+      const branches = [];
+      for (const [key, value] of Object.entries(inputs)) {
+        if (!key.startsWith('branch_')) continue;
+        const suffix = key.slice('branch_'.length);
+        const segments = suffix.split('_').map((segment) => Number.parseInt(segment, 10)).filter(Number.isFinite);
+        const prefixPath = segments;
+        for (const branch of normalizeTreeBranches(value, toNumber)) {
+          branches.push({ path: [...prefixPath, ...branch.path], values: ensureArray(branch.values) });
+        }
+      }
+      return { result: createTreeFromBranches(mergeBranches(branches)) };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['d8b1e7ac-cd31-4748-b262-e07e53068afc']),
+    'Split Tree',
+    'split tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { D: 'tree', Data: 'tree', T: 'tree', M: 'masks', Masks: 'masks' }, outputs: { P: 'positive', Positive: 'positive', N: 'negative', Negative: 'negative' } },
+    eval: ({ inputs }) => {
+      const branches = normalizeTreeBranches(inputs.tree ?? inputs.data, toNumber);
+      const masks = parseMaskList(inputs.masks, toNumber);
+      if (!masks.length) {
+        return {
+          positive: createTreeFromBranches(branches),
+          negative: createTreeFromBranches([]),
+        };
+      }
+      const positives = [];
+      const negatives = [];
+      for (const branch of branches) {
+        const target = masks.some((mask) => matchPathWithPattern(branch.path, mask)) ? positives : negatives;
+        target.push({ path: branch.path.slice(), values: ensureArray(branch.values) });
+      }
+      return {
+        positive: createTreeFromBranches(positives),
+        negative: createTreeFromBranches(negatives),
+      };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['e6859d1e-2b3d-4704-93ea-32714acae176']),
+    'Null Check',
+    'null check',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { D: 'tree', Data: 'tree', T: 'tree' }, outputs: { N: 'isNull', Null: 'isNull' } },
+    eval: ({ inputs }) => {
+      const values = collectTreeValues(inputs.tree ?? inputs.data, toNumber);
+      const hasNull = values.some((value) => isNullLike(value));
+      return { isNull: hasNull };
+    },
+  });
+
+  register([
+    ...GUID_KEYS(['fe769f85-8900-45dd-ba11-ec9cd6c778c6']),
+    'Prune Tree',
+    'prune tree',
+  ], {
+    type: 'sets:tree',
+    pinMap: { inputs: { T: 'tree', Tree: 'tree', N0: 'min', Minimum: 'min', N1: 'max', Maximum: 'max' }, outputs: { T: 'tree', Tree: 'tree' } },
+    eval: ({ inputs }) => {
+      const min = Math.max(0, toInteger(inputs.min, 0, toNumber));
+      const maxCandidate = toInteger(inputs.max, 0, toNumber);
+      const hasMax = maxCandidate > 0;
+      const max = hasMax ? Math.max(min, maxCandidate) : 0;
+      const branches = [];
+      for (const branch of normalizeTreeBranches(inputs.tree, toNumber)) {
+        const values = ensureArray(branch.values);
+        if (values.length < min) {
+          continue;
+        }
+        if (hasMax && values.length > max) {
+          continue;
+        }
+        branches.push({ path: branch.path.slice(), values });
+      }
+      return { tree: createTreeFromBranches(mergeBranches(branches)) };
     },
   });
 }
