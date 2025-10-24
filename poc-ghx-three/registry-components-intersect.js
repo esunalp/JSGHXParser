@@ -758,6 +758,348 @@ export function registerIntersectShapeComponents({ register, toNumber }) {
   });
 }
 
+export function registerIntersectRegionComponents({ register, toNumber }) {
+  if (typeof register !== 'function') {
+    throw new Error('register function is required to register intersect region components.');
+  }
+  if (typeof toNumber !== 'function') {
+    throw new Error('toNumber function is required to register intersect region components.');
+  }
+
+  const {
+    ensureArray,
+    resolveItem,
+    annotateShape,
+  } = createIntersectComponentUtils({ toNumber });
+
+  function createCurveInteractionSummary({
+    type,
+    operation,
+    curveValue,
+    modifierValues,
+    modifierKind,
+    modifierRole,
+    modifierProperty,
+    collection = 'single',
+    countKey = null,
+    planeValue = null,
+    extras = {},
+  }) {
+    const curve = curveValue
+      ? annotateShape(curveValue, { operation, role: 'curve' }, { kind: 'curve' })
+      : null;
+    const modifierInputs = collection === 'list'
+      ? ensureArray(modifierValues)
+      : (modifierValues === undefined || modifierValues === null ? [] : [modifierValues]);
+    const modifiers = modifierInputs
+      .map((value, index) => annotateShape(
+        value,
+        collection === 'list'
+          ? { operation, role: modifierRole, index }
+          : { operation, role: modifierRole },
+        { kind: modifierKind }
+      ))
+      .filter(Boolean);
+    if (!curve || !modifiers.length) {
+      return null;
+    }
+    const summary = {
+      type,
+      operation,
+      curve,
+      metadata: {
+        operation,
+        ...extras,
+      },
+      shapes: [curve, ...modifiers],
+    };
+    if (collection === 'list') {
+      summary[modifierProperty] = modifiers;
+    } else {
+      summary[modifierProperty] = modifiers[0];
+    }
+    if (countKey) {
+      summary.metadata[countKey] = modifiers.length;
+    }
+    if (planeValue) {
+      const plane = annotateShape(planeValue, { operation, role: 'plane' }, { kind: 'plane' });
+      if (plane) {
+        summary.plane = plane;
+        summary.metadata.hasPlane = true;
+      }
+    }
+    return summary;
+  }
+
+  function outputList(summary, role, extras = {}) {
+    if (!summary) {
+      return [];
+    }
+    return [{
+      type: 'intersect-output',
+      role,
+      summary,
+      metadata: {
+        role,
+        operation: summary.operation,
+        ...extras,
+      },
+    }];
+  }
+
+  register('{26949c81-9b50-43b7-ac49-3203deb6eec7}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        R: 'regions',
+        Regions: 'regions',
+        regions: 'regions',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        Ci: 'inside',
+        Inside: 'inside',
+        inside: 'inside',
+        Co: 'outside',
+        Outside: 'outside',
+        outside: 'outside',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-region-trim',
+        operation: 'curve-region-trim',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: inputs.regions,
+        modifierKind: 'region',
+        modifierRole: 'region',
+        modifierProperty: 'regions',
+        collection: 'list',
+        countKey: 'regionCount',
+        planeValue: resolveItem(inputs.plane),
+        extras: { mode: 'multiple', interaction: 'trim' },
+      });
+      return {
+        inside: outputList(summary, 'inside', { expects: 'curve-trim-inside' }),
+        outside: outputList(summary, 'outside', { expects: 'curve-trim-outside' }),
+      };
+    },
+  });
+
+  register('{3092caf0-7cf9-4885-bcc0-e635d878832a}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        R: 'region',
+        Region: 'region',
+        region: 'region',
+        P: 'plane',
+        Plane: 'plane',
+        plane: 'plane',
+      },
+      outputs: {
+        Ci: 'inside',
+        Inside: 'inside',
+        inside: 'inside',
+        Co: 'outside',
+        Outside: 'outside',
+        outside: 'outside',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-region-trim',
+        operation: 'curve-region-trim',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: resolveItem(inputs.region),
+        modifierKind: 'region',
+        modifierRole: 'region',
+        modifierProperty: 'region',
+        collection: 'single',
+        countKey: 'regionCount',
+        planeValue: resolveItem(inputs.plane),
+        extras: { mode: 'single', interaction: 'trim' },
+      });
+      return {
+        inside: outputList(summary, 'inside', { expects: 'curve-trim-inside' }),
+        outside: outputList(summary, 'outside', { expects: 'curve-trim-outside' }),
+      };
+    },
+  });
+
+  register('{3eba04bc-00e8-416d-b58f-a3dc8b3e22e2}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+      },
+      outputs: {
+        Ci: 'inside',
+        Inside: 'inside',
+        inside: 'inside',
+        Co: 'outside',
+        Outside: 'outside',
+        outside: 'outside',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-brep-trim',
+        operation: 'curve-brep-trim',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: resolveItem(inputs.brep),
+        modifierKind: 'brep',
+        modifierRole: 'brep',
+        modifierProperty: 'brep',
+        collection: 'single',
+        countKey: 'brepCount',
+        extras: { mode: 'single', interaction: 'trim' },
+      });
+      return {
+        inside: outputList(summary, 'inside', { expects: 'curve-trim-inside' }),
+        outside: outputList(summary, 'outside', { expects: 'curve-trim-outside' }),
+      };
+    },
+  });
+
+  register('{5b742537-9bcb-4f06-9613-866da5bf845e}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        B: 'breps',
+        Brep: 'breps',
+        Breps: 'breps',
+        brep: 'breps',
+        breps: 'breps',
+      },
+      outputs: {
+        C: 'curves',
+        Curve: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-brep-split',
+        operation: 'curve-brep-split',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: inputs.breps,
+        modifierKind: 'brep',
+        modifierRole: 'brep',
+        modifierProperty: 'breps',
+        collection: 'list',
+        countKey: 'brepCount',
+        extras: { mode: 'multiple', interaction: 'split' },
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{4bdc2eb0-24ed-4c90-a27b-a32db069eaef}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        B: 'brep',
+        Brep: 'brep',
+        brep: 'brep',
+      },
+      outputs: {
+        C: 'curves',
+        Curve: 'curves',
+        curves: 'curves',
+        P: 'points',
+        Points: 'points',
+        points: 'points',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-brep-split',
+        operation: 'curve-brep-split',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: resolveItem(inputs.brep),
+        modifierKind: 'brep',
+        modifierRole: 'brep',
+        modifierProperty: 'brep',
+        collection: 'single',
+        countKey: 'brepCount',
+        extras: { mode: 'single', interaction: 'split' },
+      });
+      return {
+        curves: outputList(summary, 'curves', { expects: 'curves' }),
+        points: outputList(summary, 'points', { expects: 'points' }),
+      };
+    },
+  });
+
+  register('{916e7ebc-524c-47ce-8936-e50a09a7b43c}', {
+    type: 'intersect',
+    pinMap: {
+      inputs: {
+        C: 'curve',
+        Curve: 'curve',
+        curve: 'curve',
+        B: 'breps',
+        Brep: 'breps',
+        Breps: 'breps',
+        brep: 'breps',
+        breps: 'breps',
+      },
+      outputs: {
+        Ci: 'inside',
+        Inside: 'inside',
+        inside: 'inside',
+        Co: 'outside',
+        Outside: 'outside',
+        outside: 'outside',
+      },
+    },
+    eval: ({ inputs }) => {
+      const summary = createCurveInteractionSummary({
+        type: 'curve-brep-trim',
+        operation: 'curve-brep-trim',
+        curveValue: resolveItem(inputs.curve),
+        modifierValues: inputs.breps,
+        modifierKind: 'brep',
+        modifierRole: 'brep',
+        modifierProperty: 'breps',
+        collection: 'list',
+        countKey: 'brepCount',
+        extras: { mode: 'multiple', interaction: 'trim' },
+      });
+      return {
+        inside: outputList(summary, 'inside', { expects: 'curve-trim-inside' }),
+        outside: outputList(summary, 'outside', { expects: 'curve-trim-outside' }),
+      };
+    },
+  });
+}
+
 export function registerIntersectMathematicalComponents({ register, toNumber }) {
   if (typeof register !== 'function') {
     throw new Error('register function is required to register intersect mathematical components.');

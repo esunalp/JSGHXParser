@@ -64,6 +64,7 @@ const [
   },
   {
     registerIntersectShapeComponents,
+    registerIntersectRegionComponents,
     registerIntersectMathematicalComponents,
     registerIntersectPhysicalComponents,
   },
@@ -304,6 +305,7 @@ registerVectorFieldComponents({ register, toNumber, toVector3 });
 registerVectorGridComponents({ register, toNumber, toVector3 });
 registerVectorColourComponents({ register, toNumber, toVector3 });
 registerIntersectShapeComponents({ register, toNumber });
+registerIntersectRegionComponents({ register, toNumber });
 registerIntersectMathematicalComponents({ register, toNumber });
 registerIntersectPhysicalComponents({ register, toNumber });
 registerComplexPolynomialsComponents({ register, toNumber });
