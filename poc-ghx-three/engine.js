@@ -108,6 +108,10 @@ function resolveInputs(node, inputIndex, outputs) {
 function isRenderableCandidate(value) {
   return Boolean(
     value?.isMesh
+    || value?.isLine
+    || value?.isLineSegments
+    || value?.isPoints
+    || value?.isSprite
     || value?.isBufferGeometry
     || value?.isGeometry
     || value?.type === 'field-display'
