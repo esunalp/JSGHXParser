@@ -68,6 +68,9 @@ const [
     registerIntersectMathematicalComponents,
     registerIntersectPhysicalComponents,
   },
+  {
+    registerDisplayPreviewComponents,
+  },
 ] = await Promise.all([
   versionedImport('./registry-components-maths.js'),
   versionedImport('./registry-components-scalar.js'),
@@ -79,6 +82,7 @@ const [
   versionedImport('./registry-components-sets.js'),
   versionedImport('./registry-components-params.js'),
   versionedImport('./registry-components-intersect.js'),
+  versionedImport('./registry-components-display.js'),
 ]);
 
 const entries = new Map();
@@ -317,6 +321,7 @@ registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
 registerSetsTreeComponents({ register, toNumber });
 registerParamsInputComponents({ register });
+registerDisplayPreviewComponents({ register, toNumber, toVector3 });
 
 register(['{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}', 'number slider', 'slider'], {
   type: 'slider',
