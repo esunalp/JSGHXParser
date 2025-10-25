@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { withVersion } from './version.js';
+
+const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
 
 const GUID_KEYS = (guids = []) => {
   const keys = new Set();
@@ -421,6 +424,14 @@ function collectGeometryEntries(input, results = [], visited = new Set()) {
     return results;
   }
 
+  if (isSurfaceDefinition(input)) {
+    const geometry = surfaceToGeometry(input);
+    if (geometry) {
+      results.push(geometry);
+    }
+    return results;
+  }
+
   if (input.isObject3D || input.isBufferGeometry || input.isGeometry) {
     results.push(input);
     return results;
@@ -437,6 +448,12 @@ function collectGeometryEntries(input, results = [], visited = new Set()) {
   }
   if (Object.prototype.hasOwnProperty.call(input, 'geometry')) {
     collectGeometryEntries(input.geometry, results, visited);
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'surface')) {
+    collectGeometryEntries(input.surface, results, visited);
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'surfaces')) {
+    collectGeometryEntries(input.surfaces, results, visited);
   }
   if (Object.prototype.hasOwnProperty.call(input, 'value')) {
     collectGeometryEntries(input.value, results, visited);
