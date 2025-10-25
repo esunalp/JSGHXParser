@@ -216,39 +216,187 @@ function ensureMaterial(value) {
   return null;
 }
 
+function toFiniteNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+  return null;
+}
+
+function toVector3Like(value) {
+  if (!value && value !== 0) {
+    return null;
+  }
+  if (value.isVector3) {
+    return value.clone();
+  }
+  if (Array.isArray(value)) {
+    if (value.length < 3) {
+      return null;
+    }
+    const [x, y, z] = value;
+    const numeric = [x, y, z].map((component) => toFiniteNumber(component));
+    if (numeric.every((component) => component !== null)) {
+      return new THREE.Vector3(numeric[0], numeric[1], numeric[2]);
+    }
+    return null;
+  }
+  if (typeof value === 'object') {
+    const lower = ['x', 'y', 'z'].map((key) => toFiniteNumber(value[key]));
+    if (lower.every((component) => component !== null)) {
+      return new THREE.Vector3(lower[0], lower[1], lower[2]);
+    }
+    const upper = ['X', 'Y', 'Z'].map((key) => toFiniteNumber(value[key]));
+    if (upper.every((component) => component !== null)) {
+      return new THREE.Vector3(upper[0], upper[1], upper[2]);
+    }
+    if (value.point) {
+      const nested = toVector3Like(value.point);
+      if (nested) {
+        return nested;
+      }
+    }
+    if (Array.isArray(value.vertices)) {
+      return null;
+    }
+  }
+  return null;
+}
+
+function extractFaceIndices(face, vertexCount) {
+  if (!face) {
+    return [];
+  }
+
+  const normalized = [];
+
+  const addIndex = (entry) => {
+    const numeric = toFiniteNumber(entry);
+    if (numeric !== null && numeric >= 0 && numeric < vertexCount) {
+      normalized.push(numeric);
+    }
+  };
+
+  if (Array.isArray(face)) {
+    face.forEach(addIndex);
+  } else if (typeof face === 'object') {
+    if (Array.isArray(face.vertices)) {
+      face.vertices.forEach(addIndex);
+    } else {
+      const keys = ['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D', 'i', 'j', 'k', 'l'];
+      keys.forEach((key) => addIndex(face[key]));
+    }
+  }
+
+  return normalized;
+}
+
+function createGeometryFromMeshLike(data) {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  if (data.isBufferGeometry || data.isGeometry) {
+    return data.clone?.() ?? data;
+  }
+
+  if (data.geometry) {
+    const direct = createGeometryFromMeshLike(data.geometry);
+    if (direct) {
+      return direct;
+    }
+  }
+
+  const vertices = Array.isArray(data.vertices) ? data.vertices.map((vertex) => toVector3Like(vertex)).filter(Boolean) : [];
+  const faces = Array.isArray(data.faces) ? data.faces : [];
+
+  if (!vertices.length || !faces.length) {
+    return null;
+  }
+
+  const positionArray = new Float32Array(vertices.length * 3);
+  vertices.forEach((vertex, index) => {
+    positionArray[index * 3] = vertex.x;
+    positionArray[index * 3 + 1] = vertex.y;
+    positionArray[index * 3 + 2] = vertex.z;
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+
+  const indices = [];
+  faces.forEach((face) => {
+    const faceIndices = extractFaceIndices(face, vertices.length);
+    if (faceIndices.length >= 3) {
+      for (let i = 1; i < faceIndices.length - 1; i += 1) {
+        indices.push(faceIndices[0], faceIndices[i], faceIndices[i + 1]);
+      }
+    }
+  });
+
+  if (!indices.length) {
+    return null;
+  }
+
+  const IndexArray = indices.length > 65535 ? Uint32Array : Uint16Array;
+  geometry.setIndex(new THREE.BufferAttribute(new IndexArray(indices), 1));
+  geometry.computeVertexNormals();
+
+  if (data.metadata && typeof data.metadata === 'object') {
+    geometry.userData = { ...(geometry.userData ?? {}), ...data.metadata };
+  }
+
+  return geometry;
+}
+
 function collectGeometryEntries(input, results = [], visited = new Set()) {
   if (input === undefined || input === null) {
     return results;
   }
+
+  const type = typeof input;
+  if (type !== 'object' && type !== 'function') {
+    return results;
+  }
+
   if (visited.has(input)) {
     return results;
   }
-  if (typeof input === 'object') {
-    visited.add(input);
-  }
+  visited.add(input);
+
   if (Array.isArray(input)) {
     for (const entry of input) {
       collectGeometryEntries(entry, results, visited);
     }
     return results;
   }
-  if (input?.isObject3D || input?.isBufferGeometry || input?.isGeometry) {
+
+  if (input.isObject3D || input.isBufferGeometry || input.isGeometry) {
     results.push(input);
     return results;
   }
-  if (typeof input === 'object') {
-    if (Object.prototype.hasOwnProperty.call(input, 'mesh')) {
-      collectGeometryEntries(input.mesh, results, visited);
-    }
-    if (Object.prototype.hasOwnProperty.call(input, 'geometry')) {
-      collectGeometryEntries(input.geometry, results, visited);
-    }
-    if (Object.prototype.hasOwnProperty.call(input, 'value')) {
-      collectGeometryEntries(input.value, results, visited);
-    }
-    if (Object.prototype.hasOwnProperty.call(input, 'values')) {
-      collectGeometryEntries(input.values, results, visited);
-    }
+
+  const meshGeometry = createGeometryFromMeshLike(input);
+  if (meshGeometry) {
+    results.push(meshGeometry);
+    return results;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(input, 'mesh')) {
+    collectGeometryEntries(input.mesh, results, visited);
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'geometry')) {
+    collectGeometryEntries(input.geometry, results, visited);
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'value')) {
+    collectGeometryEntries(input.value, results, visited);
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'values')) {
+    collectGeometryEntries(input.values, results, visited);
   }
   return results;
 }
