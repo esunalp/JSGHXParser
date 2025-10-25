@@ -1069,8 +1069,24 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
     if (points.length >= 2) {
       return createLine(points[0], points[points.length - 1]);
     }
-    if (Array.isArray(input) && input.length === 2) {
-      return createLine(ensurePoint(input[0], new THREE.Vector3()), ensurePoint(input[1], new THREE.Vector3(1, 0, 0)));
+    if (Array.isArray(input)) {
+      for (const entry of input) {
+        if (entry?.start?.isVector3 && entry?.end?.isVector3) {
+          return createLine(entry.start, entry.end);
+        }
+        if (entry && typeof entry === 'object' && 'line' in entry) {
+          const nested = ensureLine(entry.line);
+          if (nested) {
+            return nested;
+          }
+        }
+      }
+      if (input.length === 2) {
+        return createLine(ensurePoint(input[0], new THREE.Vector3()), ensurePoint(input[1], new THREE.Vector3(1, 0, 0)));
+      }
+      if (input.length === 1) {
+        return ensureLine(input[0]);
+      }
     }
     return null;
   }
@@ -1245,7 +1261,30 @@ export function registerCurvePrimitiveComponents({ register, toNumber, toVector3
         outputs: { L: 'line', line: 'line' },
       },
       eval: ({ inputs }) => {
-        const line = createLine(inputs.start, inputs.end);
+        const startPoints = collectPoints(inputs.start);
+        const endPoints = collectPoints(inputs.end);
+
+        const fallbackStart = ensurePoint(inputs.start, new THREE.Vector3());
+        const fallbackEnd = ensurePoint(
+          inputs.end,
+          fallbackStart.clone().add(new THREE.Vector3(1, 0, 0)),
+        );
+
+        const startList = startPoints.length ? startPoints : [fallbackStart];
+        const endList = endPoints.length ? endPoints : [fallbackEnd];
+        const count = Math.max(startList.length, endList.length);
+
+        if (count > 1) {
+          const lines = [];
+          for (let index = 0; index < count; index += 1) {
+            const start = startList[index % startList.length];
+            const end = endList[index % endList.length];
+            lines.push(createLine(start, end));
+          }
+          return { line: lines };
+        }
+
+        const line = createLine(startList[0], endList[0]);
         return { line };
       },
     });
