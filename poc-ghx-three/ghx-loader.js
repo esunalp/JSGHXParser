@@ -383,6 +383,15 @@ function describeObjectChunk(chunk, index) {
   const containerChunk = chunk.querySelector('chunk[name="Container"]');
   const containerItems = getItemsElement(containerChunk);
 
+  let hidden = false;
+  const hiddenSource =
+    readItem(containerItems, 'Hidden') ??
+    readItem(chunkItems, 'Hidden');
+  if (hiddenSource !== null && hiddenSource !== undefined) {
+    const normalizedHidden = String(hiddenSource).trim().toLowerCase();
+    hidden = normalizedHidden === 'true' || normalizedHidden === '1' || normalizedHidden === 'yes';
+  }
+
   let instanceGuid = null;
   let componentGuid = null;
 
@@ -464,6 +473,7 @@ function describeObjectChunk(chunk, index) {
     name,
     chunk,
     instanceGuid: normalizedInstanceGuid,
+    hidden,
   };
 }
 
@@ -497,6 +507,7 @@ function buildNodeDescriptor(nodeInfo) {
     inputs: {},
     outputs: {},
     meta: {},
+    hidden: Boolean(nodeInfo.hidden),
   };
 
   if (detectSliders(nodeInfo)) {

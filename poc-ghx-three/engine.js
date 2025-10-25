@@ -370,6 +370,10 @@ class Engine {
       outputs.set(nodeId, result);
       this.nodeOutputs.set(nodeId, result);
 
+      if (node.hidden) {
+        continue;
+      }
+
       collectOverlayData(result, overlay, overlayVisited);
 
       const nodeRenderables = collectRenderables(result);
