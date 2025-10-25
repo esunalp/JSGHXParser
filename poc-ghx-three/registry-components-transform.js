@@ -419,6 +419,37 @@ function createTransformHelpers({ toNumber, toVector3 }) {
     return result;
   }
 
+  function isCurveLike(value) {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+    if (value.isCurve) {
+      return true;
+    }
+    if (typeof value.getPointAt === 'function' || typeof value.getPoint === 'function') {
+      return true;
+    }
+    if (typeof value.getTangentAt === 'function' || typeof value.getTangent === 'function') {
+      return true;
+    }
+    if (typeof value.getSpacedPoints === 'function' || typeof value.getPoints === 'function') {
+      return true;
+    }
+    if (typeof value.type === 'string') {
+      const normalized = value.type.toLowerCase();
+      if (normalized.includes('curve') || normalized.includes('arc') || normalized.includes('polyline')) {
+        return true;
+      }
+    }
+    if (value.curve && value.curve !== value && isCurveLike(value.curve)) {
+      return true;
+    }
+    if (value.path && value.path !== value && isCurveLike(value.path)) {
+      return true;
+    }
+    return false;
+  }
+
   function transformGeometryStructure(value, matrix, context = {}) {
     if (value === undefined || value === null) {
       return value;
@@ -436,6 +467,13 @@ function createTransformHelpers({ toNumber, toVector3 }) {
       const result = value.clone();
       result.applyMatrix4(matrix);
       return result;
+    }
+    if (value?.isVector2) {
+      const vector = value.clone();
+      const lifted = new THREE.Vector3(vector.x, vector.y, 0);
+      lifted.applyMatrix4(matrix);
+      vector.set(lifted.x, lifted.y);
+      return vector;
     }
     if (value?.isMatrix4) {
       return value.clone();
@@ -570,6 +608,70 @@ function createTransformHelpers({ toNumber, toVector3 }) {
       }
       if ('line' in value) {
         result.line = transformGeometryStructure(value.line, matrix, { rotationMatrix, visited });
+      }
+      if ('curve' in value && value.curve !== value) {
+        result.curve = transformGeometryStructure(value.curve, matrix, { rotationMatrix, visited });
+      }
+      if ('path' in value && value.path !== value) {
+        result.path = transformGeometryStructure(value.path, matrix, { rotationMatrix, visited });
+      }
+      if (isCurveLike(value)) {
+        const wrapPointFunction = (fn) => {
+          if (typeof fn !== 'function') {
+            return undefined;
+          }
+          return (...args) => {
+            const target = args.length > 1 ? args[1] : undefined;
+            const output = fn.apply(value, args);
+            const vector = output ?? target;
+            const transformed = transformGeometryStructure(vector, matrix, { rotationMatrix, visited });
+            if (target?.isVector3 && transformed?.isVector3 && transformed !== target) {
+              target.copy(transformed);
+              return target;
+            }
+            if (target?.isVector2 && transformed?.isVector2 && transformed !== target) {
+              target.copy(transformed);
+              return target;
+            }
+            return transformed;
+          };
+        };
+        const wrapDirectionFunction = (fn) => {
+          if (typeof fn !== 'function') {
+            return undefined;
+          }
+          return (...args) => {
+            const target = args.length > 1 ? args[1] : undefined;
+            const output = fn.apply(value, args);
+            const vector = output ?? target;
+            const transformed = transformDirectionVector(vector, rotationMatrix, { rotationMatrix, visited });
+            if (target?.isVector3 && transformed?.isVector3 && transformed !== target) {
+              target.copy(transformed);
+              return target;
+            }
+            return transformed;
+          };
+        };
+        if (typeof value.getPointAt === 'function') {
+          result.getPointAt = wrapPointFunction(value.getPointAt);
+        }
+        if (typeof value.getPoint === 'function') {
+          result.getPoint = wrapPointFunction(value.getPoint);
+        }
+        if (typeof value.getTangentAt === 'function') {
+          result.getTangentAt = wrapDirectionFunction(value.getTangentAt);
+        }
+        if (typeof value.getTangent === 'function') {
+          result.getTangent = wrapDirectionFunction(value.getTangent);
+        }
+        if (typeof value.getSpacedPoints === 'function') {
+          const base = value.getSpacedPoints.bind(value);
+          result.getSpacedPoints = (...args) => transformGeometryStructure(base(...args), matrix, { rotationMatrix, visited });
+        }
+        if (typeof value.getPoints === 'function') {
+          const base = value.getPoints.bind(value);
+          result.getPoints = (...args) => transformGeometryStructure(base(...args), matrix, { rotationMatrix, visited });
+        }
       }
       return result;
     }
