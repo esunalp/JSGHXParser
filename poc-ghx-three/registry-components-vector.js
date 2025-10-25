@@ -428,6 +428,17 @@ function createVectorComponentRegistrar({ register, toNumber, toVector3 }) {
       return { start, end, direction: end.clone().sub(start) };
     }
     if (Array.isArray(input)) {
+      for (const entry of input) {
+        if (entry?.start?.isVector3 && entry?.end?.isVector3) {
+          return ensureLine(entry);
+        }
+        if (entry && typeof entry === 'object' && 'line' in entry) {
+          const nested = ensureLine(entry.line);
+          if (nested) {
+            return nested;
+          }
+        }
+      }
       if (input.length >= 2) {
         const start = toVector3(input[0], new THREE.Vector3());
         const end = toVector3(input[1], start.clone().add(new THREE.Vector3(1, 0, 0)));
