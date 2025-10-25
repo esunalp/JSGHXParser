@@ -340,6 +340,85 @@ function createTransformHelpers({ toNumber, toVector3 }) {
     return normalizePlaneAxes(origin, xAxis, yAxis, zAxis);
   }
 
+  function transformSurface(surfaceInput, matrix, context = {}) {
+    if (surfaceInput === undefined || surfaceInput === null) {
+      return surfaceInput;
+    }
+
+    const rotationMatrix = context.rotationMatrix ?? new THREE.Matrix3().setFromMatrix4(matrix);
+    const visited = context.visited ?? new Map();
+
+    if (typeof surfaceInput === 'object' || typeof surfaceInput === 'function') {
+      if (visited.has(surfaceInput)) {
+        return visited.get(surfaceInput);
+      }
+    }
+
+    if (Array.isArray(surfaceInput)) {
+      const result = [];
+      visited.set(surfaceInput, result);
+      for (const entry of surfaceInput) {
+        result.push(transformSurface(entry, matrix, { rotationMatrix, visited }));
+      }
+      return result;
+    }
+
+    if (typeof surfaceInput !== 'object') {
+      return surfaceInput;
+    }
+
+    if (surfaceInput?.type !== 'surface') {
+      return transformGeometryStructure(surfaceInput, matrix, { rotationMatrix, visited });
+    }
+
+    const result = { ...surfaceInput };
+    visited.set(surfaceInput, result);
+
+    if (surfaceInput.plane && isPlaneLike(surfaceInput.plane)) {
+      result.plane = transformPlaneWithMatrix(surfaceInput.plane, matrix, { rotationMatrix, visited });
+    }
+
+    if ('metadata' in surfaceInput) {
+      result.metadata = transformGeometryStructure(surfaceInput.metadata, matrix, { rotationMatrix, visited });
+    }
+
+    if ('points' in surfaceInput) {
+      result.points = transformGeometryStructure(surfaceInput.points, matrix, { rotationMatrix, visited });
+    }
+
+    if ('grid' in surfaceInput) {
+      result.grid = transformGeometryStructure(surfaceInput.grid, matrix, { rotationMatrix, visited });
+    }
+
+    if (typeof surfaceInput.evaluate === 'function') {
+      const baseEvaluate = surfaceInput.evaluate.bind(surfaceInput);
+      result.evaluate = (u, v) => {
+        const point = baseEvaluate(u, v);
+        if (point === undefined || point === null) {
+          return point;
+        }
+        if (point?.isVector3) {
+          return point.clone().applyMatrix4(matrix);
+        }
+        return transformGeometryStructure(point, matrix, { rotationMatrix, visited: new Map() });
+      };
+    }
+
+    if (typeof surfaceInput.getPoint === 'function') {
+      const baseGetPoint = surfaceInput.getPoint.bind(surfaceInput);
+      result.getPoint = (u, v, target = new THREE.Vector3()) => {
+        const output = baseGetPoint(u, v, target);
+        const vector = output ?? target;
+        if (vector?.isVector3) {
+          vector.applyMatrix4(matrix);
+        }
+        return output ?? target;
+      };
+    }
+
+    return result;
+  }
+
   function transformGeometryStructure(value, matrix, context = {}) {
     if (value === undefined || value === null) {
       return value;
@@ -381,6 +460,9 @@ function createTransformHelpers({ toNumber, toVector3 }) {
       const result = value.clone();
       result.applyMatrix4(matrix);
       return result;
+    }
+    if (value?.type === 'surface') {
+      return transformSurface(value, matrix, { rotationMatrix, visited });
     }
     if (value?.isBox3) {
       const result = value.clone();
@@ -424,6 +506,21 @@ function createTransformHelpers({ toNumber, toVector3 }) {
       }
       if ('mesh' in value) {
         result.mesh = transformGeometryStructure(value.mesh, matrix, { rotationMatrix, visited });
+      }
+      if ('surface' in value) {
+        result.surface = transformSurface(value.surface, matrix, { rotationMatrix, visited });
+        if (result.surface?.evaluate && result.evaluate === value.evaluate) {
+          result.evaluate = result.surface.evaluate;
+        }
+        if (result.surface?.plane && result.plane === value.plane) {
+          result.plane = result.surface.plane;
+        }
+        if (result.surface?.domainU && result.domainU === value.domainU) {
+          result.domainU = result.surface.domainU;
+        }
+        if (result.surface?.domainV && result.domainV === value.domainV) {
+          result.domainV = result.surface.domainV;
+        }
       }
       if ('point' in value) {
         result.point = transformGeometryStructure(value.point, matrix, { rotationMatrix, visited });
