@@ -103,6 +103,46 @@ const POINT_SPHERE_RADIUS_MM = 10;
 const POINT_SPHERE_WIDTH_SEGMENTS = 16;
 const POINT_SPHERE_HEIGHT_SEGMENTS = 12;
 
+function parseDelimitedColorText(text) {
+  if (typeof text !== 'string') {
+    return null;
+  }
+
+  const segments = text
+    .split(/[;,]/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length);
+
+  if (segments.length < 3) {
+    return null;
+  }
+
+  const values = segments.slice(0, 3).map((segment) => Number(segment));
+  if (!values.every((value) => Number.isFinite(value))) {
+    return null;
+  }
+
+  const requiresScaling = values.some((value) => Math.abs(value) > 1);
+  const [r, g, b] = requiresScaling
+    ? values.map((value) => value / 255)
+    : values;
+
+  const clamp01 = (value) => {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    if (value <= 0) {
+      return 0;
+    }
+    if (value >= 1) {
+      return 1;
+    }
+    return value;
+  };
+
+  return new THREE.Color(clamp01(r), clamp01(g), clamp01(b));
+}
+
 function ensureColor(value, fallback = new THREE.Color(0xffffff)) {
   if (value?.isColor) {
     return value.clone();
@@ -112,6 +152,11 @@ function ensureColor(value, fallback = new THREE.Color(0xffffff)) {
   }
   if (typeof value === 'string') {
     try {
+      const delimitedColor = parseDelimitedColorText(value.trim());
+      if (delimitedColor) {
+        return delimitedColor;
+      }
+
       return new THREE.Color(value);
     } catch (error) {
       return fallback.clone();
