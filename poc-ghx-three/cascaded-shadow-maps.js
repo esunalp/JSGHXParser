@@ -236,6 +236,17 @@ export class CascadedShadowMaps {
     }
 
     if (this._needsFrustumUpdate) {
+      if (!this.shadowNode.mainFrustum) {
+        // `CSMShadowNode` lazily initialises its internal frustums during the
+        // renderer's shadow pass. When running with the WebGPU renderer the
+        // shadow node might not be ready the very first time we try to update
+        // it, which previously resulted in accessing `mainFrustum` while it was
+        // still `null`. Wait for the shadow node to finish initialising before
+        // triggering an update so we can safely compute the cascades once
+        // `mainFrustum` exists.
+        return;
+      }
+
       this.shadowNode.updateFrustums();
       this._projectionMatrix.copy(cam.projectionMatrix);
       this._cameraParams = {
