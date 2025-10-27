@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import {
+  cloneSurfaceMaterial,
   convertMaterialToNode,
   createStandardSurfaceMaterial,
   createTlsMaterial,
@@ -261,7 +262,7 @@ function ensureMaterial(value) {
     return ensureMaterial(value[0]);
   }
   if (value?.isMaterial) {
-    const cloned = value.clone();
+    const cloned = cloneSurfaceMaterial(value);
     return convertMaterialToNode(cloned, { side: THREE.DoubleSide });
   }
   if (value && typeof value === 'object') {
@@ -560,7 +561,7 @@ function applyMaterialToObject(object, material) {
     if (object.geometry?.clone) {
       object.geometry = object.geometry.clone();
     }
-    const candidateMaterial = material?.clone?.() ?? material;
+    const candidateMaterial = cloneSurfaceMaterial(material);
     if (candidateMaterial) {
       object.material = convertMaterialToNode(candidateMaterial, { side: THREE.DoubleSide });
     } else {
@@ -590,7 +591,7 @@ function createMeshFromGeometry(entry, material) {
   if (entry.isBufferGeometry || entry.isGeometry) {
     const geometry = entry.clone ? entry.clone() : entry;
     ensureGeometryHasVertexNormals(geometry);
-    const baseMaterial = material?.clone?.() ?? material;
+    const baseMaterial = cloneSurfaceMaterial(material);
     const meshMaterial = convertMaterialToNode(baseMaterial, { side: THREE.DoubleSide })
       ?? createStandardSurfaceMaterial(
         {
