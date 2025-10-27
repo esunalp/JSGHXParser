@@ -557,7 +557,7 @@ export function initScene(canvas) {
 
   const webgpuSupported = typeof navigator !== 'undefined'
     && 'gpu' in navigator
-    && (typeof WebGPURenderer.isAvailable !== 'function' || WebGPURenderer.isAvailable());
+    && (typeof THREE.WebGPURenderer.isAvailable !== 'function' || THREE.WebGPURenderer.isAvailable());
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
