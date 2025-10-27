@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 import { PhysicalSunSky } from './physical-sun-sky.js';
+import { DDGIProbeVolume } from './ddgi-probe-volume.js';
 import {
   cloneSurfaceMaterial,
   createStandardSurfaceMaterial,
@@ -518,6 +519,8 @@ export function initScene(canvas) {
   camera.up.set(0, 0, 1);
   camera.position.set(6, 4, 8);
 
+  const clock = new THREE.Clock();
+
   let viewportState = getViewportSize(canvas);
 
   let webgpuRenderer = null;
@@ -536,6 +539,13 @@ export function initScene(canvas) {
   const eventTarget = canvas;
 
   const sunSky = new PhysicalSunSky(scene);
+  const ddgiVolume = new DDGIProbeVolume(scene, sunSky, {
+    probeSpacing: 900,
+    updateBudget: 96,
+    hysteresis: 0.94,
+    boundsPadding: 800,
+    maxDistance: 9000,
+  });
   addHelpers(scene);
 
   function updateRendererViewports() {
@@ -1051,6 +1061,7 @@ export function initScene(canvas) {
         fitCameraToSphere(sphere);
         needsFit = false;
       }
+      ddgiVolume.setSceneRoot(currentObject);
       return;
     }
 
@@ -1058,6 +1069,7 @@ export function initScene(canvas) {
       scene.remove(currentObject);
       disposeSceneObject(currentObject);
       currentObject = null;
+      ddgiVolume.setSceneRoot(null);
     }
 
     if (!geometryOrMesh) {
@@ -1072,6 +1084,7 @@ export function initScene(canvas) {
       } else {
         needsFit = true;
       }
+      ddgiVolume.setSceneRoot(null);
       return;
     }
 
@@ -1094,6 +1107,7 @@ export function initScene(canvas) {
 
     currentObject = nextObject;
     scene.add(currentObject);
+    ddgiVolume.setSceneRoot(currentObject);
 
     setOverlayData(overlayData);
 
@@ -1113,8 +1127,11 @@ export function initScene(canvas) {
 
   function animate() {
     requestAnimationFrame(animate);
+    const deltaTime = clock.getDelta();
+    const elapsed = clock.elapsedTime;
     controls.update();
     sunSky.updateFrame(camera);
+    ddgiVolume.update(deltaTime, scene, elapsed, camera.position);
     if (webgpuRenderer) {
       webgpuRenderer.render(scene, camera);
     }
@@ -1126,6 +1143,7 @@ export function initScene(canvas) {
     camera,
     controls,
     sunSky,
+    ddgiVolume,
     updateMesh,
     setOverlayEnabled,
     isGpuRenderingEnabled,
