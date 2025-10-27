@@ -243,7 +243,7 @@ export class PhysicalSunSky {
     this.sunLight.color.copy(sunColor);
     const lux = computeSunIlluminance(elevation) * this.options.intensityMultiplier;
     this.sunLight.intensity = lux;
-    this.sunLight.position.copy(this.sunDirection).multiplyScalar(-SUN_DISTANCE);
+    this.sunLight.position.copy(this.sunDirection).multiplyScalar(SUN_DISTANCE);
     this.sunTarget.position.set(0, 0, 0);
     this.sunLight.updateMatrixWorld();
     this.sunTarget.updateMatrixWorld();
