@@ -536,6 +536,7 @@ export function initScene(canvas) {
   const eventTarget = canvas;
 
   const sunSky = new PhysicalSunSky(scene);
+  sunSky.setTarget(controls.target);
   addHelpers(scene);
 
   function updateRendererViewports() {
@@ -733,6 +734,7 @@ export function initScene(canvas) {
     const newPosition = center.clone().add(direction.multiplyScalar(distance));
 
     controls.target.copy(center);
+    sunSky.setTarget(center);
     camera.position.copy(newPosition);
     camera.near = Math.max(distance / 100, 0.01);
     camera.far = Math.max(distance * 4, distance + radius * 4, MAX_DRAW_DISTANCE_MM);
@@ -746,6 +748,7 @@ export function initScene(canvas) {
     }
 
     controls.target.copy(targetPoint);
+    sunSky.setTarget(targetPoint);
 
     controls.update();
   }
@@ -1106,6 +1109,7 @@ export function initScene(canvas) {
       }
     } else if (needsFit) {
       controls.target.set(0, 0, 0);
+      sunSky.setTarget(controls.target);
       controls.update();
       needsFit = false;
     }
