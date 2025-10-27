@@ -89,6 +89,13 @@ async function createWebGPURenderer(canvas, viewport) {
   return renderer;
 }
 
+async function createWebGLRenderer(canvas, viewport) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  applyRendererDefaults(renderer);
+  applyViewportToRenderer(renderer, viewport);
+  return renderer;
+}
+
 const AXIS_REFERENCE_UP = new THREE.Vector3(0, 1, 0);
 const AXIS_DIRECTIONS = [
   new THREE.Vector3(1, 0, 0),
@@ -683,6 +690,13 @@ export function initScene(canvas) {
   let viewportState = getViewportSize(canvas);
 
   let webgpuRenderer = null;
+  let webglRenderer = null;
+  let webgpuInitPromise = null;
+  let webglInitPromise = null;
+  let rendererInitPromise = null;
+  let webgpuFailed = false;
+  let lastWebGPUError = null;
+  let rendererInfo = { type: 'none', error: null };
 
   const webgpuSupported = typeof navigator !== 'undefined'
     && 'gpu' in navigator
@@ -713,6 +727,9 @@ export function initScene(canvas) {
   function updateRendererViewports() {
     if (webgpuRenderer) {
       applyViewportToRenderer(webgpuRenderer, viewportState);
+    }
+    if (webglRenderer) {
+      applyViewportToRenderer(webglRenderer, viewportState);
     }
   }
 
@@ -1051,10 +1068,39 @@ export function initScene(canvas) {
   eventTarget.addEventListener('pointerleave', handlePointerCancel);
   eventTarget.addEventListener('pointercancel', handlePointerCancel);
 
-  let webgpuInitPromise = null;
+  function setRendererInfo(type, error = null) {
+    rendererInfo = { type, error: error ?? null };
+  }
+
+  async function ensureWebGLRenderer() {
+    if (webglRenderer) {
+      return webglRenderer;
+    }
+
+    if (!webglInitPromise) {
+      webglInitPromise = createWebGLRenderer(canvas, viewportState)
+        .then((renderer) => {
+          webglRenderer = renderer;
+          sunSky.setRenderer(renderer);
+          updateRendererViewports();
+          if (webgpuSupported && (webgpuFailed || lastWebGPUError)) {
+            setRendererInfo('webgl-fallback', lastWebGPUError);
+          } else {
+            setRendererInfo('webgl');
+          }
+          return renderer;
+        })
+        .catch((error) => {
+          webglInitPromise = null;
+          throw error;
+        });
+    }
+
+    return webglInitPromise;
+  }
 
   async function ensureWebGPURenderer() {
-    if (!webgpuSupported) {
+    if (!webgpuSupported || webgpuFailed) {
       throw new Error('WebGPU wordt niet ondersteund in deze omgeving.');
     }
 
@@ -1068,7 +1114,8 @@ export function initScene(canvas) {
           webgpuRenderer = renderer;
           sunSky.setRenderer(renderer);
           updateRendererViewports();
-          return webgpuRenderer;
+          setRendererInfo('webgpu');
+          return renderer;
         })
         .catch((error) => {
           webgpuInitPromise = null;
@@ -1080,23 +1127,52 @@ export function initScene(canvas) {
     return webgpuInitPromise;
   }
 
+  async function ensureRenderer() {
+    if (webgpuRenderer) {
+      return webgpuRenderer;
+    }
+    if (webglRenderer) {
+      return webglRenderer;
+    }
+    if (!rendererInitPromise) {
+      rendererInitPromise = (async () => {
+        if (webgpuSupported && !webgpuFailed) {
+          try {
+            return await ensureWebGPURenderer();
+          } catch (error) {
+            webgpuFailed = true;
+            lastWebGPUError = error;
+            console.warn('WebGPU initialisatie mislukt', error);
+          }
+        }
+        return ensureWebGLRenderer();
+      })()
+        .catch((error) => {
+          rendererInitPromise = null;
+          throw error;
+        })
+        .finally(() => {
+          rendererInitPromise = null;
+        });
+    }
+    return rendererInitPromise;
+  }
+
   function isGpuRenderingEnabled() {
-    return Boolean(webgpuRenderer);
+    return Boolean(webgpuRenderer || webglRenderer);
   }
 
   function isWebGPUSupported() {
-    return webgpuSupported;
+    return webgpuSupported && !webgpuFailed;
   }
 
   function whenRendererReady() {
-    return ensureWebGPURenderer();
+    return ensureRenderer();
   }
 
-  if (webgpuSupported) {
-    whenRendererReady().catch((error) => {
-      console.warn('WebGPU initialisatie mislukt', error);
-    });
-  }
+  whenRendererReady().catch((error) => {
+    console.warn('Renderer initialisatie mislukt', error);
+  });
 
   function disposeSceneObject(object) {
     if (!object) {
@@ -1296,8 +1372,28 @@ export function initScene(canvas) {
     controls.update();
     sunSky.updateFrame(camera);
     ddgiVolume?.update(deltaTime, scene, elapsed, camera.position);
-    if (webgpuRenderer) {
-      webgpuRenderer.render(scene, camera);
+    const activeRenderer = webgpuRenderer ?? webglRenderer;
+    if (activeRenderer) {
+      try {
+        activeRenderer.render(scene, camera);
+      } catch (error) {
+        if (activeRenderer === webgpuRenderer) {
+          console.warn('WebGPU renderfout, val terug op WebGL', error);
+          try {
+            activeRenderer.dispose?.();
+          } catch (disposeError) {
+            console.warn('Kon WebGPU renderer niet opruimen', disposeError);
+          }
+          webgpuRenderer = null;
+          webgpuFailed = true;
+          lastWebGPUError = error;
+          ensureRenderer().catch((initError) => {
+            console.warn('Kon fallback-renderer niet initialiseren', initError);
+          });
+        } else {
+          console.error('Rendererfout', error);
+        }
+      }
     }
   }
   animate();
@@ -1313,11 +1409,12 @@ export function initScene(canvas) {
     isGpuRenderingEnabled,
     isWebGPUSupported,
     whenRendererReady,
+    getRendererInfo: () => ({ ...rendererInfo }),
   };
 
   Object.defineProperty(api, 'renderer', {
     get() {
-      return webgpuRenderer;
+      return webgpuRenderer ?? webglRenderer;
     },
   });
 

@@ -215,7 +215,7 @@
       const overlayState = document.getElementById('overlay-state');
 
       const sceneApi = initScene(canvas);
-      const webgpuSupported = sceneApi.isWebGPUSupported();
+      let webgpuSupported = sceneApi.isWebGPUSupported();
       const engine = createEngine({
         registry: defaultRegistry,
         updateMesh: sceneApi.updateMesh,
@@ -247,13 +247,22 @@
 
       syncOverlay(Boolean(overlayToggle.checked));
 
-      if (!webgpuSupported) {
-        statusEl.textContent = 'WebGPU wordt niet ondersteund in deze browser of op dit apparaat.';
-      } else {
-        sceneApi.whenRendererReady().catch((error) => {
-          const reason = error?.message ? `WebGPU-fout: ${error.message}` : 'WebGPU kon niet worden geïnitialiseerd.';
+      sceneApi.whenRendererReady()
+        .then(() => {
+          const info = typeof sceneApi.getRendererInfo === 'function' ? sceneApi.getRendererInfo() : null;
+          if (info?.type === 'webgl-fallback') {
+            webgpuSupported = false;
+            const reason = info?.error?.message ? `WebGPU-fout: ${info.error.message}` : 'WebGPU kon niet worden gebruikt.';
+            statusEl.textContent = `${reason} WebGL fallback is geactiveerd.`;
+          }
+        })
+        .catch((error) => {
+          const reason = error?.message ? `Renderer-fout: ${error.message}` : 'Renderer kon niet worden geïnitialiseerd.';
           statusEl.textContent = reason;
         });
+
+      if (!webgpuSupported) {
+        statusEl.textContent = 'WebGPU wordt niet ondersteund in deze browser of op dit apparaat.';
       }
 
       const mockGraph = {
