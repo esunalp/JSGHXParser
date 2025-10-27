@@ -7000,24 +7000,71 @@ export function registerSurfacePrimitiveComponents({
         outputs: { S: 'surface', Surface: 'surface', surface: 'surface' },
       },
       eval: ({ inputs }) => {
-        const curveA = sampleCurvePoints(inputs.curveA, DEFAULT_CURVE_SEGMENTS);
-        const curveB = sampleCurvePoints(inputs.curveB, DEFAULT_CURVE_SEGMENTS);
-        if (!curveA.points.length || !curveB.points.length) {
-          return {};
-        }
-        const surface = createLoftSurfaceFromSections([curveA, curveB], {
-          metadata: { type: 'ruled-surface' },
-          closed: curveA.closed && curveB.closed,
-        });
-        if (!surface) {
-          return {};
-        }
-        return {
-          surface: wrapSurface(surface, {
-            startCurve: curveA.points.map((pt) => pt.clone()),
-            endCurve: curveB.points.map((pt) => pt.clone()),
-          }),
+        const collectCurveInputs = (input) => {
+          if (input === undefined || input === null) {
+            return [];
+          }
+          if (Array.isArray(input)) {
+            return input;
+          }
+          if (input?.type === 'tree' && Array.isArray(input.branches)) {
+            const collected = [];
+            for (const branch of input.branches) {
+              if (!branch) continue;
+              if (Array.isArray(branch.values)) {
+                collected.push(...branch.values);
+              } else if (branch.values !== undefined && branch.values !== null) {
+                collected.push(branch.values);
+              }
+            }
+            return collected;
+          }
+          return [input];
         };
+
+        const curveAInputs = collectCurveInputs(inputs.curveA);
+        const curveBInputs = collectCurveInputs(inputs.curveB);
+
+        if (!curveAInputs.length || !curveBInputs.length) {
+          return {};
+        }
+
+        const sampledCurveA = curveAInputs.map((entry) => sampleCurvePoints(entry, DEFAULT_CURVE_SEGMENTS));
+        const sampledCurveB = curveBInputs.map((entry) => sampleCurvePoints(entry, DEFAULT_CURVE_SEGMENTS));
+
+        const count = Math.max(sampledCurveA.length, sampledCurveB.length);
+        const surfaces = [];
+
+        for (let index = 0; index < count; index += 1) {
+          const curveA = sampledCurveA[index % sampledCurveA.length];
+          const curveB = sampledCurveB[index % sampledCurveB.length];
+          if (!curveA?.points?.length || !curveB?.points?.length) {
+            continue;
+          }
+          const surface = createLoftSurfaceFromSections([curveA, curveB], {
+            metadata: { type: 'ruled-surface', index },
+            closed: Boolean(curveA.closed && curveB.closed),
+          });
+          if (!surface) {
+            continue;
+          }
+          surfaces.push(
+            wrapSurface(surface, {
+              startCurve: curveA.points.map((pt) => pt.clone()),
+              endCurve: curveB.points.map((pt) => pt.clone()),
+            }),
+          );
+        }
+
+        if (!surfaces.length) {
+          return {};
+        }
+
+        if (surfaces.length === 1) {
+          return { surface: surfaces[0] };
+        }
+
+        return { surface: surfaces };
       },
     });
 
