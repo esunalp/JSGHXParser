@@ -139,8 +139,12 @@ export function createWaterSurfaceMaterial(options = {}) {
     0.28,
   );
   const reflectionVector = normalize(reflect(incidentDirection, perturbedNormal));
-  const environmentReflection = pmremTexture(reflectionVector, roughnessBase).mul(materialEnvIntensity);
-  const colourWithReflection = mix(baseColour, environmentReflection, reflectionMix);
+  const hasEnvironmentMap = Boolean(material.envMap);
+  const environmentReflection = hasEnvironmentMap
+    ? pmremTexture(reflectionVector, roughnessBase).mul(materialEnvIntensity)
+    : baseColour;
+  const environmentReflectionMix = hasEnvironmentMap ? reflectionMix : float(0);
+  const colourWithReflection = mix(baseColour, environmentReflection, environmentReflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(0.6));
 
   material.metalnessNode = float(0.02);
