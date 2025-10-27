@@ -2,6 +2,7 @@ import * as THREE from 'three/webgpu';
 import {
   convertMaterialToNode,
   createStandardSurfaceMaterial,
+  createTlsMaterial,
   ensureGeometryHasVertexNormals,
 } from './material-utils.js';
 import { withVersion } from './version.js';
@@ -876,15 +877,16 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       const shineInput = ensureNumber(toNumber, inputs.shine ?? 30, 30);
       const shininess = THREE.MathUtils.clamp(shineInput * 1.28, 0, 256);
 
-      const material = new THREE.MeshPhongMaterial({
-        color: diffuse,
-        specular,
-        emissive,
-        shininess,
-        opacity: 1 - transparency,
-        transparent: transparency > 0,
-        side: THREE.DoubleSide,
-      });
+      const material = createTlsMaterial(
+        {
+          diffuse,
+          specular,
+          emissive,
+          transparency,
+          shininess,
+        },
+        { side: THREE.DoubleSide },
+      );
 
       material.userData.source = 'create-material';
 
