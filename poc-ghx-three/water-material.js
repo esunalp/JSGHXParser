@@ -31,8 +31,8 @@ export function isWaterPreviewColor(colour, tolerance = 1 / 255) {
 export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    amplitude = 25,
-    frequency = 0.0032,
+    amplitude = 18,
+    frequency = 0.0048,
   } = options;
 
   const material = new THREE.MeshPhysicalNodeMaterial({
@@ -55,46 +55,61 @@ export function createWaterSurfaceMaterial(options = {}) {
   const worldPosition = positionWorld;
 
   const baseFrequency = float(frequency);
-  const frequencyX = baseFrequency.mul(1.8);
-  const frequencyY = baseFrequency.mul(1.35);
-  const frequencyDiagonal = baseFrequency.mul(1.12);
-  const frequencyZ = baseFrequency.mul(0.8);
+  const frequencyX = baseFrequency.mul(2.1);
+  const frequencyY = baseFrequency.mul(1.6);
+  const frequencyDiagonal = baseFrequency.mul(1.25);
+  const frequencyCrossX = baseFrequency.mul(1.4);
+  const frequencyCrossY = baseFrequency.mul(0.9);
+  const frequencyRippleX = baseFrequency.mul(3.2);
+  const frequencyRippleY = baseFrequency.mul(2.6);
+  const frequencyZ = baseFrequency.mul(0.7);
 
   const waveArgX = worldPosition.x.mul(frequencyX).add(time.mul(0.62));
-  const waveArgY = worldPosition.y.mul(frequencyY).add(time.mul(0.45));
-  const waveArgDiagonal = worldPosition.x.add(worldPosition.y).mul(frequencyDiagonal).add(time.mul(0.54));
-  const waveArgZ = worldPosition.z.mul(frequencyZ).add(time.mul(0.32));
+  const waveArgY = worldPosition.y.mul(frequencyY).add(time.mul(0.47));
+  const waveArgDiagonal = worldPosition.x.add(worldPosition.y).mul(frequencyDiagonal).add(time.mul(0.55));
+  const waveArgCross = worldPosition.x.mul(frequencyCrossX).sub(worldPosition.y.mul(frequencyCrossY)).add(time.mul(0.38));
+  const waveArgRipple = worldPosition.x.mul(frequencyRippleX).add(worldPosition.y.mul(frequencyRippleY)).add(time.mul(1.12));
+  const waveArgZ = worldPosition.z.mul(frequencyZ).add(time.mul(0.29));
 
   const waveX = sin(waveArgX);
   const waveY = sin(waveArgY);
   const waveDiagonal = sin(waveArgDiagonal);
+  const waveCross = sin(waveArgCross);
+  const waveRipple = sin(waveArgRipple);
   const waveZ = sin(waveArgZ);
 
-  const combinedWave = waveX.mul(0.55)
-    .add(waveY.mul(0.35))
-    .add(waveDiagonal.mul(0.25))
-    .add(waveZ.mul(0.15));
+  const combinedWave = waveX.mul(0.28)
+    .add(waveY.mul(0.23))
+    .add(waveDiagonal.mul(0.19))
+    .add(waveCross.mul(0.17))
+    .add(waveRipple.mul(0.11))
+    .add(waveZ.mul(0.08));
 
   const amplitudeNode = float(amplitude);
   const displacement = combinedWave.mul(amplitudeNode);
   material.positionNode = positionLocal.add(normalLocal.mul(displacement));
 
-  const derivativeX = cos(waveArgX).mul(frequencyX).mul(0.55)
-    .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.25));
-  const derivativeY = cos(waveArgY).mul(frequencyY).mul(0.35)
-    .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.25));
-  const derivativeZ = cos(waveArgZ).mul(frequencyZ).mul(0.15);
+  const derivativeX = cos(waveArgX).mul(frequencyX).mul(0.28)
+    .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.19))
+    .add(cos(waveArgCross).mul(frequencyCrossX).mul(0.17))
+    .add(cos(waveArgRipple).mul(frequencyRippleX).mul(0.11));
+  const derivativeY = cos(waveArgY).mul(frequencyY).mul(0.23)
+    .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.19))
+    .sub(cos(waveArgCross).mul(frequencyCrossY).mul(0.17))
+    .add(cos(waveArgRipple).mul(frequencyRippleY).mul(0.11));
+  const derivativeZ = cos(waveArgZ).mul(frequencyZ).mul(0.08);
 
   const gradient = vec3(derivativeX, derivativeY, derivativeZ).mul(amplitudeNode);
   const perturbedNormal = normalize(normalLocal.sub(gradient));
   material.normalNode = perturbedNormal;
 
   const waveNormalized = combinedWave.mul(0.5).add(0.5);
-  const foamScale = amplitudeNode.mul(baseFrequency).mul(55);
+  const foamScale = amplitudeNode.mul(baseFrequency).mul(64);
   const foamStrength = clamp(
     abs(derivativeX).add(abs(derivativeY)).mul(foamScale)
-      .add(abs(waveDiagonal).mul(0.2))
-      .sub(0.08),
+      .add(abs(waveRipple).mul(0.18))
+      .add(abs(waveDiagonal).mul(0.15))
+      .sub(0.1),
     0,
     1,
   );
