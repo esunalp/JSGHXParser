@@ -54,7 +54,7 @@ function applyViewportToRenderer(renderer, viewport) {
 }
 
 async function createWebGPURenderer(canvas, viewport) {
-  const renderer = new WebGPURenderer({ canvas, antialias: true });
+  const renderer = new THREE.WebGPURenderer({ canvas, antialias: true });
   await renderer.init();
   applyRendererDefaults(renderer);
   applyViewportToRenderer(renderer, viewport);
