@@ -162,6 +162,44 @@ function cloneMaterialValue(value) {
   return value;
 }
 
+function cloneSurfaceProperty(source, target, key) {
+  if (!source || !target) {
+    return;
+  }
+
+  if (!(key in source)) {
+    return;
+  }
+
+  const value = source[key];
+  if (value === undefined) {
+    return;
+  }
+
+  const clonedValue = cloneMaterialValue(value);
+
+  if (clonedValue?.isColor && target[key]?.isColor) {
+    target[key].copy(clonedValue);
+    return;
+  }
+
+  target[key] = clonedValue;
+}
+
+export function cloneSurfaceMaterial(material) {
+  if (!material?.isMaterial || typeof material.clone !== 'function') {
+    return material ?? null;
+  }
+
+  const cloned = material.clone();
+
+  for (const key of SURFACE_PROPERTY_KEYS) {
+    cloneSurfaceProperty(material, cloned, key);
+  }
+
+  return cloned;
+}
+
 export function applySurfaceMaterialDefaults(material, options = {}) {
   if (!material) {
     return material;

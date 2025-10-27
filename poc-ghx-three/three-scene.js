@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 import { PhysicalSunSky } from './physical-sun-sky.js';
 import {
+  cloneSurfaceMaterial,
   createStandardSurfaceMaterial,
   convertMaterialToNode,
   ensureGeometryHasVertexNormals,
@@ -1025,7 +1026,7 @@ export function initScene(canvas) {
     if (renderable.geometry) {
       const geometry = renderable.geometry.clone ? renderable.geometry.clone() : renderable.geometry;
       ensureGeometryHasVertexNormals(geometry);
-      const baseMaterial = renderable.material?.clone?.() ?? renderable.material;
+      const baseMaterial = cloneSurfaceMaterial(renderable.material);
       const material = convertMaterialToNode(baseMaterial, { side: DEFAULT_MESH_SIDE })
         ?? createStandardSurfaceMaterial({ color: 0x2c9cf5 }, { side: DEFAULT_MESH_SIDE });
       const mesh = new THREE.Mesh(geometry, material);
