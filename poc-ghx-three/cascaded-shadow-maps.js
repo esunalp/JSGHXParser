@@ -27,6 +27,8 @@ export class CascadedShadowMaps {
     this._projectionMatrix = null;
     this._cameraParams = { near: null, far: null, zoom: null };
     this._needsFrustumUpdate = true;
+    this._shadowNodeValidated = false;
+    this._shadowNodeFailed = false;
 
     this.configureLight();
   }
@@ -62,7 +64,7 @@ export class CascadedShadowMaps {
     }
   }
 
-  disposeShadowNode() {
+  disposeShadowNode({ preserveFailure = false } = {}) {
     if (this.shadowNode) {
       try {
         this.shadowNode.dispose();
@@ -73,6 +75,10 @@ export class CascadedShadowMaps {
         this.light.shadow.shadowNode = null;
       }
       this.shadowNode = null;
+    }
+    this._shadowNodeValidated = false;
+    if (!preserveFailure) {
+      this._shadowNodeFailed = false;
     }
   }
 
@@ -91,6 +97,7 @@ export class CascadedShadowMaps {
       this.camera = camera;
       this._projectionMatrix = null;
       this._cameraParams = { near: null, far: null, zoom: null };
+      this._shadowNodeValidated = false;
     }
 
     this.ensureShadowNode();
@@ -102,7 +109,7 @@ export class CascadedShadowMaps {
   }
 
   ensureShadowNode() {
-    if (!this.light?.shadow) {
+    if (!this.light?.shadow || this._shadowNodeFailed) {
       return null;
     }
 
@@ -119,9 +126,42 @@ export class CascadedShadowMaps {
       }
       this.light.shadow.shadowNode = this.shadowNode;
       this._needsFrustumUpdate = true;
+      this._shadowNodeValidated = false;
     }
 
     return this.shadowNode;
+  }
+
+  disableShadowNode() {
+    if (this._shadowNodeFailed) {
+      return;
+    }
+
+    console.warn('CascadedShadowMaps: shadow node initialisation failed, reverting to standard directional shadows.');
+    this._shadowNodeFailed = true;
+    this.disposeShadowNode({ preserveFailure: true });
+  }
+
+  validateShadowNode() {
+    if (!this.shadowNode) {
+      return false;
+    }
+
+    const cascades = Number.isInteger(this.shadowNode.cascades) ? this.shadowNode.cascades : 0;
+    const nodes = this.shadowNode._shadowNodes;
+
+    if (!Array.isArray(nodes) || nodes.length !== cascades) {
+      this.disableShadowNode();
+      return false;
+    }
+
+    const hasInvalidNode = nodes.some((node) => !node || typeof node.oneMinus !== 'function');
+    if (hasInvalidNode) {
+      this.disableShadowNode();
+      return false;
+    }
+
+    return true;
   }
 
   setOptions(options = {}) {
@@ -133,6 +173,8 @@ export class CascadedShadowMaps {
     const cascadesChanged = next.cascades !== this.options.cascades;
 
     this.options = next;
+    this._shadowNodeFailed = false;
+    this._shadowNodeValidated = false;
 
     if (cascadesChanged && isPositiveNumber(next.cascades)) {
       const camera = this.camera;
@@ -235,8 +277,15 @@ export class CascadedShadowMaps {
       }
     }
 
+    if (this.shadowNode?.mainFrustum && !this._shadowNodeValidated) {
+      if (!this.validateShadowNode()) {
+        return;
+      }
+      this._shadowNodeValidated = true;
+    }
+
     if (this._needsFrustumUpdate) {
-      if (!this.shadowNode.mainFrustum) {
+      if (!this.shadowNode?.mainFrustum) {
         // `CSMShadowNode` lazily initialises its internal frustums during the
         // renderer's shadow pass. When running with the WebGPU renderer the
         // shadow node might not be ready the very first time we try to update
