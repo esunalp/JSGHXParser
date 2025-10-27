@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -12,12 +13,58 @@ const MAX_DRAW_DISTANCE_MM = 100000;
 const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
 const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
 
-function createRenderer(canvas) {
+function getViewportSize(canvas) {
+  const width = canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 1;
+  const height = canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight || 1;
+  return {
+    width: Math.max(width, 1),
+    height: Math.max(height, 1),
+    pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+  };
+}
+
+function applyRendererDefaults(renderer) {
+  if (!renderer) {
+    return;
+  }
+
+  if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  } else if ('outputEncoding' in renderer) {
+    renderer.outputEncoding = THREE.sRGBEncoding;
+  }
+
+  if (typeof renderer.setClearColor === 'function') {
+    renderer.setClearColor(0x060910, 1);
+  }
+}
+
+function applyViewportToRenderer(renderer, viewport) {
+  if (!renderer || !viewport) {
+    return;
+  }
+
+  if (typeof renderer.setPixelRatio === 'function') {
+    renderer.setPixelRatio(viewport.pixelRatio);
+  }
+
+  if (typeof renderer.setSize === 'function') {
+    renderer.setSize(viewport.width, viewport.height, false);
+  }
+}
+
+function createWebGLRenderer(canvas, viewport) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight, false);
-  renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.setClearColor(0x060910, 1);
+  applyRendererDefaults(renderer);
+  applyViewportToRenderer(renderer, viewport);
+  return renderer;
+}
+
+async function createWebGPURenderer(canvas, viewport) {
+  const renderer = new WebGPURenderer({ canvas, antialias: true });
+  await renderer.init();
+  applyRendererDefaults(renderer);
+  applyViewportToRenderer(renderer, viewport);
   return renderer;
 }
 
@@ -511,24 +558,44 @@ export function initScene(canvas) {
   camera.up.set(0, 0, 1);
   camera.position.set(6, 4, 8);
 
-  const renderer = createRenderer(canvas);
-  const controls = new OrbitControls(camera, renderer.domElement);
+  let viewportState = getViewportSize(canvas);
+
+  const webglRenderer = createWebGLRenderer(canvas, viewportState);
+  let webgpuRenderer = null;
+  let activeRenderer = webglRenderer;
+  let gpuRenderingEnabled = false;
+
+  const webgpuSupported = typeof navigator !== 'undefined'
+    && 'gpu' in navigator
+    && (typeof WebGPURenderer.isAvailable !== 'function' || WebGPURenderer.isAvailable());
+
+  const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.screenSpacePanning = false;
 
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
 
+  const eventTarget = canvas;
+
   const sky = createSkyDome(scene);
   addDefaultLights(scene);
   addHelpers(scene);
 
+  function updateRendererViewports() {
+    applyViewportToRenderer(webglRenderer, viewportState);
+    if (webgpuRenderer) {
+      applyViewportToRenderer(webgpuRenderer, viewportState);
+    }
+  }
+
   const resize = () => {
-    const width = canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth;
-    const height = canvas.clientHeight || canvas.parentElement?.clientHeight || window.innerHeight;
+    viewportState = getViewportSize(canvas);
+    const width = viewportState.width;
+    const height = viewportState.height;
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
+    updateRendererViewports();
   };
   resize();
   window.addEventListener('resize', resize);
@@ -729,7 +796,7 @@ export function initScene(canvas) {
   }
 
   function updatePointerFromEvent(event) {
-    const bounds = renderer.domElement.getBoundingClientRect();
+    const bounds = eventTarget.getBoundingClientRect();
     const width = bounds.width;
     const height = bounds.height;
     if (!width || !height) {
@@ -849,11 +916,69 @@ export function initScene(canvas) {
     }
   }
 
-  renderer.domElement.addEventListener('pointerdown', handlePointerDown);
-  renderer.domElement.addEventListener('pointermove', handlePointerMove);
-  renderer.domElement.addEventListener('pointerup', handlePointerUp);
-  renderer.domElement.addEventListener('pointerleave', handlePointerCancel);
-  renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
+  eventTarget.addEventListener('pointerdown', handlePointerDown);
+  eventTarget.addEventListener('pointermove', handlePointerMove);
+  eventTarget.addEventListener('pointerup', handlePointerUp);
+  eventTarget.addEventListener('pointerleave', handlePointerCancel);
+  eventTarget.addEventListener('pointercancel', handlePointerCancel);
+
+  let webgpuInitPromise = null;
+
+  async function ensureWebGPURenderer() {
+    if (webgpuRenderer) {
+      return webgpuRenderer;
+    }
+
+    if (!webgpuInitPromise) {
+      webgpuInitPromise = createWebGPURenderer(canvas, viewportState)
+        .then((renderer) => {
+          webgpuRenderer = renderer;
+          updateRendererViewports();
+          return webgpuRenderer;
+        })
+        .catch((error) => {
+          webgpuInitPromise = null;
+          webgpuRenderer = null;
+          throw error;
+        });
+    }
+
+    return webgpuInitPromise;
+  }
+
+  async function setGpuRenderingEnabled(value) {
+    if (value) {
+      if (!webgpuSupported) {
+        activeRenderer = webglRenderer;
+        gpuRenderingEnabled = false;
+        return { ok: false, reason: 'unsupported' };
+      }
+
+      try {
+        const renderer = await ensureWebGPURenderer();
+        activeRenderer = renderer;
+        gpuRenderingEnabled = true;
+        return { ok: true };
+      } catch (error) {
+        console.warn('WebGPU initialisatie mislukt', error);
+        activeRenderer = webglRenderer;
+        gpuRenderingEnabled = false;
+        return { ok: false, reason: 'error', error };
+      }
+    }
+
+    activeRenderer = webglRenderer;
+    gpuRenderingEnabled = false;
+    return { ok: true };
+  }
+
+  function isGpuRenderingEnabled() {
+    return gpuRenderingEnabled && !!webgpuRenderer && activeRenderer === webgpuRenderer;
+  }
+
+  function isWebGPUSupported() {
+    return webgpuSupported;
+  }
 
   function disposeSceneObject(object) {
     if (!object) {
@@ -1033,9 +1158,28 @@ export function initScene(canvas) {
     requestAnimationFrame(animate);
     controls.update();
     sky.update(camera);
-    renderer.render(scene, camera);
+    if (activeRenderer) {
+      activeRenderer.render(scene, camera);
+    }
   }
   animate();
 
-  return { scene, camera, renderer, controls, updateMesh, setOverlayEnabled };
+  const api = {
+    scene,
+    camera,
+    controls,
+    updateMesh,
+    setOverlayEnabled,
+    setGpuRenderingEnabled,
+    isGpuRenderingEnabled,
+    isWebGPUSupported,
+  };
+
+  Object.defineProperty(api, 'renderer', {
+    get() {
+      return activeRenderer;
+    },
+  });
+
+  return api;
 }

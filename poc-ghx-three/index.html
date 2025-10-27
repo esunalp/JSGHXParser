@@ -167,6 +167,13 @@
               <span id="overlay-state" class="toggle-state">false</span>
             </span>
           </label>
+          <label class="toggle">
+            <span>GPU Rendering</span>
+            <span class="toggle-controls">
+              <input id="gpu-toggle" type="checkbox" role="switch" aria-checked="false" aria-label="Schakel WebGPU rendering in" />
+              <span id="gpu-state" class="toggle-state">false</span>
+            </span>
+          </label>
         </section>
         <section>
           <h2 style="margin:0 0 0.5rem 0;font-size:1rem;letter-spacing:0.03em;text-transform:uppercase;">Sliders</h2>
@@ -211,6 +218,8 @@
       const fileInput = document.getElementById('ghx-input');
       const overlayToggle = document.getElementById('overlay-toggle');
       const overlayState = document.getElementById('overlay-state');
+      const gpuToggle = document.getElementById('gpu-toggle');
+      const gpuState = document.getElementById('gpu-state');
 
       const sceneApi = initScene(canvas);
       const engine = createEngine({
@@ -243,6 +252,49 @@
       });
 
       syncOverlay(Boolean(overlayToggle.checked));
+
+      const syncGpuRendering = ({ pending = false } = {}) => {
+        const supported = sceneApi.isWebGPUSupported();
+        const enabled = sceneApi.isGpuRenderingEnabled();
+
+        if (!supported) {
+          gpuToggle.checked = false;
+          gpuToggle.disabled = true;
+          gpuToggle.setAttribute('aria-checked', 'false');
+          gpuToggle.title = 'WebGPU wordt niet ondersteund in deze browser of op dit apparaat.';
+          gpuState.textContent = 'niet beschikbaar';
+          return;
+        }
+
+        gpuToggle.disabled = pending;
+        gpuToggle.checked = enabled;
+        gpuToggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+        gpuToggle.title = '';
+        gpuState.textContent = pending ? 'laden…' : (enabled ? 'true' : 'false');
+      };
+
+      gpuToggle.addEventListener('change', async () => {
+        const desired = Boolean(gpuToggle.checked);
+        syncGpuRendering({ pending: true });
+        const result = await sceneApi.setGpuRenderingEnabled(desired);
+
+        if (!result?.ok) {
+          if (result?.reason === 'unsupported') {
+            statusEl.textContent = 'WebGPU wordt niet ondersteund in deze browser of op dit apparaat.';
+          } else {
+            const reason = result?.error?.message ? `WebGPU-fout: ${result.error.message}` : 'WebGPU kon niet worden geïnitialiseerd.';
+            statusEl.textContent = reason;
+          }
+        } else {
+          statusEl.textContent = desired
+            ? 'GPU-rendering actief (WebGPU).'
+            : 'GPU-rendering uitgeschakeld (WebGL).';
+        }
+
+        syncGpuRendering();
+      });
+
+      syncGpuRendering();
 
       const mockGraph = {
         nodes: [
