@@ -540,9 +540,9 @@ export function initScene(canvas) {
 
   const sunSky = new PhysicalSunSky(scene);
   const ddgiVolume = new DDGIProbeVolume(scene, sunSky, {
-    probeSpacing: 900,
-    updateBudget: 96,
-    hysteresis: 0.94,
+    probeSpacing: 4000,
+    updateBudget: 128,
+    hysteresis: 0.946,
     boundsPadding: 800,
     maxDistance: 9000,
   });
