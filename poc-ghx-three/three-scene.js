@@ -723,6 +723,9 @@ export function initScene(canvas) {
       return;
     }
 
+    const delta = targetPoint.clone().sub(controls.target);
+
+    camera.position.add(delta);
     controls.target.copy(targetPoint);
 
     controls.update();
