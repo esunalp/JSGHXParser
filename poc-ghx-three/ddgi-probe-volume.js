@@ -32,6 +32,12 @@ function generateDirections(samples) {
 const TEMP_VECTOR = new THREE.Vector3();
 const TEMP_VECTOR_2 = new THREE.Vector3();
 const TEMP_VECTOR_3 = new THREE.Vector3();
+const TEMP_VECTOR_4 = new THREE.Vector3();
+const TEMP_MATRIX_3 = new THREE.Matrix3();
+const TEMP_COLOR = new THREE.Color();
+const TEMP_COLOR_2 = new THREE.Color();
+const TEMP_COLOR_3 = new THREE.Color();
+const TEMP_COLOR_4 = new THREE.Color();
 const TEMP_SH = new THREE.SphericalHarmonics3();
 
 const SH_BASIS_FUNCTIONS = [
@@ -55,18 +61,19 @@ function addScaledColor(target, color, scale) {
   target.b += color.b * scale;
 }
 
-function cloneMaterialColor(material) {
+function cloneMaterialColor(material, target) {
+  const result = target ?? new THREE.Color();
   if (!material) {
-    return new THREE.Color(1, 1, 1);
+    return result.setRGB(1, 1, 1);
   }
   if (Array.isArray(material)) {
     const entry = material[0];
-    return cloneMaterialColor(entry);
+    return cloneMaterialColor(entry, result);
   }
   if (material.color && material.color.isColor) {
-    return material.color.clone();
+    return result.copy(material.color);
   }
-  return new THREE.Color(1, 1, 1);
+  return result.setRGB(1, 1, 1);
 }
 
 function resolveIntersectionMaterial(intersection) {
@@ -103,7 +110,7 @@ function getWorldFaceNormal(intersection) {
   const normal = intersection.face.normal.clone();
   const object = intersection.object;
   if (object && object.isObject3D) {
-    const normalMatrix = new THREE.Matrix3();
+    const normalMatrix = TEMP_MATRIX_3;
     normalMatrix.getNormalMatrix(object.matrixWorld);
     normal.applyMatrix3(normalMatrix).normalize();
   }
@@ -124,6 +131,8 @@ export class DDGIProbeVolume {
     this.gridSteps = new THREE.Vector3(1000, 1000, 1000);
     this.probes = [];
     this.probeDirections = generateDirections(this.options.sampleCount);
+    this.probeAccum = Array.from({ length: SH_BASIS_COUNT }, () => new THREE.Vector3());
+    this.sampleNeighbors = Array.from({ length: 8 }, () => ({ index: 0, weight: 0 }));
     this.updateCursor = 0;
 
     this.staticMeshes = [];
@@ -287,13 +296,13 @@ export class DDGIProbeVolume {
   }
 
   computeDirectLighting(point, normal, skipObject = null) {
-    const lighting = this.ambientMin.clone();
+    const lighting = TEMP_COLOR.copy(this.ambientMin);
 
     for (const light of this.directionalLights) {
       if (!light?.isDirectionalLight || light.intensity <= 0) {
         continue;
       }
-      const targetPosition = light.target ? light.target.getWorldPosition(TEMP_VECTOR) : new THREE.Vector3();
+      const targetPosition = light.target ? light.target.getWorldPosition(TEMP_VECTOR) : TEMP_VECTOR.set(0, 0, 0);
       const lightPosition = light.getWorldPosition(TEMP_VECTOR_2);
       const toTarget = TEMP_VECTOR_3.subVectors(targetPosition, lightPosition).normalize();
       const ndotl = normal.dot(toTarget);
@@ -342,7 +351,7 @@ export class DDGIProbeVolume {
 
   traceRadiance(origin, direction) {
     if (!this.staticMeshes.length) {
-      const ambient = new THREE.Color();
+      const ambient = TEMP_COLOR_2.setRGB(0, 0, 0);
       this.addAmbientRadiance(direction, ambient);
       return ambient;
     }
@@ -352,19 +361,18 @@ export class DDGIProbeVolume {
     this.raycaster.far = this.options.maxDistance;
     const intersections = this.raycaster.intersectObjects(this.staticMeshes, true);
     if (!intersections.length) {
-      const ambient = new THREE.Color();
+      const ambient = TEMP_COLOR_2.setRGB(0, 0, 0);
       this.addAmbientRadiance(direction, ambient);
       return ambient;
     }
 
     const hit = intersections[0];
-    const point = hit.point.clone().addScaledVector(direction, -0.01);
+    const point = TEMP_VECTOR_4.copy(hit.point).addScaledVector(direction, -0.01);
     const normal = getWorldFaceNormal(hit);
     const material = resolveIntersectionMaterial(hit);
-    const albedo = cloneMaterialColor(material);
+    const albedo = cloneMaterialColor(material, TEMP_COLOR_3);
     const lighting = this.computeDirectLighting(point, normal, hit.object);
-    const shaded = lighting.multiply(albedo);
-    return shaded;
+    return TEMP_COLOR_4.copy(lighting).multiply(albedo);
   }
 
   updateProbes(deltaTime, scene, time) {
@@ -382,7 +390,10 @@ export class DDGIProbeVolume {
         continue;
       }
 
-      const accum = Array.from({ length: SH_BASIS_COUNT }, () => new THREE.Vector3());
+      const accum = this.probeAccum;
+      for (let c = 0; c < SH_BASIS_COUNT; c += 1) {
+        accum[c].set(0, 0, 0);
+      }
 
       for (const direction of this.probeDirections) {
         const radiance = this.traceRadiance(probe.position, direction);
@@ -439,16 +450,23 @@ export class DDGIProbeVolume {
 
     const indexAt = (x, y, z) => ((z * this.gridSize.y + y) * this.gridSize.x + x);
 
-    const neighbors = [
-      { index: indexAt(ix, iy, iz), weight: weight(0, 0, 0) },
-      { index: indexAt(ix1, iy, iz), weight: weight(1, 0, 0) },
-      { index: indexAt(ix, iy1, iz), weight: weight(0, 1, 0) },
-      { index: indexAt(ix1, iy1, iz), weight: weight(1, 1, 0) },
-      { index: indexAt(ix, iy, iz1), weight: weight(0, 0, 1) },
-      { index: indexAt(ix1, iy, iz1), weight: weight(1, 0, 1) },
-      { index: indexAt(ix, iy1, iz1), weight: weight(0, 1, 1) },
-      { index: indexAt(ix1, iy1, iz1), weight: weight(1, 1, 1) },
-    ];
+    const neighbors = this.sampleNeighbors;
+    neighbors[0].index = indexAt(ix, iy, iz);
+    neighbors[0].weight = weight(0, 0, 0);
+    neighbors[1].index = indexAt(ix1, iy, iz);
+    neighbors[1].weight = weight(1, 0, 0);
+    neighbors[2].index = indexAt(ix, iy1, iz);
+    neighbors[2].weight = weight(0, 1, 0);
+    neighbors[3].index = indexAt(ix1, iy1, iz);
+    neighbors[3].weight = weight(1, 1, 0);
+    neighbors[4].index = indexAt(ix, iy, iz1);
+    neighbors[4].weight = weight(0, 0, 1);
+    neighbors[5].index = indexAt(ix1, iy, iz1);
+    neighbors[5].weight = weight(1, 0, 1);
+    neighbors[6].index = indexAt(ix, iy1, iz1);
+    neighbors[6].weight = weight(0, 1, 1);
+    neighbors[7].index = indexAt(ix1, iy1, iz1);
+    neighbors[7].weight = weight(1, 1, 1);
 
     for (let c = 0; c < SH_BASIS_COUNT; c += 1) {
       target.coefficients[c].set(0, 0, 0);
