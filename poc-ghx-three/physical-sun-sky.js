@@ -135,18 +135,16 @@ function computeAutoExposure(lux) {
     return 0.2;
   }
 
-  const minLux = 50;
-  const maxLux = 120000;
-  const safeLux = THREE.MathUtils.clamp(lux, minLux, maxLux);
-  const minExposure = 0.015;
-  const maxExposure = 0.25;
+  const safeLux = THREE.MathUtils.clamp(lux, 0.1, 200000);
 
-  const minLog = Math.log10(minLux);
-  const maxLog = Math.log10(maxLux);
-  const range = maxLog - minLog;
-  const normalized = range > 0 ? (Math.log10(safeLux) - minLog) / range : 0;
+  // Map illuminance (lux) to an exposure curve that loosely mimics
+  // photographic EV behaviour. 1000 lux is treated as a "neutral" point
+  // (roughly a well lit interior), values above it push the exposure down
+  // quickly while darker scenes ramp up more gently.
+  const normalized = safeLux / 1000;
+  const exposure = 0.05 * Math.pow(normalized, -1.2);
 
-  return THREE.MathUtils.lerp(maxExposure, minExposure, THREE.MathUtils.clamp(normalized, 0, 1));
+  return THREE.MathUtils.clamp(exposure, 0.00008, 0.35);
 }
 
 function setScalarUniform(target, value) {
