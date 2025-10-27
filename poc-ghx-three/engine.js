@@ -210,7 +210,11 @@ function collectOverlayData(value, overlay, visited = new Set()) {
 
   const hasStartEnd = value?.start?.isVector3 && value?.end?.isVector3;
   if (hasStartEnd) {
-    overlay.segments.push({ start: value.start.clone(), end: value.end.clone() });
+    const startPoint = value.start.clone();
+    const endPoint = value.end.clone();
+    overlay.segments.push({ start: startPoint, end: endPoint });
+    overlay.points.push(startPoint.clone());
+    overlay.points.push(endPoint.clone());
   }
 
   if (value?.point?.isVector3) {
