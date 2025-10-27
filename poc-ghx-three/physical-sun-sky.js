@@ -235,6 +235,40 @@ export class PhysicalSunSky {
     this.update();
   }
 
+  invalidateShadowMaterials() {
+    if (!this.scene) {
+      return;
+    }
+
+    const visited = new Set();
+    const markMaterial = (material) => {
+      if (!material || typeof material !== 'object') {
+        return;
+      }
+      if (Array.isArray(material)) {
+        material.forEach((entry) => markMaterial(entry));
+        return;
+      }
+      if (!material.isMaterial || visited.has(material)) {
+        return;
+      }
+      visited.add(material);
+      material.needsUpdate = true;
+    };
+
+    this.scene.traverse((object) => {
+      if (!object) {
+        return;
+      }
+      const { material } = object;
+      if (Array.isArray(material)) {
+        material.forEach((entry) => markMaterial(entry));
+      } else {
+        markMaterial(material);
+      }
+    });
+  }
+
   setRenderer(renderer) {
     if (!renderer || renderer === this.renderer) {
       return;
@@ -385,6 +419,7 @@ export class PhysicalSunSky {
       if (this.sunLight?.shadow) {
         this.sunLight.shadow.shadowNode = null;
       }
+      this.invalidateShadowMaterials();
       return;
     }
 
@@ -404,16 +439,21 @@ export class PhysicalSunSky {
         shadowFar: SUN_DISTANCE,
         fade: true,
       });
+      this.csm.setStateChangeCallback(() => {
+        this.invalidateShadowMaterials();
+      });
       if (this.activeCamera?.isCamera) {
         this.csm.setCamera(this.activeCamera);
         this.csm.update(this.activeCamera);
       }
+      this.invalidateShadowMaterials();
     } catch (error) {
       console.warn('PhysicalSunSky: kon Cascaded Shadow Maps niet initialiseren', error);
       this.csm = null;
       if (this.sunLight?.shadow) {
         this.sunLight.shadow.shadowNode = null;
       }
+      this.invalidateShadowMaterials();
     }
   }
 }
