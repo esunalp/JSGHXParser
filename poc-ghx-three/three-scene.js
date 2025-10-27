@@ -2,6 +2,11 @@ import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 import { PhysicalSunSky } from './physical-sun-sky.js';
+import {
+  createStandardSurfaceMaterial,
+  convertMaterialToNode,
+  ensureGeometryHasVertexNormals,
+} from './material-utils.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -43,10 +48,17 @@ function applyRendererDefaults(renderer) {
 
   if (renderer.shadowMap) {
     renderer.shadowMap.enabled = true;
+    if ('type' in renderer.shadowMap && THREE.PCFSoftShadowMap) {
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
   }
 
   if (typeof renderer.setClearColor === 'function') {
     renderer.setClearColor(0x060910, 1);
+  }
+
+  if ('useLegacyLights' in renderer) {
+    renderer.useLegacyLights = false;
   }
 }
 
@@ -163,6 +175,10 @@ function applyMaterialSide(material, side) {
     material.side = side;
     material.needsUpdate = true;
   }
+  if (material && 'shadowSide' in material && material.shadowSide !== side) {
+    material.shadowSide = side;
+    material.needsUpdate = true;
+  }
 }
 
 function applyMeshSide(object, side) {
@@ -171,7 +187,12 @@ function applyMeshSide(object, side) {
   }
   object.traverse((child) => {
     if (child.isMesh) {
+      const convertedMaterial = convertMaterialToNode(child.material, { side });
+      if (convertedMaterial) {
+        child.material = convertedMaterial;
+      }
       applyMaterialSide(child.material, side);
+      ensureGeometryHasVertexNormals(child.geometry);
     }
   });
 }
@@ -245,12 +266,15 @@ function createPointsObject(entries, colourFactory) {
     POINT_SPHERE_HEIGHT_SEGMENTS,
   );
 
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    vertexColors: true,
-    metalness: 0,
-    roughness: 0.55,
-  });
+  const material = createStandardSurfaceMaterial(
+    {
+      color: 0xffffff,
+      vertexColors: true,
+      metalness: 0,
+      roughness: 0.55,
+    },
+    { side: DEFAULT_MESH_SIDE },
+  );
 
   const object = new THREE.InstancedMesh(geometry, material, validCount);
   const matrix = new THREE.Matrix4();
@@ -937,6 +961,14 @@ export function initScene(canvas) {
       return;
     }
     object.traverse((child) => {
+      if (child.isMesh) {
+        const preparedMaterial = convertMaterialToNode(child.material, { side: DEFAULT_MESH_SIDE });
+        if (preparedMaterial) {
+          child.material = preparedMaterial;
+        }
+        applyMaterialSide(child.material, DEFAULT_MESH_SIDE);
+        ensureGeometryHasVertexNormals(child.geometry);
+      }
       if (child.isMesh || child.isLine || child.isLineSegments || child.isPoints) {
         child.castShadow = true;
         child.receiveShadow = true;
@@ -974,24 +1006,29 @@ export function initScene(canvas) {
     }
 
     if (renderable.isBufferGeometry || renderable.isGeometry) {
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x2c9cf5,
-        metalness: 0.1,
-        roughness: 0.65,
-        side: DEFAULT_MESH_SIDE,
-      });
-      const mesh = new THREE.Mesh(renderable, material);
+      const geometry = renderable.clone ? renderable.clone() : renderable;
+      ensureGeometryHasVertexNormals(geometry);
+      const material = createStandardSurfaceMaterial(
+        {
+          color: 0x2c9cf5,
+          metalness: 0.1,
+          roughness: 0.65,
+        },
+        { side: DEFAULT_MESH_SIDE },
+      );
+      const mesh = new THREE.Mesh(geometry, material);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       return mesh;
     }
 
     if (renderable.geometry) {
-      const material = renderable.material || new THREE.MeshStandardMaterial({
-        color: 0x2c9cf5,
-        side: DEFAULT_MESH_SIDE,
-      });
-      const mesh = new THREE.Mesh(renderable.geometry, material);
+      const geometry = renderable.geometry.clone ? renderable.geometry.clone() : renderable.geometry;
+      ensureGeometryHasVertexNormals(geometry);
+      const baseMaterial = renderable.material?.clone?.() ?? renderable.material;
+      const material = convertMaterialToNode(baseMaterial, { side: DEFAULT_MESH_SIDE })
+        ?? createStandardSurfaceMaterial({ color: 0x2c9cf5 }, { side: DEFAULT_MESH_SIDE });
+      const mesh = new THREE.Mesh(geometry, material);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       return mesh;

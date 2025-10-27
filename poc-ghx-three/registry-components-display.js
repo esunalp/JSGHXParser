@@ -1,4 +1,9 @@
-import * as THREE from 'three';
+import * as THREE from 'three/webgpu';
+import {
+  convertMaterialToNode,
+  createStandardSurfaceMaterial,
+  ensureGeometryHasVertexNormals,
+} from './material-utils.js';
 import { withVersion } from './version.js';
 
 const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
@@ -255,7 +260,8 @@ function ensureMaterial(value) {
     return ensureMaterial(value[0]);
   }
   if (value?.isMaterial) {
-    return value.clone();
+    const cloned = value.clone();
+    return convertMaterialToNode(cloned, { side: THREE.DoubleSide });
   }
   if (value && typeof value === 'object') {
     if (Object.prototype.hasOwnProperty.call(value, 'material')) {
@@ -525,11 +531,15 @@ function createSymbolMesh(config) {
       break;
   }
 
-  const material = new THREE.MeshStandardMaterial({
-    color: fillColor,
-    metalness: 0.05,
-    roughness: 0.55,
-  });
+  ensureGeometryHasVertexNormals(geometry);
+  const material = createStandardSurfaceMaterial(
+    {
+      color: fillColor?.clone?.() ?? fillColor,
+      metalness: 0.05,
+      roughness: 0.55,
+    },
+    { side: THREE.DoubleSide },
+  );
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = false;
@@ -549,7 +559,13 @@ function applyMaterialToObject(object, material) {
     if (object.geometry?.clone) {
       object.geometry = object.geometry.clone();
     }
-    object.material = material?.clone?.() ?? material ?? object.material;
+    const candidateMaterial = material?.clone?.() ?? material;
+    if (candidateMaterial) {
+      object.material = convertMaterialToNode(candidateMaterial, { side: THREE.DoubleSide });
+    } else {
+      object.material = convertMaterialToNode(object.material, { side: THREE.DoubleSide });
+    }
+    ensureGeometryHasVertexNormals(object.geometry);
     object.castShadow = true;
     object.receiveShadow = true;
   }
@@ -572,11 +588,17 @@ function createMeshFromGeometry(entry, material) {
   }
   if (entry.isBufferGeometry || entry.isGeometry) {
     const geometry = entry.clone ? entry.clone() : entry;
-    const meshMaterial = material?.clone?.() ?? material ?? new THREE.MeshStandardMaterial({
-      color: 0x2c9cf5,
-      metalness: 0.1,
-      roughness: 0.65,
-    });
+    ensureGeometryHasVertexNormals(geometry);
+    const baseMaterial = material?.clone?.() ?? material;
+    const meshMaterial = convertMaterialToNode(baseMaterial, { side: THREE.DoubleSide })
+      ?? createStandardSurfaceMaterial(
+        {
+          color: 0x2c9cf5,
+          metalness: 0.1,
+          roughness: 0.65,
+        },
+        { side: THREE.DoubleSide },
+      );
     const mesh = new THREE.Mesh(geometry, meshMaterial);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -625,14 +647,18 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
 
       const baseRadius = 0.5;
       const geometry = new THREE.SphereGeometry(baseRadius, 14, 10);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        vertexColors: true,
-        metalness: 0.05,
-        roughness: 0.75,
-        transparent: true,
-        opacity: 0.85,
-      });
+      ensureGeometryHasVertexNormals(geometry);
+      const material = createStandardSurfaceMaterial(
+        {
+          color: 0xffffff,
+          vertexColors: true,
+          metalness: 0.05,
+          roughness: 0.75,
+          transparent: true,
+          opacity: 0.85,
+        },
+        { side: THREE.DoubleSide },
+      );
       const instanced = new THREE.InstancedMesh(geometry, material, points.length);
       const colours = new Float32Array(points.length * 3);
 
@@ -685,12 +711,15 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       if (!geometries.length) {
         return {};
       }
-      const material = ensureMaterial(inputs.material) ?? new THREE.MeshStandardMaterial({
-        color: fallbackColor,
-        metalness: 0.1,
-        roughness: 0.65,
-        side: THREE.DoubleSide,
-      });
+      const material = ensureMaterial(inputs.material)
+        ?? createStandardSurfaceMaterial(
+          {
+            color: fallbackColor,
+            metalness: 0.1,
+            roughness: 0.65,
+          },
+          { side: THREE.DoubleSide },
+        );
 
       const meshes = geometries
         .map((entry) => createMeshFromGeometry(entry, material))
@@ -790,11 +819,15 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       const size = Math.max(Math.abs(ensureNumber(toNumber, inputs.size ?? 1, 1)), 0.01);
       const radius = size / 2;
       const geometry = new THREE.SphereGeometry(radius, 18, 14);
-      const material = new THREE.MeshStandardMaterial({
-        color: colour,
-        metalness: 0.05,
-        roughness: 0.5,
-      });
+      ensureGeometryHasVertexNormals(geometry);
+      const material = createStandardSurfaceMaterial(
+        {
+          color: colour,
+          metalness: 0.05,
+          roughness: 0.5,
+        },
+        { side: THREE.DoubleSide },
+      );
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.copy(point);
       mesh.castShadow = false;
