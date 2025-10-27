@@ -6,7 +6,7 @@ const DEFAULT_OPTIONS = {
   hysteresis: 0.92,
   maxDistance: 6000,
   boundsPadding: 500,
-  sampleCount: 24,
+  sampleCount: 8,
 };
 
 const SH_BASIS_COUNT = 9;
