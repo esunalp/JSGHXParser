@@ -29,6 +29,7 @@ export class CascadedShadowMaps {
     this._needsFrustumUpdate = true;
     this._shadowNodeValidated = false;
     this._shadowNodeFailed = false;
+    this._desiredFade = Boolean(this.options.fade);
 
     this.configureLight();
   }
@@ -120,7 +121,14 @@ export class CascadedShadowMaps {
         mode: this.options.mode,
         lightMargin: this.options.lightMargin,
       });
-      this.shadowNode.fade = Boolean(this.options.fade);
+      // Delay enabling fading until the shadow node has finished initialising
+      // its internal frustums. The `fade` setter internally accesses
+      // `_shadowNodes`, which is undefined until the first shadow pass is
+      // executed. Calling it too early causes `TypeError: can't access property
+      // "oneMinus", this._shadowNodes[i] is undefined` when running with the
+      // WebGPU renderer. Keep track of the desired fade value and apply it once
+      // validation succeeds instead of touching the setter immediately here.
+      this.shadowNode.fade = false;
       if (this.camera?.isCamera) {
         this.shadowNode.camera = this.camera;
       }
@@ -164,6 +172,22 @@ export class CascadedShadowMaps {
     return true;
   }
 
+  applyDesiredFade() {
+    if (!this.shadowNode || !this._shadowNodeValidated) {
+      return;
+    }
+
+    const fade = Boolean(this._desiredFade);
+    if (this.shadowNode.fade !== fade) {
+      try {
+        this.shadowNode.fade = fade;
+      } catch (error) {
+        console.warn('CascadedShadowMaps: failed to apply fade setting', error);
+        this.shadowNode.fade = false;
+      }
+    }
+  }
+
   setOptions(options = {}) {
     if (!options || typeof options !== 'object') {
       return;
@@ -175,6 +199,7 @@ export class CascadedShadowMaps {
     this.options = next;
     this._shadowNodeFailed = false;
     this._shadowNodeValidated = false;
+    this._desiredFade = Boolean(next.fade);
 
     if (cascadesChanged && isPositiveNumber(next.cascades)) {
       const camera = this.camera;
@@ -196,7 +221,7 @@ export class CascadedShadowMaps {
       if (Number.isFinite(next.lightMargin)) {
         this.shadowNode.lightMargin = next.lightMargin;
       }
-      this.shadowNode.fade = Boolean(next.fade);
+      this.applyDesiredFade();
     }
 
     this.configureLight();
@@ -282,6 +307,7 @@ export class CascadedShadowMaps {
         return;
       }
       this._shadowNodeValidated = true;
+      this.applyDesiredFade();
     }
 
     if (this._needsFrustumUpdate) {
