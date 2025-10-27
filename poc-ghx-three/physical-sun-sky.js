@@ -24,6 +24,7 @@ const DEFAULT_OPTIONS = {
   autoExposure: true,
   exposure: 1.0,
   intensityMultiplier: 1.0,
+  enableCSM: false,
 };
 
 function clamp(value, min, max) {
@@ -218,17 +219,9 @@ export class PhysicalSunSky {
     this.sunLight.target = this.sunTarget;
     this.scene.add(this.sunLight);
 
-    this.csm = new CascadedShadowMaps(this.sunLight, {
-      cascades: 4,
-      maxFar: SUN_DISTANCE,
-      lightMargin: 600,
-      shadowMapSize: 2048,
-      shadowBias: -0.00045,
-      shadowNormalBias: 0.025,
-      shadowNear: 1,
-      shadowFar: SUN_DISTANCE,
-      fade: true,
-    });
+    this.csm = null;
+    this.activeCamera = null;
+    this.updateCSMState();
 
     this.fillLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.25);
     this.fillLight.name = 'PhysicalSkyHemisphere';
@@ -257,6 +250,7 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
     this.applyExposure();
     this.updateEnvironment();
+    this.updateCSMState();
     this.csm?.setShadowMapSize?.(2048);
   }
 
@@ -276,6 +270,8 @@ export class PhysicalSunSky {
 
   update(options = {}) {
     this.options = { ...this.options, ...options };
+
+    this.updateCSMState();
 
     setScalarUniform(this.sky.turbidity, this.options.turbidity);
     setScalarUniform(this.sky.rayleigh, this.options.rayleigh);
@@ -332,6 +328,9 @@ export class PhysicalSunSky {
   }
 
   updateFrame(camera) {
+    if (camera?.isCamera) {
+      this.activeCamera = camera;
+    }
     if (camera && camera.position) {
       this.sky.position.copy(camera.position);
       this.sky.updateMatrixWorld();
@@ -346,6 +345,8 @@ export class PhysicalSunSky {
 
   setCamera(camera) {
     if (camera?.isCamera) {
+      this.activeCamera = camera;
+      this.updateCSMState();
       this.csm?.setCamera(camera);
       this.csm?.update(camera);
     }
@@ -353,6 +354,8 @@ export class PhysicalSunSky {
 
   notifyCameraProjectionChanged(camera) {
     if (camera?.isCamera) {
+      this.activeCamera = camera;
+      this.updateCSMState();
       this.csm?.requestFrustumUpdate();
       this.csm?.update(camera);
     }
@@ -368,5 +371,49 @@ export class PhysicalSunSky {
     this.sky.material.dispose?.();
     this.sky.geometry?.dispose?.();
     this.csm?.dispose();
+    this.csm = null;
+  }
+
+  updateCSMState() {
+    const shouldEnable = Boolean(this.options.enableCSM);
+
+    if (!shouldEnable) {
+      if (this.csm) {
+        this.csm.dispose();
+        this.csm = null;
+      }
+      if (this.sunLight?.shadow) {
+        this.sunLight.shadow.shadowNode = null;
+      }
+      return;
+    }
+
+    if (this.csm) {
+      return;
+    }
+
+    try {
+      this.csm = new CascadedShadowMaps(this.sunLight, {
+        cascades: 4,
+        maxFar: SUN_DISTANCE,
+        lightMargin: 600,
+        shadowMapSize: 2048,
+        shadowBias: -0.00045,
+        shadowNormalBias: 0.025,
+        shadowNear: 1,
+        shadowFar: SUN_DISTANCE,
+        fade: true,
+      });
+      if (this.activeCamera?.isCamera) {
+        this.csm.setCamera(this.activeCamera);
+        this.csm.update(this.activeCamera);
+      }
+    } catch (error) {
+      console.warn('PhysicalSunSky: kon Cascaded Shadow Maps niet initialiseren', error);
+      this.csm = null;
+      if (this.sunLight?.shadow) {
+        this.sunLight.shadow.shadowNode = null;
+      }
+    }
   }
 }
