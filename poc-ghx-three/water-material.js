@@ -102,7 +102,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const perturbedNormal = normalize(normalLocal.sub(gradient));
   material.normalNode = perturbedNormal;
 
-  const planarReflection = reflector({ resolution: reflectionResolution });
+  const planarReflection = reflector({ resolutionScale: reflectionResolution });
   planarReflection.target.name = 'ProceduralWaterReflectionTarget';
   planarReflection.target.matrixAutoUpdate = true;
   planarReflection.target.frustumCulled = false;
@@ -171,7 +171,6 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.opacityNode = float(1);
 
   material.userData.isProceduralWater = true;
-  material.userData.planarReflection = planarReflection;
   material.userData.setupProceduralWater = (mesh) => {
     if (!mesh?.isMesh) {
       return;
