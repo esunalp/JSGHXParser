@@ -67,6 +67,12 @@ export function createWaterSurfaceMaterial(options = {}) {
   const frequencyRippleX = baseFrequency.mul(3.2);
   const frequencyRippleY = baseFrequency.mul(2.6);
   const frequencyZ = baseFrequency.mul(0.7);
+  const tileFrequency = float(0.6283185307179586);
+  const tileFrequencySkew = tileFrequency.mul(0.72);
+  const tileFrequencyWide = tileFrequency.mul(0.61);
+  const tileFrequencyTight = tileFrequency.mul(1.27);
+  const tileFrequencyDiagonal = tileFrequency.mul(0.42);
+  const tileFrequencyDepth = tileFrequency.mul(0.35);
 
   const waveArgX = worldPosition.x.mul(frequencyX).add(time.mul(0.62));
   const waveArgY = worldPosition.y.mul(frequencyY).add(time.mul(0.47));
@@ -74,6 +80,9 @@ export function createWaterSurfaceMaterial(options = {}) {
   const waveArgCross = worldPosition.x.mul(frequencyCrossX).sub(worldPosition.y.mul(frequencyCrossY)).add(time.mul(0.38));
   const waveArgRipple = worldPosition.x.mul(frequencyRippleX).add(worldPosition.y.mul(frequencyRippleY)).add(time.mul(1.12));
   const waveArgZ = worldPosition.z.mul(frequencyZ).add(time.mul(0.29));
+  const waveArgTilePrimary = worldPosition.x.mul(tileFrequency).add(worldPosition.y.mul(tileFrequencySkew)).add(time.mul(0.18));
+  const waveArgTileCross = worldPosition.x.mul(tileFrequencyWide).sub(worldPosition.y.mul(tileFrequencyTight)).add(time.mul(0.26));
+  const waveArgTileDiagonal = worldPosition.x.add(worldPosition.y).mul(tileFrequencyDiagonal).add(worldPosition.z.mul(tileFrequencyDepth)).add(time.mul(0.33));
 
   const waveX = sin(waveArgX);
   const waveY = sin(waveArgY);
@@ -81,13 +90,19 @@ export function createWaterSurfaceMaterial(options = {}) {
   const waveCross = sin(waveArgCross);
   const waveRipple = sin(waveArgRipple);
   const waveZ = sin(waveArgZ);
+  const waveTilePrimary = sin(waveArgTilePrimary);
+  const waveTileCross = sin(waveArgTileCross);
+  const waveTileDiagonal = sin(waveArgTileDiagonal);
 
   const combinedWave = waveX.mul(0.28)
     .add(waveY.mul(0.23))
     .add(waveDiagonal.mul(0.19))
     .add(waveCross.mul(0.17))
     .add(waveRipple.mul(0.11))
-    .add(waveZ.mul(0.08));
+    .add(waveZ.mul(0.08))
+    .add(waveTilePrimary.mul(0.12))
+    .add(waveTileCross.mul(0.1))
+    .add(waveTileDiagonal.mul(0.09));
 
   const amplitudeNode = float(amplitude);
   const displacement = combinedWave.mul(amplitudeNode);
@@ -96,12 +111,19 @@ export function createWaterSurfaceMaterial(options = {}) {
   const derivativeX = cos(waveArgX).mul(frequencyX).mul(0.28)
     .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.19))
     .add(cos(waveArgCross).mul(frequencyCrossX).mul(0.17))
-    .add(cos(waveArgRipple).mul(frequencyRippleX).mul(0.11));
+    .add(cos(waveArgRipple).mul(frequencyRippleX).mul(0.11))
+    .add(cos(waveArgTilePrimary).mul(tileFrequency).mul(0.12))
+    .add(cos(waveArgTileCross).mul(tileFrequencyWide).mul(0.1))
+    .add(cos(waveArgTileDiagonal).mul(tileFrequencyDiagonal).mul(0.09));
   const derivativeY = cos(waveArgY).mul(frequencyY).mul(0.23)
     .add(cos(waveArgDiagonal).mul(frequencyDiagonal).mul(0.19))
     .sub(cos(waveArgCross).mul(frequencyCrossY).mul(0.17))
-    .add(cos(waveArgRipple).mul(frequencyRippleY).mul(0.11));
-  const derivativeZ = cos(waveArgZ).mul(frequencyZ).mul(0.08);
+    .add(cos(waveArgRipple).mul(frequencyRippleY).mul(0.11))
+    .add(cos(waveArgTilePrimary).mul(tileFrequencySkew).mul(0.12))
+    .sub(cos(waveArgTileCross).mul(tileFrequencyTight).mul(0.1))
+    .add(cos(waveArgTileDiagonal).mul(tileFrequencyDiagonal).mul(0.09));
+  const derivativeZ = cos(waveArgZ).mul(frequencyZ).mul(0.08)
+    .add(cos(waveArgTileDiagonal).mul(tileFrequencyDepth).mul(0.09));
 
   const gradient = vec3(derivativeX, derivativeY, derivativeZ).mul(amplitudeNode);
   const perturbedNormal = normalize(normalLocal.sub(gradient));
@@ -116,6 +138,8 @@ export function createWaterSurfaceMaterial(options = {}) {
     abs(derivativeX).add(abs(derivativeY)).mul(foamScale)
       .add(abs(waveRipple).mul(0.18))
       .add(abs(waveDiagonal).mul(0.15))
+      .add(abs(waveTilePrimary).mul(0.13))
+      .add(abs(waveTileCross).mul(0.12))
       .sub(0.1),
     0,
     1,
