@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import 'three/tsl';
 
 const SURFACE_PROPERTY_KEYS = [
   'color',
