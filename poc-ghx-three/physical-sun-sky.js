@@ -204,12 +204,13 @@ export class PhysicalSunSky {
     this.sunLight.shadow.mapSize.set(2048, 2048);
     const shadowCamera = this.sunLight.shadow.camera;
     if (shadowCamera && shadowCamera.isOrthographicCamera) {
-      shadowCamera.left = -2000;
-      shadowCamera.right = 2000;
-      shadowCamera.top = 2000;
-      shadowCamera.bottom = -2000;
+      shadowCamera.left = -8000;
+      shadowCamera.right = 8000;
+      shadowCamera.top = 8000;
+      shadowCamera.bottom = -8000;
       shadowCamera.near = 1;
       shadowCamera.far = SUN_DISTANCE;
+      shadowCamera.updateProjectionMatrix?.();
     }
     this.sunTarget = new THREE.Object3D();
     this.sunTarget.name = 'PhysicalSunTarget';
