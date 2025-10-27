@@ -30,8 +30,36 @@ export class CascadedShadowMaps {
     this._shadowNodeValidated = false;
     this._shadowNodeFailed = false;
     this._desiredFade = Boolean(this.options.fade);
+    this._stateChangeCallback = null;
 
     this.configureLight();
+  }
+
+  setStateChangeCallback(callback) {
+    if (typeof callback === 'function') {
+      this._stateChangeCallback = callback;
+    } else {
+      this._stateChangeCallback = null;
+    }
+
+    if (this._stateChangeCallback) {
+      this._emitStateChange(Boolean(this.shadowNode));
+    }
+  }
+
+  _emitStateChange(hasShadowNode) {
+    if (!this._stateChangeCallback) {
+      return;
+    }
+
+    try {
+      this._stateChangeCallback({
+        hasShadowNode: Boolean(hasShadowNode),
+        shadowNode: hasShadowNode ? this.shadowNode : null,
+      });
+    } catch (error) {
+      console.warn('CascadedShadowMaps: state change callback error', error);
+    }
   }
 
   configureLight() {
@@ -66,6 +94,8 @@ export class CascadedShadowMaps {
   }
 
   disposeShadowNode({ preserveFailure = false } = {}) {
+    const hadShadowNode = Boolean(this.shadowNode);
+
     if (this.shadowNode) {
       try {
         this.shadowNode.dispose();
@@ -80,6 +110,10 @@ export class CascadedShadowMaps {
     this._shadowNodeValidated = false;
     if (!preserveFailure) {
       this._shadowNodeFailed = false;
+    }
+
+    if (hadShadowNode) {
+      this._emitStateChange(false);
     }
   }
 
@@ -132,7 +166,11 @@ export class CascadedShadowMaps {
       if (this.camera?.isCamera) {
         this.shadowNode.camera = this.camera;
       }
-      this.light.shadow.shadowNode = this.shadowNode;
+      const lightShadow = this.light?.shadow;
+      if (lightShadow && lightShadow.shadowNode !== this.shadowNode) {
+        lightShadow.shadowNode = this.shadowNode;
+        this._emitStateChange(true);
+      }
       this._needsFrustumUpdate = true;
       this._shadowNodeValidated = false;
     }
