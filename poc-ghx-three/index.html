@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Grasshopper GHX → Three.js POC</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: #111;
+        color: #f5f5f5;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: 0.75rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        letter-spacing: 0.02em;
+      }
+
+      header .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      input[type="file"] {
+        color: inherit;
+      }
+
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) 1fr;
+        min-height: 0;
+      }
+
+      aside {
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 1rem 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        overflow-y: auto;
+      }
+
+      .status {
+        font-size: 0.9rem;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .sliders {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .slider {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .slider-label {
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .slider-inputs {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .slider-inputs input[type="range"] {
+        width: 100%;
+      }
+
+      .slider-inputs input[type="number"] {
+        width: 4.5rem;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        color: inherit;
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-weight: 600;
+      }
+
+      .toggle-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .toggle-controls input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: #2c9cf5;
+      }
+
+      .toggle-state {
+        font-size: 0.85rem;
+        text-transform: lowercase;
+        opacity: 0.75;
+      }
+
+      .viewport {
+        position: relative;
+        background: #1a1a1a;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Three.js GHX Parser — Proof of Concept</h1>
+      <div class="actions">
+        <label>
+          <span style="display:none">GHX bestand</span>
+          <input id="ghx-input" type="file" accept=".ghx,.xml" />
+        </label>
+        <output id="status" class="status">Selecteer een GHX-bestand om te starten.</output>
+      </div>
+    </header>
+    <main>
+      <aside>
+        <section>
+          <h2 style="margin:0 0 0.5rem 0;font-size:1rem;letter-spacing:0.03em;text-transform:uppercase;">Weergave</h2>
+          <label class="toggle">
+            <span>Lijnen &amp; punten tonen</span>
+            <span class="toggle-controls">
+              <input id="overlay-toggle" type="checkbox" role="switch" aria-checked="false" aria-label="Toon lijnen en punten" />
+              <span id="overlay-state" class="toggle-state">false</span>
+            </span>
+          </label>
+        </section>
+        <section>
+          <h2 style="margin:0 0 0.5rem 0;font-size:1rem;letter-spacing:0.03em;text-transform:uppercase;">Sliders</h2>
+          <div id="slider-container" class="sliders" aria-live="polite"></div>
+        </section>
+      </aside>
+      <section class="viewport">
+        <canvas id="viewport" aria-label="3D weergave"></canvas>
+      </section>
+    </main>
+    <script type="importmap">
+      {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+            "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+            "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.tsl.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import { withVersion } from './version.js';
+
+      const versionedImport = (path) => import(withVersion(path));
+
+      const [
+        { initScene },
+        { createEngine },
+        { defaultRegistry },
+        { createSliderUI },
+        { parseGHX },
+      ] = await Promise.all([
+        versionedImport('./three-scene.js'),
+        versionedImport('./engine.js'),
+        versionedImport('./registry.js'),
+        versionedImport('./ui.js'),
+        versionedImport('./ghx-loader.js'),
+      ]);
+
+      const canvas = document.getElementById('viewport');
+      const statusEl = document.getElementById('status');
+      const sliderContainer = document.getElementById('slider-container');
+      const fileInput = document.getElementById('ghx-input');
+      const overlayToggle = document.getElementById('overlay-toggle');
+      const overlayState = document.getElementById('overlay-state');
+
+      const sceneApi = initScene(canvas);
+      const webgpuSupported = sceneApi.isWebGPUSupported();
+      const engine = createEngine({
+        registry: defaultRegistry,
+        updateMesh: sceneApi.updateMesh,
+        onLog: (message) => console.info('[engine]', message),
+        onError: (message) => console.warn('[engine]', message)
+      });
+
+      const ui = createSliderUI({
+        container: sliderContainer,
+        engine,
+      });
+
+      engine.on('sliders-changed', ui.render);
+      engine.on('evaluation', (payload) => {
+        if (payload?.message) {
+          statusEl.textContent = payload.message;
+        }
+      });
+
+      const syncOverlay = (checked) => {
+        overlayState.textContent = checked ? 'true' : 'false';
+        overlayToggle.setAttribute('aria-checked', checked ? 'true' : 'false');
+        sceneApi.setOverlayEnabled(checked);
+      };
+
+      overlayToggle.addEventListener('change', () => {
+        syncOverlay(overlayToggle.checked);
+      });
+
+      syncOverlay(Boolean(overlayToggle.checked));
+
+      if (!webgpuSupported) {
+        statusEl.textContent = 'WebGPU wordt niet ondersteund in deze browser of op dit apparaat.';
+      } else {
+        sceneApi.whenRendererReady().catch((error) => {
+          const reason = error?.message ? `WebGPU-fout: ${error.message}` : 'WebGPU kon niet worden geïnitialiseerd.';
+          statusEl.textContent = reason;
+        });
+      }
+
+      const mockGraph = {
+        nodes: [
+          {
+            id: 'slider-width',
+            name: 'Breedte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Breedte', min: 500, max: 5000, step: 100, value: 2000 },
+          },
+          {
+            id: 'slider-height',
+            name: 'Hoogte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Hoogte', min: 500, max: 5000, step: 100, value: 1500 },
+          },
+          {
+            id: 'slider-depth',
+            name: 'Diepte',
+            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
+            meta: { label: 'Diepte', min: 500, max: 5000, step: 100, value: 3000 },
+          },
+          {
+            id: 'box-node',
+            name: 'Box',
+            guid: '{56F1D440-0B71-44DE-93D5-3C96BF53B78F}',
+            inputs: { W: 2000, H: 1500, D: 3000 },
+          },
+        ],
+        wires: [
+          { from: { node: 'slider-width', pin: 'value' }, to: { node: 'box-node', pin: 'W' } },
+          { from: { node: 'slider-height', pin: 'value' }, to: { node: 'box-node', pin: 'H' } },
+          { from: { node: 'slider-depth', pin: 'value' }, to: { node: 'box-node', pin: 'D' } },
+        ],
+      };
+
+      engine.loadGraph(mockGraph);
+      engine.evaluate();
+
+      if (webgpuSupported) {
+        statusEl.textContent = 'Mock-graph actief: pas sliders aan om de box te wijzigen.';
+      }
+
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (!file) {
+          statusEl.textContent = 'Geen bestand geselecteerd.';
+          return;
+        }
+
+        statusEl.textContent = `Bezig met inlezen van ${file.name}...`;
+
+        try {
+          const graph = await parseGHX(file);
+          engine.loadGraph(graph);
+          engine.evaluate();
+
+          const sliderCount = engine.listSliders().length;
+          const summaryParts = [`${graph.nodes.length} nodes`];
+          summaryParts.push(sliderCount === 1 ? '1 slider' : `${sliderCount} sliders`);
+          if (!graph.wires?.length) {
+            summaryParts.push('wires nog niet geïmplementeerd');
+          }
+          statusEl.textContent = `GHX geladen: ${summaryParts.join(', ')}.`;
+        } catch (error) {
+          console.error('GHX parse error', error);
+          statusEl.textContent = `Fout bij inlezen: ${error?.message ?? 'onbekende fout'}`;
+        }
+      });
+    </script>
+  </body>
+</html>
