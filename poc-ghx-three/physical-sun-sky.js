@@ -184,6 +184,7 @@ export class PhysicalSunSky {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.sunDirection = new THREE.Vector3(0, 0, 1);
     this.targetPosition = new THREE.Vector3();
+    this._sunLightPosition = new THREE.Vector3();
     this.sky = new SkyMesh();
     this.sky.name = 'PhysicalSunSkyDome';
     this.sky.scale.setScalar(SUN_DISTANCE * 0.9);
@@ -219,6 +220,8 @@ export class PhysicalSunSky {
     this.sunLight.target = this.sunTarget;
     this.scene.add(this.sunLight);
     this.sunTarget.position.copy(this.targetPosition);
+    this.sunTarget.updateMatrixWorld();
+    this.updateSunLightTransform();
 
     this.fillLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.25);
     this.fillLight.name = 'PhysicalSkyHemisphere';
@@ -250,7 +253,7 @@ export class PhysicalSunSky {
     this.targetPosition.copy(next);
     this.sunTarget.position.copy(this.targetPosition);
     this.sunTarget.updateMatrixWorld();
-    this.sunLight?.updateMatrixWorld?.();
+    this.updateSunLightTransform();
   }
 
   setRenderer(renderer) {
@@ -303,10 +306,9 @@ export class PhysicalSunSky {
     const lux = computeSunIlluminance(elevation) * this.options.intensityMultiplier;
     const sunIntensity = convertLuxToDirectionalIntensity(lux);
     this.sunLight.intensity = sunIntensity;
-    this.sunLight.position.copy(this.sunDirection).multiplyScalar(SUN_DISTANCE);
     this.sunTarget.position.copy(this.targetPosition);
-    this.sunLight.updateMatrixWorld();
     this.sunTarget.updateMatrixWorld();
+    this.updateSunLightTransform();
 
     const hemiSky = sunColor.clone().lerp(new THREE.Color(0x87ceeb), 0.5);
     const ground = new THREE.Color().setScalar(0.2 + 0.6 * clamp(this.options.groundAlbedo, 0, 1));
@@ -318,6 +320,21 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
     this.applyExposure(sunIntensity);
     this.updateEnvironment();
+  }
+
+  updateSunLightTransform() {
+    if (!this.sunLight) {
+      return;
+    }
+
+    this._sunLightPosition
+      .copy(this.sunDirection)
+      .multiplyScalar(SUN_DISTANCE)
+      .add(this.targetPosition);
+
+    this.sunLight.position.copy(this._sunLightPosition);
+    this.sunLight.updateMatrixWorld();
+    this.sunLight.shadow?.camera?.updateMatrixWorld?.();
   }
 
   updateEnvironment() {
