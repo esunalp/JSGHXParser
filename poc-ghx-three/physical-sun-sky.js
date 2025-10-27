@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { Sky } from 'three/addons/objects/Sky.js';
+import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
@@ -8,6 +8,7 @@ const JULIAN_EPOCH = 2440587.5;
 const JULIAN_J2000 = 2451545;
 const EARTH_TILT = DEG2RAD * 23.4397;
 const SUN_DISTANCE = 100000;
+const SKY_UP_VECTOR = new THREE.Vector3(0, 0, 1);
 const DEFAULT_OPTIONS = {
   lat: 52.3676,
   lon: 4.9041,
@@ -128,20 +129,43 @@ function computeSunIlluminance(elevation) {
   return baseLux * Math.pow(sine, 0.6);
 }
 
+function setScalarUniform(target, value) {
+  if (!target) {
+    return;
+  }
+  if ('value' in target) {
+    target.value = value;
+  } else if (typeof target.setValue === 'function') {
+    target.setValue(value);
+  }
+}
+
+function setVectorUniform(target, vector) {
+  if (!target || !vector?.isVector3) {
+    return;
+  }
+  if (target.value?.isVector3) {
+    target.value.copy(vector);
+  } else if (typeof target.copy === 'function') {
+    target.copy(vector);
+  }
+}
+
 export class PhysicalSunSky {
   constructor(scene, options = {}) {
     this.scene = scene;
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.sunDirection = new THREE.Vector3(0, 0, 1);
-    this.sky = new Sky();
+    this.sky = new SkyMesh();
     this.sky.name = 'PhysicalSunSkyDome';
     this.sky.scale.setScalar(SUN_DISTANCE * 0.9);
     this.sky.frustumCulled = false;
     this.sky.material.depthWrite = false;
-    this.sky.material.uniforms.turbidity.value = this.options.turbidity;
-    this.sky.material.uniforms.rayleigh.value = this.options.rayleigh;
-    this.sky.material.uniforms.mieCoefficient.value = this.options.mieCoefficient;
-    this.sky.material.uniforms.mieDirectionalG.value = this.options.mieDirectionalG;
+    setScalarUniform(this.sky.turbidity, this.options.turbidity);
+    setScalarUniform(this.sky.rayleigh, this.options.rayleigh);
+    setScalarUniform(this.sky.mieCoefficient, this.options.mieCoefficient);
+    setScalarUniform(this.sky.mieDirectionalG, this.options.mieDirectionalG);
+    setVectorUniform(this.sky.upUniform, SKY_UP_VECTOR);
 
     this.scene.add(this.sky);
 
@@ -203,17 +227,16 @@ export class PhysicalSunSky {
   update(options = {}) {
     this.options = { ...this.options, ...options };
 
-    const uniforms = this.sky.material.uniforms;
-    uniforms.turbidity.value = this.options.turbidity;
-    uniforms.rayleigh.value = this.options.rayleigh;
-    uniforms.mieCoefficient.value = this.options.mieCoefficient;
-    uniforms.mieDirectionalG.value = this.options.mieDirectionalG;
+    setScalarUniform(this.sky.turbidity, this.options.turbidity);
+    setScalarUniform(this.sky.rayleigh, this.options.rayleigh);
+    setScalarUniform(this.sky.mieCoefficient, this.options.mieCoefficient);
+    setScalarUniform(this.sky.mieDirectionalG, this.options.mieDirectionalG);
 
     const { azimuth, elevation } = computeSunAngles(this.options);
     const phi = clamp(Math.PI / 2 - elevation, 0.0001, Math.PI - 0.0001);
     const theta = azimuth;
     this.sunDirection.setFromSphericalCoords(1, phi, theta);
-    uniforms.sunPosition.value.copy(this.sunDirection);
+    setVectorUniform(this.sky.sunPosition, this.sunDirection);
 
     const sunColor = computeSunColor(elevation, this.options.turbidity);
     this.sunLight.color.copy(sunColor);
