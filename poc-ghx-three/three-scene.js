@@ -188,14 +188,34 @@ function applyMeshSide(object, side) {
   }
   object.traverse((child) => {
     if (child.isMesh) {
+      if (child.userData?.isProceduralWaterReflectionTarget) {
+        return;
+      }
       const convertedMaterial = convertMaterialToNode(child.material, { side });
       if (convertedMaterial) {
         child.material = convertedMaterial;
       }
       applyMaterialSide(child.material, side);
       ensureGeometryHasVertexNormals(child.geometry);
+      applyMaterialHooks(child.material, child);
     }
   });
+}
+
+function applyMaterialHooks(material, mesh) {
+  if (!material) {
+    return;
+  }
+
+  if (Array.isArray(material)) {
+    material.forEach((entry) => applyMaterialHooks(entry, mesh));
+    return;
+  }
+
+  const hook = material?.userData?.setupProceduralWater;
+  if (typeof hook === 'function') {
+    hook(mesh);
+  }
 }
 
 function getEntryMagnitude(entry, fallback = 0) {
@@ -966,12 +986,16 @@ export function initScene(canvas) {
     }
     object.traverse((child) => {
       if (child.isMesh) {
+        if (child.userData?.isProceduralWaterReflectionTarget) {
+          return;
+        }
         const preparedMaterial = convertMaterialToNode(child.material, { side: DEFAULT_MESH_SIDE });
         if (preparedMaterial) {
           child.material = preparedMaterial;
         }
         applyMaterialSide(child.material, DEFAULT_MESH_SIDE);
         ensureGeometryHasVertexNormals(child.geometry);
+        applyMaterialHooks(child.material, child);
       }
       if (child.isMesh || child.isLine || child.isLineSegments || child.isPoints) {
         child.castShadow = true;

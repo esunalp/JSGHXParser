@@ -17,6 +17,7 @@ import {
   positionWorld,
   pow,
   reflect,
+  reflector,
   sin,
   vec2,
   vec3,
@@ -40,6 +41,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     side = THREE.DoubleSide,
     amplitude = 18,
     frequency = 0.0048,
+    reflectionResolution = 0.35,
   } = options;
 
   const material = new THREE.MeshPhysicalNodeMaterial({
@@ -100,6 +102,18 @@ export function createWaterSurfaceMaterial(options = {}) {
   const perturbedNormal = normalize(normalLocal.sub(gradient));
   material.normalNode = perturbedNormal;
 
+  const planarReflection = reflector({ resolution: reflectionResolution });
+  planarReflection.target.name = 'ProceduralWaterReflectionTarget';
+  planarReflection.target.matrixAutoUpdate = true;
+  planarReflection.target.frustumCulled = false;
+  planarReflection.target.userData.isProceduralWaterReflectionTarget = true;
+
+  const reflectionDistortion = vec2(
+    derivativeX.mul(0.08).add(rippleDirectionX.mul(waveRipple).mul(0.02)),
+    derivativeY.mul(0.08).add(rippleDirectionY.mul(waveRipple).mul(0.02)),
+  );
+  planarReflection.uvNode = planarReflection.uvNode.add(reflectionDistortion);
+
   const viewDirection = normalize(cameraPosition.sub(worldPosition));
   const incidentDirection = viewDirection.mul(float(-1));
 
@@ -132,11 +146,13 @@ export function createWaterSurfaceMaterial(options = {}) {
   );
   const reflectionVector = normalize(reflect(incidentDirection, perturbedNormal));
   const hasEnvironmentMap = Boolean(material.envMap);
-  const environmentReflection = hasEnvironmentMap
-    ? pmremTexture(reflectionVector, roughnessBase).mul(materialEnvIntensity)
-    : baseColour;
-  const environmentReflectionMix = hasEnvironmentMap ? reflectionMix : float(0);
-  const colourWithReflection = mix(baseColour, environmentReflection, environmentReflectionMix);
+  let combinedReflection = planarReflection;
+  if (hasEnvironmentMap) {
+    const environmentReflection = pmremTexture(reflectionVector, roughnessBase)
+      .mul(materialEnvIntensity);
+    combinedReflection = mix(planarReflection, environmentReflection, float(0.35));
+  }
+  const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(0.6));
 
   material.metalnessNode = float(0.02);
@@ -155,6 +171,61 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.opacityNode = float(1);
 
   material.userData.isProceduralWater = true;
+  material.userData.planarReflection = planarReflection;
+  material.userData.setupProceduralWater = (mesh) => {
+    if (!mesh?.isMesh) {
+      return;
+    }
+
+    if (mesh.userData?.proceduralWaterReflection) {
+      return;
+    }
+
+    const target = planarReflection?.target;
+    if (!target) {
+      return;
+    }
+
+    if (target.parent && target.parent !== mesh) {
+      target.parent.remove(target);
+    }
+
+    target.visible = true;
+    target.position.set(0, 0, 0);
+    target.rotation.set(0, 0, 0);
+    target.scale.setScalar(1);
+
+    mesh.add(target);
+
+    const geometry = mesh.geometry;
+    let scale = 1;
+    if (geometry) {
+      if (geometry.boundingSphere) {
+        scale = geometry.boundingSphere.radius * 2.2 || scale;
+      } else if (typeof geometry.computeBoundingSphere === 'function') {
+        geometry.computeBoundingSphere();
+        scale = geometry.boundingSphere?.radius * 2.2 || scale;
+      }
+    }
+    if (!Number.isFinite(scale) || scale <= 0) {
+      scale = 1;
+    }
+    target.scale.set(scale, scale, scale);
+    target.updateMatrixWorld(true);
+
+    const previousDispose = mesh.userData?.dispose;
+    mesh.userData.dispose = () => {
+      if (target.parent === mesh) {
+        mesh.remove(target);
+      }
+      mesh.userData.proceduralWaterReflection = false;
+      if (typeof previousDispose === 'function') {
+        previousDispose.call(mesh);
+      }
+    };
+
+    mesh.userData.proceduralWaterReflection = true;
+  };
   material.userData.previewColor = WATER_PREVIEW_COLOR.clone();
   material.needsUpdate = true;
 
