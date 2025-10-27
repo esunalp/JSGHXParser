@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import {
   abs,
+  cameraPosition,
   clamp,
   color,
   cos,
@@ -9,12 +10,15 @@ import {
   normalize,
   normalLocal,
   normalView,
+  pmremTexture,
   positionLocal,
   positionWorld,
   pow,
+  reflect,
   sin,
   vec3,
   mx_timer,
+  materialEnvIntensity,
 } from 'three/tsl';
 
 export const WATER_PREVIEW_COLOR = new THREE.Color(201 / 255, 233 / 255, 245 / 255);
@@ -103,6 +107,9 @@ export function createWaterSurfaceMaterial(options = {}) {
   const perturbedNormal = normalize(normalLocal.sub(gradient));
   material.normalNode = perturbedNormal;
 
+  const viewDirection = normalize(cameraPosition.sub(worldPosition));
+  const incidentDirection = viewDirection.mul(float(-1));
+
   const waveNormalized = combinedWave.mul(0.5).add(0.5);
   const foamScale = amplitudeNode.mul(baseFrequency).mul(64);
   const foamStrength = clamp(
@@ -117,16 +124,27 @@ export function createWaterSurfaceMaterial(options = {}) {
   const fresnelBase = clamp(float(1).sub(abs(normalView.z)), 0, 1);
   const fresnel = pow(fresnelBase, float(3));
   const colourBlend = clamp(waveNormalized.mul(0.3).add(fresnel.mul(0.6)), 0, 1);
+  const reflectionMix = clamp(fresnel.mul(float(0.85)).add(float(0.05)), 0, 1);
 
   const deepWaterColour = color(0x0f3a63);
   const shallowWaterColour = color(0x8dddf9);
   const foamColour = color(0xf6fdff);
 
   const baseColour = mix(deepWaterColour, shallowWaterColour, colourBlend);
-  material.colorNode = mix(baseColour, foamColour, foamStrength.mul(0.6));
+  const roughnessBase = clamp(
+    float(0.04)
+      .add(waveNormalized.mul(0.06))
+      .add(foamStrength.mul(0.12)),
+    0.03,
+    0.28,
+  );
+  const reflectionVector = normalize(reflect(incidentDirection, perturbedNormal));
+  const environmentReflection = pmremTexture(reflectionVector, roughnessBase).mul(materialEnvIntensity);
+  const colourWithReflection = mix(baseColour, environmentReflection, reflectionMix);
+  material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(0.6));
 
   material.metalnessNode = float(0.02);
-  material.roughnessNode = clamp(float(0.04).add(waveNormalized.mul(0.06)).add(foamStrength.mul(0.12)), 0.03, 0.28);
+  material.roughnessNode = roughnessBase;
   material.clearcoatNode = float(0.85);
   material.clearcoatRoughnessNode = clamp(float(0.02).add(foamStrength.mul(0.09)), 0.02, 0.12);
   material.transmissionNode = float(0.82);
