@@ -20,6 +20,7 @@ const DEFAULT_OPTIONS = {
   mieCoefficient: 0.005,
   mieDirectionalG: 0.8,
   groundAlbedo: 0.25,
+  autoExposure: true,
   exposure: 1.0,
   intensityMultiplier: 1.0,
 };
@@ -129,6 +130,25 @@ function computeSunIlluminance(elevation) {
   return baseLux * Math.pow(sine, 0.6);
 }
 
+function computeAutoExposure(lux) {
+  if (!Number.isFinite(lux) || lux <= 0) {
+    return 0.2;
+  }
+
+  const minLux = 50;
+  const maxLux = 120000;
+  const safeLux = THREE.MathUtils.clamp(lux, minLux, maxLux);
+  const minExposure = 0.015;
+  const maxExposure = 0.25;
+
+  const minLog = Math.log10(minLux);
+  const maxLog = Math.log10(maxLux);
+  const range = maxLog - minLog;
+  const normalized = range > 0 ? (Math.log10(safeLux) - minLog) / range : 0;
+
+  return THREE.MathUtils.lerp(maxExposure, minExposure, THREE.MathUtils.clamp(normalized, 0, 1));
+}
+
 function setScalarUniform(target, value) {
   if (!target) {
     return;
@@ -219,10 +239,18 @@ export class PhysicalSunSky {
     this.updateEnvironment();
   }
 
-  applyExposure() {
-    if (this.renderer && 'toneMappingExposure' in this.renderer) {
-      this.renderer.toneMappingExposure = this.options.exposure;
+  applyExposure(lux = null) {
+    if (!this.renderer || !('toneMappingExposure' in this.renderer)) {
+      return;
     }
+
+    let exposure = this.options.exposure;
+    if (this.options.autoExposure) {
+      const targetLux = Number.isFinite(lux) ? lux : this.sunLight?.intensity;
+      exposure = computeAutoExposure(targetLux);
+    }
+
+    this.renderer.toneMappingExposure = exposure;
   }
 
   update(options = {}) {
@@ -255,7 +283,7 @@ export class PhysicalSunSky {
     this.fillLight.intensity = 0.15 + 0.55 * clamp(Math.sin(Math.max(elevation, 0)), 0, 1);
 
     this.needsEnvironmentUpdate = true;
-    this.applyExposure();
+    this.applyExposure(lux);
     this.updateEnvironment();
   }
 
