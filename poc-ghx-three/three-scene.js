@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-// import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
+import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -51,13 +51,6 @@ function applyViewportToRenderer(renderer, viewport) {
   if (typeof renderer.setSize === 'function') {
     renderer.setSize(viewport.width, viewport.height, false);
   }
-}
-
-function createWebGLRenderer(canvas, viewport) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  applyRendererDefaults(renderer);
-  applyViewportToRenderer(renderer, viewport);
-  return renderer;
 }
 
 async function createWebGPURenderer(canvas, viewport) {
@@ -560,10 +553,7 @@ export function initScene(canvas) {
 
   let viewportState = getViewportSize(canvas);
 
-  const webglRenderer = createWebGLRenderer(canvas, viewportState);
   let webgpuRenderer = null;
-  let activeRenderer = webglRenderer;
-  let gpuRenderingEnabled = false;
 
   const webgpuSupported = typeof navigator !== 'undefined'
     && 'gpu' in navigator
@@ -583,7 +573,6 @@ export function initScene(canvas) {
   addHelpers(scene);
 
   function updateRendererViewports() {
-    applyViewportToRenderer(webglRenderer, viewportState);
     if (webgpuRenderer) {
       applyViewportToRenderer(webgpuRenderer, viewportState);
     }
@@ -925,6 +914,10 @@ export function initScene(canvas) {
   let webgpuInitPromise = null;
 
   async function ensureWebGPURenderer() {
+    if (!webgpuSupported) {
+      throw new Error('WebGPU wordt niet ondersteund in deze omgeving.');
+    }
+
     if (webgpuRenderer) {
       return webgpuRenderer;
     }
@@ -946,38 +939,22 @@ export function initScene(canvas) {
     return webgpuInitPromise;
   }
 
-  async function setGpuRenderingEnabled(value) {
-    if (value) {
-      if (!webgpuSupported) {
-        activeRenderer = webglRenderer;
-        gpuRenderingEnabled = false;
-        return { ok: false, reason: 'unsupported' };
-      }
-
-      try {
-        const renderer = await ensureWebGPURenderer();
-        activeRenderer = renderer;
-        gpuRenderingEnabled = true;
-        return { ok: true };
-      } catch (error) {
-        console.warn('WebGPU initialisatie mislukt', error);
-        activeRenderer = webglRenderer;
-        gpuRenderingEnabled = false;
-        return { ok: false, reason: 'error', error };
-      }
-    }
-
-    activeRenderer = webglRenderer;
-    gpuRenderingEnabled = false;
-    return { ok: true };
-  }
-
   function isGpuRenderingEnabled() {
-    return gpuRenderingEnabled && !!webgpuRenderer && activeRenderer === webgpuRenderer;
+    return Boolean(webgpuRenderer);
   }
 
   function isWebGPUSupported() {
     return webgpuSupported;
+  }
+
+  function whenRendererReady() {
+    return ensureWebGPURenderer();
+  }
+
+  if (webgpuSupported) {
+    whenRendererReady().catch((error) => {
+      console.warn('WebGPU initialisatie mislukt', error);
+    });
   }
 
   function disposeSceneObject(object) {
@@ -1158,8 +1135,8 @@ export function initScene(canvas) {
     requestAnimationFrame(animate);
     controls.update();
     sky.update(camera);
-    if (activeRenderer) {
-      activeRenderer.render(scene, camera);
+    if (webgpuRenderer) {
+      webgpuRenderer.render(scene, camera);
     }
   }
   animate();
@@ -1170,14 +1147,14 @@ export function initScene(canvas) {
     controls,
     updateMesh,
     setOverlayEnabled,
-    setGpuRenderingEnabled,
     isGpuRenderingEnabled,
     isWebGPUSupported,
+    whenRendererReady,
   };
 
   Object.defineProperty(api, 'renderer', {
     get() {
-      return activeRenderer;
+      return webgpuRenderer;
     },
   });
 
