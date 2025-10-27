@@ -728,15 +728,6 @@ export function initScene(canvas) {
     controls.update();
   }
 
-  function computeSceneOrbitCenter() {
-    const fallbackTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
-    const sphere = computeWorldBoundingSphere(fallbackTarget);
-    if (sphere) {
-      return sphere.center.clone();
-    }
-    return new THREE.Vector3();
-  }
-
   function updatePointerFromEvent(event) {
     const bounds = renderer.domElement.getBoundingClientRect();
     const width = bounds.width;
@@ -796,17 +787,73 @@ export function initScene(canvas) {
     return action === THREE.MOUSE.ROTATE;
   }
 
+  const ORBIT_CLICK_DISTANCE_SQ = 4 * 4; // squared distance threshold (~4px)
+  let pendingOrbitTarget = null;
+
+  function resetPendingOrbitTarget() {
+    pendingOrbitTarget = null;
+  }
+
   function handlePointerDown(event) {
     if (!isOrbitMouseButton(event)) {
+      resetPendingOrbitTarget();
       return;
     }
 
     const intersection = findPointerIntersection(event);
-    const targetPoint = intersection ?? computeSceneOrbitCenter();
-    updateOrbitTarget(targetPoint);
+    const targetPoint = intersection ?? null;
+
+    pendingOrbitTarget = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      moved: false,
+      targetPoint,
+    };
+  }
+
+  function handlePointerMove(event) {
+    if (!pendingOrbitTarget || event.pointerId !== pendingOrbitTarget.pointerId) {
+      return;
+    }
+
+    const dx = event.clientX - pendingOrbitTarget.clientX;
+    const dy = event.clientY - pendingOrbitTarget.clientY;
+    if (dx * dx + dy * dy > ORBIT_CLICK_DISTANCE_SQ) {
+      pendingOrbitTarget.moved = true;
+    }
+  }
+
+  function handlePointerUp(event) {
+    if (!pendingOrbitTarget || event.pointerId !== pendingOrbitTarget.pointerId) {
+      return;
+    }
+
+    const info = pendingOrbitTarget;
+    resetPendingOrbitTarget();
+
+    if (info.moved) {
+      return;
+    }
+
+    if (!isOrbitMouseButton(event)) {
+      return;
+    }
+
+    updateOrbitTarget(info.targetPoint);
+  }
+
+  function handlePointerCancel(event) {
+    if (pendingOrbitTarget && event.pointerId === pendingOrbitTarget.pointerId) {
+      resetPendingOrbitTarget();
+    }
   }
 
   renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+  renderer.domElement.addEventListener('pointermove', handlePointerMove);
+  renderer.domElement.addEventListener('pointerup', handlePointerUp);
+  renderer.domElement.addEventListener('pointerleave', handlePointerCancel);
+  renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
 
   function disposeSceneObject(object) {
     if (!object) {
