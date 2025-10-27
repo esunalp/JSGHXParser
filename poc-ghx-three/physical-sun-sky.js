@@ -130,21 +130,30 @@ function computeSunIlluminance(elevation) {
   return baseLux * Math.pow(sine, 0.6);
 }
 
-function computeAutoExposure(lux) {
+function convertLuxToDirectionalIntensity(lux) {
   if (!Number.isFinite(lux) || lux <= 0) {
-    return 0.2;
+    return 0;
   }
 
-  const safeLux = THREE.MathUtils.clamp(lux, 0.1, 200000);
+  const referenceLux = 120000;
+  const referenceIntensity = 7.5;
 
-  // Map illuminance (lux) to an exposure curve that loosely mimics
-  // photographic EV behaviour. 1000 lux is treated as a "neutral" point
-  // (roughly a well lit interior), values above it push the exposure down
-  // quickly while darker scenes ramp up more gently.
-  const normalized = safeLux / 1000;
-  const exposure = 0.05 * Math.pow(normalized, -1.2);
+  const normalized = THREE.MathUtils.clamp(lux / referenceLux, 0, 8);
+  const smooth = Math.pow(normalized, 0.65);
 
-  return THREE.MathUtils.clamp(exposure, 0.00008, 0.35);
+  return referenceIntensity * smooth;
+}
+
+function computeAutoExposure(illumination) {
+  if (!Number.isFinite(illumination) || illumination <= 0) {
+    return 0.9;
+  }
+
+  const safeIllumination = THREE.MathUtils.clamp(illumination, 0.05, 80);
+  const normalized = safeIllumination / 5;
+  const exposure = 0.9 / (1 + normalized * 0.85);
+
+  return THREE.MathUtils.clamp(exposure, 0.35, 1.15);
 }
 
 function setScalarUniform(target, value) {
@@ -237,15 +246,15 @@ export class PhysicalSunSky {
     this.updateEnvironment();
   }
 
-  applyExposure(lux = null) {
+  applyExposure(illumination = null) {
     if (!this.renderer || !('toneMappingExposure' in this.renderer)) {
       return;
     }
 
     let exposure = this.options.exposure;
     if (this.options.autoExposure) {
-      const targetLux = Number.isFinite(lux) ? lux : this.sunLight?.intensity;
-      exposure = computeAutoExposure(targetLux);
+      const target = Number.isFinite(illumination) ? illumination : this.sunLight?.intensity;
+      exposure = computeAutoExposure(target);
     }
 
     this.renderer.toneMappingExposure = exposure;
@@ -268,20 +277,22 @@ export class PhysicalSunSky {
     const sunColor = computeSunColor(elevation, this.options.turbidity);
     this.sunLight.color.copy(sunColor);
     const lux = computeSunIlluminance(elevation) * this.options.intensityMultiplier;
-    this.sunLight.intensity = lux;
+    const sunIntensity = convertLuxToDirectionalIntensity(lux);
+    this.sunLight.intensity = sunIntensity;
     this.sunLight.position.copy(this.sunDirection).multiplyScalar(SUN_DISTANCE);
     this.sunTarget.position.set(0, 0, 0);
     this.sunLight.updateMatrixWorld();
     this.sunTarget.updateMatrixWorld();
 
-    const hemiSky = sunColor.clone().lerp(new THREE.Color(0x87ceeb), 0.35);
-    const ground = new THREE.Color().setScalar(clamp(this.options.groundAlbedo, 0, 1));
+    const hemiSky = sunColor.clone().lerp(new THREE.Color(0x87ceeb), 0.5);
+    const ground = new THREE.Color().setScalar(0.2 + 0.6 * clamp(this.options.groundAlbedo, 0, 1));
     this.fillLight.color.copy(hemiSky);
     this.fillLight.groundColor.copy(ground);
-    this.fillLight.intensity = 0.15 + 0.55 * clamp(Math.sin(Math.max(elevation, 0)), 0, 1);
+    const daylightFactor = clamp(Math.sin(Math.max(elevation, 0)), 0, 1);
+    this.fillLight.intensity = 0.35 + 0.75 * daylightFactor;
 
     this.needsEnvironmentUpdate = true;
-    this.applyExposure(lux);
+    this.applyExposure(sunIntensity);
     this.updateEnvironment();
   }
 
