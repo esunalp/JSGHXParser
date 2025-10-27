@@ -7991,22 +7991,158 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
     return points;
   }
 
-  function extendCurvePoints(curve, startLength, endLength) {
-    const points = extractCurvePoints(curve, 64);
-    if (points.length < 2) {
-      return points;
+  function addPointIfDistinct(points, point) {
+    if (!point) {
+      return;
     }
-    const startPoint = points[0].clone();
-    const endPoint = points[points.length - 1].clone();
-    const startTangent = normalizeVector(curveTangentAt(curve, 0), points[1].clone().sub(points[0]).normalize());
-    const endTangent = normalizeVector(curveTangentAt(curve, 1), points[points.length - 1].clone().sub(points[points.length - 2]).normalize());
-    const extended = points.map((pt) => pt.clone());
-    if (startLength > EPSILON) {
-      const extension = startTangent.clone().multiplyScalar(-startLength);
+    if (!points.length) {
+      points.push(point.clone());
+      return;
+    }
+    const last = points[points.length - 1];
+    if (last.distanceToSquared(point) > EPSILON * EPSILON) {
+      points.push(point.clone());
+    }
+  }
+
+  function shortenPolylineStart(pointsInput, distance) {
+    if (!pointsInput.length) {
+      return [];
+    }
+    if (pointsInput.length === 1 || distance <= EPSILON) {
+      return pointsInput.map((pt) => pt.clone());
+    }
+    const points = pointsInput.map((pt) => pt.clone());
+    let remaining = distance;
+    let index = 0;
+    let newStart = points[0].clone();
+    while (index < points.length - 1 && remaining > EPSILON) {
+      const current = points[index];
+      const next = points[index + 1];
+      const segment = next.clone().sub(current);
+      const segmentLength = segment.length();
+      if (segmentLength <= EPSILON) {
+        index += 1;
+        newStart = next.clone();
+        continue;
+      }
+      if (remaining >= segmentLength - EPSILON) {
+        remaining -= segmentLength;
+        index += 1;
+        newStart = next.clone();
+        continue;
+      }
+      const ratio = remaining / segmentLength;
+      newStart = current.clone().add(segment.multiplyScalar(ratio));
+      remaining = 0;
+      index += 1;
+      break;
+    }
+    const result = [];
+    addPointIfDistinct(result, newStart);
+    for (let i = index; i < points.length; i += 1) {
+      addPointIfDistinct(result, points[i]);
+    }
+    if (result.length === 1) {
+      result.push(result[0].clone());
+    }
+    return result;
+  }
+
+  function shortenPolylineEnd(pointsInput, distance) {
+    if (!pointsInput.length) {
+      return [];
+    }
+    if (pointsInput.length === 1 || distance <= EPSILON) {
+      return pointsInput.map((pt) => pt.clone());
+    }
+    const points = pointsInput.map((pt) => pt.clone());
+    let remaining = distance;
+    let index = points.length - 1;
+    let newEnd = points[index].clone();
+    while (index > 0 && remaining > EPSILON) {
+      const current = points[index];
+      const prev = points[index - 1];
+      const segment = current.clone().sub(prev);
+      const segmentLength = segment.length();
+      if (segmentLength <= EPSILON) {
+        index -= 1;
+        newEnd = prev.clone();
+        continue;
+      }
+      if (remaining >= segmentLength - EPSILON) {
+        remaining -= segmentLength;
+        index -= 1;
+        newEnd = prev.clone();
+        continue;
+      }
+      const ratio = remaining / segmentLength;
+      newEnd = prev.clone().lerp(current, 1 - ratio);
+      remaining = 0;
+      index -= 1;
+      break;
+    }
+    const result = [];
+    for (let i = 0; i <= index; i += 1) {
+      addPointIfDistinct(result, points[i]);
+    }
+    addPointIfDistinct(result, newEnd);
+    if (result.length === 1) {
+      result.unshift(result[0].clone());
+    }
+    return result;
+  }
+
+  function extendCurvePoints(curve, startLength, endLength) {
+    const basePoints = extractCurvePoints(curve, 64);
+    if (basePoints.length < 2) {
+      return basePoints.map((pt) => pt.clone());
+    }
+    const shortenStart = startLength < -EPSILON ? -startLength : 0;
+    const shortenEnd = endLength < -EPSILON ? -endLength : 0;
+    const extendStart = startLength > EPSILON ? startLength : 0;
+    const extendEnd = endLength > EPSILON ? endLength : 0;
+
+    let adjusted = basePoints.map((pt) => pt.clone());
+    if (shortenStart > EPSILON) {
+      adjusted = shortenPolylineStart(adjusted, shortenStart);
+    }
+    if (shortenEnd > EPSILON) {
+      adjusted = shortenPolylineEnd(adjusted, shortenEnd);
+    }
+    if (adjusted.length < 2) {
+      return adjusted;
+    }
+
+    const startPoint = adjusted[0].clone();
+    const endPoint = adjusted[adjusted.length - 1].clone();
+
+    const fallbackStart = normalizeVector(curveTangentAt(curve, 0), new THREE.Vector3(1, 0, 0));
+    const fallbackEnd = normalizeVector(curveTangentAt(curve, 1), new THREE.Vector3(1, 0, 0));
+
+    let startTangent = fallbackStart.clone();
+    if (adjusted.length >= 2) {
+      const startSegment = adjusted[1].clone().sub(adjusted[0]);
+      if (startSegment.lengthSq() > EPSILON) {
+        startTangent = startSegment.normalize();
+      }
+    }
+
+    let endTangent = fallbackEnd.clone();
+    if (adjusted.length >= 2) {
+      const endSegment = adjusted[adjusted.length - 1].clone().sub(adjusted[adjusted.length - 2]);
+      if (endSegment.lengthSq() > EPSILON) {
+        endTangent = endSegment.normalize();
+      }
+    }
+
+    const extended = adjusted.map((pt) => pt.clone());
+    if (extendStart > EPSILON) {
+      const extension = startTangent.clone().multiplyScalar(-extendStart);
       extended.unshift(startPoint.clone().add(extension));
     }
-    if (endLength > EPSILON) {
-      const extension = endTangent.clone().multiplyScalar(endLength);
+    if (extendEnd > EPSILON) {
+      const extension = endTangent.clone().multiplyScalar(extendEnd);
       extended.push(endPoint.clone().add(extension));
     }
     return extended;
@@ -8671,9 +8807,11 @@ export function registerCurveUtilComponents({ register, toNumber, toVector3 }) {
         if (!curve) {
           return {};
         }
-        const startLength = Math.max(ensureNumber(inputs.startLength, 0), 0);
-        const endLength = Math.max(ensureNumber(inputs.endLength, 0), 0);
-        if (startLength <= EPSILON && endLength <= EPSILON) {
+        const rawStartLength = ensureNumber(inputs.startLength, 0);
+        const rawEndLength = ensureNumber(inputs.endLength, 0);
+        const startLength = Number.isFinite(rawStartLength) ? rawStartLength : 0;
+        const endLength = Number.isFinite(rawEndLength) ? rawEndLength : 0;
+        if (Math.abs(startLength) <= EPSILON && Math.abs(endLength) <= EPSILON) {
           return { curve };
         }
         const extendedPoints = extendCurvePoints(curve, startLength, endLength);
