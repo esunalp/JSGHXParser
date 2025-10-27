@@ -14,6 +14,7 @@ THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 // Toggle to enable or disable double sided rendering for viewport meshes.
 const ENABLE_DOUBLE_SIDED_MESHES = true;
+const ENABLE_DDGI = false;
 const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.FrontSide;
 
 const AXES_LENGTH_MM = 5000;
@@ -539,13 +540,15 @@ export function initScene(canvas) {
   const eventTarget = canvas;
 
   const sunSky = new PhysicalSunSky(scene);
-  const ddgiVolume = new DDGIProbeVolume(scene, sunSky, {
-    probeSpacing: 4000,
-    updateBudget: 128,
-    hysteresis: 0.96,
-    boundsPadding: 800,
-    maxDistance: 9000,
-  });
+  const ddgiVolume = ENABLE_DDGI
+    ? new DDGIProbeVolume(scene, sunSky, {
+        probeSpacing: 4000,
+        updateBudget: 128,
+        hysteresis: 0.96,
+        boundsPadding: 800,
+        maxDistance: 9000,
+      })
+    : null;
   addHelpers(scene);
 
   function updateRendererViewports() {
@@ -1061,7 +1064,7 @@ export function initScene(canvas) {
         fitCameraToSphere(sphere);
         needsFit = false;
       }
-      ddgiVolume.setSceneRoot(currentObject);
+      ddgiVolume?.setSceneRoot(currentObject);
       return;
     }
 
@@ -1069,7 +1072,7 @@ export function initScene(canvas) {
       scene.remove(currentObject);
       disposeSceneObject(currentObject);
       currentObject = null;
-      ddgiVolume.setSceneRoot(null);
+      ddgiVolume?.setSceneRoot(null);
     }
 
     if (!geometryOrMesh) {
@@ -1084,7 +1087,7 @@ export function initScene(canvas) {
       } else {
         needsFit = true;
       }
-      ddgiVolume.setSceneRoot(null);
+      ddgiVolume?.setSceneRoot(null);
       return;
     }
 
@@ -1107,7 +1110,7 @@ export function initScene(canvas) {
 
     currentObject = nextObject;
     scene.add(currentObject);
-    ddgiVolume.setSceneRoot(currentObject);
+    ddgiVolume?.setSceneRoot(currentObject);
 
     setOverlayData(overlayData);
 
@@ -1131,7 +1134,7 @@ export function initScene(canvas) {
     const elapsed = clock.elapsedTime;
     controls.update();
     sunSky.updateFrame(camera);
-    ddgiVolume.update(deltaTime, scene, elapsed, camera.position);
+    ddgiVolume?.update(deltaTime, scene, elapsed, camera.position);
     if (webgpuRenderer) {
       webgpuRenderer.render(scene, camera);
     }
