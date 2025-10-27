@@ -1169,6 +1169,20 @@ export function registerSurfacePrimitiveComponents({
       };
     }
 
+    if (curveInput.geometry && curveInput.geometry !== curveInput) {
+      const result = sampleCurvePoints(curveInput.geometry, segments, visited);
+      if (result.points.length) {
+        return result;
+      }
+    }
+
+    if (curveInput.geom && curveInput.geom !== curveInput) {
+      const result = sampleCurvePoints(curveInput.geom, segments, visited);
+      if (result.points.length) {
+        return result;
+      }
+    }
+
     if (curveInput.curve && curveInput.curve !== curveInput) {
       const result = sampleCurvePoints(curveInput.curve, segments, visited);
       if (result.points.length) {
