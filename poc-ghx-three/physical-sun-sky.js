@@ -183,6 +183,7 @@ export class PhysicalSunSky {
     this.scene = scene;
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.sunDirection = new THREE.Vector3(0, 0, 1);
+    this.targetPosition = new THREE.Vector3();
     this.sky = new SkyMesh();
     this.sky.name = 'PhysicalSunSkyDome';
     this.sky.scale.setScalar(SUN_DISTANCE * 0.9);
@@ -217,6 +218,7 @@ export class PhysicalSunSky {
     this.scene.add(this.sunTarget);
     this.sunLight.target = this.sunTarget;
     this.scene.add(this.sunLight);
+    this.sunTarget.position.copy(this.targetPosition);
 
     this.fillLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.25);
     this.fillLight.name = 'PhysicalSkyHemisphere';
@@ -228,6 +230,27 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
 
     this.update();
+  }
+
+  setTarget(position) {
+    if (!this.sunTarget) {
+      return;
+    }
+
+    const next = position?.isVector3
+      ? position
+      : (position && Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z))
+        ? position
+        : null;
+
+    if (!next) {
+      return;
+    }
+
+    this.targetPosition.copy(next);
+    this.sunTarget.position.copy(this.targetPosition);
+    this.sunTarget.updateMatrixWorld();
+    this.sunLight?.updateMatrixWorld?.();
   }
 
   setRenderer(renderer) {
@@ -281,7 +304,7 @@ export class PhysicalSunSky {
     const sunIntensity = convertLuxToDirectionalIntensity(lux);
     this.sunLight.intensity = sunIntensity;
     this.sunLight.position.copy(this.sunDirection).multiplyScalar(SUN_DISTANCE);
-    this.sunTarget.position.set(0, 0, 0);
+    this.sunTarget.position.copy(this.targetPosition);
     this.sunLight.updateMatrixWorld();
     this.sunTarget.updateMatrixWorld();
 
