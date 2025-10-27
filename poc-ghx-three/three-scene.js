@@ -11,6 +11,7 @@ const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
 const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
 const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
+const TEMP_CAMERA_OFFSET = new THREE.Vector3();
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -516,6 +517,9 @@ export function initScene(canvas) {
   controls.enableDamping = true;
   controls.screenSpacePanning = false;
 
+  const raycaster = new THREE.Raycaster();
+  const pointerNdc = new THREE.Vector2();
+
   const sky = createSkyDome(scene);
   addDefaultLights(scene);
   addHelpers(scene);
@@ -714,6 +718,103 @@ export function initScene(canvas) {
     camera.updateProjectionMatrix();
     controls.update();
   }
+
+  function updateOrbitTarget(targetPoint) {
+    if (!targetPoint?.isVector3) {
+      return;
+    }
+
+    TEMP_CAMERA_OFFSET.copy(camera.position).sub(controls.target);
+    const offsetLengthSq = TEMP_CAMERA_OFFSET.lengthSq();
+
+    controls.target.copy(targetPoint);
+
+    if (Number.isFinite(offsetLengthSq)) {
+      camera.position.copy(targetPoint).add(TEMP_CAMERA_OFFSET);
+    }
+
+    controls.update();
+  }
+
+  function computeSceneOrbitCenter() {
+    const fallbackTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
+    const sphere = computeWorldBoundingSphere(fallbackTarget);
+    if (sphere) {
+      return sphere.center.clone();
+    }
+    return new THREE.Vector3();
+  }
+
+  function updatePointerFromEvent(event) {
+    const bounds = renderer.domElement.getBoundingClientRect();
+    const width = bounds.width;
+    const height = bounds.height;
+    if (!width || !height) {
+      return false;
+    }
+
+    pointerNdc.x = ((event.clientX - bounds.left) / width) * 2 - 1;
+    pointerNdc.y = -((event.clientY - bounds.top) / height) * 2 + 1;
+    return true;
+  }
+
+  function findPointerIntersection(event) {
+    if (!updatePointerFromEvent(event)) {
+      return null;
+    }
+
+    raycaster.setFromCamera(pointerNdc, camera);
+
+    if (!currentObject) {
+      return null;
+    }
+
+    const intersections = raycaster.intersectObject(currentObject, true);
+    if (!intersections.length) {
+      return null;
+    }
+
+    return intersections[0].point.clone();
+  }
+
+  function isOrbitMouseButton(event) {
+    if (!event) {
+      return false;
+    }
+
+    if (!controls.enableRotate) {
+      return false;
+    }
+
+    if (event.pointerType === 'touch') {
+      return true;
+    }
+
+    if (event.shiftKey) {
+      return false;
+    }
+
+    const mapping = controls.mouseButtons ?? {};
+    const buttonMap = {
+      0: mapping.LEFT,
+      1: mapping.MIDDLE,
+      2: mapping.RIGHT,
+    };
+    const action = buttonMap[event.button];
+    return action === THREE.MOUSE.ROTATE;
+  }
+
+  function handlePointerDown(event) {
+    if (!isOrbitMouseButton(event)) {
+      return;
+    }
+
+    const intersection = findPointerIntersection(event);
+    const targetPoint = intersection ?? computeSceneOrbitCenter();
+    updateOrbitTarget(targetPoint);
+  }
+
+  renderer.domElement.addEventListener('pointerdown', handlePointerDown);
 
   function disposeSceneObject(object) {
     if (!object) {
