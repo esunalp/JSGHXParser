@@ -1,0 +1,249 @@
+import * as THREE from 'three/webgpu';
+import { CSMShadowNode } from 'three/addons/csm/CSMShadowNode.js';
+
+const DEFAULT_OPTIONS = {
+  cascades: 4,
+  maxFar: 60000,
+  mode: 'practical',
+  lightMargin: 400,
+  shadowMapSize: 2048,
+  shadowBias: -0.00045,
+  shadowNormalBias: 0.04,
+  shadowNear: 1,
+  shadowFar: 200000,
+  fade: true,
+};
+
+function isPositiveNumber(value) {
+  return Number.isFinite(value) && value > 0;
+}
+
+export class CascadedShadowMaps {
+  constructor(light, options = {}) {
+    this.light = light;
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.shadowNode = null;
+    this.camera = null;
+    this._projectionMatrix = null;
+    this._cameraParams = { near: null, far: null, zoom: null };
+    this._needsFrustumUpdate = true;
+
+    this.configureLight();
+  }
+
+  configureLight() {
+    if (!this.light?.shadow) {
+      return;
+    }
+
+    const shadow = this.light.shadow;
+    const { shadowMapSize, shadowBias, shadowNormalBias, shadowNear, shadowFar } = this.options;
+
+    if (isPositiveNumber(shadowMapSize)) {
+      shadow.mapSize.set(shadowMapSize, shadowMapSize);
+    }
+
+    if (Number.isFinite(shadowBias)) {
+      shadow.bias = shadowBias;
+    }
+
+    if (Number.isFinite(shadowNormalBias) && 'normalBias' in shadow) {
+      shadow.normalBias = shadowNormalBias;
+    }
+
+    if (Number.isFinite(shadowNear) && shadow.camera) {
+      shadow.camera.near = Math.max(shadowNear, 0.01);
+      shadow.camera.updateProjectionMatrix?.();
+    }
+
+    if (Number.isFinite(shadowFar) && shadow.camera) {
+      shadow.camera.far = Math.max(shadowFar, shadow.camera.near + 1);
+      shadow.camera.updateProjectionMatrix?.();
+    }
+  }
+
+  disposeShadowNode() {
+    if (this.shadowNode) {
+      try {
+        this.shadowNode.dispose();
+      } catch (error) {
+        console.warn('CascadedShadowMaps: failed to dispose shadow node', error);
+      }
+      if (this.light?.shadow) {
+        this.light.shadow.shadowNode = null;
+      }
+      this.shadowNode = null;
+    }
+  }
+
+  dispose() {
+    this.disposeShadowNode();
+    this.camera = null;
+    this._projectionMatrix = null;
+  }
+
+  setCamera(camera) {
+    if (!camera?.isCamera) {
+      return;
+    }
+
+    if (this.camera !== camera) {
+      this.camera = camera;
+      this._projectionMatrix = null;
+      this._cameraParams = { near: null, far: null, zoom: null };
+    }
+
+    this.ensureShadowNode();
+    if (this.shadowNode) {
+      this.shadowNode.camera = this.camera;
+    }
+
+    this.requestFrustumUpdate();
+  }
+
+  ensureShadowNode() {
+    if (!this.light?.shadow) {
+      return null;
+    }
+
+    if (!this.shadowNode) {
+      this.shadowNode = new CSMShadowNode(this.light, {
+        cascades: this.options.cascades,
+        maxFar: this.options.maxFar,
+        mode: this.options.mode,
+        lightMargin: this.options.lightMargin,
+      });
+      this.shadowNode.fade = Boolean(this.options.fade);
+      if (this.camera?.isCamera) {
+        this.shadowNode.camera = this.camera;
+      }
+      this.light.shadow.shadowNode = this.shadowNode;
+      this._needsFrustumUpdate = true;
+    }
+
+    return this.shadowNode;
+  }
+
+  setOptions(options = {}) {
+    if (!options || typeof options !== 'object') {
+      return;
+    }
+
+    const next = { ...this.options, ...options };
+    const cascadesChanged = next.cascades !== this.options.cascades;
+
+    this.options = next;
+
+    if (cascadesChanged && isPositiveNumber(next.cascades)) {
+      const camera = this.camera;
+      this.disposeShadowNode();
+      this.shadowNode = null;
+      this.ensureShadowNode();
+      if (this.shadowNode && camera) {
+        this.shadowNode.camera = camera;
+      }
+    }
+
+    if (this.shadowNode) {
+      if (Number.isFinite(next.maxFar)) {
+        this.shadowNode.maxFar = next.maxFar;
+      }
+      if (next.mode) {
+        this.shadowNode.mode = next.mode;
+      }
+      if (Number.isFinite(next.lightMargin)) {
+        this.shadowNode.lightMargin = next.lightMargin;
+      }
+      this.shadowNode.fade = Boolean(next.fade);
+    }
+
+    this.configureLight();
+    this.requestFrustumUpdate();
+  }
+
+  setShadowMapSize(size) {
+    if (!isPositiveNumber(size)) {
+      return;
+    }
+    this.options.shadowMapSize = size;
+    if (this.light?.shadow) {
+      this.light.shadow.mapSize.set(size, size);
+    }
+    this.requestFrustumUpdate();
+  }
+
+  setShadowBias(value) {
+    this.options.shadowBias = value;
+    if (this.light?.shadow && Number.isFinite(value)) {
+      this.light.shadow.bias = value;
+    }
+  }
+
+  setShadowNormalBias(value) {
+    this.options.shadowNormalBias = value;
+    if (this.light?.shadow && Number.isFinite(value) && 'normalBias' in this.light.shadow) {
+      this.light.shadow.normalBias = value;
+    }
+  }
+
+  setMaxFar(value) {
+    if (!Number.isFinite(value) || value <= 0) {
+      return;
+    }
+    this.options.maxFar = value;
+    if (this.shadowNode) {
+      this.shadowNode.maxFar = value;
+    }
+    this.requestFrustumUpdate();
+  }
+
+  notifyLightChanged() {
+    this.requestFrustumUpdate();
+  }
+
+  requestFrustumUpdate() {
+    this._needsFrustumUpdate = true;
+  }
+
+  update(camera = null) {
+    if (camera && camera !== this.camera) {
+      this.setCamera(camera);
+    }
+
+    if (!this.camera || !this.ensureShadowNode()) {
+      return;
+    }
+
+    const cam = this.camera;
+    cam.updateProjectionMatrix?.();
+
+    if (!this._projectionMatrix) {
+      this._projectionMatrix = new THREE.Matrix4().copy(cam.projectionMatrix);
+      this._cameraParams = {
+        near: cam.near,
+        far: cam.far,
+        zoom: cam.zoom,
+      };
+      this._needsFrustumUpdate = true;
+    } else {
+      const projectionChanged = !this._projectionMatrix.equals(cam.projectionMatrix);
+      const nearChanged = this._cameraParams.near !== cam.near;
+      const farChanged = this._cameraParams.far !== cam.far;
+      const zoomChanged = this._cameraParams.zoom !== cam.zoom;
+      if (projectionChanged || nearChanged || farChanged || zoomChanged) {
+        this._needsFrustumUpdate = true;
+      }
+    }
+
+    if (this._needsFrustumUpdate) {
+      this.shadowNode.updateFrustums();
+      this._projectionMatrix.copy(cam.projectionMatrix);
+      this._cameraParams = {
+        near: cam.near,
+        far: cam.far,
+        zoom: cam.zoom,
+      };
+      this._needsFrustumUpdate = false;
+    }
+  }
+}

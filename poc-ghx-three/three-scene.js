@@ -540,6 +540,7 @@ export function initScene(canvas) {
   const eventTarget = canvas;
 
   const sunSky = new PhysicalSunSky(scene);
+  sunSky.setCamera(camera);
   const ddgiVolume = ENABLE_DDGI
     ? new DDGIProbeVolume(scene, sunSky, {
         probeSpacing: 4000,
@@ -564,6 +565,7 @@ export function initScene(canvas) {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
     updateRendererViewports();
+    sunSky.notifyCameraProjectionChanged(camera);
   };
   resize();
   window.addEventListener('resize', resize);
@@ -750,6 +752,7 @@ export function initScene(canvas) {
     camera.near = Math.max(distance / 100, 0.01);
     camera.far = Math.max(distance * 4, distance + radius * 4, MAX_DRAW_DISTANCE_MM);
     camera.updateProjectionMatrix();
+    sunSky.notifyCameraProjectionChanged(camera);
     controls.update();
   }
 
