@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 import { PhysicalSunSky } from './physical-sun-sky.js';
