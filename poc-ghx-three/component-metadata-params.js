@@ -115,6 +115,30 @@ export const PARAMS_COMPONENTS = [
   },
   {
     "category": "Params",
+    "subcategory": "Util",
+    "name": "Relay",
+    "nickname": "Relay",
+    "guid": "b6236720-8d88-4289-93c3-ac4c99f9b97b",
+    "description": "A wire relay object",
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data to relay"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Relayed data"
+      }
+    ]
+  },
+  {
+    "category": "Params",
     "subcategory": "Input",
     "name": "Read File",
     "nickname": "File",

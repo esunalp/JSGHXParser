@@ -9,6 +9,18 @@ const RELAY_GUIDS = [
   'params:relay',
 ];
 
+function isTypedArray(value) {
+  return ArrayBuffer.isView(value) && !(value instanceof DataView);
+}
+
+function isPlainObject(value) {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
 function isDefined(value) {
   return value !== undefined && value !== null;
 }
@@ -101,6 +113,40 @@ function buildPanelPresentation(rawValue) {
   const lines = panelValueToLines(rawValue, text);
   const value = normalizePanelValue(rawValue, lines);
   return { value, text, lines };
+}
+
+function normalizeRelayValue(value) {
+  if (value === undefined) {
+    return {};
+  }
+
+  if (Array.isArray(value)) {
+    return { value, values: value };
+  }
+
+  if (isTypedArray(value)) {
+    return { value };
+  }
+
+  if (isPlainObject(value)) {
+    const payload = { ...value };
+    const hasValueProperty = Object.prototype.hasOwnProperty.call(payload, 'value');
+    const hasValuesProperty = Object.prototype.hasOwnProperty.call(payload, 'values');
+
+    if (!hasValueProperty) {
+      payload.value = value;
+    } else if (payload.value === undefined && hasValuesProperty) {
+      payload.value = payload.values;
+    }
+
+    if (!hasValuesProperty && Array.isArray(payload.value)) {
+      payload.values = payload.value;
+    }
+
+    return payload;
+  }
+
+  return { value };
 }
 
 function collectIncomingValues(inputs) {
@@ -252,6 +298,6 @@ export function registerParamsUtilComponents({ register }) {
         value: 'value',
       },
     },
-    eval: ({ inputs }) => ({ value: inputs?.value }),
+    eval: ({ inputs }) => normalizeRelayValue(inputs?.value),
   });
 }
