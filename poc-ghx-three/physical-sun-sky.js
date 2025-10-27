@@ -203,7 +203,7 @@ export class PhysicalSunSky {
     this.sunLight.castShadow = true;
     this.sunLight.shadow.bias = -0.0005;
     this.sunLight.shadow.normalBias = 0.02;
-    this.sunLight.shadow.mapSize.set(4096, 4096);
+    this.sunLight.shadow.mapSize.set(10240, 10240);
     const shadowCamera = this.sunLight.shadow.camera;
     if (shadowCamera && shadowCamera.isOrthographicCamera) {
       shadowCamera.left = -40000;
