@@ -11,7 +11,6 @@ const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
 const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
 const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
-const TEMP_CAMERA_OFFSET = new THREE.Vector3();
 
 function createRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -724,14 +723,7 @@ export function initScene(canvas) {
       return;
     }
 
-    TEMP_CAMERA_OFFSET.copy(camera.position).sub(controls.target);
-    const offsetLengthSq = TEMP_CAMERA_OFFSET.lengthSq();
-
     controls.target.copy(targetPoint);
-
-    if (Number.isFinite(offsetLengthSq)) {
-      camera.position.copy(targetPoint).add(TEMP_CAMERA_OFFSET);
-    }
 
     controls.update();
   }
