@@ -6,6 +6,7 @@ import {
   createTlsMaterial,
   ensureGeometryHasVertexNormals,
 } from './material-utils.js';
+import { createWaterSurfaceMaterial, isWaterPreviewColor } from './water-material.js';
 import { withVersion } from './version.js';
 
 const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
@@ -713,8 +714,18 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       if (!geometries.length) {
         return {};
       }
-      const material = ensureMaterial(inputs.material)
-        ?? createStandardSurfaceMaterial(
+      let material = ensureMaterial(inputs.material);
+
+      if (!material) {
+        const colourCandidate = parseColor(inputs.material, null);
+        if (colourCandidate && isWaterPreviewColor(colourCandidate)) {
+          material = createWaterSurfaceMaterial({ side: THREE.DoubleSide });
+          material.userData.source = 'procedural-water';
+        }
+      }
+
+      if (!material) {
+        material = createStandardSurfaceMaterial(
           {
             color: fallbackColor,
             metalness: 0.1,
@@ -722,6 +733,7 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
           },
           { side: THREE.DoubleSide },
         );
+      }
 
       const meshes = geometries
         .map((entry) => createMeshFromGeometry(entry, material))
@@ -878,18 +890,24 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       const shineInput = ensureNumber(toNumber, inputs.shine ?? 30, 30);
       const shininess = THREE.MathUtils.clamp(shineInput * 1.28, 0, 256);
 
-      const material = createTlsMaterial(
-        {
-          diffuse,
-          specular,
-          emissive,
-          transparency,
-          shininess,
-        },
-        { side: THREE.DoubleSide },
-      );
+      let material;
+      if (isWaterPreviewColor(diffuse)) {
+        material = createWaterSurfaceMaterial({ side: THREE.DoubleSide });
+        material.userData.source = 'procedural-water';
+      } else {
+        material = createTlsMaterial(
+          {
+            diffuse,
+            specular,
+            emissive,
+            transparency,
+            shininess,
+          },
+          { side: THREE.DoubleSide },
+        );
 
-      material.userData.source = 'create-material';
+        material.userData.source = 'create-material';
+      }
 
       return { material };
     },
