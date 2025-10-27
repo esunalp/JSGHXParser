@@ -1,6 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
+// import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
