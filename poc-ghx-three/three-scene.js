@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
+import { PhysicalSunSky } from './physical-sun-sky.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
@@ -10,8 +11,6 @@ const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.
 
 const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
-const SKY_DOME_RADIUS = MAX_DRAW_DISTANCE_MM * 0.95;
-const TEMP_CAMERA_DIRECTION = new THREE.Vector3();
 
 function getViewportSize(canvas) {
   const width = canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 1;
@@ -32,6 +31,18 @@ function applyRendererDefaults(renderer) {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
   } else if ('outputEncoding' in renderer) {
     renderer.outputEncoding = THREE.sRGBEncoding;
+  }
+
+  if ('physicallyCorrectLights' in renderer) {
+    renderer.physicallyCorrectLights = true;
+  }
+
+  if ('toneMapping' in renderer && THREE.ACESFilmicToneMapping) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  }
+
+  if (renderer.shadowMap) {
+    renderer.shadowMap.enabled = true;
   }
 
   if (typeof renderer.setClearColor === 'function') {
@@ -61,78 +72,9 @@ async function createWebGPURenderer(canvas, viewport) {
   return renderer;
 }
 
-function addDefaultLights(scene) {
-  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-  scene.add(ambient);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(5, 8, 4);
-  scene.add(dirLight);
-}
-
 function addHelpers(scene) {
   const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
   scene.add(axes);
-}
-
-function createSkyDome(scene) {
-  const uniforms = {
-    topColor: { value: new THREE.Color(0x20a7db) },
-    horizonColor: { value: new THREE.Color(0xcfecf7) },
-    bottomColor: { value: new THREE.Color(0xe4eef2) },
-    horizonOffset: { value: 0 },
-    gradientExponent: { value: 1.25 },
-  };
-
-  const material = new THREE.ShaderMaterial({
-    uniforms,
-    vertexShader: `
-      varying vec3 vWorldPosition;
-      void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-        vWorldPosition = worldPosition.xyz;
-        gl_Position = projectionMatrix * viewMatrix * worldPosition;
-      }
-    `,
-    fragmentShader: `
-      uniform vec3 topColor;
-      uniform vec3 horizonColor;
-      uniform vec3 bottomColor;
-      uniform float horizonOffset;
-      uniform float gradientExponent;
-      varying vec3 vWorldPosition;
-
-      void main() {
-        vec3 direction = normalize(vWorldPosition);
-        float base = clamp(direction.z * 0.5 + 0.5 + horizonOffset, 0.0, 1.0);
-        float shaped = pow(base, gradientExponent);
-        vec3 color = mix(bottomColor, horizonColor, smoothstep(0.0, 0.65, base));
-        color = mix(color, topColor, smoothstep(0.25, 1.0, shaped));
-        gl_FragColor = vec4(color, 1.0);
-      }
-    `,
-    side: THREE.BackSide,
-    depthWrite: false,
-    depthTest: false,
-    fog: false,
-  });
-
-  const geometry = new THREE.SphereGeometry(SKY_DOME_RADIUS, 32, 24);
-  const skyMesh = new THREE.Mesh(geometry, material);
-  skyMesh.name = 'SkyGradient';
-  skyMesh.frustumCulled = false;
-  skyMesh.renderOrder = -1;
-
-  scene.add(skyMesh);
-
-  return {
-    update(camera) {
-      skyMesh.position.copy(camera.position);
-      camera.getWorldDirection(TEMP_CAMERA_DIRECTION);
-      const desiredOffset = THREE.MathUtils.clamp(TEMP_CAMERA_DIRECTION.z * 0.35, -0.4, 0.4);
-      uniforms.horizonOffset.value = THREE.MathUtils.lerp(uniforms.horizonOffset.value, desiredOffset, 0.08);
-    },
-  };
 }
 
 const FIELD_EPSILON = 1e-6;
@@ -568,8 +510,7 @@ export function initScene(canvas) {
 
   const eventTarget = canvas;
 
-  const sky = createSkyDome(scene);
-  addDefaultLights(scene);
+  const sunSky = new PhysicalSunSky(scene);
   addHelpers(scene);
 
   function updateRendererViewports() {
@@ -926,6 +867,7 @@ export function initScene(canvas) {
       webgpuInitPromise = createWebGPURenderer(canvas, viewportState)
         .then((renderer) => {
           webgpuRenderer = renderer;
+          sunSky.setRenderer(renderer);
           updateRendererViewports();
           return webgpuRenderer;
         })
@@ -1134,7 +1076,7 @@ export function initScene(canvas) {
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
-    sky.update(camera);
+    sunSky.updateFrame(camera);
     if (webgpuRenderer) {
       webgpuRenderer.render(scene, camera);
     }
@@ -1145,6 +1087,7 @@ export function initScene(canvas) {
     scene,
     camera,
     controls,
+    sunSky,
     updateMesh,
     setOverlayEnabled,
     isGpuRenderingEnabled,
