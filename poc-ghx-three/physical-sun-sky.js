@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
+import { CascadedShadowMaps } from './cascaded-shadow-maps.js';
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
@@ -217,6 +218,18 @@ export class PhysicalSunSky {
     this.sunLight.target = this.sunTarget;
     this.scene.add(this.sunLight);
 
+    this.csm = new CascadedShadowMaps(this.sunLight, {
+      cascades: 4,
+      maxFar: SUN_DISTANCE,
+      lightMargin: 600,
+      shadowMapSize: 2048,
+      shadowBias: -0.00045,
+      shadowNormalBias: 0.025,
+      shadowNear: 1,
+      shadowFar: SUN_DISTANCE,
+      fade: true,
+    });
+
     this.fillLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.25);
     this.fillLight.name = 'PhysicalSkyHemisphere';
     this.scene.add(this.fillLight);
@@ -244,6 +257,7 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
     this.applyExposure();
     this.updateEnvironment();
+    this.csm?.setShadowMapSize?.(2048);
   }
 
   applyExposure(illumination = null) {
@@ -294,6 +308,7 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
     this.applyExposure(sunIntensity);
     this.updateEnvironment();
+    this.csm?.notifyLightChanged();
   }
 
   updateEnvironment() {
@@ -321,7 +336,26 @@ export class PhysicalSunSky {
       this.sky.position.copy(camera.position);
       this.sky.updateMatrixWorld();
     }
+    if (camera) {
+      this.csm?.update(camera);
+    } else {
+      this.csm?.update();
+    }
     this.updateEnvironment();
+  }
+
+  setCamera(camera) {
+    if (camera?.isCamera) {
+      this.csm?.setCamera(camera);
+      this.csm?.update(camera);
+    }
+  }
+
+  notifyCameraProjectionChanged(camera) {
+    if (camera?.isCamera) {
+      this.csm?.requestFrustumUpdate();
+      this.csm?.update(camera);
+    }
   }
 
   dispose() {
@@ -333,5 +367,6 @@ export class PhysicalSunSky {
     this.pmremGenerator?.dispose?.();
     this.sky.material.dispose?.();
     this.sky.geometry?.dispose?.();
+    this.csm?.dispose();
   }
 }
