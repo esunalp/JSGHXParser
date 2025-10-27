@@ -19,6 +19,8 @@ const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.
 
 const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
+const OVERLAY_SEGMENT_RADIUS_MM = 8;
+const OVERLAY_SEGMENT_RADIAL_SEGMENTS = 12;
 
 function getViewportSize(canvas) {
   const width = canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 1;
@@ -87,9 +89,114 @@ async function createWebGPURenderer(canvas, viewport) {
   return renderer;
 }
 
+const AXIS_REFERENCE_UP = new THREE.Vector3(0, 1, 0);
+const AXIS_DIRECTIONS = [
+  new THREE.Vector3(1, 0, 0),
+  new THREE.Vector3(0, 1, 0),
+  new THREE.Vector3(0, 0, 1),
+];
+const AXIS_COLOURS = [0xd1495b, 0x2fbf71, 0x3066be];
+
+function createAxisComponent(length, color, direction) {
+  if (!Number.isFinite(length) || length <= 0) {
+    return null;
+  }
+
+  if (!direction?.isVector3) {
+    return null;
+  }
+
+  const safeLength = Math.max(length, 1);
+  const shaftLength = safeLength * 0.88;
+  const tipLength = safeLength - shaftLength;
+  const shaftRadius = Math.max(safeLength * 0.01, 15);
+  const tipRadius = shaftRadius * 1.75;
+
+  const shaftGeometry = new THREE.CylinderGeometry(shaftRadius, shaftRadius, shaftLength, 24, 1, true);
+  const tipGeometry = new THREE.ConeGeometry(tipRadius, tipLength, 24, 1, true);
+
+  const material = createStandardSurfaceMaterial(
+    {
+      color,
+      metalness: 0.1,
+      roughness: 0.35,
+    },
+    { side: DEFAULT_MESH_SIDE },
+  );
+
+  const axisGroup = new THREE.Group();
+  axisGroup.name = 'GHXAxesHelperAxis';
+
+  const shaft = new THREE.Mesh(shaftGeometry, material);
+  shaft.position.y = shaftLength * 0.5;
+  shaft.castShadow = false;
+  shaft.receiveShadow = false;
+  axisGroup.add(shaft);
+
+  const tip = new THREE.Mesh(tipGeometry, material);
+  tip.position.y = shaftLength;
+  tip.castShadow = false;
+  tip.receiveShadow = false;
+  axisGroup.add(tip);
+
+  const directionVector = direction.clone().normalize();
+  const quaternion = new THREE.Quaternion().setFromUnitVectors(AXIS_REFERENCE_UP, directionVector);
+  axisGroup.quaternion.copy(quaternion);
+
+  axisGroup.userData.dispose = () => {
+    try {
+      shaftGeometry.dispose();
+    } catch (error) {
+      console.warn('Axes helper shaft dispose error', error);
+    }
+    try {
+      tipGeometry.dispose();
+    } catch (error) {
+      console.warn('Axes helper tip dispose error', error);
+    }
+    try {
+      material.dispose?.();
+    } catch (error) {
+      console.warn('Axes helper material dispose error', error);
+    }
+  };
+
+  return axisGroup;
+}
+
+function createAxesHelper(length) {
+  const axesGroup = new THREE.Group();
+  axesGroup.name = 'GHXAxesHelper';
+
+  AXIS_DIRECTIONS.forEach((direction, index) => {
+    const axis = createAxisComponent(length, AXIS_COLOURS[index % AXIS_COLOURS.length], direction);
+    if (axis) {
+      axesGroup.add(axis);
+    }
+  });
+
+  if (!axesGroup.children.length) {
+    return null;
+  }
+
+  axesGroup.userData.dispose = () => {
+    axesGroup.children.forEach((child) => {
+      try {
+        child.userData?.dispose?.();
+      } catch (error) {
+        console.warn('Axes helper dispose error', error);
+      }
+    });
+  };
+
+  return axesGroup;
+}
+
 function addHelpers(scene) {
-  const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
-  scene.add(axes);
+  const axes = createAxesHelper(AXES_LENGTH_MM);
+  if (axes) {
+    scene.add(axes);
+  }
 }
 
 const FIELD_EPSILON = 1e-6;
@@ -219,38 +326,89 @@ function createSegmentsObject(segments) {
     return null;
   }
 
-  const positions = [];
-  const colours = [];
+  const validSegments = segments
+    .map((segment) => {
+      const start = segment?.start;
+      const end = segment?.end;
+      if (!start?.isVector3 || !end?.isVector3) {
+        return null;
+      }
+      const length = start.distanceTo(end);
+      if (!(length > FIELD_EPSILON)) {
+        return null;
+      }
 
-  segments.forEach((segment) => {
-    const start = segment.start;
-    const end = segment.end;
-    if (!start?.isVector3 || !end?.isVector3) {
-      return;
-    }
-    const startColour = ensureColor(segment.colorStart ?? segment.color ?? 0xffffff);
-    const endColour = ensureColor(segment.colorEnd ?? segment.color ?? startColour);
-    positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
-    colours.push(startColour.r, startColour.g, startColour.b, endColour.r, endColour.g, endColour.b);
-  });
+      const startColour = ensureColor(segment.colorStart ?? segment.color ?? OVERLAY_LINE_COLOR);
+      const endColour = ensureColor(segment.colorEnd ?? segment.color ?? startColour);
+      const color = startColour.clone().lerp(endColour, 0.5);
 
-  if (!positions.length) {
+      return {
+        start,
+        end,
+        length,
+        color,
+      };
+    })
+    .filter((entry) => entry);
+
+  if (!validSegments.length) {
     return null;
   }
 
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  const geometry = new THREE.CylinderGeometry(
+    OVERLAY_SEGMENT_RADIUS_MM,
+    OVERLAY_SEGMENT_RADIUS_MM,
+    1,
+    OVERLAY_SEGMENT_RADIAL_SEGMENTS,
+    1,
+    true,
+  );
 
-  const material = new THREE.LineBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
+  const material = createStandardSurfaceMaterial(
+    {
+      color: 0xffffff,
+      metalness: 0.15,
+      roughness: 0.5,
+      vertexColors: true,
+    },
+    { side: DEFAULT_MESH_SIDE },
+  );
+
+  const object = new THREE.InstancedMesh(geometry, material, validSegments.length);
+  object.castShadow = false;
+  object.receiveShadow = false;
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const matrix = new THREE.Matrix4();
+  const position = new THREE.Vector3();
+  const direction = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const color = new THREE.Color();
+
+  validSegments.forEach((entry, index) => {
+    direction.subVectors(entry.end, entry.start);
+    const length = entry.length;
+    if (!(length > FIELD_EPSILON)) {
+      return;
+    }
+    direction.normalize();
+    position.copy(entry.start).addScaledVector(direction, length * 0.5);
+    quaternion.setFromUnitVectors(up, direction);
+    scale.set(OVERLAY_SEGMENT_RADIUS_MM, length, OVERLAY_SEGMENT_RADIUS_MM);
+    matrix.compose(position, quaternion, scale);
+    object.setMatrixAt(index, matrix);
+
+    color.copy(entry.color);
+    object.setColorAt(index, color);
   });
 
-  const object = new THREE.LineSegments(geometry, material);
-  return { object, disposables: [geometry, material] };
+  object.instanceMatrix.needsUpdate = true;
+  if (object.instanceColor) {
+    object.instanceColor.needsUpdate = true;
+  }
+
+  return { object, disposables: [geometry, material, object.instanceColor] };
 }
 
 function createPointsObject(entries, colourFactory) {
