@@ -41,6 +41,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
     reflectionResolution = 0.35,
+    unitsPerMeter = 1,
   } = options;
 
   const material = new THREE.MeshPhysicalNodeMaterial({
@@ -61,21 +62,23 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   const worldPosition = positionWorld;
   const surfaceCoordinates = vec2(worldPosition.x, worldPosition.y);
+  const unitsPerMeterNode = float(unitsPerMeter);
 
-  const normalComputeShift = float(0.01);
+  const normalComputeShift = float(0.01).mul(unitsPerMeterNode);
   const offsetX = vec2(normalComputeShift, float(0));
   const offsetY = vec2(float(0), normalComputeShift);
 
   const wavesElevation = Fn(([coords]) => {
+    const coordsMeters = coords.div(unitsPerMeterNode).toVar();
     const largeWaveTime = time.mul(float(1.25));
-    const largeWave = sin(coords.x.mul(float(3)).add(largeWaveTime))
-      .mul(sin(coords.y.mul(float(1)).add(largeWaveTime)))
+    const largeWave = sin(coordsMeters.x.mul(float(3)).add(largeWaveTime))
+      .mul(sin(coordsMeters.y.mul(float(1)).add(largeWaveTime)))
       .mul(float(0.15))
       .toVar();
 
     Loop({ start: float(1), end: float(4) }, ({ i }) => {
       const noiseInput = vec3(
-        coords.add(vec2(float(2), float(2))).mul(float(2)).mul(i),
+        coordsMeters.add(vec2(float(2), float(2))).mul(float(2)).mul(i),
         time.mul(float(0.3)),
       );
       const smallWave = mx_noise_float(noiseInput, float(1), float(0))
@@ -85,7 +88,7 @@ export function createWaterSurfaceMaterial(options = {}) {
       largeWave.subAssign(smallWave);
     });
 
-    return largeWave;
+    return largeWave.mul(unitsPerMeterNode);
   });
 
   const heightCenter = wavesElevation(surfaceCoordinates);

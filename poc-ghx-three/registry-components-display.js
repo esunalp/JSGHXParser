@@ -719,7 +719,7 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       if (!material) {
         const colourCandidate = parseColor(inputs.material, null);
         if (colourCandidate && isWaterPreviewColor(colourCandidate)) {
-          material = createWaterSurfaceMaterial({ side: THREE.DoubleSide });
+          material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 1000 });
           material.userData.source = 'procedural-water';
         }
       }
@@ -892,7 +892,7 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
 
       let material;
       if (isWaterPreviewColor(diffuse)) {
-        material = createWaterSurfaceMaterial({ side: THREE.DoubleSide });
+        material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 1000 });
         material.userData.source = 'procedural-water';
       } else {
         material = createTlsMaterial(
