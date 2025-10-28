@@ -78,7 +78,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const smallWavesIterationsValue = Math.max(1, Math.floor(toNumber(smallWavesIterationsOption, 1)));
   const smallWavesFrequencyValue = toNumber(smallWavesFrequencyOption, 1.5);
   const smallWavesSpeedValue = toNumber(smallWavesSpeedOption, 0.3);
-  const smallWavesMultiplierValue = toNumber(smallWavesMultiplierOption, 0.08);
+  const smallWavesMultiplierValue = toNumber(smallWavesMultiplierOption, 0.02);
   const normalComputeShiftValue = Math.max(0, toNumber(normalComputeShiftOption, 0.01));
 
   const largeWavesFrequency = uniform(largeWavesFrequencyValue);
