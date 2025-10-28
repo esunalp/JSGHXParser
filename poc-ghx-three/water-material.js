@@ -24,6 +24,7 @@ import {
   time,
   vec2,
   vec3,
+  uniform,
 } from 'three/tsl';
 
 export const WATER_PREVIEW_COLOR = new THREE.Color(201 / 255, 233 / 255, 245 / 255);
@@ -42,7 +43,52 @@ export function createWaterSurfaceMaterial(options = {}) {
     side = THREE.DoubleSide,
     reflectionResolution = 0.35,
     unitsPerMeter = 10,
+    largeWavesFrequency: largeWavesFrequencyOption = new THREE.Vector2(1.6, 1),
+    largeWavesSpeed: largeWavesSpeedOption = 1.25,
+    largeWavesMultiplier: largeWavesMultiplierOption = 0.05,
+    smallWavesIterations: smallWavesIterationsOption = 1,
+    smallWavesFrequency: smallWavesFrequencyOption = 1.5,
+    smallWavesSpeed: smallWavesSpeedOption = 0.3,
+    smallWavesMultiplier: smallWavesMultiplierOption = 0.08,
+    normalComputeShift: normalComputeShiftOption = 0.01,
   } = options;
+
+  const toVector2 = (value, fallback) => {
+    if (value?.isVector2) {
+      return value.clone();
+    }
+    if (Array.isArray(value)) {
+      const [x = fallback.x, y = fallback.y] = value;
+      return new THREE.Vector2(x, y);
+    }
+    if (typeof value === 'number') {
+      return new THREE.Vector2(value, value);
+    }
+    if (value && typeof value === 'object' && 'x' in value && 'y' in value) {
+      return new THREE.Vector2(value.x, value.y);
+    }
+    return fallback.clone();
+  };
+
+  const toNumber = (value, fallback) => (Number.isFinite(value) ? value : fallback);
+
+  const largeWavesFrequencyValue = toVector2(largeWavesFrequencyOption, new THREE.Vector2(1.6, 1));
+  const largeWavesSpeedValue = toNumber(largeWavesSpeedOption, 1.25);
+  const largeWavesMultiplierValue = toNumber(largeWavesMultiplierOption, 0.05);
+  const smallWavesIterationsValue = Math.max(1, Math.floor(toNumber(smallWavesIterationsOption, 1)));
+  const smallWavesFrequencyValue = toNumber(smallWavesFrequencyOption, 1.5);
+  const smallWavesSpeedValue = toNumber(smallWavesSpeedOption, 0.3);
+  const smallWavesMultiplierValue = toNumber(smallWavesMultiplierOption, 0.08);
+  const normalComputeShiftValue = Math.max(0, toNumber(normalComputeShiftOption, 0.01));
+
+  const largeWavesFrequency = uniform(largeWavesFrequencyValue);
+  const largeWavesSpeed = uniform(largeWavesSpeedValue);
+  const largeWavesMultiplier = uniform(largeWavesMultiplierValue);
+  const smallWavesIterations = uniform(smallWavesIterationsValue);
+  const smallWavesFrequency = uniform(smallWavesFrequencyValue);
+  const smallWavesSpeed = uniform(smallWavesSpeedValue);
+  const smallWavesMultiplier = uniform(smallWavesMultiplierValue);
+  const normalComputeShiftUniform = uniform(normalComputeShiftValue);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
     metalness: 0.85,
@@ -64,25 +110,25 @@ export function createWaterSurfaceMaterial(options = {}) {
   const surfaceCoordinates = vec2(worldPosition.x, worldPosition.y);
   const unitsPerMeterNode = float(unitsPerMeter);
 
-  const normalComputeShift = float(0.01).mul(unitsPerMeterNode);
+  const normalComputeShift = normalComputeShiftUniform.mul(unitsPerMeterNode);
   const offsetX = vec2(normalComputeShift, float(0));
   const offsetY = vec2(float(0), normalComputeShift);
 
   const wavesElevation = Fn(([coords]) => {
     const coordsMeters = coords.div(unitsPerMeterNode).toVar();
-    const largeWaveTime = time.mul(float(1.25));
-    const largeWave = sin(coordsMeters.x.mul(float(3)).add(largeWaveTime))
-      .mul(sin(coordsMeters.y.mul(float(1)).add(largeWaveTime)))
-      .mul(float(0.15))
+    const largeWaveTime = time.mul(largeWavesSpeed);
+    const largeWave = sin(coordsMeters.x.mul(largeWavesFrequency.x).add(largeWaveTime))
+      .mul(sin(coordsMeters.y.mul(largeWavesFrequency.y).add(largeWaveTime)))
+      .mul(largeWavesMultiplier)
       .toVar();
 
-    Loop({ start: float(1), end: float(4) }, ({ i }) => {
+    Loop({ start: float(1), end: smallWavesIterations.add(float(1)) }, ({ i }) => {
       const noiseInput = vec3(
-        coordsMeters.add(vec2(float(2), float(2))).mul(float(2)).mul(i),
-        time.mul(float(0.3)),
+        coordsMeters.add(vec2(float(2), float(2))).mul(smallWavesFrequency).mul(i),
+        time.mul(smallWavesSpeed),
       );
       const smallWave = mx_noise_float(noiseInput, float(1), float(0))
-        .mul(float(0.18))
+        .mul(smallWavesMultiplier)
         .div(i)
         .abs();
       largeWave.subAssign(smallWave);
@@ -189,6 +235,16 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   material.userData.isProceduralWater = true;
   material.userData.planarReflection = planarReflection;
+  material.userData.waveUniforms = {
+    largeWavesFrequency,
+    largeWavesSpeed,
+    largeWavesMultiplier,
+    smallWavesIterations,
+    smallWavesFrequency,
+    smallWavesSpeed,
+    smallWavesMultiplier,
+    normalComputeShift: normalComputeShiftUniform,
+  };
   material.userData.setupProceduralWater = (mesh) => {
     if (!mesh?.isMesh) {
       return;
