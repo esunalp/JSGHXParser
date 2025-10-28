@@ -896,7 +896,7 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
         material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 1000 });
         material.userData.source = 'procedural-water';
       } else if (isGrassPreviewColor(diffuse)) {
-        material = createGrassSurfaceMaterial({ side: THREE.DoubleSide, unitsPerTile: 5000 });
+        material = createGrassSurfaceMaterial({ side: THREE.DoubleSide, unitsPerTile: 3000 });
         material.userData.source = 'procedural-grass';
       } else {
         material = createTlsMaterial(
