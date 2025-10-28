@@ -36,7 +36,7 @@ export function isWaterPreviewColor(colour, tolerance = 1 / 255) {
 export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    unitsPerMeter = 10,
+    unitsPerMeter = 1000,
     largeWavesFrequency: largeWavesFrequencyOption = new THREE.Vector2(0.1, 0.4),
     largeWavesSpeed: largeWavesSpeedOption = 1.25,
     largeWavesMultiplier: largeWavesMultiplierOption = 0,
