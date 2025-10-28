@@ -271,7 +271,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     mesh.add(target);
 
     const geometry = mesh.geometry;
-    let scale = 1;
+    let scale = 0.5;
     if (geometry) {
       if (geometry.boundingSphere) {
         scale = geometry.boundingSphere.radius * 2.2 || scale;
