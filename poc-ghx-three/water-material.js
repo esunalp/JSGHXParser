@@ -69,10 +69,10 @@ export function createWaterSurfaceMaterial(options = {}) {
   const largeWavesFrequencyValue = toVector2(largeWavesFrequencyOption, new THREE.Vector2(1.6, 1));
   const largeWavesSpeedValue = toNumber(largeWavesSpeedOption, 1.25);
   const largeWavesMultiplierValue = toNumber(largeWavesMultiplierOption, 0.05);
-  const smallWavesIterationsValue = Math.max(1, Math.floor(toNumber(smallWavesIterationsOption, 1)));
+  const smallWavesIterationsValue = Math.max(1, Math.floor(toNumber(smallWavesIterationsOption, 2)));
   const smallWavesFrequencyValue = toNumber(smallWavesFrequencyOption, 1.5);
   const smallWavesSpeedValue = toNumber(smallWavesSpeedOption, 0.3);
-  const smallWavesMultiplierValue = toNumber(smallWavesMultiplierOption, 0.02);
+  const smallWavesMultiplierValue = toNumber(smallWavesMultiplierOption, 0.0);
   const normalComputeShiftValue = Math.max(0, toNumber(normalComputeShiftOption, 0.01));
 
   const largeWavesFrequency = uniform(largeWavesFrequencyValue);
