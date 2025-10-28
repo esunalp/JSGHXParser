@@ -13,7 +13,6 @@ import {
   colorToDirection,
   vec2,
 } from 'three/tsl';
-import { PostProcessing } from 'three/addons/postprocessing/PostProcessing.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { smaa } from 'three/addons/tsl/display/SMAANode.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
@@ -583,15 +582,13 @@ export function initScene(canvas) {
   addHelpers(scene);
 
   function setupPostProcessing(renderer) {
-    const PostProcessingImpl = PostProcessing ?? THREE.PostProcessing;
-
-    if (!renderer || typeof PostProcessingImpl !== 'function') {
+    if (!renderer || typeof THREE.PostProcessing !== 'function') {
       postProcessing = null;
       ssrPass = null;
       return;
     }
 
-    postProcessing = new PostProcessingImpl(renderer);
+    postProcessing = new THREE.PostProcessing(renderer);
 
     const scenePass = pass(scene, camera);
     scenePass.setMRT(mrt({
