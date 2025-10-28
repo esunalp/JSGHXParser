@@ -303,7 +303,7 @@ export function createWaterSurfaceMaterial(options = {}) {
       }
     };
 
-    mesh.userData.proceduralWaterReflection = true;
+    mesh.userData.proceduralWaterReflection = false;
   };
   material.userData.previewColor = WATER_PREVIEW_COLOR.clone();
   material.needsUpdate = true;
