@@ -1,5 +1,18 @@
 import * as THREE from 'three/webgpu';
-import { abs, clamp, float, mix, normalView, positionWorld, texture as textureNode, vec2 } from 'three/tsl';
+import {
+  abs,
+  clamp,
+  cross,
+  float,
+  mix,
+  normalize,
+  normalLocal,
+  normalView,
+  positionWorld,
+  texture as textureNode,
+  vec2,
+  vec3,
+} from 'three/tsl';
 
 export const GRASS_PREVIEW_COLOR = new THREE.Color(124 / 255, 252 / 255, 0 / 255);
 
@@ -17,6 +30,8 @@ const textureLoader = new THREE.TextureLoader();
 let grassTexture1Cache = null;
 let grassTexture2Cache = null;
 let grassNoiseTextureCache = null;
+let grassNormalTexture1Cache = null;
+let grassNormalTexture2Cache = null;
 
 function loadRepeatingTexture(path, {
   colorSpace = THREE.SRGBColorSpace,
@@ -51,6 +66,28 @@ function getGrassTexture2() {
   return grassTexture2Cache;
 }
 
+function getGrassNormalTexture1() {
+  if (grassNormalTexture1Cache?.isTexture) {
+    return grassNormalTexture1Cache;
+  }
+
+  grassNormalTexture1Cache = loadRepeatingTexture('./assets/grasstexture1_normal.png', {
+    colorSpace: THREE.LinearSRGBColorSpace,
+  });
+  return grassNormalTexture1Cache;
+}
+
+function getGrassNormalTexture2() {
+  if (grassNormalTexture2Cache?.isTexture) {
+    return grassNormalTexture2Cache;
+  }
+
+  grassNormalTexture2Cache = loadRepeatingTexture('./assets/grasstexture2_normal.png', {
+    colorSpace: THREE.LinearSRGBColorSpace,
+  });
+  return grassNormalTexture2Cache;
+}
+
 function getGrassNoiseTexture() {
   if (grassNoiseTextureCache?.isTexture) {
     return grassNoiseTextureCache;
@@ -73,6 +110,8 @@ export function createGrassSurfaceMaterial(options = {}) {
   const grassTexturePrimary = getGrassTexture1();
   const grassTextureSecondary = getGrassTexture2();
   const grassNoiseTexture = getGrassNoiseTexture();
+  const grassNormalTexturePrimary = getGrassNormalTexture1();
+  const grassNormalTextureSecondary = getGrassNormalTexture2();
   const tileSizeValue = Number(unitsPerTileOption);
   const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 3000, 0.001);
   const shadingStrength = THREE.MathUtils.clamp(Number(shadingStrengthOption) || 0, 0, 1);
@@ -103,7 +142,25 @@ export function createGrassSurfaceMaterial(options = {}) {
   const blendedBaseColour = mix(baseColourPrimary, baseColourSecondary, noiseFactor);
   const normalShade = clamp(abs(normalView.z).mul(float(shadingStrength)).add(float(1 - shadingStrength / 2)), 0.35, 1);
 
+  const normalSamplePrimary = textureNode(grassNormalTexturePrimary, planarUV).xyz;
+  const normalSampleSecondary = textureNode(grassNormalTextureSecondary, planarUV).xyz;
+  const normalPrimary = normalize(normalSamplePrimary.mul(float(2)).sub(vec3(1, 1, 1)));
+  const normalSecondary = normalize(normalSampleSecondary.mul(float(2)).sub(vec3(1, 1, 1)));
+  const blendedNormalTangent = normalize(mix(normalPrimary, normalSecondary, noiseFactor));
+
+  const baseNormal = normalize(normalLocal);
+  const tangentCandidateA = cross(vec3(0, 0, 1), baseNormal);
+  const tangentCandidateB = cross(vec3(0, 1, 0), baseNormal);
+  const tangent = normalize(tangentCandidateA.add(tangentCandidateB));
+  const bitangent = normalize(cross(baseNormal, tangent));
+  const perturbedNormal = normalize(
+    tangent.mul(blendedNormalTangent.x)
+      .add(bitangent.mul(blendedNormalTangent.y))
+      .add(baseNormal.mul(blendedNormalTangent.z)),
+  );
+
   material.colorNode = blendedBaseColour.mul(normalShade);
+  material.normalNode = perturbedNormal;
   material.userData = {
     ...(material.userData ?? {}),
     isProceduralGrass: true,
@@ -112,6 +169,7 @@ export function createGrassSurfaceMaterial(options = {}) {
     texture: 'assets/grasstexture1.png',
     textures: ['assets/grasstexture1.png', 'assets/grasstexture2.png'],
     noiseMap: 'assets/noisemap.png',
+    normalMaps: ['assets/grasstexture1_normal.png', 'assets/grasstexture2_normal.png'],
     previewColor: GRASS_PREVIEW_COLOR.clone(),
   };
 
