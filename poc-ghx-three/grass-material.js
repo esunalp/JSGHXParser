@@ -82,7 +82,7 @@ export function createGrassSurfaceMaterial(options = {}) {
     roughness: 0,
     sheen: 0.18,
     sheenColor: new THREE.Color(0x4a6c2b),
-    sheenRoughness: 0.85,
+    sheenRoughness: 0,
     transmission: 0,
     envMapIntensity: 0.35,
     side,
