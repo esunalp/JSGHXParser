@@ -78,7 +78,7 @@ export function createGrassSurfaceMaterial(options = {}) {
   const shadingStrength = THREE.MathUtils.clamp(Number(shadingStrengthOption) || 0, 0, 1);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
-    metalness: 0.85,
+    metalness: 0.1,
     roughness: 0.85,
     sheen: 0.18,
     sheenColor: new THREE.Color(0x4a6c2b),
