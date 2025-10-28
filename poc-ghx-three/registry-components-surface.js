@@ -6038,6 +6038,21 @@ export function registerSurfacePrimitiveComponents({
         geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
         geometry.computeVertexNormals();
       }
+      const positionAttribute = geometry.getAttribute?.('position');
+      const normalAttribute = geometry.getAttribute?.('normal');
+      if (!normalAttribute || normalAttribute.count === 0) {
+        if (!faces.length && positionAttribute?.count) {
+          const emptyNormals = new Float32Array(positionAttribute.count * 3);
+          geometry.setAttribute('normal', new THREE.BufferAttribute(emptyNormals, 3));
+        } else {
+          geometry.computeVertexNormals?.();
+          const computed = geometry.getAttribute?.('normal');
+          if ((!computed || computed.count === 0) && positionAttribute?.count) {
+            const emptyNormals = new Float32Array(positionAttribute.count * 3);
+            geometry.setAttribute('normal', new THREE.BufferAttribute(emptyNormals, 3));
+          }
+        }
+      }
     }
     return {
       type: 'mesh',
