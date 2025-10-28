@@ -232,8 +232,8 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.thicknessNode = float(280);
   material.attenuationDistanceNode = float(1200);
   material.attenuationColorNode = mix(
-    color(0x3fb7ff),
-    color(0xbef1ff),
+    color(0x134f5c),
+    color(0x76a5af),
     clamp(colourBlend.add(foamStrength.mul(float(0.15))), 0, 1),
   );
   material.iorNode = float(1.33);
