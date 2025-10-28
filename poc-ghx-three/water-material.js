@@ -49,7 +49,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     smallWavesIterations: smallWavesIterationsOption = 3,
     smallWavesFrequency: smallWavesFrequencyOption = 0.5,
     smallWavesSpeed: smallWavesSpeedOption = 0.3,
-    smallWavesMultiplier: smallWavesMultiplierOption = 0.01,
+    smallWavesMultiplier: smallWavesMultiplierOption = 0.02,
     normalComputeShift: normalComputeShiftOption = 0.01,
   } = options;
 
