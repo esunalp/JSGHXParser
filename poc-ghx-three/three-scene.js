@@ -1,5 +1,20 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {
+  pass,
+  mrt,
+  output,
+  normalView,
+  metalness,
+  roughness,
+  blendColor,
+  sample,
+  directionToColor,
+  colorToDirection,
+  vec2,
+} from 'three/tsl';
+import { ssr } from 'three/addons/tsl/display/SSRNode.js';
+import { smaa } from 'three/addons/tsl/display/SMAANode.js';
 // import { WebGPURenderer } from 'three/addons/renderers/webgpu/WebGPURenderer.js';
 import { PhysicalSunSky } from './physical-sun-sky.js';
 import {
@@ -541,6 +556,8 @@ export function initScene(canvas) {
   let viewportState = getViewportSize(canvas);
 
   let webgpuRenderer = null;
+  let postProcessing = null;
+  let ssrPass = null;
 
   const webgpuSupported = typeof navigator !== 'undefined'
     && 'gpu' in navigator
@@ -561,9 +578,64 @@ export function initScene(canvas) {
   sunSky.setTarget(controls.target);
   addHelpers(scene);
 
+  function setupPostProcessing(renderer) {
+    if (!renderer || typeof THREE.PostProcessing !== 'function') {
+      postProcessing = null;
+      ssrPass = null;
+      return;
+    }
+
+    postProcessing = new THREE.PostProcessing(renderer);
+
+    const scenePass = pass(scene, camera);
+    scenePass.setMRT(mrt({
+      output,
+      normal: directionToColor(normalView),
+      metalrough: vec2(metalness, roughness),
+    }));
+
+    const scenePassColor = scenePass.getTextureNode('output');
+    const scenePassNormal = scenePass.getTextureNode('normal');
+    const scenePassDepth = scenePass.getTextureNode('depth');
+    const scenePassMetalRough = scenePass.getTextureNode('metalrough');
+
+    const normalTexture = scenePass.getTexture('normal');
+    if (normalTexture) {
+      normalTexture.type = THREE.UnsignedByteType;
+    }
+
+    const metalRoughTexture = scenePass.getTexture('metalrough');
+    if (metalRoughTexture) {
+      metalRoughTexture.type = THREE.UnsignedByteType;
+    }
+
+    const sceneNormal = sample((uv) => colorToDirection(scenePassNormal.sample(uv)));
+
+    ssrPass = ssr(
+      scenePassColor,
+      scenePassDepth,
+      sceneNormal,
+      scenePassMetalRough.r,
+      scenePassMetalRough.g,
+    );
+
+    ssrPass.quality.value = 0.5;
+    ssrPass.blurQuality.value = 2;
+    ssrPass.maxDistance.value = 0.5;
+    ssrPass.opacity.value = 1;
+    ssrPass.thickness.value = 0.015;
+
+    const outputNode = smaa(blendColor(scenePassColor, ssrPass));
+    postProcessing.outputNode = outputNode;
+    postProcessing.needsUpdate = true;
+  }
+
   function updateRendererViewports() {
     if (webgpuRenderer) {
       applyViewportToRenderer(webgpuRenderer, viewportState);
+    }
+    if (postProcessing?.setSize) {
+      postProcessing.setSize(viewportState.width, viewportState.height);
     }
   }
 
@@ -925,6 +997,7 @@ export function initScene(canvas) {
         .then((renderer) => {
           webgpuRenderer = renderer;
           sunSky.setRenderer(renderer);
+          setupPostProcessing(renderer);
           updateRendererViewports();
           return webgpuRenderer;
         })
@@ -1153,7 +1226,9 @@ export function initScene(canvas) {
     controls.update();
     clampCameraHeight();
     sunSky.updateFrame(camera);
-    if (webgpuRenderer) {
+    if (postProcessing) {
+      postProcessing.render();
+    } else if (webgpuRenderer) {
       webgpuRenderer.render(scene, camera);
     }
   }
