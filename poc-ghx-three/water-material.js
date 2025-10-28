@@ -39,11 +39,11 @@ export function createWaterSurfaceMaterial(options = {}) {
     unitsPerMeter = 1000,
     largeWavesFrequency: largeWavesFrequencyOption = new THREE.Vector2(0.1, 0.4),
     largeWavesSpeed: largeWavesSpeedOption = 1.25,
-    largeWavesMultiplier: largeWavesMultiplierOption = 0,
+    largeWavesMultiplier: largeWavesMultiplierOption = 0.01,
     smallWavesIterations: smallWavesIterationsOption = 3,
     smallWavesFrequency: smallWavesFrequencyOption = 0.5,
     smallWavesSpeed: smallWavesSpeedOption = 0.3,
-    smallWavesMultiplier: smallWavesMultiplierOption = 0,
+    smallWavesMultiplier: smallWavesMultiplierOption = 0.02,
     normalComputeShift: normalComputeShiftOption = 0.01,
   } = options;
 
