@@ -1,5 +1,5 @@
 import * as THREE from 'three/webgpu';
-import { abs, clamp, float, normalView, positionWorld, texture as textureNode, vec2 } from 'three/tsl';
+import { abs, clamp, float, mix, normalView, positionWorld, texture as textureNode, vec2 } from 'three/tsl';
 
 export const GRASS_PREVIEW_COLOR = new THREE.Color(124 / 255, 252 / 255, 0 / 255);
 
@@ -12,24 +12,55 @@ export function isGrassPreviewColor(colour, tolerance = 1 / 255) {
     && Math.abs(colour.b - GRASS_PREVIEW_COLOR.b) <= tolerance;
 }
 
-let grassTextureCache = null;
+const textureLoader = new THREE.TextureLoader();
 
-function getGrassTexture() {
-  if (grassTextureCache?.isTexture) {
-    return grassTextureCache;
-  }
+let grassTexture1Cache = null;
+let grassTexture2Cache = null;
+let grassNoiseTextureCache = null;
 
-  const loader = new THREE.TextureLoader();
-  const textureUrl = new URL('./assets/grasstexture1.png', import.meta.url).href;
-  const texture = loader.load(textureUrl);
+function loadRepeatingTexture(path, {
+  colorSpace = THREE.SRGBColorSpace,
+  generateMipmaps = true,
+  anisotropy = 8,
+} = {}) {
+  const textureUrl = new URL(path, import.meta.url).href;
+  const texture = textureLoader.load(textureUrl);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.generateMipmaps = true;
-  texture.anisotropy = 8;
+  texture.colorSpace = colorSpace;
+  texture.generateMipmaps = generateMipmaps;
+  texture.anisotropy = anisotropy;
+  return texture;
+}
 
-  grassTextureCache = texture;
-  return grassTextureCache;
+function getGrassTexture1() {
+  if (grassTexture1Cache?.isTexture) {
+    return grassTexture1Cache;
+  }
+
+  grassTexture1Cache = loadRepeatingTexture('./assets/grasstexture1.png');
+  return grassTexture1Cache;
+}
+
+function getGrassTexture2() {
+  if (grassTexture2Cache?.isTexture) {
+    return grassTexture2Cache;
+  }
+
+  grassTexture2Cache = loadRepeatingTexture('./assets/grasstexture2.png');
+  return grassTexture2Cache;
+}
+
+function getGrassNoiseTexture() {
+  if (grassNoiseTextureCache?.isTexture) {
+    return grassNoiseTextureCache;
+  }
+
+  grassNoiseTextureCache = loadRepeatingTexture('./assets/noisemap.png', {
+    colorSpace: THREE.LinearSRGBColorSpace,
+    anisotropy: 1,
+  });
+  return grassNoiseTextureCache;
 }
 
 export function createGrassSurfaceMaterial(options = {}) {
@@ -39,7 +70,9 @@ export function createGrassSurfaceMaterial(options = {}) {
     shadingStrength: shadingStrengthOption = 0.4,
   } = options;
 
-  const grassTexture = getGrassTexture();
+  const grassTexturePrimary = getGrassTexture1();
+  const grassTextureSecondary = getGrassTexture2();
+  const grassNoiseTexture = getGrassNoiseTexture();
   const tileSizeValue = Number(unitsPerTileOption);
   const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 1000, 0.001);
   const shadingStrength = THREE.MathUtils.clamp(Number(shadingStrengthOption) || 0, 0, 1);
@@ -56,21 +89,29 @@ export function createGrassSurfaceMaterial(options = {}) {
   });
 
   material.shadowSide = side;
-  material.map = grassTexture;
+  material.map = grassTexturePrimary;
 
   const worldXY = vec2(positionWorld.x, positionWorld.y);
   const scale = float(1 / tileSize);
   const planarUV = worldXY.mul(scale);
-  const baseColour = textureNode(grassTexture, planarUV);
+  const baseColourPrimary = textureNode(grassTexturePrimary, planarUV);
+  const baseColourSecondary = textureNode(grassTextureSecondary, planarUV);
+  const noiseScale = float(1 / 100000);
+  const noiseUV = worldXY.mul(noiseScale);
+  const noiseSample = textureNode(grassNoiseTexture, noiseUV).r;
+  const noiseFactor = clamp(noiseSample, float(0), float(1));
+  const blendedBaseColour = mix(baseColourPrimary, baseColourSecondary, noiseFactor);
   const normalShade = clamp(abs(normalView.z).mul(float(shadingStrength)).add(float(1 - shadingStrength / 2)), 0.35, 1);
 
-  material.colorNode = baseColour.mul(normalShade);
+  material.colorNode = blendedBaseColour.mul(normalShade);
   material.userData = {
     ...(material.userData ?? {}),
     isProceduralGrass: true,
     source: 'procedural-grass',
     unitsPerTile: tileSize,
     texture: 'assets/grasstexture1.png',
+    textures: ['assets/grasstexture1.png', 'assets/grasstexture2.png'],
+    noiseMap: 'assets/noisemap.png',
     previewColor: GRASS_PREVIEW_COLOR.clone(),
   };
 
