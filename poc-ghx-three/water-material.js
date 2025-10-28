@@ -41,7 +41,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
     reflectionResolution = 0.35,
-    unitsPerMeter = 1,
+    unitsPerMeter = 10,
   } = options;
 
   const material = new THREE.MeshPhysicalNodeMaterial({
