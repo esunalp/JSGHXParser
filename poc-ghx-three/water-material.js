@@ -95,7 +95,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     roughness: 0,
     clearcoat: 0.0,
     clearcoatRoughness: 0,
-    transmission: 0.78,
+    transmission: 0.0,
     thickness: 250,
     ior: 1.33,
     attenuationDistance: 1200,
