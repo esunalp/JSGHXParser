@@ -1,14 +1,17 @@
 import * as THREE from 'three/webgpu';
 import {
+  Fn,
+  Loop,
   abs,
   cameraPosition,
   clamp,
   color,
   cross,
   float,
-  fract,
   length,
+  materialEnvIntensity,
   mix,
+  mx_noise_float,
   normalize,
   normalLocal,
   normalView,
@@ -17,18 +20,11 @@ import {
   pow,
   reflect,
   reflector,
-  texture,
+  sin,
+  time,
   vec2,
   vec3,
-  materialEnvIntensity,
 } from 'three/tsl';
-
-const WATER_NORMAL_TEXTURE = new THREE.TextureLoader().load(
-  new URL('./assets/waternormal1.jpg', import.meta.url).href,
-);
-WATER_NORMAL_TEXTURE.wrapS = THREE.RepeatWrapping;
-WATER_NORMAL_TEXTURE.wrapT = THREE.RepeatWrapping;
-WATER_NORMAL_TEXTURE.colorSpace = THREE.NoColorSpace;
 
 export const WATER_PREVIEW_COLOR = new THREE.Color(201 / 255, 233 / 255, 245 / 255);
 
@@ -64,28 +60,49 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.shadowSide = side;
 
   const worldPosition = positionWorld;
-  const metersToUV = float(1 / 4);
-  const planarUV = vec2(worldPosition.x, worldPosition.y).mul(metersToUV);
-  const wrappedUV = fract(planarUV);
+  const surfaceCoordinates = vec2(worldPosition.x, worldPosition.z);
 
-  const blurStep = float(0.02);
-  const offsetX = vec2(blurStep, float(0));
-  const offsetY = vec2(float(0), blurStep);
+  const normalComputeShift = float(0.01);
+  const offsetX = vec2(normalComputeShift, float(0));
+  const offsetY = vec2(float(0), normalComputeShift);
 
-  const sampleCenter = texture(WATER_NORMAL_TEXTURE, wrappedUV);
-  const samplePositiveX = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.add(offsetX)));
-  const sampleNegativeX = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.sub(offsetX)));
-  const samplePositiveY = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.add(offsetY)));
-  const sampleNegativeY = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.sub(offsetY)));
+  const wavesElevation = Fn(([coords]) => {
+    const largeWaveTime = time.mul(float(1.25));
+    const largeWave = sin(coords.x.mul(float(3)).add(largeWaveTime))
+      .mul(sin(coords.y.mul(float(1)).add(largeWaveTime)))
+      .mul(float(0.15))
+      .toVar();
 
-  const blurredNormalSample = sampleCenter
-    .add(samplePositiveX)
-    .add(sampleNegativeX)
-    .add(samplePositiveY)
-    .add(sampleNegativeY)
-    .mul(float(0.2));
+    Loop({ start: float(1), end: float(4) }, ({ i }) => {
+      const noiseInput = vec3(
+        coords.add(vec2(float(2), float(2))).mul(float(2)).mul(i),
+        time.mul(float(0.3)),
+      );
+      const smallWave = mx_noise_float(noiseInput, float(1), float(0))
+        .mul(float(0.18))
+        .div(i)
+        .abs();
+      largeWave.subAssign(smallWave);
+    });
 
-  const tangentSpaceNormal = blurredNormalSample.xyz.mul(float(2)).sub(float(1));
+    return largeWave;
+  });
+
+  const heightCenter = wavesElevation(surfaceCoordinates);
+  const heightPositiveX = wavesElevation(surfaceCoordinates.add(offsetX));
+  const heightNegativeX = wavesElevation(surfaceCoordinates.sub(offsetX));
+  const heightPositiveY = wavesElevation(surfaceCoordinates.add(offsetY));
+  const heightNegativeY = wavesElevation(surfaceCoordinates.sub(offsetY));
+
+  const doubleStep = normalComputeShift.mul(float(2));
+  const gradientX = heightPositiveX.sub(heightNegativeX).div(doubleStep);
+  const gradientY = heightPositiveY.sub(heightNegativeY).div(doubleStep);
+
+  const tangentSpaceNormal = normalize(vec3(
+    gradientX.mul(float(-1)),
+    gradientY.mul(float(-1)),
+    float(1),
+  ));
 
   const baseNormal = normalize(normalLocal);
   const tangentCandidateA = cross(vec3(0, 0, 1), baseNormal);
