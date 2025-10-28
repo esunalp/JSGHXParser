@@ -100,7 +100,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     ior: 1.33,
     attenuationDistance: 1200,
     attenuationColor: new THREE.Color(0x000000),
-    transparent: true,
+    transparent: false,
     side,
   });
 
