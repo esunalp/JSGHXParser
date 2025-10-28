@@ -27,7 +27,7 @@ import {
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 // Toggle to enable or disable double sided rendering for viewport meshes.
-const ENABLE_DOUBLE_SIDED_MESHES = true;
+const ENABLE_DOUBLE_SIDED_MESHES = false;
 const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.FrontSide;
 
 const AXES_LENGTH_MM = 5000;
