@@ -275,6 +275,7 @@ function createSegmentsObject(segments) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
   ensureGeometryHasVertexNormals(geometry, { compute: false });
+  geometry.computeVertexNormals();
 
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
