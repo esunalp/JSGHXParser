@@ -546,6 +546,8 @@ export function initScene(canvas) {
     && 'gpu' in navigator
     && (typeof THREE.WebGPURenderer.isAvailable !== 'function' || THREE.WebGPURenderer.isAvailable());
 
+  const MIN_CAMERA_Z = 0;
+
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.screenSpacePanning = false;
@@ -752,6 +754,7 @@ export function initScene(canvas) {
     const distance = Math.max(verticalDistance, horizontalDistance, radius * 1.5, 1);
 
     const newPosition = center.clone().add(direction.multiplyScalar(distance));
+    newPosition.z = Math.max(newPosition.z, MIN_CAMERA_Z);
 
     controls.target.copy(center);
     sunSky.setTarget(center);
@@ -771,6 +774,12 @@ export function initScene(canvas) {
     sunSky.setTarget(targetPoint);
 
     controls.update();
+  }
+
+  function clampCameraHeight() {
+    if (camera.position.z < MIN_CAMERA_Z) {
+      camera.position.z = MIN_CAMERA_Z;
+    }
   }
 
   function updatePointerFromEvent(event) {
@@ -1142,6 +1151,7 @@ export function initScene(canvas) {
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
+    clampCameraHeight();
     sunSky.updateFrame(camera);
     if (webgpuRenderer) {
       webgpuRenderer.render(scene, camera);
