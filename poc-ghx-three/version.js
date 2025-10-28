@@ -1,4 +1,4 @@
-export const ASSET_VERSION = '79';
+export const ASSET_VERSION = '80';
 
 export function withVersion(path) {
   if (!path || typeof path !== 'string') {
