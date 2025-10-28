@@ -66,7 +66,7 @@ function getGrassNoiseTexture() {
 export function createGrassSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    unitsPerTile: unitsPerTileOption = 1000,
+    unitsPerTile: unitsPerTileOption = 2000,
     shadingStrength: shadingStrengthOption = 0.4,
   } = options;
 
@@ -96,7 +96,7 @@ export function createGrassSurfaceMaterial(options = {}) {
   const planarUV = worldXY.mul(scale);
   const baseColourPrimary = textureNode(grassTexturePrimary, planarUV);
   const baseColourSecondary = textureNode(grassTextureSecondary, planarUV);
-  const noiseScale = float(1 / 100000);
+  const noiseScale = float(1 / 50000);
   const noiseUV = worldXY.mul(noiseScale);
   const noiseSample = textureNode(grassNoiseTexture, noiseUV).r;
   const noiseFactor = clamp(noiseSample, float(0), float(1));
