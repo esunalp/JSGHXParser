@@ -626,7 +626,7 @@ export function initScene(canvas) {
     ssrPass.blurQuality.value = 2;
     ssrPass.maxDistance.value = 0.5;
     ssrPass.opacity.value = 1;
-    ssrPass.thickness.value = 0.015;
+    ssrPass.thickness.value = 0.15;
 
     const outputNode = smaa(blendColor(scenePassColor, ssrPass));
     postProcessing.outputNode = outputNode;
