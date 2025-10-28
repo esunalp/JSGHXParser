@@ -102,6 +102,7 @@ async function createWebGPURenderer(canvas, viewport) {
 
 function addHelpers(scene) {
   const axes = new THREE.AxesHelper(AXES_LENGTH_MM);
+  ensureGeometryHasVertexNormals(axes.geometry, { compute: false });
   scene.add(axes);
 }
 
