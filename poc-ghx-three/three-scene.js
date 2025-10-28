@@ -626,7 +626,7 @@ export function initScene(canvas) {
     // Tune the SSR pass so reflections read stronger in the viewport.
     ssrPass.quality.value = 0.75; // march more samples for crisper reflections
     ssrPass.blurQuality.value = 1; // keep reflections sharper after the blur stage
-    ssrPass.maxDistance.value = 1000; // allow reflections to travel further across the scene
+    ssrPass.maxDistance.value = 10000; // allow reflections to travel further across the scene
     ssrPass.opacity.value = 1.5; // boost the contribution of the reflection colour
     ssrPass.thickness.value = 0.25; // widen the hit threshold to catch more surfaces
 
