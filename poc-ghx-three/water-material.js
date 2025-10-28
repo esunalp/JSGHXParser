@@ -201,9 +201,9 @@ export function createWaterSurfaceMaterial(options = {}) {
     1,
   ).mul(float(1).sub(foamStrength.mul(float(0.85))));
 
-  const deepWaterColour = color(0x0f3a63);
-  const shallowWaterColour = color(0x8dddf9);
-  const foamColour = color(0xf6fdff);
+  const deepWaterColour = color(0x134f5c);
+  const shallowWaterColour = color(0x76a5af);
+  const foamColour = color(0x76a5af);
 
   const baseColour = mix(deepWaterColour, shallowWaterColour, colourBlend);
   const roughnessBase = clamp(
