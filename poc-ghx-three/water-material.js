@@ -60,7 +60,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.shadowSide = side;
 
   const worldPosition = positionWorld;
-  const surfaceCoordinates = vec2(worldPosition.x, worldPosition.z);
+  const surfaceCoordinates = vec2(worldPosition.x, worldPosition.y);
 
   const normalComputeShift = float(0.01);
   const offsetX = vec2(normalComputeShift, float(0));
