@@ -85,9 +85,9 @@ export function createWaterSurfaceMaterial(options = {}) {
   const normalComputeShiftUniform = uniform(normalComputeShiftValue);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
-    metalness: 0,
+    metalness: 1,
     roughness: 0,
-    clearcoat: 1,
+    clearcoat: 0,
     clearcoatRoughness: 0,
     transmission: 0.8,
     thickness: 250,
@@ -181,7 +181,7 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   material.metalnessNode = float(0.85);
   material.roughnessNode = float(0);
-  material.clearcoatNode = float(1);
+  material.clearcoatNode = float(0);
   material.clearcoatRoughnessNode = float(0);
   material.transmissionNode = float(0.8);
   material.thicknessNode = float(280);
