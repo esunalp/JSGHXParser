@@ -3,23 +3,18 @@ import {
   Fn,
   Loop,
   abs,
-  cameraPosition,
   clamp,
   color,
   cross,
   float,
   length,
-  materialEnvIntensity,
   mix,
   mx_noise_float,
   normalize,
   normalLocal,
   normalView,
-  pmremTexture,
   positionWorld,
   pow,
-  reflect,
-  reflector,
   sin,
   time,
   vec2,
@@ -41,7 +36,6 @@ export function isWaterPreviewColor(colour, tolerance = 1 / 255) {
 export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    reflectionResolution = 0.85,
     unitsPerMeter = 10,
     largeWavesFrequency: largeWavesFrequencyOption = new THREE.Vector2(0.1, 0.4),
     largeWavesSpeed: largeWavesSpeedOption = 1.25,
@@ -168,21 +162,6 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   material.normalNode = perturbedNormal;
 
-  const planarReflection = reflector({ resolutionScale: reflectionResolution });
-  planarReflection.target.name = 'ProceduralWaterReflectionTarget';
-  planarReflection.target.matrixAutoUpdate = true;
-  planarReflection.target.frustumCulled = false;
-  planarReflection.target.userData.isProceduralWaterReflectionTarget = true;
-
-  const reflectionDistortion = vec2(
-    tangentSpaceNormal.x.mul(float(0.045)),
-    tangentSpaceNormal.y.mul(float(0.045)),
-  );
-  planarReflection.uvNode = planarReflection.uvNode.add(reflectionDistortion);
-
-  const viewDirection = normalize(cameraPosition.sub(worldPosition));
-  const incidentDirection = viewDirection.mul(float(-1));
-
   const slopeIntensity = clamp(length(tangentSpaceNormal.xy), 0, 1);
   const foamStrength = clamp(slopeIntensity.mul(float(1.2)), 0, 1);
 
@@ -193,36 +172,12 @@ export function createWaterSurfaceMaterial(options = {}) {
     0,
     1,
   );
-  const reflectionMix = clamp(fresnel.mul(float(0.85)).add(float(0.05)), 0, 1);
-
-  const ssrMetalness = clamp(
-    reflectionMix.mul(float(0.9)).add(float(0.05)),
-    0,
-    1,
-  ).mul(float(1).sub(foamStrength.mul(float(0.85))));
-
   const deepWaterColour = color(0x134f5c);
   const shallowWaterColour = color(0x76a5af);
   const foamColour = color(0x76a5af);
 
   const baseColour = mix(deepWaterColour, shallowWaterColour, colourBlend);
-  const roughnessBase = clamp(
-    float(0.05)
-      .add(slopeIntensity.mul(float(0.12)))
-      .add(foamStrength.mul(float(0.1))),
-    0.04,
-    0.28,
-  );
-  const reflectionVector = normalize(reflect(incidentDirection, perturbedNormal));
-  const hasEnvironmentMap = Boolean(material.envMap);
-  let combinedReflection = planarReflection;
-  if (hasEnvironmentMap) {
-    const environmentReflection = pmremTexture(reflectionVector, roughnessBase)
-      .mul(materialEnvIntensity);
-    combinedReflection = mix(planarReflection, environmentReflection, float(0.85));
-  }
-  const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
-  material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
+  material.colorNode = mix(baseColour, foamColour, foamStrength.mul(float(0.55)));
 
   material.metalnessNode = float(1);
   material.roughnessNode = float(0.15);
@@ -240,7 +195,6 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.opacityNode = float(1);
 
   material.userData.isProceduralWater = true;
-  material.userData.planarReflection = planarReflection;
   material.userData.waveUniforms = {
     largeWavesFrequency,
     largeWavesSpeed,
@@ -250,60 +204,6 @@ export function createWaterSurfaceMaterial(options = {}) {
     smallWavesSpeed,
     smallWavesMultiplier,
     normalComputeShift: normalComputeShiftUniform,
-  };
-  material.userData.setupProceduralWater = (mesh) => {
-    if (!mesh?.isMesh) {
-      return;
-    }
-
-    if (mesh.userData?.proceduralWaterReflection) {
-      return;
-    }
-
-    const target = planarReflection?.target;
-    if (!target) {
-      return;
-    }
-
-    if (target.parent && target.parent !== mesh) {
-      target.parent.remove(target);
-    }
-
-    target.visible = true;
-    target.position.set(0, 0, 0);
-    target.rotation.set(0, 0, 0);
-    target.scale.setScalar(1);
-
-    mesh.add(target);
-
-    const geometry = mesh.geometry;
-    let scale = 0.5;
-    if (geometry) {
-      if (geometry.boundingSphere) {
-        scale = geometry.boundingSphere.radius * 2.2 || scale;
-      } else if (typeof geometry.computeBoundingSphere === 'function') {
-        geometry.computeBoundingSphere();
-        scale = geometry.boundingSphere?.radius * 2.2 || scale;
-      }
-    }
-    if (!Number.isFinite(scale) || scale <= 0) {
-      scale = 1;
-    }
-    target.scale.set(scale, scale, scale);
-    target.updateMatrixWorld(true);
-
-    const previousDispose = mesh.userData?.dispose;
-    mesh.userData.dispose = () => {
-      if (target.parent === mesh) {
-        mesh.remove(target);
-      }
-      mesh.userData.proceduralWaterReflection = false;
-      if (typeof previousDispose === 'function') {
-        previousDispose.call(mesh);
-      }
-    };
-
-    mesh.userData.proceduralWaterReflection = true;
   };
   material.userData.previewColor = WATER_PREVIEW_COLOR.clone();
   material.needsUpdate = true;
