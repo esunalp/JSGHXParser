@@ -6,6 +6,7 @@ import {
   createTlsMaterial,
   ensureGeometryHasVertexNormals,
 } from './material-utils.js';
+import { createGrassSurfaceMaterial, isGrassPreviewColor } from './grass-material.js';
 import { createWaterSurfaceMaterial, isWaterPreviewColor } from './water-material.js';
 import { withVersion } from './version.js';
 
@@ -894,6 +895,9 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       if (isWaterPreviewColor(diffuse)) {
         material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 1000 });
         material.userData.source = 'procedural-water';
+      } else if (isGrassPreviewColor(diffuse)) {
+        material = createGrassSurfaceMaterial({ side: THREE.DoubleSide, unitsPerTile: 1000 });
+        material.userData.source = 'procedural-grass';
       } else {
         material = createTlsMaterial(
           {
