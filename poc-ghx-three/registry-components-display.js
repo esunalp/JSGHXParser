@@ -719,7 +719,7 @@ export function registerDisplayPreviewComponents({ register, toNumber, toVector3
       if (!material) {
         const colourCandidate = parseColor(inputs.material, null);
         if (colourCandidate && isWaterPreviewColor(colourCandidate)) {
-          material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 1000 });
+          material = createWaterSurfaceMaterial({ side: THREE.DoubleSide, unitsPerMeter: 10000 });
           material.userData.source = 'procedural-water';
         }
       }
