@@ -91,7 +91,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const normalComputeShiftUniform = uniform(normalComputeShiftValue);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
-    metalness: 0.85,
+    metalness: 0.0,
     roughness: 0,
     clearcoat: 0.85,
     clearcoatRoughness: 0,
