@@ -179,11 +179,11 @@ export function createWaterSurfaceMaterial(options = {}) {
   const baseColour = mix(deepWaterColour, shallowWaterColour, colourBlend);
   material.colorNode = mix(baseColour, foamColour, foamStrength.mul(float(0.55)));
 
-  material.metalnessNode = float(0.2);
+  material.metalnessNode = float(0.85);
   material.roughnessNode = float(0);
   material.clearcoatNode = float(1);
   material.clearcoatRoughnessNode = float(0);
-  material.transmissionNode = float(0.2);
+  material.transmissionNode = float(0.8);
   material.thicknessNode = float(280);
   material.attenuationDistanceNode = float(1200);
   material.attenuationColorNode = mix(
