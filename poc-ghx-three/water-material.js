@@ -91,11 +91,11 @@ export function createWaterSurfaceMaterial(options = {}) {
   const normalComputeShiftUniform = uniform(normalComputeShiftValue);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
-    metalness: 0.0,
+    metalness: 1,
     roughness: 0,
-    clearcoat: 0.0,
+    clearcoat: 1,
     clearcoatRoughness: 0,
-    transmission: 0.0,
+    transmission: 0.8,
     thickness: 250,
     ior: 1.33,
     attenuationDistance: 1200,
@@ -224,11 +224,11 @@ export function createWaterSurfaceMaterial(options = {}) {
   const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
 
-  material.metalnessNode = float(0);
+  material.metalnessNode = float(1);
   material.roughnessNode = float(0);
-  material.clearcoatNode = float(0);
+  material.clearcoatNode = float(1);
   material.clearcoatRoughnessNode = clamp(float(0.03).add(foamStrength.mul(float(0.08))), 0.02, 0.12);
-  material.transmissionNode = float(0);
+  material.transmissionNode = float(0.8);
   material.thicknessNode = float(280);
   material.attenuationDistanceNode = float(1200);
   material.attenuationColorNode = mix(
@@ -303,7 +303,7 @@ export function createWaterSurfaceMaterial(options = {}) {
       }
     };
 
-    mesh.userData.proceduralWaterReflection = false;
+    mesh.userData.proceduralWaterReflection = true;
   };
   material.userData.previewColor = WATER_PREVIEW_COLOR.clone();
   material.needsUpdate = true;
