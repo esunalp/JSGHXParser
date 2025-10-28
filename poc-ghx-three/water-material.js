@@ -195,6 +195,12 @@ export function createWaterSurfaceMaterial(options = {}) {
   );
   const reflectionMix = clamp(fresnel.mul(float(0.85)).add(float(0.05)), 0, 1);
 
+  const ssrMetalness = clamp(
+    reflectionMix.mul(float(0.9)).add(float(0.05)),
+    0,
+    1,
+  ).mul(float(1).sub(foamStrength.mul(float(0.85))));
+
   const deepWaterColour = color(0x0f3a63);
   const shallowWaterColour = color(0x8dddf9);
   const foamColour = color(0xf6fdff);
@@ -218,7 +224,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
 
-  material.metalnessNode = float(0.85);
+  material.metalnessNode = ssrMetalness;
   material.roughnessNode = roughnessBase;
   material.clearcoatNode = float(0.85);
   material.clearcoatRoughnessNode = clamp(float(0.03).add(foamStrength.mul(float(0.08))), 0.02, 0.12);
