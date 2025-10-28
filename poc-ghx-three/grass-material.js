@@ -74,7 +74,7 @@ export function createGrassSurfaceMaterial(options = {}) {
   const grassTextureSecondary = getGrassTexture2();
   const grassNoiseTexture = getGrassNoiseTexture();
   const tileSizeValue = Number(unitsPerTileOption);
-  const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 1000, 0.001);
+  const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 2000, 0.001);
   const shadingStrength = THREE.MathUtils.clamp(Number(shadingStrengthOption) || 0, 0, 1);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
