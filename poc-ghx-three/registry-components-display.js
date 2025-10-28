@@ -386,6 +386,7 @@ function createGeometryFromMeshLike(data) {
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+  geometry.computeVertexNormals();
 
   const indices = [];
   faces.forEach((face) => {
