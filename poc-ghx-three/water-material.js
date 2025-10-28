@@ -4,26 +4,31 @@ import {
   cameraPosition,
   clamp,
   color,
-  cos,
+  cross,
   float,
+  fract,
   length,
-  max,
   mix,
   normalize,
   normalLocal,
   normalView,
   pmremTexture,
-  positionLocal,
   positionWorld,
   pow,
   reflect,
   reflector,
-  sin,
+  texture,
   vec2,
   vec3,
-  mx_timer,
   materialEnvIntensity,
 } from 'three/tsl';
+
+const WATER_NORMAL_TEXTURE = new THREE.TextureLoader().load(
+  new URL('./assets/waternormal1.jpg', import.meta.url).href,
+);
+WATER_NORMAL_TEXTURE.wrapS = THREE.RepeatWrapping;
+WATER_NORMAL_TEXTURE.wrapT = THREE.RepeatWrapping;
+WATER_NORMAL_TEXTURE.colorSpace = THREE.NoColorSpace;
 
 export const WATER_PREVIEW_COLOR = new THREE.Color(201 / 255, 233 / 255, 245 / 255);
 
@@ -39,8 +44,6 @@ export function isWaterPreviewColor(colour, tolerance = 1 / 255) {
 export function createWaterSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    amplitude = 18,
-    frequency = 0.0048,
     reflectionResolution = 0.35,
   } = options;
 
@@ -60,46 +63,43 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   material.shadowSide = side;
 
-  const time = mx_timer();
   const worldPosition = positionWorld;
+  const metersToUV = float(1 / 4);
+  const planarUV = vec2(worldPosition.x, worldPosition.y).mul(metersToUV);
+  const wrappedUV = fract(planarUV);
 
-  const baseFrequency = float(frequency);
-  const frequencyX = baseFrequency.mul(1.2);
-  const frequencyY = baseFrequency.mul(0.9);
-  const frequencyRipple = baseFrequency.mul(1.6);
+  const blurStep = float(0.02);
+  const offsetX = vec2(blurStep, float(0));
+  const offsetY = vec2(float(0), blurStep);
 
-  const surfaceCoords = vec2(worldPosition.x, worldPosition.y);
-  const rippleDistance = length(surfaceCoords);
-  const safeDistance = max(rippleDistance, float(1e-3));
+  const sampleCenter = texture(WATER_NORMAL_TEXTURE, wrappedUV);
+  const samplePositiveX = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.add(offsetX)));
+  const sampleNegativeX = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.sub(offsetX)));
+  const samplePositiveY = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.add(offsetY)));
+  const sampleNegativeY = texture(WATER_NORMAL_TEXTURE, fract(wrappedUV.sub(offsetY)));
 
-  const waveArgX = worldPosition.x.mul(frequencyX).add(time.mul(0.62));
-  const waveArgY = worldPosition.y.mul(frequencyY).add(time.mul(0.47));
-  const waveArgRipple = rippleDistance.mul(frequencyRipple).sub(time.mul(0.85));
+  const blurredNormalSample = sampleCenter
+    .add(samplePositiveX)
+    .add(sampleNegativeX)
+    .add(samplePositiveY)
+    .add(sampleNegativeY)
+    .mul(float(0.2));
 
-  const waveX = sin(waveArgX);
-  const waveY = sin(waveArgY);
-  const waveRipple = sin(waveArgRipple);
+  const tangentSpaceNormal = blurredNormalSample.xyz.mul(float(2)).sub(float(1));
 
-  const combinedWave = waveX.mul(0.5)
-    .add(waveY.mul(0.35))
-    .add(waveRipple.mul(0.25));
+  const baseNormal = normalize(normalLocal);
+  const tangentCandidateA = cross(vec3(0, 0, 1), baseNormal);
+  const tangentCandidateB = cross(vec3(0, 1, 0), baseNormal);
+  const tangent = normalize(tangentCandidateA.add(tangentCandidateB));
+  const bitangent = normalize(cross(baseNormal, tangent));
 
-  const amplitudeNode = float(amplitude);
-  const displacement = combinedWave.mul(amplitudeNode);
-  material.positionNode = positionLocal.add(normalLocal.mul(displacement));
+  const normalStrength = float(1.2);
+  const perturbedNormal = normalize(
+    tangent.mul(tangentSpaceNormal.x.mul(normalStrength))
+      .add(bitangent.mul(tangentSpaceNormal.y.mul(normalStrength)))
+      .add(baseNormal.mul(tangentSpaceNormal.z)),
+  );
 
-  const rippleDerivative = cos(waveArgRipple).mul(frequencyRipple);
-  const rippleDirectionX = worldPosition.x.div(safeDistance);
-  const rippleDirectionY = worldPosition.y.div(safeDistance);
-
-  const derivativeX = cos(waveArgX).mul(frequencyX).mul(0.5)
-    .add(rippleDerivative.mul(rippleDirectionX).mul(0.25));
-  const derivativeY = cos(waveArgY).mul(frequencyY).mul(0.35)
-    .add(rippleDerivative.mul(rippleDirectionY).mul(0.25));
-  const derivativeZ = float(0);
-
-  const gradient = vec3(derivativeX, derivativeY, derivativeZ).mul(amplitudeNode);
-  const perturbedNormal = normalize(normalLocal.sub(gradient));
   material.normalNode = perturbedNormal;
 
   const planarReflection = reflector({ resolutionScale: reflectionResolution });
@@ -109,27 +109,24 @@ export function createWaterSurfaceMaterial(options = {}) {
   planarReflection.target.userData.isProceduralWaterReflectionTarget = true;
 
   const reflectionDistortion = vec2(
-    derivativeX.mul(0.08).add(rippleDirectionX.mul(waveRipple).mul(0.02)),
-    derivativeY.mul(0.08).add(rippleDirectionY.mul(waveRipple).mul(0.02)),
+    tangentSpaceNormal.x.mul(float(0.045)),
+    tangentSpaceNormal.y.mul(float(0.045)),
   );
   planarReflection.uvNode = planarReflection.uvNode.add(reflectionDistortion);
 
   const viewDirection = normalize(cameraPosition.sub(worldPosition));
   const incidentDirection = viewDirection.mul(float(-1));
 
-  const waveNormalized = combinedWave.mul(0.5).add(0.5);
-  const foamScale = amplitudeNode.mul(baseFrequency).mul(24);
-  const foamStrength = clamp(
-    abs(derivativeX).add(abs(derivativeY)).mul(foamScale)
-      .add(abs(waveRipple).mul(0.18))
-      .sub(0.08),
-    0,
-    1,
-  );
+  const slopeIntensity = clamp(length(tangentSpaceNormal.xy), 0, 1);
+  const foamStrength = clamp(slopeIntensity.mul(float(1.2)), 0, 1);
 
   const fresnelBase = clamp(float(1).sub(abs(normalView.z)), 0, 1);
   const fresnel = pow(fresnelBase, float(3));
-  const colourBlend = clamp(waveNormalized.mul(0.3).add(fresnel.mul(0.6)), 0, 1);
+  const colourBlend = clamp(
+    slopeIntensity.mul(float(0.45)).add(fresnel.mul(float(0.45))).add(float(0.1)),
+    0,
+    1,
+  );
   const reflectionMix = clamp(fresnel.mul(float(0.85)).add(float(0.05)), 0, 1);
 
   const deepWaterColour = color(0x0f3a63);
@@ -138,10 +135,10 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   const baseColour = mix(deepWaterColour, shallowWaterColour, colourBlend);
   const roughnessBase = clamp(
-    float(0.04)
-      .add(waveNormalized.mul(0.06))
-      .add(foamStrength.mul(0.12)),
-    0.03,
+    float(0.05)
+      .add(slopeIntensity.mul(float(0.12)))
+      .add(foamStrength.mul(float(0.1))),
+    0.04,
     0.28,
   );
   const reflectionVector = normalize(reflect(incidentDirection, perturbedNormal));
@@ -153,19 +150,19 @@ export function createWaterSurfaceMaterial(options = {}) {
     combinedReflection = mix(planarReflection, environmentReflection, float(0.35));
   }
   const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
-  material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(0.6));
+  material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
 
   material.metalnessNode = float(0.85);
   material.roughnessNode = roughnessBase;
   material.clearcoatNode = float(0.85);
-  material.clearcoatRoughnessNode = clamp(float(0.02).add(foamStrength.mul(0.09)), 0.02, 0.12);
+  material.clearcoatRoughnessNode = clamp(float(0.03).add(foamStrength.mul(float(0.08))), 0.02, 0.12);
   material.transmissionNode = float(0.82);
   material.thicknessNode = float(280);
   material.attenuationDistanceNode = float(1200);
   material.attenuationColorNode = mix(
     color(0x3fb7ff),
     color(0xbef1ff),
-    clamp(colourBlend.add(foamStrength.mul(0.2)), 0, 1),
+    clamp(colourBlend.add(foamStrength.mul(float(0.15))), 0, 1),
   );
   material.iorNode = float(1.33);
   material.opacityNode = float(1);
