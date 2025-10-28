@@ -343,7 +343,15 @@ export function ensureGeometryHasVertexNormals(geometry) {
   if (geometry.isBufferGeometry) {
     const normalAttribute = geometry.getAttribute?.('normal');
     if (!normalAttribute || normalAttribute.count === 0) {
-      geometry.computeVertexNormals();
+      geometry.computeVertexNormals?.();
+      const updatedNormal = geometry.getAttribute?.('normal');
+      if (!updatedNormal || updatedNormal.count === 0) {
+        const positionAttribute = geometry.getAttribute?.('position');
+        if (positionAttribute?.count) {
+          const emptyNormals = new Float32Array(positionAttribute.count * 3);
+          geometry.setAttribute('normal', new THREE.Float32BufferAttribute(emptyNormals, 3));
+        }
+      }
     }
     return geometry;
   }
