@@ -280,6 +280,7 @@ class Engine {
     this.inputIndex = new Map();
     this.topology = [];
     this.listeners = new Map();
+    this.pendingEvaluation = false;
   }
 
   emit(event, payload) {
@@ -334,73 +335,80 @@ class Engine {
     this.emit('evaluation', { message: 'Grafiek geladen. Klaar voor evaluatie.' });
   }
 
-  evaluate() {
-    if (!this.topology.length) {
-      this.emit('evaluation', { message: 'Geen nodes om te evalueren.' });
-      return;
+  evaluate({ emitStartEvent = true } = {}) {
+    if (emitStartEvent) {
+      this.emit('evaluation-start', { reason: 'evaluate' });
     }
-
-    const outputs = new Map();
-    const overlay = { segments: [], points: [] };
-    const overlayVisited = new Set();
-    const renderables = [];
-    for (const nodeId of this.topology) {
-      const node = this.nodeById.get(nodeId);
-      if (!node) continue;
-      const implementation = this.registry.lookup(node);
-      if (!implementation) {
-        this.onLog(`Geen registry-entry voor node: ${node.name ?? node.guid ?? node.id}`);
-        continue;
+    try {
+      if (!this.topology.length) {
+        this.emit('evaluation', { message: 'Geen nodes om te evalueren.' });
+        return;
       }
 
-      const state = this.nodeStates.get(nodeId) ?? (implementation.createState ? implementation.createState(node) : undefined);
-      if (state && !this.nodeStates.has(nodeId)) {
-        this.nodeStates.set(nodeId, state);
-      }
-
-      const resolvedInputs = resolveInputs(node, this.inputIndex, outputs);
-
-      let result = {};
-      try {
-        if (typeof implementation.eval === 'function') {
-          result = implementation.eval({ node, inputs: resolvedInputs, state, engine: this }) || {};
-        }
-      } catch (error) {
-        this.onError(`Evaluatie fout bij node ${node.name ?? node.id}: ${error.message}`);
-        console.error(error);
-        result = {};
-      }
-
-      outputs.set(nodeId, result);
-      this.nodeOutputs.set(nodeId, result);
-
-      if (node.hidden) {
-        continue;
-      }
-
-      collectOverlayData(result, overlay, overlayVisited);
-
-      const nodeRenderables = collectRenderables(result);
-      for (const entry of nodeRenderables) {
-        if (!entry) {
+      const outputs = new Map();
+      const overlay = { segments: [], points: [] };
+      const overlayVisited = new Set();
+      const renderables = [];
+      for (const nodeId of this.topology) {
+        const node = this.nodeById.get(nodeId);
+        if (!node) continue;
+        const implementation = this.registry.lookup(node);
+        if (!implementation) {
+          this.onLog(`Geen registry-entry voor node: ${node.name ?? node.guid ?? node.id}`);
           continue;
         }
-        renderables.push(entry);
-      }
-    }
 
-    if (typeof this.updateMesh === 'function') {
-      let main = null;
-      if (renderables.length === 1) {
-        [main] = renderables;
-      } else if (renderables.length > 1) {
-        main = renderables.slice();
-      }
-      this.updateMesh({ type: 'ghx-display', main, overlays: overlay });
-    }
+        const state = this.nodeStates.get(nodeId) ?? (implementation.createState ? implementation.createState(node) : undefined);
+        if (state && !this.nodeStates.has(nodeId)) {
+          this.nodeStates.set(nodeId, state);
+        }
 
-    const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;
-    this.emit('evaluation', { message });
+        const resolvedInputs = resolveInputs(node, this.inputIndex, outputs);
+
+        let result = {};
+        try {
+          if (typeof implementation.eval === 'function') {
+            result = implementation.eval({ node, inputs: resolvedInputs, state, engine: this }) || {};
+          }
+        } catch (error) {
+          this.onError(`Evaluatie fout bij node ${node.name ?? node.id}: ${error.message}`);
+          console.error(error);
+          result = {};
+        }
+
+        outputs.set(nodeId, result);
+        this.nodeOutputs.set(nodeId, result);
+
+        if (node.hidden) {
+          continue;
+        }
+
+        collectOverlayData(result, overlay, overlayVisited);
+
+        const nodeRenderables = collectRenderables(result);
+        for (const entry of nodeRenderables) {
+          if (!entry) {
+            continue;
+          }
+          renderables.push(entry);
+        }
+      }
+
+      if (typeof this.updateMesh === 'function') {
+        let main = null;
+        if (renderables.length === 1) {
+          [main] = renderables;
+        } else if (renderables.length > 1) {
+          main = renderables.slice();
+        }
+        this.updateMesh({ type: 'ghx-display', main, overlays: overlay });
+      }
+
+      const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;
+      this.emit('evaluation', { message });
+    } finally {
+      this.emit('evaluation-complete', { reason: 'evaluate' });
+    }
   }
 
   listSliders() {
@@ -434,8 +442,26 @@ class Engine {
     state.value = value;
     this.nodeStates.set(nodeId, state);
     this.emit('sliders-changed');
-    this.evaluate();
+    this.scheduleEvaluation();
     return true;
+  }
+
+  scheduleEvaluation() {
+    if (this.pendingEvaluation) {
+      return;
+    }
+    this.pendingEvaluation = true;
+    this.emit('evaluation-start', { reason: 'queued' });
+    const triggerEvaluation = () => {
+      this.pendingEvaluation = false;
+      this.evaluate({ emitStartEvent: false });
+    };
+    const raf = typeof globalThis !== 'undefined' ? globalThis.requestAnimationFrame : undefined;
+    if (typeof raf === 'function') {
+      raf(() => triggerEvaluation());
+      return;
+    }
+    Promise.resolve().then(triggerEvaluation);
   }
 }
 

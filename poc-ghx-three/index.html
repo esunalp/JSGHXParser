@@ -143,6 +143,41 @@
         width: 100%;
         height: 100%;
       }
+
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: brightness(1.2);
+        transition: opacity 150ms ease;
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 1;
+      }
+
+      .loading-overlay--hidden {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .loading-overlay__spinner {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 999px;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #ffffff;
+        animation: loading-overlay-spin 0.9s linear infinite;
+      }
+
+      @keyframes loading-overlay-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body>
@@ -214,6 +249,57 @@
       const overlayToggle = document.getElementById('overlay-toggle');
       const overlayState = document.getElementById('overlay-state');
 
+      const viewportSection = document.querySelector('.viewport');
+      const loadingOverlay = document.createElement('div');
+      loadingOverlay.className = 'loading-overlay loading-overlay--hidden';
+      loadingOverlay.setAttribute('aria-hidden', 'true');
+
+      const loadingSpinner = document.createElement('div');
+      loadingSpinner.className = 'loading-overlay__spinner';
+      loadingSpinner.setAttribute('role', 'status');
+      loadingSpinner.setAttribute('aria-live', 'polite');
+      loadingSpinner.setAttribute('aria-label', 'Bezig met laden');
+      loadingOverlay.appendChild(loadingSpinner);
+
+      viewportSection.appendChild(loadingOverlay);
+
+      const activeLoadingTokens = new Set();
+      let overlayHideTimeout = null;
+
+      const showLoadingOverlay = (token = Symbol('loading')) => {
+        if (activeLoadingTokens.has(token)) {
+          return token;
+        }
+        if (overlayHideTimeout) {
+          clearTimeout(overlayHideTimeout);
+          overlayHideTimeout = null;
+        }
+        const wasEmpty = activeLoadingTokens.size === 0;
+        activeLoadingTokens.add(token);
+        if (wasEmpty) {
+          loadingOverlay.classList.remove('loading-overlay--hidden');
+          loadingOverlay.setAttribute('aria-hidden', 'false');
+        }
+        return token;
+      };
+
+      const hideLoadingOverlay = (token) => {
+        if (token !== undefined) {
+          activeLoadingTokens.delete(token);
+        } else {
+          activeLoadingTokens.clear();
+        }
+        if (activeLoadingTokens.size === 0) {
+          overlayHideTimeout = window.setTimeout(() => {
+            loadingOverlay.classList.add('loading-overlay--hidden');
+            loadingOverlay.setAttribute('aria-hidden', 'true');
+            overlayHideTimeout = null;
+          }, 120);
+        }
+      };
+
+      const evaluationOverlayToken = Symbol('evaluation');
+
       const sceneApi = initScene(canvas);
       const webgpuSupported = sceneApi.isWebGPUSupported();
       const engine = createEngine({
@@ -233,6 +319,12 @@
         if (payload?.message) {
           statusEl.textContent = payload.message;
         }
+      });
+      engine.on('evaluation-start', () => {
+        showLoadingOverlay(evaluationOverlayToken);
+      });
+      engine.on('evaluation-complete', () => {
+        hideLoadingOverlay(evaluationOverlayToken);
       });
 
       const syncOverlay = (checked) => {
@@ -291,7 +383,7 @@
       };
 
       engine.loadGraph(mockGraph);
-      engine.evaluate();
+      engine.scheduleEvaluation();
 
       if (webgpuSupported) {
         statusEl.textContent = 'Mock-graph actief: pas sliders aan om de box te wijzigen.';
@@ -305,11 +397,12 @@
         }
 
         statusEl.textContent = `Bezig met inlezen van ${file.name}...`;
+        const fileLoadToken = showLoadingOverlay();
 
         try {
           const graph = await parseGHX(file);
           engine.loadGraph(graph);
-          engine.evaluate();
+          engine.scheduleEvaluation();
 
           const sliderCount = engine.listSliders().length;
           const summaryParts = [`${graph.nodes.length} nodes`];
@@ -321,6 +414,8 @@
         } catch (error) {
           console.error('GHX parse error', error);
           statusEl.textContent = `Fout bij inlezen: ${error?.message ?? 'onbekende fout'}`;
+        } finally {
+          hideLoadingOverlay(fileLoadToken);
         }
       });
     </script>
