@@ -274,6 +274,7 @@ function createSegmentsObject(segments) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  ensureGeometryHasVertexNormals(geometry, { compute: false });
 
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
@@ -466,6 +467,7 @@ function createFieldDisplayGroup(display) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.computeVertexNormals();
+    ensureGeometryHasVertexNormals(geometry);
 
     const material = new THREE.MeshBasicMaterial({
       color: 0x1f2933,

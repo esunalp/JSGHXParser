@@ -336,14 +336,16 @@ export function convertMaterialToNode(material, options = {}) {
   return material;
 }
 
-export function ensureGeometryHasVertexNormals(geometry) {
+export function ensureGeometryHasVertexNormals(geometry, { compute = true } = {}) {
   if (!geometry) {
     return geometry;
   }
   if (geometry.isBufferGeometry) {
     const normalAttribute = geometry.getAttribute?.('normal');
     if (!normalAttribute || normalAttribute.count === 0) {
-      geometry.computeVertexNormals?.();
+      if (compute !== false) {
+        geometry.computeVertexNormals?.();
+      }
       const updatedNormal = geometry.getAttribute?.('normal');
       if (!updatedNormal || updatedNormal.count === 0) {
         const positionAttribute = geometry.getAttribute?.('position');
