@@ -66,7 +66,7 @@ function getGrassNoiseTexture() {
 export function createGrassSurfaceMaterial(options = {}) {
   const {
     side = THREE.DoubleSide,
-    unitsPerTile: unitsPerTileOption = 5000,
+    unitsPerTile: unitsPerTileOption = 3000,
     shadingStrength: shadingStrengthOption = 0.4,
   } = options;
 
@@ -74,7 +74,7 @@ export function createGrassSurfaceMaterial(options = {}) {
   const grassTextureSecondary = getGrassTexture2();
   const grassNoiseTexture = getGrassNoiseTexture();
   const tileSizeValue = Number(unitsPerTileOption);
-  const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 5000, 0.001);
+  const tileSize = Math.max(Number.isFinite(tileSizeValue) ? tileSizeValue : 3000, 0.001);
   const shadingStrength = THREE.MathUtils.clamp(Number(shadingStrengthOption) || 0, 0, 1);
 
   const material = new THREE.MeshPhysicalNodeMaterial({
