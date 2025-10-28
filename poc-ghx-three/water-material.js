@@ -92,9 +92,9 @@ export function createWaterSurfaceMaterial(options = {}) {
 
   const material = new THREE.MeshPhysicalNodeMaterial({
     metalness: 0.85,
-    roughness: 0.08,
+    roughness: 0,
     clearcoat: 0.85,
-    clearcoatRoughness: 0.08,
+    clearcoatRoughness: 0,
     transmission: 0.78,
     thickness: 250,
     ior: 1.33,
