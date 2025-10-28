@@ -219,7 +219,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   if (hasEnvironmentMap) {
     const environmentReflection = pmremTexture(reflectionVector, roughnessBase)
       .mul(materialEnvIntensity);
-    combinedReflection = mix(planarReflection, environmentReflection, float(0.35));
+    combinedReflection = mix(planarReflection, environmentReflection, float(0.85));
   }
   const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
