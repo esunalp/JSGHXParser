@@ -88,13 +88,13 @@ export function createWaterSurfaceMaterial(options = {}) {
     metalness: 1,
     roughness: 0,
     clearcoat: 1,
-    clearcoatRoughness: 0,
+    clearcoatRoughness: 0.15,
     transmission: 0.8,
     thickness: 250,
     ior: 1.33,
     attenuationDistance: 1200,
     attenuationColor: new THREE.Color(0xffffff),
-    transparent: false,
+    transparent: true,
     side,
   });
 
@@ -182,7 +182,7 @@ export function createWaterSurfaceMaterial(options = {}) {
   material.metalnessNode = float(1);
   material.roughnessNode = float(0.8);
   material.clearcoatNode = float(1);
-  material.clearcoatRoughnessNode = float(0.8);
+  material.clearcoatRoughnessNode = float(0.15);
   material.transmissionNode = float(0.8);
   material.thicknessNode = float(280);
   material.attenuationDistanceNode = float(1200);
