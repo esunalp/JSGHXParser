@@ -224,9 +224,9 @@ export function createWaterSurfaceMaterial(options = {}) {
   const colourWithReflection = mix(baseColour, combinedReflection, reflectionMix);
   material.colorNode = mix(colourWithReflection, foamColour, foamStrength.mul(float(0.55)));
 
-  material.metalnessNode = float(1);
+  material.metalnessNode = float(0);
   material.roughnessNode = float(0);
-  material.clearcoatNode = float(1);
+  material.clearcoatNode = float(0);
   material.clearcoatRoughnessNode = clamp(float(0.03).add(foamStrength.mul(float(0.08))), 0.02, 0.12);
   material.transmissionNode = float(0.82);
   material.thicknessNode = float(280);
