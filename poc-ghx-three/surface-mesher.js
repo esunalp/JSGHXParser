@@ -12,6 +12,29 @@ const DEFAULT_SEGMENTS = {
   sampleV: 24,
 };
 
+function ensureBufferGeometryHasNormals(geometry) {
+  if (!geometry?.isBufferGeometry) {
+    return;
+  }
+
+  const hasNormalAttribute = geometry.getAttribute?.('normal');
+  if (hasNormalAttribute && hasNormalAttribute.count > 0) {
+    return;
+  }
+
+  geometry.computeVertexNormals?.();
+  const computedNormal = geometry.getAttribute?.('normal');
+  if (computedNormal && computedNormal.count > 0) {
+    return;
+  }
+
+  const positionAttribute = geometry.getAttribute?.('position');
+  if (positionAttribute?.count) {
+    const emptyNormals = new Float32Array(positionAttribute.count * 3);
+    geometry.setAttribute('normal', new THREE.Float32BufferAttribute(emptyNormals, 3));
+  }
+}
+
 function toFiniteNumber(value, fallback = null) {
   if (value === undefined || value === null) {
     return fallback;
@@ -442,6 +465,7 @@ function gridMetadataToGeometry(info) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
   geometry.computeVertexNormals();
+  ensureBufferGeometryHasNormals(geometry);
   return geometry;
 }
 
@@ -505,6 +529,7 @@ function sampledSurfaceToGeometry(info, options = {}) {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(new THREE.BufferAttribute(indexArray, 1));
   geometry.computeVertexNormals();
+  ensureBufferGeometryHasNormals(geometry);
   return geometry;
 }
 
