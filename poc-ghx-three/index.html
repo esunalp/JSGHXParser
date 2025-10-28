@@ -348,46 +348,48 @@
         });
       }
 
-      const mockGraph = {
-        nodes: [
-          {
-            id: 'slider-width',
-            name: 'Breedte',
-            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
-            meta: { label: 'Breedte', min: 500, max: 5000, step: 100, value: 2000 },
-          },
-          {
-            id: 'slider-height',
-            name: 'Hoogte',
-            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
-            meta: { label: 'Hoogte', min: 500, max: 5000, step: 100, value: 1500 },
-          },
-          {
-            id: 'slider-depth',
-            name: 'Diepte',
-            guid: '{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}',
-            meta: { label: 'Diepte', min: 500, max: 5000, step: 100, value: 3000 },
-          },
-          {
-            id: 'box-node',
-            name: 'Box',
-            guid: '{56F1D440-0B71-44DE-93D5-3C96BF53B78F}',
-            inputs: { W: 2000, H: 1500, D: 3000 },
-          },
-        ],
-        wires: [
-          { from: { node: 'slider-width', pin: 'value' }, to: { node: 'box-node', pin: 'W' } },
-          { from: { node: 'slider-height', pin: 'value' }, to: { node: 'box-node', pin: 'H' } },
-          { from: { node: 'slider-depth', pin: 'value' }, to: { node: 'box-node', pin: 'D' } },
-        ],
+      const summarizeGraph = (graph) => {
+        const sliderCount = engine.listSliders().length;
+        const summaryParts = [`${graph.nodes.length} nodes`];
+        summaryParts.push(sliderCount === 1 ? '1 slider' : `${sliderCount} sliders`);
+        if (!graph.wires?.length) {
+          summaryParts.push('wires nog niet geïmplementeerd');
+        }
+        return summaryParts.join(', ');
       };
 
-      engine.loadGraph(mockGraph);
-      engine.scheduleEvaluation();
+      const loadDefaultGraph = async () => {
+        const defaultFileName = 'brug.ghx';
+        const defaultPath = `./${defaultFileName}`;
+        statusEl.textContent = `Bezig met inlezen van ${defaultFileName}...`;
+        const defaultLoadToken = showLoadingOverlay();
 
-      if (webgpuSupported) {
-        statusEl.textContent = 'Mock-graph actief: pas sliders aan om de box te wijzigen.';
-      }
+        try {
+          const response = await fetch(defaultPath, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`Kon ${defaultFileName} niet ophalen (status ${response.status}).`);
+          }
+
+          const fileContents = await response.text();
+          const file =
+            typeof File === 'function'
+              ? new File([fileContents], defaultFileName, { type: 'application/xml' })
+              : { name: defaultFileName, text: () => Promise.resolve(fileContents) };
+          const graph = await parseGHX(file);
+
+          engine.loadGraph(graph);
+          engine.scheduleEvaluation();
+
+          statusEl.textContent = `Standaard GHX geladen (${defaultFileName}): ${summarizeGraph(graph)}.`;
+        } catch (error) {
+          console.error('GHX load error', error);
+          statusEl.textContent = `Fout bij laden van standaard GHX: ${error?.message ?? 'onbekende fout'}`;
+        } finally {
+          hideLoadingOverlay(defaultLoadToken);
+        }
+      };
+
+      await loadDefaultGraph();
 
       fileInput.addEventListener('change', async () => {
         const file = fileInput.files?.[0];
@@ -404,13 +406,7 @@
           engine.loadGraph(graph);
           engine.scheduleEvaluation();
 
-          const sliderCount = engine.listSliders().length;
-          const summaryParts = [`${graph.nodes.length} nodes`];
-          summaryParts.push(sliderCount === 1 ? '1 slider' : `${sliderCount} sliders`);
-          if (!graph.wires?.length) {
-            summaryParts.push('wires nog niet geïmplementeerd');
-          }
-          statusEl.textContent = `GHX geladen: ${summaryParts.join(', ')}.`;
+          statusEl.textContent = `GHX geladen: ${summarizeGraph(graph)}.`;
         } catch (error) {
           console.error('GHX parse error', error);
           statusEl.textContent = `Fout bij inlezen: ${error?.message ?? 'onbekende fout'}`;
