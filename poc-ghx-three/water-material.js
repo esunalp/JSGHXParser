@@ -237,7 +237,7 @@ export function createWaterSurfaceMaterial(options = {}) {
     clamp(colourBlend.add(foamStrength.mul(float(0.15))), 0, 1),
   );
   material.iorNode = float(1.33);
-  material.opacityNode = float(0);
+  material.opacityNode = float(1);
 
   material.userData.isProceduralWater = true;
   material.userData.planarReflection = planarReflection;
