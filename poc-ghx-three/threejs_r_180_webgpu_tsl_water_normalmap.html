@@ -22,8 +22,8 @@
     <script type="importmap">
       {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.nodes.js",
-            "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.nodes.js",
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+            "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
             "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.tsl.js",
             "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
         }
@@ -31,8 +31,8 @@
     </script>
   <script type="module">
     // Three.js r180 (ESM) + WebGPU + TSL (Nodes.js)
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.nodes.js';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/controls/OrbitControls.js';
+    import * as THREE from 'three/webgpu';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     // TSL / Node helpers (r180):
     import {
@@ -41,8 +41,8 @@
       // math primitives
       vec2, vec3, vec4, float, add, sub, mul, div, fract, sin, cos, abs, max, min, clamp,
       dot, normalize, length, floor, step, mix, pow,
-      // texture + samplers
-      texture, sampler, sampler2D,
+      // texture helpers
+      texture,
       // function builder
       tslFn
     } from 'three/tsl';
@@ -176,23 +176,23 @@
       const n = normalize( vec3( mul(-dHx, uStrength), mul(-dHy, uStrength), 1.0 ) );
       const color = encodeNormal(n);
 
-      const mat = new MeshBasicNodeMaterial();
+      const mat = new THREE.MeshBasicNodeMaterial();
       mat.colorNode = color; // schrijf RGBA normal
       return mat;
     };
 
     // Render target 1024×1024 voor normalmap
     const normalSize = 1024;
-    const normalTarget = new THREE.WebGLRenderTarget(normalSize, normalSize, {
+    const normalTarget = new THREE.RenderTarget(normalSize, normalSize, {
       type: THREE.FloatType,
-      magFilter: THREE.LinearFilter,
-      minFilter: THREE.LinearMipmapLinearFilter,
-      wrapS: THREE.RepeatWrapping,
-      wrapT: THREE.RepeatWrapping,
-      generateMipmaps: true,
       depthBuffer: false,
-      stencilBuffer: false
+      stencilBuffer: false,
+      generateMipmaps: true
     });
+    normalTarget.texture.magFilter = THREE.LinearFilter;
+    normalTarget.texture.minFilter = THREE.LinearMipmapLinearFilter;
+    normalTarget.texture.wrapS = THREE.RepeatWrapping;
+    normalTarget.texture.wrapT = THREE.RepeatWrapping;
 
     const orthoScene = new THREE.Scene();
     const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -202,14 +202,6 @@
     // ===============================
     //  Watermateriaal: normal perturb
     // ===============================
-
-    const normalSampler = sampler({
-      magFilter: THREE.LinearFilter,
-      minFilter: THREE.LinearMipmapLinearFilter,
-      wrapS: THREE.RepeatWrapping,
-      wrapT: THREE.RepeatWrapping
-    });
-    const normalTexNode = texture( sampler2D( normalTarget.texture, normalSampler ) );
 
     const uNormalScale = uniform( float(1.0) );
     const uScroll      = uniform( vec2(0.03, 0.02) );
@@ -226,7 +218,7 @@
     const makeWaterMaterial = () => {
       const st = uv();
       const stFlow = add(st, mul(time, uScroll));
-      const nTex = decodeNormal( normalTexNode.sample( stFlow ) );
+      const nTex = decodeNormal( texture( normalTarget.texture, stFlow ) );
 
       const baseN = normalize( normalWorld );
       const pertN = normalize( add( baseN, mul(nTex, uNormalScale) ) );
@@ -236,7 +228,7 @@
       const F0 = vec3(0.02); // water base reflectie
       const F = fresnelSchlick( cosTheta, F0 );
 
-      const mat = new MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.05 });
+      const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.05 });
       mat.normalNode    = pertN;
       mat.colorNode     = vec3(0.02, 0.07, 0.09);
       mat.metalnessNode = float(0.0);
