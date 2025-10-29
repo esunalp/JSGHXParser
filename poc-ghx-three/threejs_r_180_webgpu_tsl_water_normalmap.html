@@ -37,7 +37,7 @@
     // TSL / Node helpers (r180):
     import {
       // core varying/uniform helpers
-      uv, time, uniform, cameraPosition, positionWorld, normalWorld,
+      uv, time, uniform, uniformTexture, cameraPosition, positionWorld, normalWorld,
       // math primitives
       vec2, vec3, vec4, float, add, sub, mul, div, fract, sin, cos, abs, max, min, clamp,
       dot, normalize, length, floor, step, mix, pow,
@@ -222,7 +222,7 @@
     const makeWaterMaterial = () => {
       const st = uv();
       const stFlow = add(st, mul(time, uScroll));
-      const normalTextureUniform = uniform( normalTarget.texture );
+      const normalTextureUniform = uniformTexture( normalTarget.texture );
       const nTex = decodeNormal( texture( normalTextureUniform, stFlow ) );
 
       const baseN = normalize( normalWorld );
