@@ -222,8 +222,8 @@
     const makeWaterMaterial = () => {
       const st = uv();
       const stFlow = add(st, mul(time, uScroll));
-      const normalTextureNode = texture( normalTarget.texture );
-      const nTex = decodeNormal( texture( normalTextureNode, stFlow ) );
+      const normalTextureUniform = uniform( normalTarget.texture );
+      const nTex = decodeNormal( texture( normalTextureUniform, stFlow ) );
 
       const baseN = normalize( normalWorld );
       const pertN = normalize( add( baseN, mul(nTex, uNormalScale) ) );
