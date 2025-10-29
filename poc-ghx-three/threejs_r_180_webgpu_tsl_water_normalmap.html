@@ -37,7 +37,7 @@
     // TSL / Node helpers (r180):
     import {
       // core varying/uniform helpers
-      uv, time, uniform, cameraViewPosition, positionLocal, normalWorld,
+      uv, time, uniform, cameraPosition, positionWorld, normalWorld,
       // math primitives
       vec2, vec3, vec4, float, add, sub, mul, div, fract, sin, cos, abs, max, min, clamp,
       dot, normalize, length, floor, step, mix, pow,
@@ -223,7 +223,7 @@
       const baseN = normalize( normalWorld );
       const pertN = normalize( add( baseN, mul(nTex, uNormalScale) ) );
 
-      const V = normalize( sub(cameraViewPosition, positionLocal) );
+      const V = normalize( sub(cameraPosition, positionWorld) );
       const cosTheta = clamp( dot( pertN, normalize(V) ), 0.0, 1.0 );
       const F0 = vec3(0.02); // water base reflectie
       const F = fresnelSchlick( cosTheta, F0 );
