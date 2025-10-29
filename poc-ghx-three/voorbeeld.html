@@ -95,16 +95,18 @@
 
 				// floor
 
-				const floorUV = uv().mul( 15 );
-				const floorNormalOffset = texture( floorNormal, floorUV ).xy.mul( 2 ).sub( 1 ).mul( .02 );
+                                const floorUV = uv().mul( 15 );
+                                const floorColorNode = uniform( floorColor );
+                                const floorNormalNode = uniform( floorNormal );
+                                const floorNormalOffset = texture( floorNormalNode, floorUV ).xy.mul( 2 ).sub( 1 ).mul( .02 );
 
 				const reflection = reflector( { resolution: 0.2 } );
 				reflection.target.rotateX( - Math.PI / 2 );
 				reflection.uvNode = reflection.uvNode.add( floorNormalOffset );
 				scene.add( reflection.target );
 
-				const floorMaterial = new THREE.MeshPhongNodeMaterial();
-				floorMaterial.colorNode = texture( floorColor, floorUV );
+                                const floorMaterial = new THREE.MeshPhongNodeMaterial();
+                                floorMaterial.colorNode = texture( floorColorNode, floorUV );
 				floorMaterial.emissiveNode = reflection.mul( 0.25 );
 				floorMaterial.normalMap = floorNormal;
 				floorMaterial.normalScale.set( 0.2, - 0.2 );
