@@ -264,15 +264,25 @@ function createComponentKeys(component) {
   for (const guid of createGuidVariants(component.guid)) {
     keys.add(guid);
   }
-  if (component.name) {
-    keys.add(component.name);
-    keys.add(component.name.toLowerCase());
-    keys.add(component.name.replace(/\s+/g, ''));
+
+  const candidateNames = [component.name, ...(component.aliases ?? [])];
+  for (const candidate of candidateNames) {
+    if (!candidate && candidate !== 0) {
+      continue;
+    }
+    const text = String(candidate).trim();
+    if (!text) {
+      continue;
+    }
+    keys.add(text);
+    keys.add(text.toLowerCase());
+    keys.add(text.replace(/\s+/g, ''));
+    const slug = slugify(text);
+    if (slug) {
+      keys.add(`params:geometry:${slug}`);
+    }
   }
-  const slug = slugify(component.name);
-  if (slug) {
-    keys.add(`params:geometry:${slug}`);
-  }
+
   return Array.from(keys);
 }
 
