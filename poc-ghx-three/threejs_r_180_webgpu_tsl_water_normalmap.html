@@ -44,7 +44,7 @@
     dot, normalize, floor, mix, pow,
     // function builder
     Fn: tslFn // Hernoem Fn naar tslFn met ':'
-	} = THREE;
+	} = THREE.Nodes;
 	
 
     const app = document.getElementById('app');
@@ -86,11 +86,12 @@
     const texLoader = new THREE.TextureLoader();
     texLoader.setCrossOrigin('anonymous');
     texLoader.load(
-      'https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg',
-      (tex) => {
-        const env = pmrem.fromEquirectangular(tex).texture;
-        scene.environment = env;
-        tex.dispose();
+		'https://threejs.org/examples/textures/2294472375_24a3b8ef46_o.jpg',
+  		async (tex) => { // <-- Maak de functie async
+    	const envTarget = await pmrem.fromEquirectangularAsync(tex); // <-- Gebruik Async en await
+    	scene.environment = envTarget.texture; // <-- De textuur zit op het resultaat
+    	tex.dispose();
+    	envTarget.dispose(); // <-- Ruim ook de render target op
       }
     );
 
