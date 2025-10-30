@@ -26,6 +26,21 @@ export function createSliderUI({ container, engine }) {
       wrapper.className = 'slider';
       wrapper.dataset.nodeId = slider.id;
 
+      const graphCount = Number(
+        slider.graphCount ?? (Array.isArray(slider.members) ? slider.members.length : 1),
+      );
+      if (Number.isFinite(graphCount)) {
+        wrapper.dataset.graphCount = String(graphCount);
+      }
+
+      const memberWarnings = Array.isArray(slider.members)
+        ? slider.members.filter((member) => Array.isArray(member?.notes) && member.notes.length > 0)
+        : [];
+
+      if (slider.hasWarnings || (Array.isArray(slider.notes) && slider.notes.length) || memberWarnings.length) {
+        wrapper.classList.add('slider-warning');
+      }
+
       const label = document.createElement('div');
       label.className = 'slider-label';
 
@@ -70,7 +85,8 @@ export function createSliderUI({ container, engine }) {
       number.setAttribute('aria-label', `${slider.label} (nummer)`);
 
       const setLabel = (text) => {
-        label.innerHTML = `<span>${slider.label}</span><span>${text}</span>`;
+        const name = slider.label ?? slider.nickName ?? slider.id;
+        label.innerHTML = `<span>${name}</span><span>${text}</span>`;
       };
 
       const clampValue = (value) => {
@@ -133,7 +149,21 @@ export function createSliderUI({ container, engine }) {
         }
         committedValue = clamped;
         syncInputs(clamped);
-        engine.setSliderValue(slider.id, clamped);
+        const hasGroupBinding =
+          typeof engine.setSliderGroupValue === 'function' && Array.isArray(slider.members);
+        if (hasGroupBinding) {
+          engine.setSliderGroupValue(slider.id, clamped);
+          return;
+        }
+        const primaryGraphId =
+          slider?.canonicalSource?.graphId ?? slider?.members?.[0]?.graphId ?? slider?.graphId;
+        if (typeof engine.setSliderValue === 'function') {
+          if (primaryGraphId) {
+            engine.setSliderValue(slider.id, clamped, { graphId: primaryGraphId });
+          } else {
+            engine.setSliderValue(slider.id, clamped);
+          }
+        }
       };
 
       const commitFromEvent = (event) => {
@@ -164,6 +194,66 @@ export function createSliderUI({ container, engine }) {
       inputs.appendChild(number);
       wrapper.appendChild(label);
       wrapper.appendChild(inputs);
+
+      const metaInfo = document.createElement('div');
+      metaInfo.className = 'slider-meta';
+
+      const graphLabels = Array.isArray(slider.members)
+        ? slider.members
+            .map((member) => member?.graphLabel ?? member?.graphId)
+            .filter((entry) => typeof entry === 'string' && entry.trim().length > 0)
+        : [];
+
+      const metaParts = [];
+      if (graphLabels.length) {
+        const preview = graphLabels.slice(0, 3);
+        const remainder = graphLabels.length - preview.length;
+        const graphLabel =
+          graphCount > 1
+            ? `Grafieken: ${preview.join(', ')}${remainder > 0 ? ` (+${remainder} meer)` : ''}`
+            : `Grafiek: ${preview[0]}`;
+        metaParts.push(graphLabel);
+      } else if (Number.isFinite(graphCount) && graphCount > 1) {
+        metaParts.push(`${graphCount} gekoppelde grafieken`);
+      }
+
+      if (Array.isArray(slider.notes) && slider.notes.length) {
+        metaParts.push(slider.notes.join(' • '));
+      } else if (memberWarnings.length) {
+        const warningDescriptions = memberWarnings.map((member) => {
+          const source = member.graphLabel ?? member.graphId ?? 'Onbekende grafiek';
+          const noteText = member.notes.join(', ');
+          return noteText ? `${source}: ${noteText}` : source;
+        });
+        metaParts.push(warningDescriptions.join(' • '));
+      }
+
+      if (metaParts.length) {
+        metaInfo.textContent = metaParts.join(' • ');
+        wrapper.appendChild(metaInfo);
+      }
+
+      const tooltipLines = [];
+      if (slider?.canonicalSource?.graphLabel) {
+        tooltipLines.push(`Referentie: ${slider.canonicalSource.graphLabel}`);
+      }
+      if (Array.isArray(slider.members) && slider.members.length) {
+        for (const member of slider.members) {
+          const memberSource = member?.graphLabel ?? member?.graphId ?? 'Onbekende grafiek';
+          const memberLabel = member?.label ?? member?.nickName ?? slider.label ?? slider.id;
+          const memberNotes = Array.isArray(member?.notes) && member.notes.length
+            ? ` — ${member.notes.join(', ')}`
+            : '';
+          tooltipLines.push(`${memberSource}: ${memberLabel}${memberNotes}`);
+        }
+      }
+      if (Array.isArray(slider.notes) && slider.notes.length) {
+        tooltipLines.push(...slider.notes);
+      }
+      if (tooltipLines.length) {
+        wrapper.title = tooltipLines.join('\n');
+      }
+
       container.appendChild(wrapper);
     }
   }
