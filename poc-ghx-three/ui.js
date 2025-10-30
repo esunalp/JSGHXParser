@@ -44,6 +44,19 @@ export function createSliderUI({ container, engine }) {
       const label = document.createElement('div');
       label.className = 'slider-label';
 
+      const labelName = document.createElement('span');
+      labelName.className = 'slider-name';
+
+      const labelNameText = document.createElement('span');
+      labelNameText.className = 'slider-name-text';
+      labelName.appendChild(labelNameText);
+
+      const labelValue = document.createElement('span');
+      labelValue.className = 'slider-value';
+
+      label.appendChild(labelName);
+      label.appendChild(labelValue);
+
       const inputs = document.createElement('div');
       inputs.className = 'slider-inputs';
 
@@ -84,9 +97,29 @@ export function createSliderUI({ container, engine }) {
       number.value = slider.value;
       number.setAttribute('aria-label', `${slider.label} (nummer)`);
 
+      const sliderName = slider.label ?? slider.nickName ?? slider.id;
+      labelNameText.textContent = sliderName ?? 'Slider';
+
+      if (Number.isFinite(graphCount) && graphCount > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'slider-badge';
+        const badgeCount = Number(graphCount);
+        const badgeText = badgeCount === 1 ? '×1' : `×${badgeCount}`;
+        badge.textContent = badgeText;
+        const badgeTitle = badgeCount === 1
+          ? 'Deze slider is gekoppeld aan 1 grafiek.'
+          : `Deze slider is gekoppeld aan ${badgeCount} grafieken.`;
+        badge.title = badgeTitle;
+        badge.setAttribute('aria-label', badgeTitle);
+        labelName.appendChild(badge);
+      }
+
       const setLabel = (text) => {
-        const name = slider.label ?? slider.nickName ?? slider.id;
-        label.innerHTML = `<span>${name}</span><span>${text}</span>`;
+        if (text === undefined || text === null) {
+          labelValue.textContent = '';
+          return;
+        }
+        labelValue.textContent = String(text);
       };
 
       const clampValue = (value) => {
