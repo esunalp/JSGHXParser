@@ -61,6 +61,7 @@ const [
   },
   {
     registerParamsInputComponents,
+    registerParamsGeometryComponents,
     registerParamsUtilComponents,
   },
   {
@@ -322,6 +323,7 @@ registerSetsListComponents({ register, toNumber });
 registerSetsSetsComponents({ register, toNumber });
 registerSetsTreeComponents({ register, toNumber });
 registerParamsInputComponents({ register });
+registerParamsGeometryComponents({ register });
 registerParamsUtilComponents({ register });
 registerDisplayPreviewComponents({ register, toNumber, toVector3 });
 
