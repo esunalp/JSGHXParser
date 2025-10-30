@@ -22,28 +22,33 @@
     <script type="importmap">
       {
         "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-        }
+        	"three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+        	"three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+        	"three/tsl": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.tsl.js",
+        	"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    	}
       }
     </script>
   <script type="module">
     // Three.js r180 (ESM) + WebGPU + TSL (Nodes.js)
 	import * as THREE from 'three';
 	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-	import { WebGPURenderer } from 'three/addons/renderers/WebGPURenderer.js';
 
 	// TSL / Node helpers (r180):
 	// Haal alle TSL-functies uit het 'THREE' object
 	const {
-    // core varying/uniform helpers
-    uv, time, uniform, cameraPosition, positionWorld, normalWorld,
-    // math primitives
-    vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
-    dot, normalize, floor, mix, pow,
-    // function builder
-    Fn: tslFn // Hernoem Fn naar tslFn met ':'
-	} = THREE;
+        // core varying/uniform helpers
+        uv, time, uniform, cameraPosition, positionWorld, normalWorld,
+        // math primitives
+        vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
+        dot, normalize, floor, mix, pow,
+        // function builder
+        Fn: tsFn,
+        
+        // BELANGRIJK: Haal ook de NodeMaterial hier vandaan
+        MeshStandardNodeMaterial
+        
+    } = THREE;
 	
 
     const app = document.getElementById('app');
@@ -51,7 +56,7 @@
     // --- Renderer (WebGPU) ---
     let renderer;
     try {
-      renderer = new WebGPURenderer({ antialias: true, alpha: false });
+      renderer = new THREE.WebGPURenderer({ antialias: true, alpha: false });
     } catch (e) {
       const msg = document.createElement('div');
       msg.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center;padding:24px;text-align:center;';
@@ -205,7 +210,7 @@
       const F0 = vec3(float(0.02), float(0.02), float(0.02)); // water base reflectie
       const F = fresnelSchlick( cosTheta, F0 );
 
-      const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.05 });
+      const mat = new MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.05 });
       mat.normalNode    = pertN;
       mat.colorNode     = vec3(float(0.02), float(0.07), float(0.09));
       mat.metalnessNode = float(0.0);
