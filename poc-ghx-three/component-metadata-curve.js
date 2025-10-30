@@ -1,0 +1,5467 @@
+export const CURVE_COMPONENTS = [
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Circle Fit [OBSOLETE]",
+    "nickname": "CFit",
+    "guid": "0a80e903-e15b-4992-9675-19b2c488e853",
+    "description": "Create tangent circles",
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of tangent circles"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Fit A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First tangent solution"
+      },
+      {
+        "name": "Fit B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second tangent solution"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Point in Curves",
+    "nickname": "InCurves",
+    "guid": "0b04e8b9-00d7-47a7-95c3-0d51e654fe88",
+    "description": "Test a point for multiple closed curve containment.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Boundary regions (closed curves only)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Relationship",
+        "nickname": "R",
+        "access": "item",
+        "description": "Point/Region relationship (0 = outside, 1 = coincident, 2 = inside)"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of first region that contains the point"
+      },
+      {
+        "name": "Point",
+        "nickname": "P'",
+        "access": "item",
+        "description": "Point projected on region plane."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle",
+    "nickname": "Rectangle",
+    "guid": "0ca0a214-396c-44ea-b22f-d3a1757c32d6",
+    "description": "Create a rectangle on a plane",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "X Size",
+        "nickname": "X",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane X direction."
+      },
+      {
+        "name": "Y Size",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane y direction."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rec",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Curve Frames",
+    "nickname": "Frames",
+    "guid": "0e94542a-2e46-4793-9f98-2200b06b28f4",
+    "description": "Generate a number of equally spaced curve frames.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curve frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "End Points",
+    "nickname": "End",
+    "guid": "11bbd48b-bb0a-4f1b-8167-fa297590390d",
+    "description": "Extract the end points of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Curve start point"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "Curve end point"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Tween Curve",
+    "nickname": "TweenCrv",
+    "guid": "139619d2-8b18-47b6-b3b9-bf4fec0d6eb1",
+    "description": "Tween between two curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Curve to tween from."
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Curve to tween to"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Tween factor (0.0=Curve A, 1.0=Curve B"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tween",
+        "nickname": "T",
+        "access": "item",
+        "description": "Resulting tween curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Blend Curve Pt",
+    "nickname": "BlendCPt",
+    "guid": "14cf43b6-5eb9-460f-899c-bdece732213a",
+    "description": "Create a blend curve between two curves that intersects a point.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for blend"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for blend"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for blend intersection"
+      },
+      {
+        "name": "Continuity",
+        "nickname": "C",
+        "access": "item",
+        "description": "Continuity of blend (1=tangency, 2=curvature)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Blend",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blend curve connecting the end of A to the start of B, ideally coincident with P"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Domain",
+    "nickname": "Dom",
+    "guid": "15ac45a8-b190-420a-bd66-e78ed6bcfaa4",
+    "description": "Retrieve the domain of a curve. This component is obsolete.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Curve",
+    "nickname": "Eval",
+    "guid": "164d0429-e5f5-4292-aa80-3f88d43cdac2",
+    "description": "Evaluate a curve at the specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve at {t}"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Length Domain",
+    "nickname": "LenD",
+    "guid": "188edd02-14a9-4828-a521-34995b0d1e4a",
+    "description": "Measure the length of a curve subdomain.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Subdomain of curve to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length on sub domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Curve",
+    "nickname": "Offset",
+    "guid": "1a38d325-98de-455c-93f1-bca431bc1243",
+    "description": "Offset a curve with a specified distance.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane for offset operation"
+      },
+      {
+        "name": "Corners",
+        "nickname": "C",
+        "access": "item",
+        "description": "Corner type flag. Possible values:    none = 0  sharp = 1  round = 2  smooth = 3  chamfer = 4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Resulting offsets"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Distance",
+    "nickname": "DivDist",
+    "guid": "1e531c08-9c80-46d6-8850-1b50d1dae69f",
+    "description": "Divide a curve with a preset distance between points",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Fit Line",
+    "nickname": "FLine",
+    "guid": "1f798a28-9de6-47b5-8201-cac57256b777",
+    "description": "Fit a line to a collection of points.",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Nurbs Curve PWK",
+    "nickname": "NurbCrv",
+    "guid": "1f8e1ff7-8278-4421-b39d-350e71d85d37",
+    "description": "Construct a nurbs curve from control points, weights and knots.",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Curve control points"
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Optional control point weights"
+      },
+      {
+        "name": "Knots",
+        "nickname": "K",
+        "access": "list",
+        "description": "Nurbs knot vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Curve",
+    "nickname": "Divide",
+    "guid": "2162e72e-72fc-4bf8-9459-d4d82fa8aa14",
+    "description": "Divide a curve into equal length segments",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Kinks",
+        "nickname": "K",
+        "access": "item",
+        "description": "Split segments at kinks"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Iso Curve",
+    "nickname": "Iso",
+    "guid": "21ca41ee-bc18-4ac8-ba20-713e7edf541e",
+    "description": "Create {uv} isocurves on a surface.",
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "UV point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate on surface for isocurve extraction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "U Isocurve",
+        "nickname": "U",
+        "access": "item",
+        "description": "Isocurves in {u} direction"
+      },
+      {
+        "name": "V Isocurve",
+        "nickname": "V",
+        "access": "item",
+        "description": "Isocurves in {v} direction"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Flip Curve",
+    "nickname": "Flip",
+    "guid": "22990b1f-9be6-477c-ad89-f775cd347105",
+    "description": "Flip a curve using an optional guide curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to flip"
+      },
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "item",
+        "description": "Optional guide curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Flipped curve"
+      },
+      {
+        "name": "Flag",
+        "nickname": "F",
+        "access": "item",
+        "description": "Flip action"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Arc",
+    "nickname": "DArc",
+    "guid": "23862862-049a-40be-b558-2418aacbd916",
+    "description": "Retrieve the base plane, radius and angle domain of an arc.",
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Arc or Circle to deconstruct"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Base Plane",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane of arc or circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc or circle"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain (in radians) of arc"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Discontinuity",
+    "nickname": "Disc",
+    "guid": "269eaa85-9997-4d77-a9ba-4c58cb45c9d3",
+    "description": "Find all discontinuities along a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to analyze"
+      },
+      {
+        "name": "Level",
+        "nickname": "L",
+        "access": "item",
+        "description": "Level of discontinuity to test for (1=C1, 2=C2, 3=Cinfinite)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points at discontinuities"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Curve parameters at discontinuities"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Catenary",
+    "nickname": "Cat",
+    "guid": "275671d4-3e87-40bd-8aff-8e6a5fdbb892",
+    "description": "Create a catenary chain between two points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of catenary"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "End point of catenary"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of catenary chain (should be larger than the distance |AB|)"
+      },
+      {
+        "name": "Gravity",
+        "nickname": "G",
+        "access": "item",
+        "description": "Direction of gravity"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Catenary",
+        "nickname": "C",
+        "access": "item",
+        "description": "Catenary chain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Match Curve",
+    "nickname": "MatchCrv",
+    "guid": "282bf4eb-668a-4a2c-81af-2432ac863ddd",
+    "description": "Match two curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Curve to adjust."
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Curve to match"
+      },
+      {
+        "name": "Continuity",
+        "nickname": "C",
+        "access": "item",
+        "description": "Continuity of match (0=position, 1=tangency, 2=curvature)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Match",
+        "nickname": "M",
+        "access": "item",
+        "description": "Matched curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "InCircle",
+    "nickname": "InCircle",
+    "guid": "28b1c4d4-ab1c-4309-accd-1b7a954ed948",
+    "description": "Create the incircle of a triangle.",
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of triangle"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of triangle"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner of triangle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Curve To Polyline",
+    "nickname": "ToPoly",
+    "guid": "2956d989-3599-476f-bc92-1d847aff98b6",
+    "description": "Convert a curve to a polyline.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to simplify"
+      },
+      {
+        "name": "Tolerance (distance)",
+        "nickname": "Td",
+        "access": "item",
+        "description": "Deviation tolerance"
+      },
+      {
+        "name": "Tolerance (angle)",
+        "nickname": "Ta",
+        "access": "item",
+        "description": "Angle tolerance in radians"
+      },
+      {
+        "name": "MinEdge",
+        "nickname": "E-",
+        "access": "item",
+        "description": "Optional minimum allowed segment length"
+      },
+      {
+        "name": "MaxEdge",
+        "nickname": "E+",
+        "access": "item",
+        "description": "Optional maximum allowed segment length"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Converted curve"
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of polyline segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Shatter",
+    "nickname": "Shatter",
+    "guid": "2ad2a4d4-3de1-42f6-a4b8-f71835f35710",
+    "description": "Shatter a curve into segments.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameters to split at"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Shattered remains"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Interpolate",
+    "nickname": "IntCrv",
+    "guid": "2b2a4145-3dff-41d4-a8de-1ea9d29eef33",
+    "description": "Create an interpolated curve through a set of points.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree"
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "Periodic curve"
+      },
+      {
+        "name": "KnotStyle",
+        "nickname": "K",
+        "access": "item",
+        "description": "Knot spacing (0=uniform, 1=chord, 2=sqrtchord)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Closest Point",
+    "nickname": "Crv CP",
+    "guid": "2dc44b22-b1dd-460a-a704-6462d6e91096",
+    "description": "Find the closest point on a curve.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to project onto curve"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to project onto"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve closest to the base point"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain of closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between base point and curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet",
+    "nickname": "Fillet",
+    "guid": "2f407944-81c3-4062-a485-276454ec4b8c",
+    "description": "Fillet the sharp corners of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of fillet"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve with filleted corners"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Bezier Span",
+    "nickname": "BzSpan",
+    "guid": "30ce59ce-22a1-49ee-9e21-e6d16b3684a8",
+    "description": "Construct a bezier span from endpoints and tangents.",
+    "inputs": [
+      {
+        "name": "Start point",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start of curve"
+      },
+      {
+        "name": "Start tangent",
+        "nickname": "At",
+        "access": "item",
+        "description": "Tangent at start"
+      },
+      {
+        "name": "End point",
+        "nickname": "B",
+        "access": "item",
+        "description": "End of curve"
+      },
+      {
+        "name": "End tangent",
+        "nickname": "Bt",
+        "access": "item",
+        "description": "Tangent at end"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting bezier span"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Closed",
+    "nickname": "Cls",
+    "guid": "323f3245-af49-4489-8677-7a2c73664077",
+    "description": "Test if a curve is closed or periodic.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "True if curve is closed or periodic"
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "True if curve is periodic"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc 3Pt [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "32c57b97-b653-47dd-b78f-121e89fdd01c",
+    "description": "Create an arc through three points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on arc interior"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "End point of arc"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 3Pt",
+    "nickname": "Rec 3Pt",
+    "guid": "34493ef6-3dfb-47c0-b149-691d02a93588",
+    "description": "Create a rectangle from three points",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of rectangle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of rectangle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Point along rectangle edge opposite to AB"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rec",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Contour (ex)",
+    "nickname": "Contour",
+    "guid": "3e7e4827-6edd-4e10-93ac-cc234414d2b9",
+    "description": "Create a set of Curve contours",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to contour"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for contours"
+      },
+      {
+        "name": "Offsets",
+        "nickname": "O",
+        "access": "list",
+        "description": "Contour offsets from base plane (if omitted, you must specify distances instead)"
+      },
+      {
+        "name": "Distances",
+        "nickname": "D",
+        "access": "list",
+        "description": "Distances between contours (if omitted, you must specify offset instead)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contour points (grouped by section)"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "tree",
+        "description": "Curve parameters for all contour points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Swing Arc",
+    "nickname": "Swing",
+    "guid": "3edc4fbd-24c6-43de-aaa8-5bdf0704373d",
+    "description": "Create a polycurve consisting of arcs defined by center points.",
+    "inputs": [
+      {
+        "name": "Centers",
+        "nickname": "C",
+        "access": "list",
+        "description": "Center points for swing arc segments"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for swing arc solution. If omitted, the best fit plane is used."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius for first swing segment"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First resulting swing arc curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second resulting swing arc curve"
+      },
+      {
+        "name": "Circles",
+        "nickname": "C",
+        "access": "list",
+        "description": "Tangent circles that define the swing curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Control Points",
+    "nickname": "CP",
+    "guid": "424eb433-2b3a-4859-beaf-804d8af0afd7",
+    "description": "Extract the nurbs control points and knots of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control points of the Nurbs-form."
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weights of control points."
+      },
+      {
+        "name": "Knots",
+        "nickname": "K",
+        "access": "list",
+        "description": "Knot vector of Nurbs-form."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Sub Curve",
+    "nickname": "SubCrv",
+    "guid": "429cbba9-55ee-4e84-98ea-876c44db879a",
+    "description": "Construct a curve from the sub-domain of a base curve.",
+    "inputs": [
+      {
+        "name": "Base curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Sub-domain to extract"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting sub curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Seam",
+    "nickname": "Seam",
+    "guid": "42ad8dc1-b0c0-40df-91f5-2c46e589e6c2",
+    "description": "Adjust the seam of a closed curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to adjust"
+      },
+      {
+        "name": "Seam",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter of new seam"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Adjusted curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Ellipse",
+    "nickname": "Ellipse",
+    "guid": "46b5564d-d3eb-4bf1-ae16-15ed132cfd88",
+    "description": "Create an ellipse defined by base plane and two radii.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of ellipse"
+      },
+      {
+        "name": "Radius 1",
+        "nickname": "R1",
+        "access": "item",
+        "description": "Radius in {x} direction"
+      },
+      {
+        "name": "Radius 2",
+        "nickname": "R2",
+        "access": "item",
+        "description": "Radius in {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Ellipse",
+        "nickname": "E",
+        "access": "item",
+        "description": "Resulting ellipse"
+      },
+      {
+        "name": "Focus 1",
+        "nickname": "F1",
+        "access": "item",
+        "description": "First focus point"
+      },
+      {
+        "name": "Focus 2",
+        "nickname": "F2",
+        "access": "item",
+        "description": "Second focus point"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle 3Pt",
+    "nickname": "Circle",
+    "guid": "47886835-e3ff-4516-a3ed-1b419f055464",
+    "description": "Create a circle defined by three points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First point on circle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second point on circle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third point on circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line",
+    "nickname": "Ln",
+    "guid": "4c4e56eb-2f04-43f9-95a3-cc46a14f495a",
+    "description": "Create a line between two points.",
+    "inputs": [
+      {
+        "name": "Start Point",
+        "nickname": "A",
+        "access": "item",
+        "description": "Line start point"
+      },
+      {
+        "name": "End Point",
+        "nickname": "B",
+        "access": "item",
+        "description": "Line end point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line SDL",
+    "nickname": "Line",
+    "guid": "4c619bc9-39fd-4717-82a6-1e07ea237bbe",
+    "description": "Create a line segment defined by start point, tangent and length.}",
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Line start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Line tangent (direction)"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line length"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Interpolate (t)",
+    "nickname": "IntCrv(t)",
+    "guid": "50870118-be51-4872-ab3c-410d79f2356e",
+    "description": "Create an interpolated curve through a set of points with tangents.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree (at the moment only 3 is a valid degree)."
+      },
+      {
+        "name": "Tangent Start",
+        "nickname": "Ts",
+        "access": "item",
+        "description": "Tangent at start of curve"
+      },
+      {
+        "name": "Tangent End",
+        "nickname": "Te",
+        "access": "item",
+        "description": "Tangent at end of curve"
+      },
+      {
+        "name": "KnotStyle",
+        "nickname": "K",
+        "access": "item",
+        "description": "Knot spacing (0=uniform, 1=chord, 2=sqrtchord)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle TanTan",
+    "nickname": "CircleTT",
+    "guid": "50b204ef-d3de-41bb-a006-02fba2d3f709",
+    "description": "Create a circle tangent to two curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for tangency constraint"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for tangency constraint"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle center point guide"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line 2Plane",
+    "nickname": "Ln2Pl",
+    "guid": "510c4a63-b9bf-42e7-9d07-9d71290264da",
+    "description": "Create a line between two planes.",
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Guide line."
+      },
+      {
+        "name": "Plane A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First plane to intersect with the guide."
+      },
+      {
+        "name": "Plane B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second plane to intersect with the guide."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 2Pt",
+    "nickname": "Rec 2Pt",
+    "guid": "575660b1-8c79-4b8d-9222-7ab4a6ddb359",
+    "description": "Create a rectangle from a base plane and two points",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner point."
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner point."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle defined by P, A and B"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Planar",
+    "nickname": "Planar",
+    "guid": "5816ec9c-f170-4c59-ac44-364401ff84cd",
+    "description": "Test a curve for planarity.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Planar",
+        "nickname": "p",
+        "access": "item",
+        "description": "Planarity of curve"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Curve plane"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Deviation from curve plane"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Blend Curve",
+    "nickname": "BlendC",
+    "guid": "5909dbcb-4950-4ce4-9433-7cf9e62ee011",
+    "description": "Create a blend curve between two curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for blend"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for blend"
+      },
+      {
+        "name": "Bulge A",
+        "nickname": "Fa",
+        "access": "item",
+        "description": "Bulge factor at A"
+      },
+      {
+        "name": "Bulge B",
+        "nickname": "Fb",
+        "access": "item",
+        "description": "Bulge factor at B"
+      },
+      {
+        "name": "Continuity",
+        "nickname": "C",
+        "access": "item",
+        "description": "Continuity of blend (0=position, 1=tangency, 2=curvature)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Blend",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blend curve connecting the end of A to the start of B"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Polygon Center",
+    "nickname": "PCen",
+    "guid": "59e94548-cefd-4774-b3de-48142fc783fb",
+    "description": "Find the center point (average) for a polyline.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to average."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center(V)",
+        "nickname": "Cv",
+        "access": "item",
+        "description": "Average of polyline vertices."
+      },
+      {
+        "name": "Center(E)",
+        "nickname": "Ce",
+        "access": "item",
+        "description": "Average of polyline edges"
+      },
+      {
+        "name": "Center(A)",
+        "nickname": "Ca",
+        "access": "item",
+        "description": "Area centroid of polyline shape"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Smooth Polyline",
+    "nickname": "SmoothPLine",
+    "guid": "5c5fbc42-3e1d-4081-9cf1-148d0b1d9610",
+    "description": "Smooth the vertices of a polyline curve.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to smooth"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Smoothing strength (0 = none, 1 = maximum)"
+      },
+      {
+        "name": "Times",
+        "nickname": "T",
+        "access": "item",
+        "description": "Number of times to apply the smoothing operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Smoothed polyline"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Extend Curve",
+    "nickname": "Ext",
+    "guid": "62cc9684-6a39-422e-aefa-ed44643557b9",
+    "description": "Extend a curve by a specified distance.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to extend"
+      },
+      {
+        "name": "Type",
+        "nickname": "T",
+        "access": "item",
+        "description": "Type of extension (0=Line, 1=Arc, 2=Smooth)"
+      },
+      {
+        "name": "Start",
+        "nickname": "L0",
+        "access": "item",
+        "description": "Extension length at start of curve"
+      },
+      {
+        "name": "End",
+        "nickname": "L1",
+        "access": "item",
+        "description": "Extension length at end of curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Extended curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Control Polygon",
+    "nickname": "CPoly",
+    "guid": "66d2a68e-2f1d-43d2-a53b-c6a4d17e627b",
+    "description": "Extract the nurbs control polygon of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "C",
+        "access": "item",
+        "description": "Control polygon curve for input curve adjusted for periodicity."
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control polygon points."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "InEllipse",
+    "nickname": "InEllipse",
+    "guid": "679a9c6a-ab97-4c20-b02c-680f9a9a1a44",
+    "description": "Create the inscribed ellipse (Steiner ellipse) of a triangle.",
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of triangle"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of triangle"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner of triangle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Ellipse",
+        "nickname": "E",
+        "access": "item",
+        "description": "Resulting ellipse"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Ellipse plane"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Perp Frame",
+    "nickname": "PFrame",
+    "guid": "69f3e5ee-4770-44b3-8851-ae10ae555398",
+    "description": "Solve the perpendicular (zero-twisting) frame at a specified curve parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Perpendicular curve frame at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Length",
+    "nickname": "Eval",
+    "guid": "6b021f56-b194-4210-b9a1-6cef3b7d0848",
+    "description": "Evaluate a curve at a certain factor along its length. Length factors can be supplied both in curve units and normalized units. Change the [N] parameter to toggle between the two modes.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length factor for curve evaluation"
+      },
+      {
+        "name": "Normalized",
+        "nickname": "N",
+        "access": "item",
+        "description": "If True, the Length factor is normalized (0.0 ~ 1.0)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at the specified length"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at the specified length"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter at the specified length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Frame",
+    "nickname": "Frame",
+    "guid": "6b2a5853-07aa-4329-ba84-0a5d46b51dbd",
+    "description": "Get the curvature frame of a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Curve frame at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Pull Curve",
+    "nickname": "Pull",
+    "guid": "6b5812f5-bb36-4d74-97fc-5a1f2f77452d",
+    "description": "Pull a curve onto a surface.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to pull"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface that pulls"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve pulled onto the surface"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Proximity",
+    "nickname": "CrvProx",
+    "guid": "6b7ba278-5c9d-42f1-a61d-6209cbd44907",
+    "description": "Find the pair of closest points between two curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Point on curve A closest to curve B"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on curve B closest to curve A"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Smallest distance between two curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Perp Frames [OBSOLETE]",
+    "nickname": "Frm",
+    "guid": "6da4b70c-ce98-4d52-a2bb-2fadccf39da0",
+    "description": "OBSOLETE_COMPONENT replaced by a New Perpendicular frame routine",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "item",
+        "description": "Curvature frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide By Deviation",
+    "nickname": "DivideDev",
+    "guid": "6e9c0577-ae4a-4b21-8880-0ec3daf3eb4d",
+    "description": "Divide a curve into segments with equal deviation",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "d",
+        "access": "list",
+        "description": "Maximum deviation from segment to curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Kinky Curve",
+    "nickname": "KinkCrv",
+    "guid": "6f0993e8-5f2f-4fc0-bd73-b84bc240e78e",
+    "description": "Construct an interpolated curve through a set of points with a kink angle threshold.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Kink angle threshold (in radians)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet Distance",
+    "nickname": "Fillet",
+    "guid": "6fb21315-a032-400e-a80f-248687f5507f",
+    "description": "Fillet the sharp corners of a curve by distance.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance from corner of fillet start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve with filleted corners"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "PolyArc",
+    "nickname": "PArc",
+    "guid": "7159ef59-e4ef-44b8-8cb2-91231e278292",
+    "description": "Create a polycurve consisting of arc and line segments.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Polyarc vertex coordinates"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Optional tangent vector at start."
+      },
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "Close the polyarc curve."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "PolyArc",
+        "nickname": "Crv",
+        "access": "item",
+        "description": "Resulting polyarc curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "PolyLine",
+    "nickname": "PLine",
+    "guid": "71b5b089-500a-4ea6-81c5-2f960441a0e8",
+    "description": "Create a polyline connecting a number of points.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Polyline vertex points"
+      },
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "Close polyline"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Resulting polyline"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curvature Graph",
+    "nickname": "CrvGraph",
+    "guid": "7376fe41-74ec-497e-b367-1ffe5072608b",
+    "description": "Draws Rhino Curvature Graphs.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve for Curvature graph display"
+      },
+      {
+        "name": "Density",
+        "nickname": "D",
+        "access": "item",
+        "description": "Sampling density of the Graph"
+      },
+      {
+        "name": "Scale",
+        "nickname": "S",
+        "access": "item",
+        "description": "Scale of graph"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Nearest Object",
+    "nickname": "CrvNear",
+    "guid": "748f214a-bc64-4556-9da5-4fa59a30c5c7",
+    "description": "Find the object nearest to a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to search from"
+      },
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Shapes to search"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Point on curve closest to nearest shape"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on nearest shape closest to curve"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of nearest shape"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Interpolate (t)",
+    "nickname": "IntCrv(t)",
+    "guid": "75eb156d-d023-42f9-a85e-2f2456b8bcce",
+    "description": "Create an interpolated curve through a set of points with tangents.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Tangent Start",
+        "nickname": "Ts",
+        "access": "item",
+        "description": "Tangent at start of curve"
+      },
+      {
+        "name": "Tangent End",
+        "nickname": "Te",
+        "access": "item",
+        "description": "Tangent at end of curve"
+      },
+      {
+        "name": "KnotStyle",
+        "nickname": "K",
+        "access": "item",
+        "description": "Knot spacing (0=uniform, 1=chord, 2=sqrtchord)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "BiArc",
+    "nickname": "BiArc",
+    "guid": "75f4b0fd-9721-47b1-99e7-9c098b342e67",
+    "description": "Create a bi-arc based on endpoints and tangents.",
+    "inputs": [
+      {
+        "name": "Start Point",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of bi-arc."
+      },
+      {
+        "name": "Start Tangent",
+        "nickname": "Ts",
+        "access": "item",
+        "description": "Tangent vector at start of bi-arc."
+      },
+      {
+        "name": "End Point",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of bi-arc."
+      },
+      {
+        "name": "End Tangent",
+        "nickname": "Te",
+        "access": "item",
+        "description": "Tangent vector at end of bi-arc."
+      },
+      {
+        "name": "Ratio",
+        "nickname": "R",
+        "access": "item",
+        "description": "Ratio of bi-arc segment weight"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "First arc",
+        "nickname": "A1",
+        "access": "item",
+        "description": "First segment of bi-arc curve"
+      },
+      {
+        "name": "Second arc",
+        "nickname": "A2",
+        "access": "item",
+        "description": "Second segment of bi-arc curve"
+      },
+      {
+        "name": "Bi-Arc",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting bi-arc."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Catenary Ex",
+    "nickname": "CatEx",
+    "guid": "769f9064-17f5-4c4a-921f-c3a0ee05ba3a",
+    "description": "Create a variable catenary chain between two points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of catenary"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "End point of catenary"
+      },
+      {
+        "name": "Lengths",
+        "nickname": "L",
+        "access": "list",
+        "description": "Length of catenary chain segments"
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weight (per length unit) of catenargy chain segments"
+      },
+      {
+        "name": "Gravity",
+        "nickname": "G",
+        "access": "item",
+        "description": "Direction of gravity"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Catenary",
+        "nickname": "C",
+        "access": "item",
+        "description": "Catenary chain"
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Catenary segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Polygon Center",
+    "nickname": "PCen",
+    "guid": "7bd7b551-ca79-4f01-b95a-7e9ab876f24d",
+    "description": "Find the center point (average) for a polyline.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to average."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Average of polyline."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Join Curves",
+    "nickname": "Join",
+    "guid": "8073a420-6bec-49e3-9b18-367f6fd76ac3",
+    "description": "Join as many curves as possible",
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Curves to join"
+      },
+      {
+        "name": "Preserve",
+        "nickname": "P",
+        "access": "item",
+        "description": "Preserve direction of input curves"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Joined curves and individual curves that could not be joined."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle",
+    "nickname": "Cir",
+    "guid": "807b86e3-be8d-4970-92b5-f8cdcb45b06b",
+    "description": "Create a circle defined by base plane and radius.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Curve Loose",
+    "nickname": "Offset (L)",
+    "guid": "80e55fc2-933b-4bfb-a353-12358786dba8",
+    "description": "Offset the control-points of a curve with a specified distance.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional Plane for offset operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting offset"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Polygon",
+    "nickname": "Polygon",
+    "guid": "845527a6-5cea-4ae9-a667-96ae1667a4e8",
+    "description": "Create a polygon with optional round edges.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of polygon (distance from center to tip)."
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Fillet Radius",
+        "nickname": "Rf",
+        "access": "item",
+        "description": "Polygon corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of polygon curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Knot Vector",
+    "nickname": "Knots",
+    "guid": "846470bd-4918-4d00-9388-7e022b2cba73",
+    "description": "Construct a nurbs curve knot vector.",
+    "inputs": [
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Control point count."
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve Degree."
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "Curve periodicity"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Knots",
+        "nickname": "K",
+        "access": "list",
+        "description": "Nurbs Knot Vector."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Polygon Center",
+    "nickname": "PCen",
+    "guid": "87e7f480-14dc-4478-b1e6-2b8b035d9edc",
+    "description": "Find the center point (average) for a polyline.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to average."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center(V)",
+        "nickname": "Cv",
+        "access": "item",
+        "description": "Average of polyline vertices."
+      },
+      {
+        "name": "Center(E)",
+        "nickname": "Ce",
+        "access": "item",
+        "description": "Average of polyline edges"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Reduce",
+    "nickname": "RedPLine",
+    "guid": "884646c3-0e70-4ad1-90c5-42601ee26450",
+    "description": "Reduce a polyline by removing least significant vertices.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to reduce"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tolerance (allowed deviation between original and reduction)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Reduced polyline"
+      },
+      {
+        "name": "Reduction",
+        "nickname": "R",
+        "access": "item",
+        "description": "Number of vertices removed during reduction"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Contour",
+    "nickname": "Contour",
+    "guid": "88cff285-7f5e-41b3-96d5-9588ff9a52b1",
+    "description": "Create a set of Curve contours",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to contour"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Contour start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "N",
+        "access": "item",
+        "description": "Contour normal direction"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between contours"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contour points (grouped by section)"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "tree",
+        "description": "Curve parameters for all contour points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Horizontal Frames",
+    "nickname": "HFrames",
+    "guid": "8d058945-ce47-4e7c-82af-3269295d7890",
+    "description": "Generate a number of equally spaced, horizontally aligned curve frames.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curvature frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Simplify Curve",
+    "nickname": "Simplify",
+    "guid": "922dc7e5-0f0e-4c21-ae4b-f6a8654e63f6",
+    "description": "Simplify a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to simplify"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "t",
+        "access": "item",
+        "description": "Optional deviation tolerance (if omitted, the current document tolerance is used)"
+      },
+      {
+        "name": "Angle Tolerance",
+        "nickname": "a",
+        "access": "item",
+        "description": "Optional angle tolerance (if omitted, the current document tolerance is used)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Simplified curve"
+      },
+      {
+        "name": "Simplified",
+        "nickname": "S",
+        "access": "item",
+        "description": "True if curve was modified in any way"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Rebuild Curve",
+    "nickname": "ReB",
+    "guid": "9333c5b3-11f9-423c-bbb5-7e5156430219",
+    "description": "Rebuild a curve with a specific number of control-points.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to rebuild"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional degree of curve (if omitted, input degree is used)"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of control points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "item",
+        "description": "Preserve curve end tangents"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Rebuild curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Divide curve [OBSOLETE]",
+    "nickname": "Div",
+    "guid": "93b1066f-060e-440d-a638-aae8cbe7acb7",
+    "description": "[OBSOLETE; Replaced by new Divide Component]",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "item",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Dash Pattern",
+    "nickname": "Dash",
+    "guid": "95866bbe-648e-4e2b-a97c-7d04679e94e0",
+    "description": "Convert a curve to a dash pattern.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to dash"
+      },
+      {
+        "name": "Pattern",
+        "nickname": "Pt",
+        "access": "list",
+        "description": "An collection of dash and gap lengths."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Dashes",
+        "nickname": "D",
+        "access": "list",
+        "description": "Dash segments"
+      },
+      {
+        "name": "Gaps",
+        "nickname": "G",
+        "access": "list",
+        "description": "Gap segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Perp Frames",
+    "nickname": "PFrames",
+    "guid": "983c7600-980c-44da-bc53-c804067f667f",
+    "description": "Generate a number of equally spaced, perpendicular frames along a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Align",
+        "nickname": "A",
+        "access": "item",
+        "description": "Align the frames"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curve frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at frame points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 3Pt",
+    "nickname": "Rec 3Pt",
+    "guid": "9bc98a1d-2ecc-407e-948a-09a09ed3e69d",
+    "description": "Create a rectangle from three points",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of rectangle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of rectangle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Point along rectangle edge opposite to AB"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle defined by A, B and C."
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc SED",
+    "nickname": "Arc",
+    "guid": "9d2583dd-6cf5-497c-8c40-c9a290598396",
+    "description": "Create an arc defined by start point, end point and a tangent vector.",
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of arc"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Direction (tangent) at start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Modified Arc",
+    "nickname": "ModArc",
+    "guid": "9d8dec9c-3fd1-481c-9c3d-75ea5e15eb1a",
+    "description": "Create an arc based on another arc.",
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Base arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional new radius"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Optional new angle domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Modified arc"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc 3Pt",
+    "nickname": "Arc",
+    "guid": "9fa1b081-b1c7-4a12-a163-0aa8da9ff6c4",
+    "description": "Create an arc through three points.",
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on arc interior"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "End point of arc"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Length Parameter",
+    "nickname": "LenP",
+    "guid": "a1c16251-74f0-400f-9e7c-5e379d739963",
+    "description": "Measure the length of a curve to and from a parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P",
+        "access": "item",
+        "description": "Parameter along curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L-",
+        "access": "item",
+        "description": "Curve length from start to parameter"
+      },
+      {
+        "name": "Length",
+        "nickname": "L+",
+        "access": "item",
+        "description": "Curve length from parameter to end"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fit Curve",
+    "nickname": "Fit",
+    "guid": "a3f9f19e-3e6c-4ac7-97c3-946de32c3e8e",
+    "description": "Fit a curve along another curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fit"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional degree of curve (if omitted, input degree is used)"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "Ft",
+        "access": "item",
+        "description": "Tolerance for fitting (if omitted, document tolerance is used)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Fitted curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Depth",
+    "nickname": "Depth",
+    "guid": "a583f722-240a-4fc9-aa1d-021720a4516a",
+    "description": "Measure the depth of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "Min",
+        "access": "item",
+        "description": "Minimum depth"
+      },
+      {
+        "name": "Maximum",
+        "nickname": "Max",
+        "access": "item",
+        "description": "Maximum depth"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Minimum Parameter",
+        "nickname": "tMin",
+        "access": "item",
+        "description": "Parameter along curve where minimum depth occurred."
+      },
+      {
+        "name": "Minimum Depth",
+        "nickname": "dMin",
+        "access": "item",
+        "description": "Minimum depth of curve."
+      },
+      {
+        "name": "Maximum Parameter",
+        "nickname": "tMax",
+        "access": "item",
+        "description": "Parameter along curve where maximum depth occurred."
+      },
+      {
+        "name": "Maximum Depth",
+        "nickname": "dMax",
+        "access": "item",
+        "description": "Maximum depth of curve."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Poly Arc",
+    "nickname": "PArc",
+    "guid": "a5e4f966-417e-465d-afa9-f6607afea056",
+    "description": "Create a polycurve consisting of arc and line segments.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Polyarc vertex coordinates"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "PolyArc",
+        "nickname": "Crv",
+        "access": "item",
+        "description": "Resulting polyarc curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Point In Curve",
+    "nickname": "InCurve",
+    "guid": "a72b0bd3-c7a7-458e-875d-09ae1624638c",
+    "description": "Test a point for closed curve containment.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for region inclusion test"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Boundary region (closed curves only)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Relationship",
+        "nickname": "R",
+        "access": "item",
+        "description": "Point/Region relationship (0 = outside, 1 = coincident, 2 = inside)"
+      },
+      {
+        "name": "Point",
+        "nickname": "P'",
+        "access": "item",
+        "description": "Point projected on region plane."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curvature",
+    "nickname": "Curvature",
+    "guid": "aaa665bd-fd6e-4ccb-8d2c-c5b33072125d",
+    "description": "Evaluate the curvature of a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on curve at {t}"
+      },
+      {
+        "name": "Curvature",
+        "nickname": "K",
+        "access": "item",
+        "description": "Curvature vector at {t}"
+      },
+      {
+        "name": "Curvature",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curvature circle at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Derivatives",
+    "nickname": "CDiv",
+    "guid": "ab14760f-87a6-462e-b481-4a2c26a9a0d7",
+    "description": "Evaluate the derivatives of a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on curve at {t}"
+      },
+      {
+        "name": "First derivative",
+        "nickname": "1",
+        "access": "item",
+        "description": "First curve derivative at t (Velocity)"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Explode",
+    "nickname": "Explode",
+    "guid": "afb96615-c59a-45c9-9cac-e27acb1c7ca0",
+    "description": "Explode a curve into smaller segments.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to explode"
+      },
+      {
+        "name": "Recursive",
+        "nickname": "R",
+        "access": "item",
+        "description": "Recursive decomposition until all segments are atomic"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Exploded segments that make up the base curve"
+      },
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertices of the exploded segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Center",
+    "nickname": "Cen",
+    "guid": "afff17ed-5975-460b-9883-525ae0677088",
+    "description": "Find the center point and radius of arcs and circles.",
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Arc or Circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of arc or circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc or circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset on Srf",
+    "nickname": "OffsetS",
+    "guid": "b6f5cb51-f260-4c74-bf73-deb47de1bf91",
+    "description": "Offset a curve on a surface with a specified distance.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface for offset operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Resulting offsets"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line 4Pt",
+    "nickname": "Ln4Pt",
+    "guid": "b9fde5fa-d654-4306-8ee1-6b69e6757604",
+    "description": "Create a line from four points.",
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Guide line."
+      },
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First point to project onto the guide."
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second point to project onto the guide."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Side",
+    "nickname": "Side",
+    "guid": "bb2e13da-09ca-43fd-bef8-8d71f3653af9",
+    "description": "Find on which side of a curve a point exists",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to measure."
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional plane to measure in. If omitted, the curve plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Side",
+        "nickname": "S",
+        "access": "item",
+        "description": "Side of curve on which point was found (-1=Left, 0=Coincident, +1=Right)."
+      },
+      {
+        "name": "Left",
+        "nickname": "L",
+        "access": "item",
+        "description": "Boolean indicating whether a point is to the left of the curve."
+      },
+      {
+        "name": "Right",
+        "nickname": "R",
+        "access": "item",
+        "description": "Boolean indicating whether a point is to the right of the curve."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc",
+    "nickname": "Arc",
+    "guid": "bb59bffc-f54c-4682-9778-f6c3fe74fce3",
+    "description": "Create an arc defined by base plane, radius and angle domain.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Arc length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Polyline Collapse",
+    "nickname": "PCol",
+    "guid": "be298882-28c9-45b1-980d-7192a531c9a9",
+    "description": "Collapse short segments in a polyline curve.",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline curve"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "t",
+        "access": "item",
+        "description": "Segment length tolerance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Resulting polyline"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments that were collapsed"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle Fit",
+    "nickname": "FCircle",
+    "guid": "be52336f-a2e1-43b1-b5f5-178ba489508a",
+    "description": "Fit a circle to a collection of points.",
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Maximum distance between circle and points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Horizontal Frame",
+    "nickname": "HFrame",
+    "guid": "c048ad76-ffcd-43b1-a007-4dd1b2373326",
+    "description": "Get a horizontally aligned frame along a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Horizontal curve frame at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Containment",
+    "nickname": "Con",
+    "guid": "c076845a-1a09-4a95-bdcb-cb31c0936c99",
+    "description": "Test a point for curve region containment.",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for region inclusion test"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Boundary region (closed curves only)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Relationship",
+        "nickname": "R",
+        "access": "item",
+        "description": "Point/Region relationship (0 = coincident, 1 = inside, 2 = outside)"
+      },
+      {
+        "name": "Point",
+        "nickname": "P'",
+        "access": "item",
+        "description": "Point projected on region plane."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "TwoByFourJam",
+    "nickname": "2x4 Jam",
+    "guid": "c21e7bd5-b1f2-4448-ac56-206f98f90aa7",
+    "description": "Jam a two-by-four into a crooked room",
+    "inputs": [
+      {
+        "name": "Room",
+        "nickname": "R",
+        "access": "item",
+        "description": "Room polyline with 4 corners"
+      },
+      {
+        "name": "Width",
+        "nickname": "W",
+        "access": "item",
+        "description": "Width of fitting rectangle"
+      },
+      {
+        "name": "Samples",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of samples to take (more samples = better solution)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Fitted rectangle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Derivatives",
+    "nickname": "CDiv",
+    "guid": "c2e16ca3-9508-4fa4-aeb3-0b1f0ebb72e3",
+    "description": "Evaluate the derivatives of a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of derivatives to solve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on curve at {t}"
+      },
+      {
+        "name": "Derivatives",
+        "nickname": "d",
+        "access": "list",
+        "description": "Curve derivative vectors at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Loose 3D",
+    "nickname": "Offset (3D)",
+    "guid": "c6fe61e7-25e2-4333-9172-f4e2a123fcfe",
+    "description": "Offset the control-points of a curve with a specified distance in 3D.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting offset"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Length",
+    "nickname": "Len",
+    "guid": "c75b62fa-0a33-4da7-a5bd-03fd0068fd93",
+    "description": "Measure the length of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet",
+    "nickname": "Fillet",
+    "guid": "c92cdfc8-3df8-4c4e-abc1-ede092a0aa8a",
+    "description": "Fillet a curve at a parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter for fillet"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of fillet"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Filleted curve"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter where the fillet eventually occured"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Middle",
+    "nickname": "MidPt",
+    "guid": "ccc7b468-e743-4049-891f-299432545898",
+    "description": "Get the point in the middle of a curve",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve for mid-point."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Midpoint",
+        "nickname": "M",
+        "access": "item",
+        "description": "Point in the middle of the curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Domain",
+    "nickname": "CrvDom",
+    "guid": "ccfd6ba8-ecb1-44df-a47e-08126a653c51",
+    "description": "Measure and set the curve domain",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure/modify"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional domain, if omitted the curve will not be modified."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve with new domain."
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Domain of original curve."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Geodesic",
+    "nickname": "Geodesic",
+    "guid": "ce5963b4-1cea-4f71-acd2-a3c28ab85662",
+    "description": "Construct a surface geodesic between two points.",
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface for geodesic"
+      },
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of geodesic"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of geodesic"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geodesic",
+        "nickname": "G",
+        "access": "item",
+        "description": "Surface geodesic"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Connect Curves",
+    "nickname": "Connect",
+    "guid": "d0a1b843-873d-4d1d-965c-b5423b35f327",
+    "description": "Connect a sequence of curves.",
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Curves to connect"
+      },
+      {
+        "name": "Continuity",
+        "nickname": "G",
+        "access": "item",
+        "description": "Continuity of blends (0=position, 1=tangency, 2=curvature)"
+      },
+      {
+        "name": "Close",
+        "nickname": "L",
+        "access": "item",
+        "description": "Create a closed loop from all curves"
+      },
+      {
+        "name": "Bulge",
+        "nickname": "B",
+        "access": "item",
+        "description": "Bulge factor for connecting segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Joined segments and connecting curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle CNR",
+    "nickname": "Circle",
+    "guid": "d114323a-e6ee-4164-946b-e4ca0ce15efa",
+    "description": "Create a circle defined by center, normal and radius.",
+    "inputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center point"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal vector of circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Iso Curve",
+    "nickname": "Iso",
+    "guid": "d1d57181-d594-41e8-8efb-041e29f8a5ca",
+    "description": "Construct {uv} isocurves on a surface.",
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "UV point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate on surface for isocurve extraction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "U Isocurve",
+        "nickname": "U",
+        "access": "list",
+        "description": "Isocurves in {u} direction"
+      },
+      {
+        "name": "V Isocurve",
+        "nickname": "V",
+        "access": "list",
+        "description": "Isocurves in {v} direction"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines (Ex)",
+    "nickname": "TanEx",
+    "guid": "d6d68c93-d00f-4cd5-ba89-903c7f6be64c",
+    "description": "Create external tangent lines between circles",
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary exterior tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary exterior tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Control Points",
+    "nickname": "CP",
+    "guid": "d7df7658-e02d-4a48-a345-2195a68db4ef",
+    "description": "Extract the nurbs control points of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control points of the Nurbs-form."
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weights of control points."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Project",
+    "nickname": "Project",
+    "guid": "d7ee52ff-89b8-4d1a-8662-3e0dd391d0af",
+    "description": "Project a curve onto a Brep.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to project"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to project onto"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Projection direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Projected curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle",
+    "nickname": "Rectangle",
+    "guid": "d93100b6-d50b-40b2-831a-814659dc38e3",
+    "description": "Create a rectangle on a plane",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "X Size",
+        "nickname": "X",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane X direction."
+      },
+      {
+        "name": "Y Size",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane Y direction."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Torsion",
+    "nickname": "Torsion",
+    "guid": "dbe9fce4-b6b3-465f-9615-34833c4763bd",
+    "description": "Evaluate the torsion of a curve at a specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on curve at {t}"
+      },
+      {
+        "name": "Torsion",
+        "nickname": "T",
+        "access": "item",
+        "description": "Curvature torsion at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle TanTanTan",
+    "nickname": "CircleTTT",
+    "guid": "dcaa922d-5491-4826-9a22-5adefa139f43",
+    "description": "Create a circle tangent to three curves.",
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for tangency constraint"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for tangency constraint"
+      },
+      {
+        "name": "Curve C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third curve for tangency constraint"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle center point guide"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Nurbs Curve",
+    "nickname": "Nurbs",
+    "guid": "dde71aef-d6ed-40a6-af98-6b0673983c82",
+    "description": "Construct a nurbs curve from control points.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Curve control points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree"
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "Periodic curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines (In)",
+    "nickname": "TanIn",
+    "guid": "e0168047-c46a-48c6-8595-2fb3d8574f23",
+    "description": "Create internal tangent lines between circles",
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary interior tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary interior tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Polyline",
+    "nickname": "OP",
+    "guid": "e2c6cab3-91ea-4c01-900c-646642d3e436",
+    "description": "Offset a 2D polyline",
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "list",
+        "description": "Offset results"
+      },
+      {
+        "name": "Valid",
+        "nickname": "V",
+        "access": "list",
+        "description": "Offset validity"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Deconstuct Rectangle",
+    "nickname": "DRec",
+    "guid": "e5c33a79-53d5-4f2b-9a97-d3d45c780edc",
+    "description": "Retrieve the base plane and side intervals of a rectangle.",
+    "inputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle to deconstruct"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Base Plane",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane of rectangle"
+      },
+      {
+        "name": "X Interval",
+        "nickname": "X",
+        "access": "item",
+        "description": "Size interval along base plane X axis"
+      },
+      {
+        "name": "Y Interval",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Size interval along base plane Y axis"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Interpolate (t)",
+    "nickname": "IntCrv(t)",
+    "guid": "e8e00fbb-9710-4cfa-a60f-2aae50b79d06",
+    "description": "Create an interpolated curve through a set of points with tangents.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree"
+      },
+      {
+        "name": "Tangent Start",
+        "nickname": "Ts",
+        "access": "item",
+        "description": "Tangent at start of curve"
+      },
+      {
+        "name": "Tangent End",
+        "nickname": "Te",
+        "access": "item",
+        "description": "Tangent at end of curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines",
+    "nickname": "Tan",
+    "guid": "ea0f0996-af7a-481d-8099-09c041e6c2d5",
+    "description": "Create tangent lines between a point and a circle",
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for tangent lines"
+      },
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Extremes",
+    "nickname": "X-tremez",
+    "guid": "ebd6c758-19ae-4d74-aed7-b8a0392ff743",
+    "description": "Find the extremes (highest and lowest points) on a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane for extreme direction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Highest",
+        "nickname": "H",
+        "access": "item",
+        "description": "Highest point on curve."
+      },
+      {
+        "name": "Lowest",
+        "nickname": "L",
+        "access": "item",
+        "description": "Lowest point on curve."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc SED [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "f17c37ae-b44a-481a-bd65-b4398be55ec8",
+    "description": "Create an arc defined by start point, end point and a tangent vector.",
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of arc"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Direction (tangent) at start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Arcs",
+    "nickname": "TArc",
+    "guid": "f1c0783b-60e9-42a7-8081-925bc755494c",
+    "description": "Create tangent arcs between circles",
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of tangent arcs"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First tangent arc solution"
+      },
+      {
+        "name": "Arc B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second tangent arc solution"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Closed [OBSOLETE]",
+    "nickname": "Cls",
+    "guid": "f2030fa9-db3f-437e-9b50-5607db6daf87",
+    "description": "This component is OBSOLETE. It has been replaced with a new version.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to test"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "The curve close flag"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Polygon Edge",
+    "nickname": "PolEdge",
+    "guid": "f4568ce6-aade-4511-8f32-f27d8a6bf9e9",
+    "description": "Create a polygon from a single edge.",
+    "inputs": [
+      {
+        "name": "Edge Start",
+        "nickname": "E0",
+        "access": "item",
+        "description": "Start point of polygon edge."
+      },
+      {
+        "name": "Edge End",
+        "nickname": "E1",
+        "access": "item",
+        "description": "End point of polygon edge."
+      },
+      {
+        "name": "Plane Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on polygon plane."
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon"
+      },
+      {
+        "name": "Centre",
+        "nickname": "C",
+        "access": "item",
+        "description": "Centre of polygon"
+      },
+      {
+        "name": "Corner Radius",
+        "nickname": "Rc",
+        "access": "item",
+        "description": "Distance from centre to polygon corner."
+      },
+      {
+        "name": "Edge Radius",
+        "nickname": "Rc",
+        "access": "item",
+        "description": "Distance from centre to edge mid-points."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Interpolate",
+    "nickname": "IntCrv",
+    "guid": "f5ea9d41-f062-487e-8dbf-7666ca53fbcd",
+    "description": "Create an interpolated curve through a set of points.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree"
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "Periodic curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Tangent Curve",
+    "nickname": "TanCurve",
+    "guid": "f73498c5-178b-4e09-ad61-73d172fa6e56",
+    "description": "Create a curve through a set of points with tangents.",
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Interpolation points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors for all interpolation points"
+      },
+      {
+        "name": "Blend",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blend factor"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve degree (only odd degrees are supported)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Segment Lengths",
+    "nickname": "LenSeg",
+    "guid": "f88a6cd9-1035-4361-b896-4f2dfe79272d",
+    "description": "Finds the shortest and longest segments of a curve.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Shortest Length",
+        "nickname": "Sl",
+        "access": "item",
+        "description": "Length of shortest segment"
+      },
+      {
+        "name": "Shortest Domain",
+        "nickname": "Sd",
+        "access": "item",
+        "description": "Curve domain of shortest segment"
+      },
+      {
+        "name": "Longest Length",
+        "nickname": "Ll",
+        "access": "item",
+        "description": "Length of longest segment"
+      },
+      {
+        "name": "Longest Domain",
+        "nickname": "Ld",
+        "access": "item",
+        "description": "Curve domain of longest segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Curve",
+    "nickname": "Eval",
+    "guid": "fc6979e4-7e91-4508-8e05-37c680779751",
+    "description": "Evaluate a curve at the specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve at {t}"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at {t}"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle (in Radians) of incoming vs. outgoing curve at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "fd9fe288-a188-4e9b-a464-1148876d18ed",
+    "description": "Create an arc defined by base plane, radius and angle domain.",
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Arc length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Length",
+    "nickname": "DivLength",
+    "guid": "fdc466a9-d3b8-4056-852a-09dba0f74aca",
+    "description": "Divide a curve into segments with a preset length",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Curve",
+    "nickname": "Eval",
+    "guid": "fdf09135-fae5-4e5f-b427-b1f384ca3009",
+    "description": "Evaluate a curve at the specified parameter.",
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve at {t}"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at {t}"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length along the curve from the start to {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Spline",
+    "name": "Curve On Surface",
+    "nickname": "CrvSrf",
+    "guid": "ffe2dbed-9b5d-4f91-8fe3-10c8961ac2f8",
+    "description": "Create an interpolated curve through a set of points on a surface.",
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "UV coordinates",
+        "nickname": "uv",
+        "access": "list",
+        "description": "{v} coordinates of interpolation points"
+      },
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "Closed curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting nurbs curve"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  }
+];
