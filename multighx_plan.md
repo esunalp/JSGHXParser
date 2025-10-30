@@ -85,8 +85,8 @@ Zorg voor scenario’s waarmee multi-GHX workflows getest kunnen worden: variabe
 
 ## Ontwikkel TODO-lijst
 - [x] `GraphRegistry` module aanmaken en loader/engine migreren naar multi-graph beheer.
-- [ ] Slider-normalisatie en `SliderLinker` bouwen, inclusief UI-koppeling voor gedeelde inputs.
-- [ ] Worker-bootstrap schrijven die `registry.js` initialiseert en GHX parsing/evaluatie verwerkt.
+- [x] Slider-normalisatie en `SliderLinker` bouwen, inclusief UI-koppeling voor gedeelde inputs.
+- [x] Worker-bootstrap schrijven die `registry.js` initialiseert en GHX parsing/evaluatie verwerkt.
 - [ ] Messageprotocol (`LOAD_GHX`, `UPDATE_SLIDER`, `EVALUATION_RESULT`) definiëren en testen.
 - [ ] Three.js scene-groepen per GHX-bestand introduceren voor beheer en debug.
 - [ ] UI-panel ontwikkelen voor graph-status, scenarioselectie en slider-badges.
