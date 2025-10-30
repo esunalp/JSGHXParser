@@ -1,10 +1,13 @@
 import * as THREE from 'three';
 import { createEngine } from './engine.js';
+import { createGraphRegistry } from './graph-registry.js';
 import { defaultRegistry } from './registry.js';
 
 function createSnippetEngine() {
+  const graphRegistry = createGraphRegistry();
   return createEngine({
     registry: defaultRegistry,
+    graphRegistry,
     updateMesh: () => {},
     onLog: () => {},
     onError: (message) => {
@@ -14,7 +17,7 @@ function createSnippetEngine() {
 }
 
 function extractGeometry(engine, nodeId) {
-  const output = engine.nodeOutputs.get(nodeId);
+  const output = engine.getNodeOutput(nodeId);
   if (!output) return null;
   return output.geom ?? output.geometry ?? output.mesh ?? null;
 }
@@ -141,7 +144,7 @@ export function runPointVectorMathSnippet() {
   engine.loadGraph({ nodes, wires });
   engine.evaluate();
 
-  const output = engine.nodeOutputs.get('multiply-node');
+  const output = engine.getNodeOutput('multiply-node');
   const result = output?.result ?? output?.R;
   if (!result || !result.isVector3) {
     throw new Error('Verwachtte Vector3 uit Point/Vector vermenigvuldiging.');

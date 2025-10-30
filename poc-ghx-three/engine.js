@@ -1,12 +1,7 @@
 import { withVersion } from './version.js';
 
 const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
-
-function normalizeGraph(graph) {
-  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
-  const wires = Array.isArray(graph?.wires) ? graph.wires : [];
-  return { nodes, wires };
-}
+const { normalizeGraph } = await import(withVersion('./graph-registry.js'));
 
 function topoSort(nodes, wires) {
   const inDegree = new Map();
@@ -267,20 +262,77 @@ function collectOverlayData(value, overlay, visited = new Set()) {
 }
 
 class Engine {
-  constructor({ registry, updateMesh, onLog, onError }) {
-    this.registry = registry;
+  constructor({ registry, componentRegistry, graphRegistry, updateMesh, onLog, onError } = {}) {
+    this.componentRegistry = componentRegistry ?? registry;
+    if (!this.componentRegistry) {
+      throw new Error('Engine vereist een component registry.');
+    }
+    if (!graphRegistry) {
+      throw new Error('Engine vereist een GraphRegistry instance.');
+    }
+
+    this.registry = this.componentRegistry;
+    this.graphRegistry = graphRegistry;
     this.updateMesh = updateMesh;
     this.onLog = onLog ?? (() => {});
     this.onError = onError ?? (() => {});
 
-    this.graph = { nodes: [], wires: [] };
-    this.nodeById = new Map();
-    this.nodeStates = new Map();
-    this.nodeOutputs = new Map();
-    this.inputIndex = new Map();
-    this.topology = [];
     this.listeners = new Map();
+    this.graphStates = new Map();
+    this.activeGraphId = null;
     this.pendingEvaluation = false;
+    this.nodeOutputs = new Map();
+
+    const activeGraph = this.graphRegistry.getActiveGraph();
+    if (activeGraph) {
+      this.activeGraphId = activeGraph.id;
+      const state = this.prepareGraphState(activeGraph.id, activeGraph.graph);
+      this.nodeOutputs = state.nodeOutputs;
+    }
+
+    this.graphRegistry.on('graph-added', ({ id, graph }) => {
+      this.prepareGraphState(id, graph);
+    });
+
+    this.graphRegistry.on('graph-updated', ({ id, graph }) => {
+      this.prepareGraphState(id, graph);
+      if (this.activeGraphId === id) {
+        this.emit('sliders-changed');
+        this.emit('evaluation', { message: 'Grafiek bijgewerkt. Klaar voor evaluatie.' });
+      }
+    });
+
+    this.graphRegistry.on('graph-removed', ({ id }) => {
+      this.graphStates.delete(id);
+      if (this.activeGraphId === id) {
+        this.activeGraphId = null;
+        this.nodeOutputs = new Map();
+        if (typeof this.updateMesh === 'function') {
+          this.updateMesh(null);
+        }
+        this.emit('sliders-changed');
+        this.emit('evaluation', { message: 'Actieve grafiek verwijderd.' });
+      }
+    });
+
+    this.graphRegistry.on('active-graph-changed', ({ id, graph }) => {
+      if (id && graph && !this.graphStates.has(id)) {
+        this.prepareGraphState(id, graph);
+      }
+      this.activeGraphId = id ?? null;
+      const state = this.getActiveState();
+      this.nodeOutputs = state?.nodeOutputs ?? new Map();
+      if (typeof this.updateMesh === 'function') {
+        this.updateMesh(null);
+      }
+      if (id) {
+        this.emit('sliders-changed');
+        this.emit('evaluation', { message: 'Grafiek geladen. Klaar voor evaluatie.' });
+      } else {
+        this.emit('sliders-changed');
+        this.emit('evaluation', { message: 'Geen actieve grafiek.' });
+      }
+    });
   }
 
   emit(event, payload) {
@@ -305,70 +357,109 @@ class Engine {
     };
   }
 
-  loadGraph(graph) {
-    const normalized = normalizeGraph(graph);
-    this.graph = normalized;
-    this.nodeById.clear();
-    this.nodeStates.clear();
-    this.nodeOutputs.clear();
-
-    if (typeof this.updateMesh === 'function') {
-      this.updateMesh(null);
+  getActiveState() {
+    if (!this.activeGraphId) {
+      return null;
     }
+    const existing = this.graphStates.get(this.activeGraphId);
+    if (existing) {
+      return existing;
+    }
+    const activeGraph = this.graphRegistry.getActiveGraph();
+    if (activeGraph) {
+      return this.prepareGraphState(activeGraph.id, activeGraph.graph);
+    }
+    return null;
+  }
+
+  prepareGraphState(graphId, graph) {
+    const normalized = normalizeGraph(graph);
+    const nodeById = new Map();
+    const nodeStates = new Map();
+    const nodeOutputs = new Map();
 
     for (const node of normalized.nodes) {
       if (!node?.id) continue;
-      this.nodeById.set(node.id, node);
-      const implementation = this.registry.lookup(node);
+      nodeById.set(node.id, node);
+      const implementation = this.componentRegistry.lookup(node);
       if (implementation?.createState) {
-        this.nodeStates.set(node.id, implementation.createState(node));
+        nodeStates.set(node.id, implementation.createState(node));
       }
     }
 
-    this.inputIndex = createInputIndex(normalized.wires);
+    const inputIndex = createInputIndex(normalized.wires);
     const topo = topoSort(normalized.nodes, normalized.wires);
-    this.topology = topo.order;
     if (topo.hasCycle) {
       this.onError('Waarschuwing: cyclus gedetecteerd in graaf. Evaluatie kan onvoorspelbaar zijn.');
     }
-    this.emit('sliders-changed');
-    this.emit('evaluation', { message: 'Grafiek geladen. Klaar voor evaluatie.' });
+
+    const state = {
+      graph: normalized,
+      nodeById,
+      nodeStates,
+      nodeOutputs,
+      inputIndex,
+      topology: topo.order,
+      hasCycle: topo.hasCycle,
+    };
+
+    this.graphStates.set(graphId, state);
+    if (this.activeGraphId === graphId) {
+      this.nodeOutputs = state.nodeOutputs;
+    }
+    return state;
+  }
+
+  loadGraph(graph, options = {}) {
+    const registration = this.graphRegistry.registerGraph(graph, options);
+    this.graphRegistry.setActiveGraph(registration.entry.id);
+    return registration.entry.id;
   }
 
   evaluate({ emitStartEvent = true } = {}) {
+    const state = this.getActiveState();
+    if (!state) {
+      if (emitStartEvent) {
+        this.emit('evaluation', { message: 'Geen actieve grafiek om te evalueren.' });
+      }
+      return;
+    }
+
     if (emitStartEvent) {
-      this.emit('evaluation-start', { reason: 'evaluate' });
+      this.emit('evaluation-start', { reason: 'evaluate', graphId: this.activeGraphId });
     }
     try {
-      if (!this.topology.length) {
+      if (!state.topology.length) {
         this.emit('evaluation', { message: 'Geen nodes om te evalueren.' });
         return;
       }
 
       const outputs = new Map();
+      state.nodeOutputs.clear();
       const overlay = { segments: [], points: [] };
       const overlayVisited = new Set();
       const renderables = [];
-      for (const nodeId of this.topology) {
-        const node = this.nodeById.get(nodeId);
+      for (const nodeId of state.topology) {
+        const node = state.nodeById.get(nodeId);
         if (!node) continue;
-        const implementation = this.registry.lookup(node);
+        const implementation = this.componentRegistry.lookup(node);
         if (!implementation) {
           this.onLog(`Geen registry-entry voor node: ${node.name ?? node.guid ?? node.id}`);
           continue;
         }
 
-        const state = this.nodeStates.get(nodeId) ?? (implementation.createState ? implementation.createState(node) : undefined);
-        if (state && !this.nodeStates.has(nodeId)) {
-          this.nodeStates.set(nodeId, state);
+        const existingState = state.nodeStates.get(nodeId);
+        const nodeState = existingState ?? (implementation.createState ? implementation.createState(node) : undefined);
+        if (nodeState && !existingState) {
+          state.nodeStates.set(nodeId, nodeState);
         }
 
-        const resolvedInputs = resolveInputs(node, this.inputIndex, outputs);
+        const resolvedInputs = resolveInputs(node, state.inputIndex, outputs);
 
         let result = {};
         try {
           if (typeof implementation.eval === 'function') {
-            result = implementation.eval({ node, inputs: resolvedInputs, state, engine: this }) || {};
+            result = implementation.eval({ node, inputs: resolvedInputs, state: nodeState, engine: this }) || {};
           }
         } catch (error) {
           this.onError(`Evaluatie fout bij node ${node.name ?? node.id}: ${error.message}`);
@@ -377,7 +468,7 @@ class Engine {
         }
 
         outputs.set(nodeId, result);
-        this.nodeOutputs.set(nodeId, result);
+        state.nodeOutputs.set(nodeId, result);
 
         if (node.hidden) {
           continue;
@@ -407,51 +498,76 @@ class Engine {
       const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;
       this.emit('evaluation', { message });
     } finally {
-      this.emit('evaluation-complete', { reason: 'evaluate' });
+      this.emit('evaluation-complete', { reason: 'evaluate', graphId: this.activeGraphId });
     }
   }
 
   listSliders() {
+    const state = this.getActiveState();
+    if (!state) {
+      return [];
+    }
+
     const sliders = [];
-    for (const node of this.graph.nodes) {
-      const implementation = this.registry.lookup(node);
+    for (const node of state.graph.nodes) {
+      const implementation = this.componentRegistry.lookup(node);
       if (!implementation || implementation.type !== 'slider') continue;
-      const state = this.nodeStates.get(node.id) ?? implementation.createState?.(node) ?? {};
+      const nodeState = state.nodeStates.get(node.id) ?? implementation.createState?.(node) ?? {};
       sliders.push({
         id: node.id,
-        label: state.label ?? node.name ?? node.id,
-        value: state.value ?? 0,
-        min: state.min ?? 0,
-        max: state.max ?? 1,
-        step: state.step ?? 0.01,
+        label: nodeState.label ?? node.name ?? node.id,
+        value: nodeState.value ?? 0,
+        min: nodeState.min ?? 0,
+        max: nodeState.max ?? 1,
+        step: nodeState.step ?? 0.01,
+        graphId: this.activeGraphId,
       });
     }
     return sliders;
   }
 
-  setSliderValue(nodeId, value) {
-    const node = this.nodeById.get(nodeId);
+  setSliderValue(nodeId, value, { graphId } = {}) {
+    const targetGraphId = graphId ?? this.activeGraphId;
+    if (!targetGraphId) return false;
+
+    const state = this.graphStates.get(targetGraphId);
+    if (!state) return false;
+
+    const node = state.nodeById.get(nodeId);
     if (!node) return false;
-    const implementation = this.registry.lookup(node);
+
+    const implementation = this.componentRegistry.lookup(node);
     if (!implementation || implementation.type !== 'slider') return false;
-    let state = this.nodeStates.get(nodeId);
-    if (!state) {
-      state = implementation.createState?.(node) ?? { value: value };
-      this.nodeStates.set(nodeId, state);
+
+    let nodeState = state.nodeStates.get(nodeId);
+    if (!nodeState) {
+      nodeState = implementation.createState?.(node) ?? { value };
+      state.nodeStates.set(nodeId, nodeState);
     }
-    state.value = value;
-    this.nodeStates.set(nodeId, state);
-    this.emit('sliders-changed');
-    this.scheduleEvaluation();
+    nodeState.value = value;
+    state.nodeStates.set(nodeId, nodeState);
+
+    if (targetGraphId === this.activeGraphId) {
+      this.emit('sliders-changed');
+      this.scheduleEvaluation();
+    }
+
     return true;
   }
 
   scheduleEvaluation() {
+    if (!this.activeGraphId) {
+      return;
+    }
+    const state = this.graphStates.get(this.activeGraphId);
+    if (!state) {
+      return;
+    }
     if (this.pendingEvaluation) {
       return;
     }
     this.pendingEvaluation = true;
-    this.emit('evaluation-start', { reason: 'queued' });
+    this.emit('evaluation-start', { reason: 'queued', graphId: this.activeGraphId });
     const triggerEvaluation = () => {
       this.pendingEvaluation = false;
       this.evaluate({ emitStartEvent: false });
@@ -462,6 +578,14 @@ class Engine {
       return;
     }
     Promise.resolve().then(triggerEvaluation);
+  }
+
+  getNodeOutput(nodeId, { graphId } = {}) {
+    const targetGraphId = graphId ?? this.activeGraphId;
+    if (!targetGraphId) return null;
+    const state = this.graphStates.get(targetGraphId) ?? null;
+    if (!state) return null;
+    return state.nodeOutputs.get(nodeId) ?? null;
   }
 }
 

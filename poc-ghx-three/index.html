@@ -234,12 +234,14 @@
         { defaultRegistry },
         { createSliderUI },
         { parseGHX },
+        { createGraphRegistry },
       ] = await Promise.all([
         versionedImport('./three-scene.js'),
         versionedImport('./engine.js'),
         versionedImport('./registry.js'),
         versionedImport('./ui.js'),
         versionedImport('./ghx-loader.js'),
+        versionedImport('./graph-registry.js'),
       ]);
 
       const canvas = document.getElementById('viewport');
@@ -302,8 +304,11 @@
 
       const sceneApi = initScene(canvas);
       const webgpuSupported = sceneApi.isWebGPUSupported();
+      const graphRegistry = createGraphRegistry();
+
       const engine = createEngine({
         registry: defaultRegistry,
+        graphRegistry,
         updateMesh: sceneApi.updateMesh,
         onLog: (message) => console.info('[engine]', message),
         onError: (message) => console.warn('[engine]', message)
