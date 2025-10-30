@@ -31,7 +31,7 @@
     </script>
   <script type="module">
     // Three.js r180 (ESM) + WebGPU + TSL (Nodes.js)
-	import * as THREE from 'three';
+	import * as THREE from 'three/webgpu';
 	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 	// TSL / Node helpers (r180):
@@ -43,12 +43,8 @@
         vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
         dot, normalize, floor, mix, pow,
         // function builder
-        Fn: tsFn,
-        
-        // BELANGRIJK: Haal ook de NodeMaterial hier vandaan
-        MeshStandardNodeMaterial
-        
-    } = THREE;
+        Fn as tslFn        
+    } from 'three/tsl;
 	
 
     const app = document.getElementById('app');
