@@ -34,16 +34,16 @@
 	import * as THREE from 'three/tsl';
 	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-	// TSL / Node helpers (r180):
-	// Haal alle TSL-functies uit het 'THREE' object
-	const {
-    // core varying/uniform helpers
-    uv, time, uniform, cameraPosition, positionWorld, normalWorld,
-    // math primitives
-    vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
-    dot, normalize, floor, mix, pow,
-    // function builder
-    Fn as tslFn // Hernoem Fn naar tslFn met ':'
+		// TSL / Node helpers (r180):
+		// Haal alle TSL-functies uit het 'THREE' object
+		const {
+    	// core varying/uniform helpers
+    	uv, time, uniform, cameraPosition, positionWorld, normalWorld,
+    	// math primitives
+    	vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
+    	dot, normalize, floor, mix, pow,
+    	// function builder
+    	Fn as tslFn // Hernoem Fn naar tslFn met ':'
 	} from 'three/tsl';
 	
 
