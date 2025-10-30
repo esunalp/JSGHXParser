@@ -409,9 +409,13 @@
 
           if (response?.display) {
             const displayPayload = deserializeDisplayPayload(response.display);
-            sceneApi.updateMesh(displayPayload);
+            const graphMetadata = response?.metadata ?? displayPayload?.graphMetadata ?? null;
+            sceneApi.updateMesh(displayPayload, {
+              graphId: response.graphId,
+              metadata: graphMetadata,
+            });
           } else {
-            sceneApi.updateMesh(null);
+            sceneApi.updateMesh(null, { graphId: response.graphId });
           }
 
           const timestamp = new Date().toLocaleTimeString();
@@ -421,7 +425,7 @@
           engine.emit('evaluation', { message });
         } catch (error) {
           console.error('Worker evaluation error', error);
-          sceneApi.updateMesh(null);
+          sceneApi.updateMesh(null, { graphId: activeGraph.id });
           engine.emit('evaluation', {
             message: `Worker evaluatie fout: ${error?.message ?? 'onbekende fout'}`,
           });

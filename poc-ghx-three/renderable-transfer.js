@@ -255,6 +255,12 @@ export function serializeDisplayPayload(displayPayload) {
     main: serializedMain,
     overlays: serializeOverlayData(displayPayload.overlays),
   };
+  if (displayPayload.graphId !== undefined && displayPayload.graphId !== null) {
+    serialized.graphId = String(displayPayload.graphId);
+  }
+  if (displayPayload.graphMetadata && typeof displayPayload.graphMetadata === 'object') {
+    serialized.graphMetadata = { ...displayPayload.graphMetadata };
+  }
   return { payload: serialized, transferables };
 }
 
@@ -475,9 +481,17 @@ export function deserializeDisplayPayload(serialized) {
   }
   const main = deserializeObject3D(serialized.main);
   const overlays = deserializeOverlay(serialized.overlays);
+  const graphId = serialized.graphId !== undefined && serialized.graphId !== null
+    ? String(serialized.graphId)
+    : null;
+  const graphMetadata = serialized.graphMetadata && typeof serialized.graphMetadata === 'object'
+    ? { ...serialized.graphMetadata }
+    : null;
   return {
     type: serialized.type ?? null,
     main,
     overlays,
+    graphId,
+    graphMetadata,
   };
 }
