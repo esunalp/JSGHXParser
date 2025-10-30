@@ -54,7 +54,7 @@ export async function loadThreeCore() {
 
 export async function loadThreeWebGPU() {
   try {
-    return await importWithFallback('webgpu', 'three/webgpu', `${CDN_BASE}build/three.webgpu.js`);
+    return await importWithFallback('webgpu', 'three/webgpu', `https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js`);
   } catch (error) {
     console.warn('[three-loader] three/webgpu niet beschikbaar, val terug op standaard three.', error);
     return loadThreeCore();
@@ -63,7 +63,7 @@ export async function loadThreeWebGPU() {
 
 export async function loadThreeTSL() {
   try {
-    return await importWithFallback('tsl', 'three/tsl', `${CDN_BASE}build/three.tsl.js`);
+    return await importWithFallback('tsl', 'three/tsl', `https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.tsl.js`);
   } catch (error) {
     console.warn('[three-loader] three/tsl niet beschikbaar; node-material functionaliteit wordt gedeactiveerd.', error);
     return null;
@@ -75,5 +75,5 @@ export async function loadThreeAddon(path) {
     throw new Error('loadThreeAddon vereist een pad-string.');
   }
   const normalized = path.startsWith('/') ? path.slice(1) : path;
-  return importWithFallback(`addon:${normalized}`, `three/addons/${normalized}`, `${CDN_BASE}examples/jsm/${normalized}`);
+  return importWithFallback(`addon:${normalized}`, `three/addons/${normalized}`, `https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js/examples/jsm/${normalized}`);
 }
