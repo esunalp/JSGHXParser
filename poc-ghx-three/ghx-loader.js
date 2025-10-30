@@ -512,7 +512,7 @@ function buildNodeDescriptor(nodeInfo) {
 
   if (detectSliders(nodeInfo)) {
     const sliderMeta = parseSliderMeta(chunk, name);
-    descriptor.meta = { ...sliderMeta };
+    descriptor.meta = { ...sliderMeta, graphRole: 'slider' };
   }
 
   return descriptor;
@@ -672,5 +672,23 @@ export async function parseGHX(file) {
     }
   }
 
-  return { nodes, wires };
+  const sliderCount = nodes.reduce((count, node) => (node.meta?.graphRole === 'slider' ? count + 1 : count), 0);
+  const label = typeof file?.name === 'string' && file.name ? file.name : undefined;
+  const metadata = {
+    nodeCount: nodes.length,
+    wireCount: wires.length,
+    sliderCount,
+  };
+  if (label) {
+    metadata.label = label;
+    metadata.sourceFileName = label;
+  }
+
+  const graph = { nodes, wires, metadata };
+  if (label) {
+    graph.label = label;
+    graph.source = label;
+  }
+
+  return graph;
 }
