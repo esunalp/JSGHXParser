@@ -49,7 +49,7 @@ async function importWithFallback(key, primary, fallback) {
 }
 
 export async function loadThreeCore() {
-  return importWithFallback('core', 'three', withVersion('./vendor/three.module.js'));
+  return importWithFallback('core', 'three', withVersion('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js'));
 }
 
 export async function loadThreeWebGPU() {
