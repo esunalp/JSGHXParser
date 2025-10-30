@@ -116,16 +116,16 @@
     // ===============================
 
     // Uniforms voor random/flow/scale
-    const uSeed       = uniformNode( new THREE.Vector2(Math.random()*1000, Math.random()*1000) );
-    const uScale      = uniformNode( 8.0 );           // detail schaal
-    const uOctaves    = uniformNode( 4.0 );
-    const uLacunarity = uniformNode( 2.0 );
-    const uGain       = uniformNode( 0.5 );
+    const uSeed       = InstanceUniformNode( new THREE.Vector2(Math.random()*1000, Math.random()*1000) );
+    const uScale      = InstanceUniformNode( 8.0 );           // detail schaal
+    const uOctaves    = InstanceUniformNode( 4.0 );
+    const uLacunarity = InstanceUniformNode( 2.0 );
+    const uGain       = InstanceUniformNode( 0.5 );
 
-    const uFlowDirA   = uniformNode( new THREE.Vector2(0.11, 0.07) );
-    const uFlowDirB   = uniformNode( new THREE.Vector2(-0.08, 0.13) );
-    const uSpeed      = uniformNode( 0.05 );
-    const uStrength   = uniformNode( 1.2 );
+    const uFlowDirA   = InstanceUniformNode( new THREE.Vector2(0.11, 0.07) );
+    const uFlowDirB   = InstanceUniformNode( new THREE.Vector2(-0.08, 0.13) );
+    const uSpeed      = InstanceUniformNode( 0.05 );
+    const uStrength   = InstanceUniformNode( 1.2 );
 
     // 2D hash/noise helpers in TSL
     const hash2 = Fn( (p) => {
