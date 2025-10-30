@@ -2,6 +2,7 @@ import { withVersion } from './version.js';
 
 const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
 const { normalizeGraph } = await import(withVersion('./graph-registry.js'));
+const { SliderLinker } = await import(withVersion('./slider-linker.js'));
 
 function topoSort(nodes, wires) {
   const inDegree = new Map();
@@ -282,22 +283,24 @@ class Engine {
     this.activeGraphId = null;
     this.pendingEvaluation = false;
     this.nodeOutputs = new Map();
+    this.sliderLinker = new SliderLinker();
 
     const activeGraph = this.graphRegistry.getActiveGraph();
     if (activeGraph) {
       this.activeGraphId = activeGraph.id;
-      const state = this.prepareGraphState(activeGraph.id, activeGraph.graph);
+      const state = this.prepareGraphState(activeGraph.id, activeGraph.graph, activeGraph.metadata);
       this.nodeOutputs = state.nodeOutputs;
     }
 
-    this.graphRegistry.on('graph-added', ({ id, graph }) => {
-      this.prepareGraphState(id, graph);
+    this.graphRegistry.on('graph-added', ({ id, graph, metadata }) => {
+      this.prepareGraphState(id, graph, metadata);
+      this.refreshSliderLinks();
     });
 
-    this.graphRegistry.on('graph-updated', ({ id, graph }) => {
-      this.prepareGraphState(id, graph);
+    this.graphRegistry.on('graph-updated', ({ id, graph, metadata }) => {
+      this.prepareGraphState(id, graph, metadata);
+      this.refreshSliderLinks();
       if (this.activeGraphId === id) {
-        this.emit('sliders-changed');
         this.emit('evaluation', { message: 'Grafiek bijgewerkt. Klaar voor evaluatie.' });
       }
     });
@@ -310,14 +313,14 @@ class Engine {
         if (typeof this.updateMesh === 'function') {
           this.updateMesh(null);
         }
-        this.emit('sliders-changed');
         this.emit('evaluation', { message: 'Actieve grafiek verwijderd.' });
       }
+      this.refreshSliderLinks();
     });
 
-    this.graphRegistry.on('active-graph-changed', ({ id, graph }) => {
+    this.graphRegistry.on('active-graph-changed', ({ id, graph, metadata }) => {
       if (id && graph && !this.graphStates.has(id)) {
-        this.prepareGraphState(id, graph);
+        this.prepareGraphState(id, graph, metadata);
       }
       this.activeGraphId = id ?? null;
       const state = this.getActiveState();
@@ -325,14 +328,15 @@ class Engine {
       if (typeof this.updateMesh === 'function') {
         this.updateMesh(null);
       }
+      this.refreshSliderLinks();
       if (id) {
-        this.emit('sliders-changed');
         this.emit('evaluation', { message: 'Grafiek geladen. Klaar voor evaluatie.' });
       } else {
-        this.emit('sliders-changed');
         this.emit('evaluation', { message: 'Geen actieve grafiek.' });
       }
     });
+
+    this.refreshSliderLinks({ emit: false });
   }
 
   emit(event, payload) {
@@ -372,14 +376,20 @@ class Engine {
     return null;
   }
 
-  prepareGraphState(graphId, graph) {
+  prepareGraphState(graphId, graph, metadata = {}) {
     const normalized = normalizeGraph(graph);
     const nodeById = new Map();
     const nodeStates = new Map();
     const nodeOutputs = new Map();
+    const graphMetadata = metadata && typeof metadata === 'object' ? { ...metadata } : {};
 
     for (const node of normalized.nodes) {
       if (!node?.id) continue;
+      if (!node.meta || typeof node.meta !== 'object') {
+        node.meta = {};
+      }
+      node.meta.graphId = graphId;
+      node.meta.graphMetadata = graphMetadata;
       nodeById.set(node.id, node);
       const implementation = this.componentRegistry.lookup(node);
       if (implementation?.createState) {
@@ -401,6 +411,7 @@ class Engine {
       inputIndex,
       topology: topo.order,
       hasCycle: topo.hasCycle,
+      metadata: graphMetadata,
     };
 
     this.graphStates.set(graphId, state);
@@ -408,6 +419,56 @@ class Engine {
       this.nodeOutputs = state.nodeOutputs;
     }
     return state;
+  }
+
+  collectSliderSources() {
+    const sources = [];
+    for (const [graphId, state] of this.graphStates.entries()) {
+      const metadata = state?.metadata ?? {};
+      const sliders = [];
+      if (state?.graph?.nodes) {
+        for (const node of state.graph.nodes) {
+          if (!node) continue;
+          const implementation = this.componentRegistry.lookup(node);
+          if (!implementation || implementation.type !== 'slider') continue;
+          let nodeState = state.nodeStates.get(node.id);
+          if (!nodeState && implementation.createState) {
+            nodeState = implementation.createState(node);
+            if (nodeState) {
+              state.nodeStates.set(node.id, nodeState);
+            }
+          }
+          const label = nodeState?.label ?? node.meta?.label ?? node.name ?? node.id;
+          const nickName =
+            node.meta?.nickName ?? nodeState?.label ?? node.meta?.label ?? node.name ?? node.id;
+          sliders.push({
+            nodeId: node.id,
+            label,
+            nickName,
+            value: nodeState?.value,
+            min: nodeState?.min,
+            max: nodeState?.max,
+            step: nodeState?.step,
+          });
+        }
+      }
+      sources.push({ graphId, metadata, sliders });
+    }
+    return sources;
+  }
+
+  refreshSliderLinks({ emit = true } = {}) {
+    if (!this.sliderLinker) {
+      if (emit) {
+        this.emit('sliders-changed');
+      }
+      return;
+    }
+    const sources = this.collectSliderSources();
+    this.sliderLinker.reconcile({ sources, activeGraphId: this.activeGraphId });
+    if (emit) {
+      this.emit('sliders-changed');
+    }
   }
 
   loadGraph(graph, options = {}) {
@@ -503,6 +564,31 @@ class Engine {
   }
 
   listSliders() {
+    if (this.sliderLinker) {
+      const linked = this.sliderLinker.list();
+      if (linked.length) {
+        return linked.map((group) => ({
+          id: group.id,
+          label: group.label,
+          value: group.value,
+          min: group.min,
+          max: group.max,
+          step: group.step,
+          graphCount: group.graphCount,
+          notes: Array.isArray(group.notes) ? group.notes.slice() : [],
+          hasWarnings: Boolean(group.hasWarnings),
+          canonicalSource: group.canonicalSource ? { ...group.canonicalSource } : null,
+          members: Array.isArray(group.members)
+            ? group.members.map((member) => ({
+                ...member,
+                notes: Array.isArray(member.notes) ? member.notes.slice() : [],
+                range: member.range ? { ...member.range } : {},
+              }))
+            : [],
+        }));
+      }
+    }
+
     const state = this.getActiveState();
     if (!state) {
       return [];
@@ -526,7 +612,7 @@ class Engine {
     return sliders;
   }
 
-  setSliderValue(nodeId, value, { graphId } = {}) {
+  setSliderValue(nodeId, value, { graphId, silent = false } = {}) {
     const targetGraphId = graphId ?? this.activeGraphId;
     if (!targetGraphId) return false;
 
@@ -544,14 +630,83 @@ class Engine {
       nodeState = implementation.createState?.(node) ?? { value };
       state.nodeStates.set(nodeId, nodeState);
     }
-    nodeState.value = value;
-    state.nodeStates.set(nodeId, nodeState);
-
-    if (targetGraphId === this.activeGraphId) {
-      this.emit('sliders-changed');
-      this.scheduleEvaluation();
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return false;
     }
 
+    const toNumber = (raw) => {
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    const min = toNumber(nodeState.min);
+    const max = toNumber(nodeState.max);
+    let lower = min;
+    let upper = max;
+    if (Number.isFinite(lower) && Number.isFinite(upper) && upper < lower) {
+      const tmp = upper;
+      upper = lower;
+      lower = tmp;
+    }
+    let clampedValue = numeric;
+    if (Number.isFinite(lower) && Number.isFinite(upper)) {
+      if (clampedValue < lower) clampedValue = lower;
+      if (clampedValue > upper) clampedValue = upper;
+    }
+
+    if (Number.isFinite(nodeState.value) && nodeState.value === clampedValue) {
+      return false;
+    }
+
+    nodeState.value = clampedValue;
+    state.nodeStates.set(nodeId, nodeState);
+
+    if (!silent) {
+      this.refreshSliderLinks({ emit: false });
+    }
+
+    if (!silent) {
+      this.emit('sliders-changed');
+      if (targetGraphId === this.activeGraphId) {
+        this.scheduleEvaluation();
+      }
+    }
+
+    return true;
+  }
+
+  setSliderGroupValue(groupId, value) {
+    if (!this.sliderLinker) {
+      return this.setSliderValue(groupId, value);
+    }
+    const mapping = this.sliderLinker.mapValue(groupId, value);
+    if (!mapping || !Array.isArray(mapping.updates) || !mapping.updates.length) {
+      return false;
+    }
+
+    let changed = false;
+    let touchesActiveGraph = false;
+    for (const update of mapping.updates) {
+      const { graphId, nodeId, value: mappedValue } = update;
+      const result = this.setSliderValue(nodeId, mappedValue, { graphId, silent: true });
+      if (result) {
+        changed = true;
+        if (graphId === this.activeGraphId) {
+          touchesActiveGraph = true;
+        }
+      }
+    }
+
+    if (!changed) {
+      return false;
+    }
+
+    this.refreshSliderLinks({ emit: false });
+    this.emit('sliders-changed');
+    if (touchesActiveGraph) {
+      this.scheduleEvaluation();
+    }
     return true;
   }
 
