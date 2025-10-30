@@ -23,15 +23,14 @@
       {
         "imports": {
         	"three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
-        	"three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
-        	"three/tsl": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+        	"three/tsl": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.tsl.js",
         	"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
     	}
       }
     </script>
   <script type="module">
     // Three.js r180 (ESM) + WebGPU + TSL (Nodes.js)
-	import * as THREE from 'three/webgpu';
+	import * as THREE from 'three';
 	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 	// TSL / Node helpers (r180):
