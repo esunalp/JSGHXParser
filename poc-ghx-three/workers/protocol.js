@@ -107,6 +107,7 @@ export function createEvaluationResultPayload({
   summary,
   logs,
   errors,
+  metadata,
 } = {}) {
   if (graphId === undefined || graphId === null || graphId === '') {
     throw new TypeError('createEvaluationResultPayload vereist een graphId.');
@@ -121,6 +122,7 @@ export function createEvaluationResultPayload({
     summary: typeof summary === 'string' ? summary : summary == null ? '' : String(summary),
     logs: Array.isArray(logs) ? logs.map((entry) => normalizeLogEntry(entry, 'info')) : [],
     errors: Array.isArray(errors) ? errors.map((entry) => normalizeLogEntry(entry, 'error')) : [],
+    metadata: metadata && typeof metadata === 'object' ? { ...metadata } : null,
   };
 }
 

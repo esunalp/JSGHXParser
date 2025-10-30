@@ -65,6 +65,7 @@ test('createUpdateSliderPayload filtert en normaliseert sliders', () => {
 });
 
 test('createEvaluationResultPayload normaliseert logs en errors', () => {
+  const metadata = { origin: 'wireframe', label: 'Wireframe' };
   const payload = createEvaluationResultPayload({
     graphId: 'wire',
     display: { buffers: [] },
@@ -78,6 +79,7 @@ test('createEvaluationResultPayload normaliseert logs en errors', () => {
     errors: [
       { message: 'fail' },
     ],
+    metadata,
   });
   assert.equal(payload.graphId, 'wire');
   assert.deepEqual(payload.display, { buffers: [] });
@@ -92,6 +94,8 @@ test('createEvaluationResultPayload normaliseert logs en errors', () => {
   assert.equal(payload.errors.length, 1);
   assert.equal(payload.errors[0].level, 'error');
   assert.equal(payload.errors[0].message, 'fail');
+  assert.deepEqual(payload.metadata, metadata);
+  assert.notEqual(payload.metadata, metadata, 'metadata wordt gekopieerd');
 });
 
 test('hulpfuncties herkennen responses op basis van type', () => {

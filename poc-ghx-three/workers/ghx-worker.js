@@ -227,6 +227,7 @@ async function handleUpdateSlider({ id, payload }) {
     summary,
     logs: pendingLogs.slice(),
     errors: pendingErrors.slice(),
+    metadata: existing.metadata,
   });
   if (evaluationError) {
     responsePayload.errors.push(

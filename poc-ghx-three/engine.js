@@ -307,18 +307,19 @@ class Engine {
 
     this.graphRegistry.on('graph-removed', ({ id }) => {
       this.graphStates.delete(id);
+      if (typeof this.updateMesh === 'function') {
+        this.updateMesh(null, { graphId: id });
+      }
       if (this.activeGraphId === id) {
         this.activeGraphId = null;
         this.nodeOutputs = new Map();
-        if (typeof this.updateMesh === 'function') {
-          this.updateMesh(null);
-        }
         this.emit('evaluation', { message: 'Actieve grafiek verwijderd.' });
       }
       this.refreshSliderLinks();
     });
 
     this.graphRegistry.on('active-graph-changed', ({ id, graph, metadata }) => {
+      const previousGraphId = this.activeGraphId;
       if (id && graph && !this.graphStates.has(id)) {
         this.prepareGraphState(id, graph, metadata);
       }
@@ -326,7 +327,11 @@ class Engine {
       const state = this.getActiveState();
       this.nodeOutputs = state?.nodeOutputs ?? new Map();
       if (typeof this.updateMesh === 'function') {
-        this.updateMesh(null);
+        if (previousGraphId && previousGraphId !== id) {
+          this.updateMesh(null, { graphId: previousGraphId });
+        } else if (!previousGraphId) {
+          this.updateMesh(null);
+        }
       }
       this.refreshSliderLinks();
       if (id) {
@@ -553,7 +558,18 @@ class Engine {
         } else if (renderables.length > 1) {
           main = renderables.slice();
         }
-        this.updateMesh({ type: 'ghx-display', main, overlays: overlay });
+        const graphId = this.activeGraphId;
+        const graphMetadata = state?.metadata ?? {};
+        this.updateMesh(
+          {
+            type: 'ghx-display',
+            main,
+            overlays: overlay,
+            graphId,
+            graphMetadata,
+          },
+          { graphId, metadata: graphMetadata },
+        );
       }
 
       const message = `Laatste evaluatie: ${new Date().toLocaleTimeString()}`;

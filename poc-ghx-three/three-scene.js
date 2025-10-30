@@ -655,11 +655,103 @@ export function initScene(canvas) {
   resize();
   window.addEventListener('resize', resize);
 
-  let currentObject = null;
+  const DEFAULT_GRAPH_ID = '__default__';
+  const graphSceneEntries = new Map();
   let needsFit = true;
   let overlayEnabled = false;
-  let currentOverlayGroup = null;
-  let latestOverlayData = { segments: [], points: [] };
+
+  function cloneMetadata(metadata) {
+    if (!metadata || typeof metadata !== 'object') {
+      return {};
+    }
+    return { ...metadata };
+  }
+
+  function normalizeGraphId(raw) {
+    if (raw === undefined || raw === null) {
+      return DEFAULT_GRAPH_ID;
+    }
+    const stringValue = String(raw);
+    return stringValue.length ? stringValue : DEFAULT_GRAPH_ID;
+  }
+
+  function createGraphSceneEntry(graphId) {
+    const group = new THREE.Group();
+    group.name = `GHXGraphGroup:${graphId}`;
+    scene.add(group);
+    return {
+      id: graphId,
+      group,
+      object: null,
+      overlayGroup: null,
+      overlayData: { segments: [], points: [] },
+      metadata: {},
+      lastUpdatedAt: null,
+    };
+  }
+
+  function ensureGraphSceneEntry(rawGraphId, metadata) {
+    const graphId = normalizeGraphId(rawGraphId);
+    let entry = graphSceneEntries.get(graphId);
+    if (!entry) {
+      entry = createGraphSceneEntry(graphId);
+      graphSceneEntries.set(graphId, entry);
+    }
+    if (metadata && typeof metadata === 'object') {
+      entry.metadata = { ...entry.metadata, ...metadata };
+    }
+    const label = typeof entry.metadata?.label === 'string' && entry.metadata.label.trim().length
+      ? entry.metadata.label.trim()
+      : graphId;
+    entry.group.name = `GHXGraphGroup:${label}`;
+    entry.group.userData.graphId = graphId;
+    entry.group.userData.metadata = cloneMetadata(entry.metadata);
+    entry.group.userData.label = label;
+    entry.lastUpdatedAt = Date.now();
+    return entry;
+  }
+
+  function disposeEntryObject(entry) {
+    if (entry?.object) {
+      entry.group.remove(entry.object);
+      disposeSceneObject(entry.object);
+      entry.object = null;
+    }
+  }
+
+  function disposeEntryOverlay(entry) {
+    if (entry?.overlayGroup) {
+      entry.group.remove(entry.overlayGroup);
+      disposeSceneObject(entry.overlayGroup);
+      entry.overlayGroup = null;
+    }
+  }
+
+  function clearAllGraphEntries() {
+    for (const entry of graphSceneEntries.values()) {
+      disposeEntryObject(entry);
+      disposeEntryOverlay(entry);
+      scene.remove(entry.group);
+    }
+    graphSceneEntries.clear();
+    needsFit = true;
+  }
+
+  function removeGraphEntry(rawGraphId) {
+    const graphId = normalizeGraphId(rawGraphId);
+    const entry = graphSceneEntries.get(graphId);
+    if (!entry) {
+      return false;
+    }
+    disposeEntryObject(entry);
+    disposeEntryOverlay(entry);
+    scene.remove(entry.group);
+    graphSceneEntries.delete(graphId);
+    if (!graphSceneEntries.size) {
+      needsFit = true;
+    }
+    return true;
+  }
 
   function sanitizeOverlayData(raw) {
     const safe = { segments: [], points: [] };
@@ -688,18 +780,18 @@ export function initScene(canvas) {
     return safe;
   }
 
-  function rebuildOverlayGroup() {
-    if (currentOverlayGroup) {
-      scene.remove(currentOverlayGroup);
-      disposeSceneObject(currentOverlayGroup);
-      currentOverlayGroup = null;
+  function applyOverlayForEntry(entry) {
+    if (!entry) {
+      return;
     }
+
+    disposeEntryOverlay(entry);
 
     if (!overlayEnabled) {
       return;
     }
 
-    const segments = latestOverlayData.segments.map((segment) => ({
+    const segments = entry.overlayData.segments.map((segment) => ({
       start: segment.start,
       end: segment.end,
       colorStart: OVERLAY_LINE_COLOR,
@@ -707,7 +799,7 @@ export function initScene(canvas) {
     }));
     const segmentObject = createSegmentsObject(segments);
 
-    const pointEntries = latestOverlayData.points.map((point) => ({ point }));
+    const pointEntries = entry.overlayData.points.map((point) => ({ point }));
     const pointObject = createPointsObject(pointEntries, () => OVERLAY_POINT_COLOR);
 
     if (!segmentObject && !pointObject) {
@@ -715,7 +807,7 @@ export function initScene(canvas) {
     }
 
     const group = new THREE.Group();
-    group.name = 'GHXCurveOverlay';
+    group.name = `GHXCurveOverlay:${entry.id}`;
 
     if (segmentObject) {
       group.add(segmentObject.object);
@@ -724,28 +816,79 @@ export function initScene(canvas) {
       group.add(pointObject.object);
     }
 
-    currentOverlayGroup = group;
-    scene.add(currentOverlayGroup);
+    entry.overlayGroup = group;
+    entry.group.add(group);
   }
 
-  function setOverlayData(raw) {
-    latestOverlayData = sanitizeOverlayData(raw);
-    rebuildOverlayGroup();
+  function updateOverlayForEntry(entry, rawOverlay) {
+    if (!entry) {
+      return;
+    }
+    entry.overlayData = sanitizeOverlayData(rawOverlay);
+    applyOverlayForEntry(entry);
+  }
+
+  function entryHasOverlayData(entry) {
+    if (!entry?.overlayData) {
+      return false;
+    }
+    const { segments, points } = entry.overlayData;
+    return (Array.isArray(segments) && segments.length > 0)
+      || (Array.isArray(points) && points.length > 0);
+  }
+
+  function getEntryFitTarget(entry) {
+    if (!entry) {
+      return null;
+    }
+    if (entry.object) {
+      return entry.object;
+    }
+    if (overlayEnabled && entry.overlayGroup) {
+      return entry.overlayGroup;
+    }
+    return null;
+  }
+
+  function computeEntryBoundingSphere(entry) {
+    return computeWorldBoundingSphere(getEntryFitTarget(entry));
+  }
+
+  function hasAnySceneObjects() {
+    for (const entry of graphSceneEntries.values()) {
+      if (entry.object) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function setOverlayEnabled(value) {
     overlayEnabled = Boolean(value);
-    rebuildOverlayGroup();
+    for (const entry of graphSceneEntries.values()) {
+      applyOverlayForEntry(entry);
+    }
 
-    if (!currentObject && overlayEnabled && currentOverlayGroup) {
-      const sphere = computeWorldBoundingSphere(currentOverlayGroup);
+    if (!overlayEnabled) {
+      if (!hasAnySceneObjects()) {
+        needsFit = true;
+      }
+      return;
+    }
+
+    const overlayOnlyEntry = Array.from(graphSceneEntries.values()).find(
+      (entry) => !entry.object && entry.overlayGroup,
+    );
+    if (overlayOnlyEntry) {
+      const sphere = computeWorldBoundingSphere(overlayOnlyEntry.overlayGroup);
       if (sphere) {
         fitCameraToSphere(sphere);
         needsFit = false;
+        return;
       }
     }
 
-    if (!currentObject && !currentOverlayGroup) {
+    if (!hasAnySceneObjects()) {
       needsFit = true;
     }
   }
@@ -872,6 +1015,18 @@ export function initScene(canvas) {
     return true;
   }
 
+  function collectIntersectionTargets() {
+    const targets = [];
+    for (const entry of graphSceneEntries.values()) {
+      if (entry.object) {
+        targets.push(entry.object);
+      } else if (entry.overlayGroup) {
+        targets.push(entry.overlayGroup);
+      }
+    }
+    return targets;
+  }
+
   function findPointerIntersection(event) {
     if (!updatePointerFromEvent(event)) {
       return null;
@@ -879,11 +1034,12 @@ export function initScene(canvas) {
 
     raycaster.setFromCamera(pointerNdc, camera);
 
-    if (!currentObject) {
+    const targets = collectIntersectionTargets();
+    if (!targets.length) {
       return null;
     }
 
-    const intersections = raycaster.intersectObject(currentObject, true);
+    const intersections = raycaster.intersectObjects(targets, true);
     if (!intersections.length) {
       return null;
     }
@@ -1152,38 +1308,51 @@ export function initScene(canvas) {
     return null;
   }
 
-  function updateMesh(payload) {
+  function updateMesh(payload, options = {}) {
     const isDisplayPayload = payload && typeof payload === 'object' && payload.type === 'ghx-display';
     const geometryOrMesh = isDisplayPayload ? payload.main ?? null : payload;
     const overlayData = isDisplayPayload ? payload.overlays ?? null : null;
+    const rawGraphId = options?.graphId ?? (isDisplayPayload ? payload.graphId : null);
+    const metadata = options?.metadata ?? (isDisplayPayload ? payload.graphMetadata : null);
 
-    if (geometryOrMesh && geometryOrMesh === currentObject) {
-      setOverlayData(overlayData);
-      const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
-      const sphere = computeWorldBoundingSphere(fitTarget);
-      if (sphere && needsFit) {
-        fitCameraToSphere(sphere);
-        needsFit = false;
+    if (!payload) {
+      if (rawGraphId === undefined || rawGraphId === null) {
+        clearAllGraphEntries();
+      } else {
+        removeGraphEntry(rawGraphId);
       }
       return;
     }
 
-    if (currentObject) {
-      scene.remove(currentObject);
-      disposeSceneObject(currentObject);
-      currentObject = null;
+    const graphId = normalizeGraphId(rawGraphId);
+    const entry = ensureGraphSceneEntry(graphId, metadata);
+
+    if (geometryOrMesh && entry.object && geometryOrMesh === entry.object) {
+      updateOverlayForEntry(entry, overlayData);
+      const sphere = computeEntryBoundingSphere(entry);
+      if (sphere && needsFit) {
+        fitCameraToSphere(sphere);
+        needsFit = false;
+      } else if (!sphere) {
+        needsFit = true;
+      }
+      return;
     }
 
+    disposeEntryObject(entry);
+
     if (!geometryOrMesh) {
-      setOverlayData(overlayData);
-      const fitTarget = overlayEnabled ? currentOverlayGroup : null;
-      const sphere = computeWorldBoundingSphere(fitTarget);
+      updateOverlayForEntry(entry, overlayData);
+      const sphere = computeEntryBoundingSphere(entry);
       if (sphere) {
         if (needsFit) {
           fitCameraToSphere(sphere);
           needsFit = false;
         }
       } else {
+        if (!entryHasOverlayData(entry)) {
+          removeGraphEntry(graphId);
+        }
         needsFit = true;
       }
       return;
@@ -1195,7 +1364,10 @@ export function initScene(canvas) {
       if (geometryOrMesh) {
         console.warn('updateMesh: onbekend objecttype', geometryOrMesh);
       }
-      setOverlayData(overlayData);
+      updateOverlayForEntry(entry, overlayData);
+      if (!entryHasOverlayData(entry)) {
+        removeGraphEntry(graphId);
+      }
       needsFit = true;
       return;
     }
@@ -1206,13 +1378,12 @@ export function initScene(canvas) {
       applyMeshSide(nextObject, THREE.DoubleSide);
     }
 
-    currentObject = nextObject;
-    scene.add(currentObject);
+    entry.object = nextObject;
+    entry.group.add(nextObject);
 
-    setOverlayData(overlayData);
+    updateOverlayForEntry(entry, overlayData);
 
-    const fitTarget = currentObject ?? (overlayEnabled ? currentOverlayGroup : null);
-    const sphere = computeWorldBoundingSphere(fitTarget);
+    const sphere = computeEntryBoundingSphere(entry);
     if (sphere) {
       if (needsFit) {
         fitCameraToSphere(sphere);
@@ -1246,6 +1417,19 @@ export function initScene(canvas) {
     sunSky,
     updateMesh,
     setOverlayEnabled,
+    listGraphGroups() {
+      return Array.from(graphSceneEntries.values()).map((entry) => ({
+        id: entry.id,
+        name: entry.group.name,
+        hasObject: Boolean(entry.object),
+        hasOverlay: Boolean(entry.overlayGroup),
+        metadata: cloneMetadata(entry.metadata),
+        lastUpdatedAt: entry.lastUpdatedAt,
+      }));
+    },
+    removeGraphGroup(graphId) {
+      return removeGraphEntry(graphId);
+    },
     isGpuRenderingEnabled,
     isWebGPUSupported,
     whenRendererReady,
