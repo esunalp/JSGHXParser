@@ -252,15 +252,17 @@
         { createEngine },
         { defaultRegistry },
         { createSliderUI },
-        { parseGHX },
         { createGraphRegistry },
+        { GHXWorkerManager },
+        { deserializeDisplayPayload },
       ] = await Promise.all([
         versionedImport('./three-scene.js'),
         versionedImport('./engine.js'),
         versionedImport('./registry.js'),
         versionedImport('./ui.js'),
-        versionedImport('./ghx-loader.js'),
         versionedImport('./graph-registry.js'),
+        versionedImport('./worker-manager.js'),
+        versionedImport('./renderable-transfer.js'),
       ]);
 
       const canvas = document.getElementById('viewport');
@@ -325,6 +327,9 @@
       const webgpuSupported = sceneApi.isWebGPUSupported();
       const graphRegistry = createGraphRegistry();
 
+      const workerManager = new GHXWorkerManager();
+      await workerManager.ensureReady();
+
       const engine = createEngine({
         registry: defaultRegistry,
         graphRegistry,
@@ -332,6 +337,130 @@
         onLog: (message) => console.info('[engine]', message),
         onError: (message) => console.warn('[engine]', message)
       });
+
+      const gatherSliderValuesForGraph = (graphId) => {
+        const state = engine.graphStates.get(graphId);
+        if (!state) {
+          return [];
+        }
+        const values = [];
+        for (const node of state.graph?.nodes ?? []) {
+          if (!node) continue;
+          const implementation = engine.componentRegistry.lookup(node);
+          if (!implementation || implementation.type !== 'slider') continue;
+          let nodeState = state.nodeStates.get(node.id);
+          if (!nodeState && typeof implementation.createState === 'function') {
+            nodeState = implementation.createState(node);
+            if (nodeState) {
+              state.nodeStates.set(node.id, nodeState);
+            }
+          }
+          if (!nodeState) {
+            continue;
+          }
+          const numericValue = Number(nodeState.value);
+          if (!Number.isFinite(numericValue)) {
+            continue;
+          }
+          values.push({ nodeId: node.id, value: numericValue, graphId });
+        }
+        return values;
+      };
+
+      let workerEvaluationInFlight = null;
+
+      const evaluateWithWorker = async ({ emitStartEvent = true, reason = 'worker-evaluate' } = {}) => {
+        const activeGraph = graphRegistry.getActiveGraph();
+        if (!activeGraph) {
+          if (emitStartEvent) {
+            engine.emit('evaluation', { message: 'Geen actieve grafiek om te evalueren.' });
+          }
+          return;
+        }
+
+        if (emitStartEvent) {
+          engine.emit('evaluation-start', { reason, graphId: activeGraph.id });
+        }
+
+        try {
+          const sliderValues = gatherSliderValuesForGraph(activeGraph.id);
+          const response = await workerManager.evaluateGraph({
+            graphId: activeGraph.id,
+            sliderValues,
+            setActive: true,
+          });
+
+          if (Array.isArray(response?.sliders)) {
+            let sliderChanged = false;
+            for (const slider of response.sliders) {
+              if (!slider) continue;
+              const result = engine.setSliderValue(slider.id, slider.value, {
+                graphId: slider.graphId ?? activeGraph.id,
+                silent: true,
+              });
+              if (result) {
+                sliderChanged = true;
+              }
+            }
+            engine.refreshSliderLinks({ emit: sliderChanged });
+          } else {
+            engine.refreshSliderLinks({ emit: false });
+          }
+
+          if (response?.display) {
+            const displayPayload = deserializeDisplayPayload(response.display);
+            sceneApi.updateMesh(displayPayload);
+          } else {
+            sceneApi.updateMesh(null);
+          }
+
+          const timestamp = new Date().toLocaleTimeString();
+          const message = response?.summary
+            ? `${response.summary} — ${timestamp}`
+            : `Laatste evaluatie: ${timestamp}`;
+          engine.emit('evaluation', { message });
+        } catch (error) {
+          console.error('Worker evaluation error', error);
+          sceneApi.updateMesh(null);
+          engine.emit('evaluation', {
+            message: `Worker evaluatie fout: ${error?.message ?? 'onbekende fout'}`,
+          });
+        } finally {
+          engine.emit('evaluation-complete', { reason, graphId: activeGraph.id });
+        }
+      };
+
+      engine.evaluate = function evaluateProxy(options = {}) {
+        if (workerEvaluationInFlight) {
+          return workerEvaluationInFlight;
+        }
+        const mergedOptions = { emitStartEvent: true, reason: 'worker-evaluate', ...options };
+        const execution = evaluateWithWorker(mergedOptions);
+        workerEvaluationInFlight = execution.finally(() => {
+          workerEvaluationInFlight = null;
+        });
+        return workerEvaluationInFlight;
+      };
+
+      engine.scheduleEvaluation = function scheduleWorkerEvaluation() {
+        if (!engine.activeGraphId) {
+          return;
+        }
+        if (engine.pendingEvaluation || workerEvaluationInFlight) {
+          return;
+        }
+        engine.pendingEvaluation = true;
+        const trigger = () => {
+          engine.pendingEvaluation = false;
+          engine.evaluate({ emitStartEvent: false, reason: 'worker-schedule' });
+        };
+        const raf = typeof globalThis !== 'undefined' ? globalThis.requestAnimationFrame : undefined;
+        if (typeof raf === 'function') {
+          raf(trigger);
+          return;
+        }
+        Promise.resolve().then(trigger);
+      };
 
       const ui = createSliderUI({
         container: sliderContainer,
@@ -372,12 +501,14 @@
         });
       }
 
-      const summarizeGraph = (graph) => {
-        const sliderCount = engine.listSliders().length;
-        const summaryParts = [`${graph.nodes.length} nodes`];
+      const summarizeGraph = (graph, metadata = {}) => {
+        const nodeCount = metadata.nodeCount ?? graph?.nodes?.length ?? 0;
+        const sliderCount = metadata.sliderCount ?? graph?.metadata?.sliderCount ?? 0;
+        const wireCount = metadata.wireCount ?? graph?.wires?.length ?? 0;
+        const summaryParts = [`${nodeCount} nodes`];
         summaryParts.push(sliderCount === 1 ? '1 slider' : `${sliderCount} sliders`);
-        if (!graph.wires?.length) {
-          summaryParts.push('wires nog niet geïmplementeerd');
+        if (wireCount) {
+          summaryParts.push(`${wireCount} wires`);
         }
         return summaryParts.join(', ');
       };
@@ -395,16 +526,19 @@
           }
 
           const fileContents = await response.text();
-          const file =
-            typeof File === 'function'
-              ? new File([fileContents], defaultFileName, { type: 'application/xml' })
-              : { name: defaultFileName, text: () => Promise.resolve(fileContents) };
-          const graph = await parseGHX(file);
+          const parseResult = await workerManager.parseText(fileContents, {
+            name: defaultFileName,
+            setActive: true,
+          });
 
-          engine.loadGraph(graph);
-          engine.scheduleEvaluation();
+          engine.loadGraph(parseResult.graph, {
+            id: parseResult.graphId,
+            metadata: parseResult.metadata,
+          });
+          await engine.evaluate({ reason: 'default-load' });
 
-          statusEl.textContent = `Standaard GHX geladen (${defaultFileName}): ${summarizeGraph(graph)}.`;
+          const summaryText = parseResult.summary ?? summarizeGraph(parseResult.graph, parseResult.metadata);
+          statusEl.textContent = `Standaard GHX geladen (${defaultFileName}): ${summaryText}.`;
         } catch (error) {
           console.error('GHX load error', error);
           statusEl.textContent = `Fout bij laden van standaard GHX: ${error?.message ?? 'onbekende fout'}`;
@@ -426,11 +560,20 @@
         const fileLoadToken = showLoadingOverlay();
 
         try {
-          const graph = await parseGHX(file);
-          engine.loadGraph(graph);
-          engine.scheduleEvaluation();
+          const contents = await file.text();
+          const parseResult = await workerManager.parseText(contents, {
+            name: file.name,
+            setActive: true,
+          });
 
-          statusEl.textContent = `GHX geladen: ${summarizeGraph(graph)}.`;
+          engine.loadGraph(parseResult.graph, {
+            id: parseResult.graphId,
+            metadata: parseResult.metadata,
+          });
+          await engine.evaluate({ reason: 'file-load' });
+
+          const summaryText = parseResult.summary ?? summarizeGraph(parseResult.graph, parseResult.metadata);
+          statusEl.textContent = `GHX geladen: ${summaryText}.`;
         } catch (error) {
           console.error('GHX parse error', error);
           statusEl.textContent = `Fout bij inlezen: ${error?.message ?? 'onbekende fout'}`;
