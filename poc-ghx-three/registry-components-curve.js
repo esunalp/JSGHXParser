@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 
 export function registerCurvePrimitiveComponents({ register, toNumber, toVector3 }) {
   if (typeof register !== 'function') {

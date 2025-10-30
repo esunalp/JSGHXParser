@@ -1,10 +1,36 @@
-import { withVersion } from '../version.js';
-import { serializeDisplayPayload } from '../renderable-transfer.js';
-import {
-  WorkerMessageType,
-  createEvaluationResultPayload,
-  createUpdateSliderPayload,
-} from './protocol.js';
+let withVersion;
+let serializeDisplayPayload;
+let WorkerMessageType;
+let createEvaluationResultPayload;
+let createUpdateSliderPayload;
+
+try {
+  ({ withVersion } = await import('../version.js'));
+  ({ serializeDisplayPayload } = await import('../renderable-transfer.js'));
+  const protocolModule = await import('./protocol.js');
+  WorkerMessageType = protocolModule.WorkerMessageType;
+  createEvaluationResultPayload = protocolModule.createEvaluationResultPayload;
+  createUpdateSliderPayload = protocolModule.createUpdateSliderPayload;
+} catch (error) {
+  console.error('[ghx-worker] Failed to load initial modules', error);
+  throw error;
+}
+
+self.addEventListener('error', (event) => {
+  try {
+    console.error('[ghx-worker] Unhandled error', event.message, event.filename, event.lineno);
+  } catch (consoleError) {
+    // ignore logging failures
+  }
+});
+
+self.addEventListener('unhandledrejection', (event) => {
+  try {
+    console.error('[ghx-worker] Unhandled rejection', event.reason);
+  } catch (consoleError) {
+    // ignore logging failures
+  }
+});
 
 const versionedImport = (path) => import(withVersion(path));
 

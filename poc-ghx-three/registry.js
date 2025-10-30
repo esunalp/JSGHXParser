@@ -1,6 +1,7 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
 import { withVersion } from './version.js';
 
+const THREE = await loadThreeCore();
 const versionedImport = (path) => import(withVersion(path));
 
 const [

@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 
 export function registerMathDomainComponents({ register, toNumber }) {
   if (typeof register !== 'function') {

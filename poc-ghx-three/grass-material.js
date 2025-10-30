@@ -1,5 +1,15 @@
-import * as THREE from 'three/webgpu';
-import { abs, clamp, float, mix, normalView, positionWorld, texture as textureNode, vec2 } from 'three/tsl';
+import { loadThreeWebGPU, loadThreeTSL } from './three-loader.js';
+
+const THREE = await loadThreeWebGPU();
+const TSL = await loadThreeTSL();
+const abs = TSL?.abs;
+const clamp = TSL?.clamp;
+const float = TSL?.float;
+const mix = TSL?.mix;
+const normalView = TSL?.normalView;
+const positionWorld = TSL?.positionWorld;
+const textureNode = TSL?.texture;
+const vec2 = TSL?.vec2;
 
 export const GRASS_PREVIEW_COLOR = new THREE.Color(124 / 255, 252 / 255, 0 / 255);
 
@@ -69,6 +79,13 @@ export function createGrassSurfaceMaterial(options = {}) {
     unitsPerTile: unitsPerTileOption = 3000,
     shadingStrength: shadingStrengthOption = 0.4,
   } = options;
+
+  if (!TSL || !abs || !float || !mix || !normalView || !positionWorld || !textureNode || !vec2) {
+    return new THREE.MeshStandardMaterial({
+      color: GRASS_PREVIEW_COLOR.clone(),
+      side,
+    });
+  }
 
   const grassTexturePrimary = getGrassTexture1();
   const grassTextureSecondary = getGrassTexture2();

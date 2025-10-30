@@ -2,6 +2,17 @@ import { withVersion } from './version.js';
 
 const versionedImport = (path) => import(withVersion(path));
 
+let DOMParserImpl = typeof DOMParser !== 'undefined' ? DOMParser : null;
+if (!DOMParserImpl) {
+  try {
+    const { DOMParser: PolyfillDOMParser } = await import('https://cdn.jsdelivr.net/npm/linkedom@0.15.3/+esm');
+    DOMParserImpl = PolyfillDOMParser;
+  } catch (error) {
+    console.warn('Kon geen DOMParser polyfill laden:', error);
+    DOMParserImpl = null;
+  }
+}
+
 const [
   { COMPLEX_COMPONENTS },
   { CURVE_COMPONENTS },
@@ -523,7 +534,10 @@ export async function parseGHX(file) {
     throw new Error('Geen bestand aangeleverd.');
   }
   const text = await file.text();
-  const parser = new DOMParser();
+  if (!DOMParserImpl) {
+    throw new Error('DOMParser is niet beschikbaar in deze omgeving.');
+  }
+  const parser = new DOMParserImpl();
   const doc = parser.parseFromString(text, 'application/xml');
   const parseError = doc.querySelector('parsererror');
   if (parseError) {

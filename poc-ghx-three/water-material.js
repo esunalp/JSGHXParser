@@ -1,26 +1,27 @@
-import * as THREE from 'three/webgpu';
-import {
-  Fn,
-  Loop,
-  abs,
-  clamp,
-  color,
-  cross,
-  float,
-  length,
-  mix,
-  mx_noise_float,
-  normalize,
-  normalLocal,
-  normalView,
-  positionWorld,
-  pow,
-  sin,
-  time,
-  vec2,
-  vec3,
-  uniform,
-} from 'three/tsl';
+import { loadThreeWebGPU, loadThreeTSL } from './three-loader.js';
+
+const THREE = await loadThreeWebGPU();
+const TSL = await loadThreeTSL();
+const Fn = TSL?.Fn;
+const Loop = TSL?.Loop;
+const abs = TSL?.abs;
+const clamp = TSL?.clamp;
+const color = TSL?.color;
+const cross = TSL?.cross;
+const float = TSL?.float;
+const length = TSL?.length;
+const mix = TSL?.mix;
+const mx_noise_float = TSL?.mx_noise_float;
+const normalize = TSL?.normalize;
+const normalLocal = TSL?.normalLocal;
+const normalView = TSL?.normalView;
+const positionWorld = TSL?.positionWorld;
+const pow = TSL?.pow;
+const sin = TSL?.sin;
+const time = TSL?.time;
+const vec2 = TSL?.vec2;
+const vec3 = TSL?.vec3;
+const uniform = TSL?.uniform;
 
 export const WATER_PREVIEW_COLOR = new THREE.Color(201 / 255, 233 / 255, 245 / 255);
 
@@ -46,6 +47,15 @@ export function createWaterSurfaceMaterial(options = {}) {
     smallWavesMultiplier: smallWavesMultiplierOption = 0.02,
     normalComputeShift: normalComputeShiftOption = 0.01,
   } = options;
+
+  if (!TSL || !Fn || !Loop || !abs || !clamp || !color || !cross || !float || !length || !mix || !mx_noise_float || !normalize || !normalLocal || !normalView || !positionWorld || !pow || !sin || !time || !vec2 || !vec3 || !uniform) {
+    return new THREE.MeshStandardMaterial({
+      color: WATER_PREVIEW_COLOR.clone(),
+      transparent: true,
+      opacity: 0.85,
+      side,
+    });
+  }
 
   const toVector2 = (value, fallback) => {
     if (value?.isVector2) {
