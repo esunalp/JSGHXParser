@@ -1,4 +1,6 @@
-import * as THREE from 'three/webgpu';
+import { loadThreeWebGPU } from './three-loader.js';
+
+const THREE = await loadThreeWebGPU();
 
 function cloneTypedArray(array) {
   if (!array) {

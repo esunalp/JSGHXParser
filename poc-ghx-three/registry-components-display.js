@@ -1,4 +1,4 @@
-import * as THREE from 'three/webgpu';
+import { loadThreeWebGPU } from './three-loader.js';
 import {
   cloneSurfaceMaterial,
   convertMaterialToNode,
@@ -10,6 +10,7 @@ import { createGrassSurfaceMaterial, isGrassPreviewColor } from './grass-materia
 import { createWaterSurfaceMaterial, isWaterPreviewColor } from './water-material.js';
 import { withVersion } from './version.js';
 
+const THREE = await loadThreeWebGPU();
 const { surfaceToGeometry, isSurfaceDefinition } = await import(withVersion('./surface-mesher.js'));
 
 const GUID_KEYS = (guids = []) => {

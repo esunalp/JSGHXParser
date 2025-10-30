@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 
 const EPSILON = 1e-6;
 const DEFAULT_SEGMENTS = {

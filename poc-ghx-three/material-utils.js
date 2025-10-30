@@ -1,4 +1,6 @@
-import * as THREE from 'three/webgpu';
+import { loadThreeWebGPU } from './three-loader.js';
+
+const THREE = await loadThreeWebGPU();
 
 const SURFACE_PROPERTY_KEYS = [
   'color',
@@ -94,6 +96,7 @@ const DEFAULT_PHONG_DIFFUSE = new THREE.Color(0x9aa5b1);
 const DEFAULT_PHONG_SPECULAR = new THREE.Color(0x111111);
 const DEFAULT_PHONG_EMISSIVE = new THREE.Color(0x000000);
 const MIN_ROUGHNESS = 0.02;
+const HAS_NODE_MATERIALS = Boolean(THREE.MeshPhysicalNodeMaterial && THREE.MeshStandardNodeMaterial);
 
 function cloneColorLike(value, fallback = DEFAULT_PHONG_DIFFUSE) {
   if (!value && value !== 0) {
@@ -253,23 +256,25 @@ export function createTlsMaterial(parameters = {}, options = {}) {
   const transparent = clampedTransparency > 0 && opacity < 1;
   const roughness = convertShininessToRoughness(shininess);
 
-  const material = new THREE.MeshPhysicalNodeMaterial({
+  const MaterialCtor = HAS_NODE_MATERIALS ? THREE.MeshPhysicalNodeMaterial : THREE.MeshPhysicalMaterial;
+  const material = new MaterialCtor({
     color,
     emissive: emissiveColor,
-    specularColor,
-    specularIntensity: colorLuminance(specularColor),
+    specularColor: HAS_NODE_MATERIALS ? specularColor : undefined,
+    specularIntensity: HAS_NODE_MATERIALS ? colorLuminance(specularColor) : undefined,
     metalness: 0,
     roughness,
     opacity,
     transparent,
-    transmission: clampedTransparency,
+    transmission: HAS_NODE_MATERIALS ? clampedTransparency : undefined,
   });
 
   return applySurfaceMaterialDefaults(material, options);
 }
 
 export function createStandardSurfaceMaterial(parameters = {}, options = {}) {
-  const material = new THREE.MeshStandardNodeMaterial({
+  const MaterialCtor = HAS_NODE_MATERIALS ? THREE.MeshStandardNodeMaterial : THREE.MeshStandardMaterial;
+  const material = new MaterialCtor({
     roughness: 0.6,
     metalness: 0.05,
     ...parameters,
@@ -291,12 +296,18 @@ export function convertMaterialToNode(material, options = {}) {
   }
 
   if (material.isMeshPhysicalMaterial) {
+    if (!HAS_NODE_MATERIALS) {
+      return applySurfaceMaterialDefaults(material, options);
+    }
     const converted = new THREE.MeshPhysicalNodeMaterial();
     copySurfaceMaterialParameters(material, converted);
     return applySurfaceMaterialDefaults(converted, options);
   }
 
   if (material.isMeshStandardMaterial) {
+    if (!HAS_NODE_MATERIALS) {
+      return applySurfaceMaterialDefaults(material, options);
+    }
     const converted = new THREE.MeshStandardNodeMaterial();
     copySurfaceMaterialParameters(material, converted);
     return applySurfaceMaterialDefaults(converted, options);

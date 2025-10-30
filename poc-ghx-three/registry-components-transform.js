@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 
 function createTransformHelpers({ toNumber, toVector3 }) {
   const EPSILON = 1e-9;

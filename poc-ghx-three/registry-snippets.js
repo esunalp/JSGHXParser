@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 import { createEngine } from './engine.js';
 import { createGraphRegistry } from './graph-registry.js';
 import { defaultRegistry } from './registry.js';

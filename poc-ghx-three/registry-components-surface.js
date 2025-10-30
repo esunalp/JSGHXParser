@@ -1,4 +1,6 @@
-import * as THREE from 'three';
+import { loadThreeCore } from './three-loader.js';
+
+const THREE = await loadThreeCore();
 
 const REGISTER_SURFACE_FREEFORM_ONLY = Symbol('register-surface-freeform-only');
 const REGISTER_SURFACE_ANALYSIS_ONLY = Symbol('register-surface-analysis-only');
