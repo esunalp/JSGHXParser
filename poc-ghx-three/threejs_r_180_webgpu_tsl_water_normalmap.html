@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Three.js r180 • WebGPU • TSL Water (procedurale normalmap 1024²)</title>
+  <title>Three.js r180 • WebGPU • TSL Water (procedurale normalflow)</title>
   <style>
     html, body { margin: 0; height: 100%; background: #12161b; color: #dfe7ef; font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
     #app { position: fixed; inset: 0; }
@@ -17,7 +17,7 @@
   <div class="hud">
     <div><strong>TSL Water • WebGPU</strong></div>
     <label>Roteer/zoom met de muis.</label>
-    <label>Normalmap: 1024×1024 • fBm noise • scroll & flow</label>
+    <label>Normal perturbatie: fBm noise • scroll & flow</label>
   </div>
     <script type="importmap">
       {
@@ -37,12 +37,10 @@
     // TSL / Node helpers (r180):
     import {
       // core varying/uniform helpers
-      uv, time, uniform, uniformTexture, cameraPosition, positionWorld, normalWorld,
+      uv, time, uniform, cameraPosition, positionWorld, normalWorld,
       // math primitives
-      vec2, vec3, vec4, float, add, sub, mul, div, fract, sin, cos, abs, max, min, clamp,
-      dot, normalize, length, floor, step, mix, pow,
-      // texture helpers
-      texture,
+      vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
+      dot, normalize, floor, mix, pow,
       // function builder
       Fn as tslFn
     } from 'three/tsl';
@@ -96,7 +94,7 @@
     );
 
     // ===============================
-    //  Procedurale NORMALMAP (1024²)
+    //  Procedurale normalberekening
     // ===============================
 
     // Uniforms voor random/flow/scale
@@ -106,16 +104,16 @@
     const uLacunarity = uniform( float(2.0) );
     const uGain       = uniform( float(0.5) );
 
-    const uFlowDirA   = uniform( vec2( 0.11,  0.07) );
-    const uFlowDirB   = uniform( vec2(-0.08,  0.13) );
+    const uFlowDirA   = uniform( vec2(float(0.11), float(0.07)) );
+    const uFlowDirB   = uniform( vec2(float(-0.08), float(0.13)) );
     const uSpeed      = uniform( float(0.05) );
     const uStrength   = uniform( float(1.2) );
 
     // 2D hash/noise helpers in TSL
     const hash2 = tslFn( (p) => {
-      const dotp = dot(p, vec2(127.1, 311.7));
-      const s = sin(dotp).mul(43758.5453123);
-      return fract(vec2(s, s.mul(1.2154)));
+      const dotp = dot(p, vec2(float(127.1), float(311.7)));
+      const s = sin(dotp).mul(float(43758.5453123));
+      return fract(vec2(s, s.mul(float(1.2154))));
     }, ['vec2']);
 
     const noise2 = tslFn( (p) => {
@@ -123,11 +121,11 @@
       const f = fract(p);
 
       const a = dot( hash2( i ), f );
-      const b = dot( hash2( add(i, vec2(1,0)) ), sub(f, vec2(1,0)) );
-      const c = dot( hash2( add(i, vec2(0,1)) ), sub(f, vec2(0,1)) );
-      const d = dot( hash2( add(i, vec2(1,1)) ), sub(f, vec2(1,1)) );
+      const b = dot( hash2( add(i, vec2(float(1.0), float(0.0))) ), sub(f, vec2(float(1.0), float(0.0))) );
+      const c = dot( hash2( add(i, vec2(float(0.0), float(1.0))) ), sub(f, vec2(float(0.0), float(1.0))) );
+      const d = dot( hash2( add(i, vec2(float(1.0), float(1.0))) ), sub(f, vec2(float(1.0), float(1.0))) );
 
-      const u = mul(f,f).mul( sub(float(3), mul(float(2), f)) ); // smoothstep(f)
+      const u = mul(f,f).mul( sub(float(3.0), mul(float(2.0), f)) ); // smoothstep(f)
       const lerpX1 = mix(a,b,u.x);
       const lerpX2 = mix(c,d,u.x);
       return mix(lerpX1, lerpX2, u.y);
@@ -143,102 +141,75 @@
         freq = mul(freq, lacunarity);
         amp  = mul(amp,  gain);
       }
-      const o = clamp(octaves, 1.0, 5.0);
-      return sum.mul( div(o, 5.0) );
+      const o = clamp(octaves, float(1.0), float(5.0));
+      return sum.mul( div(o, float(5.0)) );
     }, ['vec2','float','float','float']);
 
-    const encodeNormal = tslFn( (n) => {
-      return vec4( mul(add(n, 1.0), 0.5), 1.0 );
-    }, ['vec3']);
-
-    const makeNormalGenMaterial = () => {
-      const st = uv();
-      const t = time.mul(uSpeed);
-
-      const pA = add( mul(st, uScale), add( uSeed, uFlowDirA.mul(t) ) );
-      const pB = add(
-        mul( st, uScale.mul(1.73) ),
-        add( uSeed.add(10.0), uFlowDirB.mul( t.mul(1.3) ) )
-      );
-
-      const hA = fbm(pA, uOctaves, uLacunarity, uGain);
-      const hB = fbm(pB, uOctaves, uLacunarity, uGain);
-      const h  = add( hA, hB.mul(0.7) );
-
-      const eps = float(0.002);
-      const dHx = sub(
-        add( fbm(add(pA, vec2(eps,0)), uOctaves, uLacunarity, uGain), fbm(add(pB, vec2(eps,0)), uOctaves, uLacunarity, uGain).mul(0.7) ),
-        add( fbm(add(pA, vec2(-eps,0)), uOctaves, uLacunarity, uGain), fbm(add(pB, vec2(-eps,0)), uOctaves, uLacunarity, uGain).mul(0.7) )
-      ).mul( div(0.5, eps) );
-
-      const dHy = sub(
-        add( fbm(add(pA, vec2(0,eps)), uOctaves, uLacunarity, uGain), fbm(add(pB, vec2(0,eps)), uOctaves, uLacunarity, uGain).mul(0.7) ),
-        add( fbm(add(pA, vec2(0,-eps)), uOctaves, uLacunarity, uGain), fbm(add(pB, vec2(0,-eps)), uOctaves, uLacunarity, uGain).mul(0.7) )
-      ).mul( div(0.5, eps) );
-      const slopeX = mul( mul( dHx, uStrength ), -1.0 );
-      const slopeY = mul( mul( dHy, uStrength ), -1.0 );
-      const n = normalize( vec3( slopeX, slopeY, 1.0 ) );
-      const color = encodeNormal(n);
-
-      const mat = new THREE.MeshBasicNodeMaterial();
-      mat.colorNode = color; // schrijf RGBA normal
-      return mat;
-    };
-
-    // Render target 1024×1024 voor normalmap
-    const normalSize = 1024;
-    const normalTarget = new THREE.RenderTarget(normalSize, normalSize, {
-      type: THREE.FloatType,
-      depthBuffer: false,
-      stencilBuffer: false,
-      generateMipmaps: true
-    });
-    normalTarget.texture.magFilter = THREE.LinearFilter;
-    normalTarget.texture.minFilter = THREE.LinearMipmapLinearFilter;
-    normalTarget.texture.wrapS = THREE.RepeatWrapping;
-    normalTarget.texture.wrapT = THREE.RepeatWrapping;
-
-    const orthoScene = new THREE.Scene();
-    const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), makeNormalGenMaterial());
-    orthoScene.add(quad);
-
     // ===============================
-    //  Watermateriaal: normal perturb
+    //  Watermateriaal: procedural normal
     // ===============================
 
     const uNormalScale = uniform( float(1.0) );
-    const uScroll      = uniform( vec2(0.03, 0.02) );
-
-    const decodeNormal = tslFn( (rgba) => {
-      const n = mul( sub(rgba.xyz, 0.5), 2.0 );
-      return normalize(n);
-    }, ['vec4']);
+    const uScroll      = uniform( vec2(float(0.03), float(0.02)) );
 
     const fresnelSchlick = tslFn( (cosTheta, F0) => {
-      return add(F0, mul( sub(1.0, F0), pow( sub(1.0, cosTheta), 5.0 )));
+      const one = float(1.0);
+      return add(F0, mul( sub(one, F0), pow( sub(one, cosTheta), float(5.0) )));
     }, ['float','vec3']);
 
     const makeWaterMaterial = () => {
       const st = uv();
       const stFlow = add(st, mul(time, uScroll));
-      const normalTextureUniform = uniformTexture( normalTarget.texture );
-      const nTex = decodeNormal( texture( normalTextureUniform, stFlow ) );
+      const tFlow = time.mul(uSpeed);
+
+      const pA = add( mul(stFlow, uScale), add( uSeed, mul(uFlowDirA, tFlow) ) );
+      const pB = add(
+        mul( stFlow, uScale.mul(float(1.73)) ),
+        add( add( uSeed, vec2(float(10.0), float(10.0)) ), mul( uFlowDirB, tFlow.mul(float(1.3)) ) )
+      );
+
+      const eps = float(0.002);
+      const epsX = vec2(eps, float(0.0));
+      const epsY = vec2(float(0.0), eps);
+
+      const hXPos = add(
+        fbm(add(pA, epsX), uOctaves, uLacunarity, uGain),
+        fbm(add(pB, epsX), uOctaves, uLacunarity, uGain).mul(float(0.7))
+      );
+      const hXNeg = add(
+        fbm(sub(pA, epsX), uOctaves, uLacunarity, uGain),
+        fbm(sub(pB, epsX), uOctaves, uLacunarity, uGain).mul(float(0.7))
+      );
+      const hYPos = add(
+        fbm(add(pA, epsY), uOctaves, uLacunarity, uGain),
+        fbm(add(pB, epsY), uOctaves, uLacunarity, uGain).mul(float(0.7))
+      );
+      const hYNeg = add(
+        fbm(sub(pA, epsY), uOctaves, uLacunarity, uGain),
+        fbm(sub(pB, epsY), uOctaves, uLacunarity, uGain).mul(float(0.7))
+      );
+
+      const invStep = div(float(0.5), eps);
+      const scaledStrength = mul(uStrength, invStep);
+      const slopeX = mul( sub(hXPos, hXNeg), mul(scaledStrength, float(-1.0)) );
+      const slopeY = mul( sub(hYPos, hYNeg), mul(scaledStrength, float(-1.0)) );
+
+      const nTex = normalize( vec3( slopeX, slopeY, float(1.0) ) );
 
       const baseN = normalize( normalWorld );
       const pertN = normalize( add( baseN, mul(nTex, uNormalScale) ) );
 
       const V = normalize( sub(cameraPosition, positionWorld) );
-      const cosTheta = clamp( dot( pertN, normalize(V) ), 0.0, 1.0 );
-      const F0 = vec3(0.02); // water base reflectie
+      const cosTheta = clamp( dot( pertN, normalize(V) ), float(0.0), float(1.0) );
+      const F0 = vec3(float(0.02), float(0.02), float(0.02)); // water base reflectie
       const F = fresnelSchlick( cosTheta, F0 );
 
       const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.0, roughness: 0.05 });
       mat.normalNode    = pertN;
-      mat.colorNode     = vec3(0.02, 0.07, 0.09);
+      mat.colorNode     = vec3(float(0.02), float(0.07), float(0.09));
       mat.metalnessNode = float(0.0);
       mat.roughnessNode = float(0.05);
-      mat.emissiveNode  = F.mul(0.35); // simpele highlight
+      mat.emissiveNode  = F.mul(float(0.35)); // simpele highlight
       return mat;
     };
 
@@ -266,12 +237,6 @@
     scene.add(torus);
 
     // --- Animatie lus ---
-    function renderNormalMap() {
-      renderer.setRenderTarget(normalTarget);
-      renderer.render(orthoScene, orthoCam);
-      renderer.setRenderTarget(null);
-    }
-
     function onResize() {
       const w = window.innerWidth, h = window.innerHeight;
       renderer.setSize(w, h);
@@ -281,7 +246,6 @@
     window.addEventListener('resize', onResize);
 
     renderer.setAnimationLoop(() => {
-      renderNormalMap();
       torus.rotation.y += 0.01;
       renderer.render(scene, camera);
     });
