@@ -43,7 +43,7 @@
         vec2, vec3, float, add, sub, mul, div, fract, sin, clamp,
         dot, normalize, floor, mix, pow,
         // function builder
-        tslFn
+        Fn
     } from 'three/tsl';
 	
 
@@ -112,13 +112,13 @@
     const uStrength   = uniform( 1.2 );
 
     // 2D hash/noise helpers in TSL
-    const hash2 = tslFn( (p) => {
+    const hash2 = Fn( (p) => {
       const dotp = dot(p, vec2(float(127.1), float(311.7)));
       const s = sin(dotp).mul(float(43758.5453123));
       return fract(vec2(s, s.mul(float(1.2154))));
     }, ['vec2']);
 
-    const noise2 = tslFn( (p) => {
+    const noise2 = Fn( (p) => {
       const i = floor(p);
       const f = fract(p);
 
@@ -133,7 +133,7 @@
       return mix(lerpX1, lerpX2, u.y);
     }, ['vec2']);
 
-    const fbm = tslFn( (p, octaves, lacunarity, gain) => {
+    const fbm = Fn( (p, octaves, lacunarity, gain) => {
       let amp = float(0.5);
       let freq = float(1.0);
       let sum = float(0.0);
@@ -154,7 +154,7 @@
     const uNormalScale = uniform( 1.0 );
     const uScroll      = uniform( new THREE.Vector2(0.03, 0.02) );
 
-    const fresnelSchlick = tslFn( (cosTheta, F0) => {
+    const fresnelSchlick = Fn( (cosTheta, F0) => {
       const one = float(1.0);
       return add(F0, mul( sub(one, F0), pow( sub(one, cosTheta), float(5.0) )));
     }, ['float','vec3']);
