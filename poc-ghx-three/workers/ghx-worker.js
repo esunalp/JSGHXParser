@@ -1,6 +1,10 @@
 import { withVersion } from '../version.js';
 import { serializeDisplayPayload } from '../renderable-transfer.js';
-import { WorkerMessageType } from './protocol.js';
+import {
+  WorkerMessageType,
+  createEvaluationResultPayload,
+  createUpdateSliderPayload,
+} from './protocol.js';
 
 const versionedImport = (path) => import(withVersion(path));
 
@@ -132,7 +136,7 @@ async function handleInit({ id }) {
   postResponse({ id, type: WorkerMessageType.INIT_RESULT, payload: { status: 'ok' } });
 }
 
-async function handleParseGHX({ id, payload }) {
+async function handleLoadGHX({ id, payload }) {
   await ensureInitialized();
   const name = payload?.name ?? 'graph.ghx';
   const contents = payload?.contents;
@@ -161,7 +165,7 @@ async function handleParseGHX({ id, payload }) {
   const summary = summarizeGraph(registration.entry.graph, sliderCount);
   postResponse({
     id,
-    type: WorkerMessageType.PARSE_GHX_RESULT,
+    type: WorkerMessageType.LOAD_GHX_RESULT,
     payload: {
       graph: registration.entry.graph,
       metadata: registration.entry.metadata,
@@ -189,21 +193,19 @@ async function applySliderValues(graphId, sliderValues) {
   engine.refreshSliderLinks?.({ emit: false });
 }
 
-async function handleEvaluateGraph({ id, payload }) {
+async function handleUpdateSlider({ id, payload }) {
   await ensureInitialized();
-  const graphId = payload?.graphId;
-  if (!graphId) {
-    throw new Error('evaluate: graphId ontbreekt.');
-  }
+  const sanitizedPayload = createUpdateSliderPayload(payload);
+  const graphId = sanitizedPayload.graphId;
   const existing = graphRegistry.getGraph(graphId);
   if (!existing) {
     throw new Error(`evaluate: Onbekende graphId ${graphId}.`);
   }
-  if (payload?.setActive !== false) {
+  if (sanitizedPayload.setActive !== false) {
     graphRegistry.setActiveGraph(graphId);
   }
 
-  await applySliderValues(graphId, payload?.sliderValues ?? []);
+  await applySliderValues(graphId, sanitizedPayload.sliderValues ?? []);
 
   clearLogBuffers();
   lastDisplayPayload = null;
@@ -218,25 +220,32 @@ async function handleEvaluateGraph({ id, payload }) {
   const sliders = collectSlidersForGraph(graphId);
   const sliderCount = sliders.length;
   const summary = summarizeGraph(existing.graph, sliderCount);
-  const responsePayload = {
+  const responsePayload = createEvaluationResultPayload({
     graphId,
     display: serializedDisplay,
     sliders,
     summary,
     logs: pendingLogs.slice(),
     errors: pendingErrors.slice(),
-  };
+  });
   if (evaluationError) {
-    responsePayload.errors.push({
-      level: 'error',
-      message: evaluationError.message ?? String(evaluationError),
-      stack: evaluationError.stack ?? null,
-    });
+    responsePayload.errors.push(
+      createEvaluationResultPayload({
+        graphId,
+        errors: [
+          {
+            level: 'error',
+            message: evaluationError.message ?? String(evaluationError),
+            stack: evaluationError.stack ?? null,
+          },
+        ],
+      }).errors[0],
+    );
   }
   postResponse(
     {
       id,
-      type: WorkerMessageType.EVALUATE_GRAPH_RESULT,
+      type: WorkerMessageType.EVALUATION_RESULT,
       payload: responsePayload,
     },
     transferables,
@@ -255,11 +264,11 @@ self.addEventListener('message', (event) => {
       case WorkerMessageType.INIT:
         await handleInit({ id });
         break;
-      case WorkerMessageType.PARSE_GHX:
-        await handleParseGHX(message);
+      case WorkerMessageType.LOAD_GHX:
+        await handleLoadGHX(message);
         break;
-      case WorkerMessageType.EVALUATE_GRAPH:
-        await handleEvaluateGraph(message);
+      case WorkerMessageType.UPDATE_SLIDER:
+        await handleUpdateSlider(message);
         break;
       default:
         throw new Error(`Onbekend worker commando: ${type}`);
