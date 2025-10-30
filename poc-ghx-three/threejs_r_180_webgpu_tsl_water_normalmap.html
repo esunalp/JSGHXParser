@@ -31,7 +31,7 @@
     </script>
   <script type="module">
     // Three.js r180 (ESM) + WebGPU + TSL (Nodes.js)
-	import * as THREE from 'three/webgpu';
+	import * as THREE from 'three/tsl';
 	import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 	// TSL / Node helpers (r180):
@@ -44,7 +44,7 @@
     dot, normalize, floor, mix, pow,
     // function builder
     Fn: tslFn // Hernoem Fn naar tslFn met ':'
-	} = THREE.Nodes;
+	} from 'three/tsl';
 	
 
     const app = document.getElementById('app');
