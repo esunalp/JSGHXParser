@@ -1,5 +1,9 @@
 import { withVersion } from './version.js';
-import { WorkerMessageType } from './workers/protocol.js';
+import {
+  WorkerMessageType,
+  createLoadGraphPayload,
+  createUpdateSliderPayload,
+} from './workers/protocol.js';
 
 function createWorkerInstance() {
   const workerUrl = new URL(withVersion('./workers/ghx-worker.js'), import.meta.url);
@@ -87,16 +91,18 @@ export class GHXWorkerManager {
     if (typeof contents !== 'string') {
       return Promise.reject(new Error('parseText vereist een string als contents.'));
     }
-    const payload = { contents, name, graphId, metadata, prefix, setActive };
-    return this.sendRequest(WorkerMessageType.PARSE_GHX, payload);
+    const payload = createLoadGraphPayload({ contents, name, graphId, metadata, prefix, setActive });
+    return this.sendRequest(WorkerMessageType.LOAD_GHX, payload);
   }
 
   evaluateGraph({ graphId, sliderValues, setActive = true } = {}) {
-    if (!graphId) {
-      return Promise.reject(new Error('evaluateGraph vereist een graphId.'));
+    let payload;
+    try {
+      payload = createUpdateSliderPayload({ graphId, sliderValues, setActive });
+    } catch (error) {
+      return Promise.reject(error);
     }
-    const payload = { graphId, sliderValues, setActive };
-    return this.sendRequest(WorkerMessageType.EVALUATE_GRAPH, payload);
+    return this.sendRequest(WorkerMessageType.UPDATE_SLIDER, payload);
   }
 
   dispose() {
