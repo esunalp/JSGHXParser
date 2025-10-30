@@ -45,7 +45,23 @@
         // function builder
         Fn
     } from 'three/tsl';
-	
+
+	  class InstanceUniformNode extends THREE.Node {
+
+				constructor() {
+					super( 'vec3' );
+					this.updateType = THREE.NodeUpdateType.OBJECT;
+					this.uniformNode = uniform( new THREE.Color() );
+				}
+				update( frame ) {
+					const mesh = frame.object;
+					const meshColor = mesh.color;
+					this.uniformNode.value.copy( meshColor );
+				}
+				setup( /*builder*/ ) {
+					return this.uniformNode;
+				}
+	  }
 
     const app = document.getElementById('app');
 
