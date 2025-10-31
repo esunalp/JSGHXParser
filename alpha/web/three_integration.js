@@ -232,7 +232,7 @@ export function createThreeApp(canvas) {
 
   const sunSky = new PhysicalSunSky(scene);
   sunSky.setTarget(controls.target);
-  addHelpers(scene);
+  scene.add(sunSky);
 
   const geometryGroup = new THREE.Group();
   geometryGroup.name = 'ghx-geometry';
