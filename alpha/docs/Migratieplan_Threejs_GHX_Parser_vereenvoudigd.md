@@ -301,7 +301,7 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 0) Projectstructuur & Basis
 
-- [ ] Repo aanmaken met volgende structuur:
+- [x] Repo aanmaken met volgende structuur:
   ```text
   /alpha/ghx-engine/                # Rust crate (wasm)
     /src/
@@ -339,8 +339,8 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
       minimal_line.ghx
       minimal_extrude.ghx
   ```
-- [ ] `wasm-pack` pipeline in README documenteren (build, dev-serve).
-- [ ] `console_error_panic_hook` en feature-vlag `debug_logs` toevoegen.
+- [x] `wasm-pack` pipeline in README documenteren (build, dev-serve).
+- [x] `console_error_panic_hook` en feature-vlag `debug_logs` toevoegen.
 
 ## 1) Datamodellen & Component Registry
 
@@ -514,6 +514,7 @@ DELIVERABLES
 - Working WASM build in `/alpha/web/pkg` via `wasm-pack build --target web`.
 - `/alpha/web/index.html` + `main.js` + `three_integration.js` demo that showcases Line + Extrude.
 - `docs/README.md` with build/run instructions and current limitations.
+- When finished with a todo task, mark it as done in this file
 ```
 
 ---
