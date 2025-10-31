@@ -425,10 +425,10 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 8) DX & Build
 
-- [ ] `wasm-pack build --target web` scripts in `/web/package.json` (optioneel).
-- [ ] Eenvoudige dev-server (`python -m http.server` of `serve`) documenteren.
-- [ ] Sourcemaps aan voor JS; `RUSTFLAGS="-C debuginfo=1"` voor dev.
-- [ ] `CHANGELOG.md` starten (Keep a Changelog).
+- [x] `wasm-pack build --target web` scripts in `/web/package.json` (optioneel).
+- [x] Eenvoudige dev-server (`python -m http.server` of `serve`) documenteren.
+- [x] Sourcemaps aan voor JS; `RUSTFLAGS="-C debuginfo=1"` voor dev.
+- [x] `CHANGELOG.md` starten (Keep a Changelog).
 
 ## 9) Documentatie
 

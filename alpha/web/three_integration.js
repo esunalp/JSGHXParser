@@ -343,3 +343,5 @@ export function createThreeApp(canvas) {
     dispose,
   };
 }
+
+//# sourceMappingURL=three_integration.js.map
