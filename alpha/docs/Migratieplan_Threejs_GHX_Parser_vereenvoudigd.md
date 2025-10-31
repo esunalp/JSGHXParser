@@ -414,14 +414,14 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 7) Testen
 
-- [ ] Unit tests voor parser (nodes, wires, slider-meta).
-- [ ] Unit tests voor componenten (correctheid, foutpaden).
-- [ ] Integratietest: `minimal_line.ghx` → 1 `CurveLine` in output.
-- [ ] Integratietest: `minimal_extrude.ghx` → `Surface` met > 0 faces.
-- [ ] Snapshot-test: JSON-geometry vergelijking (met toleranties voor floats).
+- [x] Unit tests voor parser (nodes, wires, slider-meta).
+- [x] Unit tests voor componenten (correctheid, foutpaden).
+- [x] Integratietest: `minimal_line.ghx` → 1 `CurveLine` in output.
+- [x] Integratietest: `minimal_extrude.ghx` → `Surface` met > 0 faces.
+- [x] Snapshot-test: JSON-geometry vergelijking (met toleranties voor floats).
 
 **Acceptatiecriteria**
-- [ ] `cargo test` groen; `wasm-pack test --node` optioneel voor pure logica.
+- [x] `cargo test` groen; `wasm-pack test --node` optioneel voor pure logica.
 
 ## 8) DX & Build
 

@@ -1,1 +1,70 @@
-<!-- Placeholder GHX bestand voor een eenvoudige extrusie -->
+<?xml version="1.0" encoding="utf-8"?>
+<ghx version="alpha-0.1">
+  <objects>
+    <object id="0">
+      <guid>{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}</guid>
+      <name>Number Slider</name>
+      <nickname>Height</nickname>
+      <slider min="0" max="5" value="2" step="0.25" />
+      <outputs>
+        <output name="OUT" />
+      </outputs>
+    </object>
+    <object id="1">
+      <guid>{3581F42A-9592-4549-BD6B-1C0FC39D067B}</guid>
+      <name>Construct Point</name>
+      <nickname>Base A</nickname>
+      <inputs>
+        <input name="X" value="0" />
+        <input name="Y" value="0" />
+        <input name="Z" value="0" />
+      </inputs>
+      <outputs>
+        <output name="P" />
+      </outputs>
+    </object>
+    <object id="2">
+      <guid>{3581F42A-9592-4549-BD6B-1C0FC39D067B}</guid>
+      <name>Construct Point</name>
+      <nickname>Base B</nickname>
+      <inputs>
+        <input name="X" value="0" />
+        <input name="Y" value="1" />
+        <input name="Z" value="0" />
+      </inputs>
+      <outputs>
+        <output name="P" />
+      </outputs>
+    </object>
+    <object id="3">
+      <guid>{4C4E56EB-2F04-43F9-95A3-CC46A14F495A}</guid>
+      <name>Line</name>
+      <nickname>Profile</nickname>
+      <inputs>
+        <input name="A" />
+        <input name="B" />
+      </inputs>
+      <outputs>
+        <output name="L" />
+      </outputs>
+    </object>
+    <object id="4">
+      <guid>{962034E9-CC27-4394-AFC4-5C16E3447CF9}</guid>
+      <name>Extrude</name>
+      <nickname>Extrude Surface</nickname>
+      <inputs>
+        <input name="Curve" />
+        <input name="Distance" />
+      </inputs>
+      <outputs>
+        <output name="S" />
+      </outputs>
+    </object>
+  </objects>
+  <wires>
+    <wire from="1:P" to="3:A" />
+    <wire from="2:P" to="3:B" />
+    <wire from="3:L" to="4:Curve" />
+    <wire from="0:OUT" to="4:Distance" />
+  </wires>
+</ghx>
