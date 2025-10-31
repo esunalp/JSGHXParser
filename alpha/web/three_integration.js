@@ -1,5 +1,20 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import {
+  pass,
+  mrt,
+  output,
+  normalView,
+  metalness,
+  roughness,
+  blendColor,
+  sample,
+  directionToColor,
+  colorToDirection,
+  vec2,
+} from 'three/tsl';
+import { ssr } from 'three/addons/tsl/display/SSRNode.js';
+import { smaa } from 'three/addons/tsl/display/SMAANode.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
