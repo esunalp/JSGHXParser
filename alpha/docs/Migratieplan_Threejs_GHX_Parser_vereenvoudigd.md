@@ -390,15 +390,15 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 5) WASM API (Engine)
 
-- [ ] `Engine.load_ghx(xml: &str) -> Result<(), JsValue>`
-- [ ] `Engine.get_sliders() -> JsValue` (array van `{id,name,min,max,step,value}`).
-- [ ] `Engine.set_slider_value(id_or_name: &str, value: f64) -> Result<(), JsValue>`
-- [ ] `Engine.evaluate() -> Result<(), JsValue>`
-- [ ] `Engine.get_geometry() -> JsValue` (JSON-achtig; efficiënte arrays later).
+- [x] `Engine.load_ghx(xml: &str) -> Result<(), JsValue>`
+- [x] `Engine.get_sliders() -> JsValue` (array van `{id,name,min,max,step,value}`).
+- [x] `Engine.set_slider_value(id_or_name: &str, value: f64) -> Result<(), JsValue>`
+- [x] `Engine.evaluate() -> Result<(), JsValue>`
+- [x] `Engine.get_geometry() -> JsValue` (JSON-achtig; efficiënte arrays later).
 
 **Acceptatiecriteria**
-- [ ] Onjuiste slidernaam geeft duidelijke fout.
-- [ ] `get_geometry()` serialiseert zonder panics en bevat alleen renderbare types.
+- [x] Onjuiste slidernaam geeft duidelijke fout.
+- [x] `get_geometry()` serialiseert zonder panics en bevat alleen renderbare types.
 
 ## 6) Front-end (Vanilla JS + Three.js)
 
