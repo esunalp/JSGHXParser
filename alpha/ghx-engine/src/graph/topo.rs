@@ -1,6 +1,6 @@
 //! Topologische utilities.
 
-use super::{node::NodeId, Graph};
+use super::{Graph, node::NodeId};
 
 /// Resultaat van een nog te implementeren topologische sortering.
 #[derive(Debug, Default, Clone)]

@@ -344,16 +344,16 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 1) Datamodellen & Component Registry
 
-- [ ] `Value`-enum: `Number(f64)`, `Point([f64;3])`, `Vector([f64;3])`, `CurveLine{p1,p2}`, `Surface{vertices,faces}`, `List(Vec<Value>)`.
-- [ ] `Node`-struct met `id`, `guid`, `name`, `inputs`, `outputs`, `meta`.
-- [ ] `Wire`-struct (from_node, from_pin, to_node, to_pin).
-- [ ] `Graph`-container met indexen voor snelle lookup.
-- [ ] `Component`-trait: `fn eval(&self, inputs: &[Value], meta:&Meta) -> Result<Outputs, Error>`.
-- [ ] Registry op GUID → `ComponentKind` (enum + `match`).
+- [x] `Value`-enum: `Number(f64)`, `Point([f64;3])`, `Vector([f64;3])`, `CurveLine{p1,p2}`, `Surface{vertices,faces}`, `List(Vec<Value>)`.
+- [x] `Node`-struct met `id`, `guid`, `name`, `inputs`, `outputs`, `meta`.
+- [x] `Wire`-struct (from_node, from_pin, to_node, to_pin).
+- [x] `Graph`-container met indexen voor snelle lookup.
+- [x] `Component`-trait: `fn eval(&self, inputs: &[Value], meta:&Meta) -> Result<Outputs, Error>`.
+- [x] Registry op GUID → `ComponentKind` (enum + `match`).
 
 **Acceptatiecriteria**
-- [ ] Type-veiligheid: `Value` converteert strikt; duidelijke foutmeldingen bij mismatch.
-- [ ] Registry lookup per GUID + fallback op Name/Nickname voor testsamples.
+- [x] Type-veiligheid: `Value` converteert strikt; duidelijke foutmeldingen bij mismatch.
+- [x] Registry lookup per GUID + fallback op Name/Nickname voor testsamples.
 
 ## 2) GHX Parser (XML)
 
