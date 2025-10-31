@@ -432,9 +432,9 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 9) Documentatie
 
-- [ ] `docs/README.md`: installatie, build, run, architectuurdiagram (ASCII).
-- [ ] Componentenlijst met GUIDs en status (✅/🟡/❌).
-- [ ] Beperkingen Alpha (single GHX, single-thread).
+- [x] `docs/README.md`: installatie, build, run, architectuurdiagram (ASCII).
+- [x] Componentenlijst met GUIDs en status (✅/🟡/❌).
+- [x] Beperkingen Alpha (single GHX, single-thread).
 
 ## 10) Acceptatie Demo (Alpha 0.1)
 
