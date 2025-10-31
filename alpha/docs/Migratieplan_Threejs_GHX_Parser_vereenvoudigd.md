@@ -402,11 +402,11 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 6) Front-end (Vanilla JS + Three.js)
 
-- [ ] Bestandsloader (`<input type="file">`) → `engine.load_ghx(text)`.
-- [ ] Dynamische slider-UI genereren uit `get_sliders()`.
-- [ ] Event `input` → `set_slider_value()` → `evaluate()` → `updateThreeScene()`.
-- [ ] `three_integration.js`: mapping naar `THREE.BufferGeometry` + materiaalkeuzes.
-- [ ] Opruimen van oude objecten via `userData.generatedByGHX`.
+- [x] Bestandsloader (`<input type="file">`) → `engine.load_ghx(text)`.
+- [x] Dynamische slider-UI genereren uit `get_sliders()`.
+- [x] Event `input` → `set_slider_value()` → `evaluate()` → `updateThreeScene()`.
+- [x] `three_integration.js`: mapping naar `THREE.BufferGeometry` + materiaalkeuzes.
+- [x] Opruimen van oude objecten via `userData.generatedByGHX`.
 
 **Acceptatiecriteria**
 - [ ] Interactie is vloeiend met kleine grafen (≤ 200 nodes).

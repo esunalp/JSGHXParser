@@ -2,12 +2,265 @@
 <html lang="nl">
   <head>
     <meta charset="utf-8" />
-    <title>GHX Parser Alpha</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Three.js GHX Parser – Alpha</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background-color: #0f1116;
+        color: #f5f5f5;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        background: radial-gradient(circle at top, rgba(20, 24, 32, 0.65), transparent 70%), #0f1116;
+      }
+
+      header {
+        padding: 0.85rem 1.75rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.35rem;
+        letter-spacing: 0.02em;
+      }
+
+      header .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.9rem;
+        align-items: center;
+      }
+
+      input[type="file"] {
+        color: inherit;
+      }
+
+      main {
+        flex: 1;
+        display: grid;
+        grid-template-columns: minmax(260px, 320px) 1fr;
+        min-height: 0;
+      }
+
+      aside {
+        border-right: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 1.25rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        overflow-y: auto;
+      }
+
+      aside h2 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+
+      .status {
+        font-size: 0.95rem;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.75);
+      }
+
+      .toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-weight: 600;
+      }
+
+      .toggle-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .toggle-controls input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        accent-color: #2c9cf5;
+      }
+
+      .toggle-state {
+        font-size: 0.85rem;
+        text-transform: lowercase;
+        opacity: 0.75;
+      }
+
+      .sliders {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+
+      .slider {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+
+      .slider-label {
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: baseline;
+      }
+
+      .slider-label span:last-child {
+        font-size: 0.85rem;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+      }
+
+      .slider-inputs {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.75rem;
+        align-items: center;
+      }
+
+      .slider-inputs input[type="range"] {
+        width: 100%;
+      }
+
+      .slider-inputs input[type="number"] {
+        width: 4.75rem;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        color: inherit;
+      }
+
+      .viewport {
+        position: relative;
+        background: #141822;
+      }
+
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      .loading-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 17, 22, 0.65);
+        backdrop-filter: blur(3px);
+        transition: opacity 150ms ease;
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 1;
+      }
+
+      .loading-overlay--hidden {
+        opacity: 0;
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .loading-overlay__spinner {
+        width: 2.75rem;
+        height: 2.75rem;
+        border-radius: 999px;
+        border: 4px solid rgba(255, 255, 255, 0.25);
+        border-top-color: #ffffff;
+        animation: loading-overlay-spin 0.9s linear infinite;
+      }
+
+      @keyframes loading-overlay-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 920px) {
+        main {
+          grid-template-columns: minmax(240px, 1fr);
+          grid-template-rows: auto 1fr;
+        }
+
+        .viewport {
+          min-height: 55vh;
+        }
+      }
+    </style>
   </head>
   <body>
-    <h1>Three.js GHX Parser – Alpha</h1>
-    <noscript>Deze demo vereist JavaScript.</noscript>
+    <header>
+      <h1>Three.js GHX Parser — Alpha</h1>
+      <div class="actions">
+        <label>
+          <span class="visually-hidden">GHX-bestand</span>
+          <input id="ghx-input" type="file" accept=".ghx,.xml" />
+        </label>
+        <output id="status" class="status" aria-live="polite">Selecteer een GHX-bestand om te starten.</output>
+      </div>
+    </header>
+    <main>
+      <aside>
+        <section>
+          <h2>Weergave</h2>
+          <label class="toggle">
+            <span>Lijnen &amp; punten tonen</span>
+            <span class="toggle-controls">
+              <input
+                id="overlay-toggle"
+                type="checkbox"
+                role="switch"
+                aria-checked="false"
+                aria-label="Toon lijnen en punten"
+              />
+              <span id="overlay-state" class="toggle-state">false</span>
+            </span>
+          </label>
+        </section>
+        <section>
+          <h2>Sliders</h2>
+          <div id="slider-container" class="sliders" aria-live="polite"></div>
+        </section>
+      </aside>
+      <section class="viewport">
+        <canvas id="viewport" aria-label="3D weergave"></canvas>
+        <div id="loading-overlay" class="loading-overlay loading-overlay--hidden" aria-hidden="true">
+          <div class="loading-overlay__spinner" role="status" aria-live="polite" aria-label="Bezig met laden"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.webgpu.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
