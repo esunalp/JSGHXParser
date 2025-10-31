@@ -357,7 +357,7 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 2) GHX Parser (XML)
 
-- [ ] Parser met `quick-xml` of `roxmltree` (kies één) in `parse::ghx_xml`.
+- [ ] Parser met `quick-xml` in `parse::ghx_xml`.
 - [ ] Uit `Object`-chunks `GUID`, `Name`, `Nickname`, persistente data (sliders) extraheren.
 - [ ] Wires: koppel (from node/pin) → (to node/pin).
 - [ ] Slider-params: `Min`, `Max`, `Value`, `Step` uitlezen en in `meta` plaatsen.
