@@ -227,3 +227,5 @@ async function init() {
 init().catch((error) => {
   console.error('Onherstelbare fout tijdens initialisatie:', error);
 });
+
+//# sourceMappingURL=main.js.map
