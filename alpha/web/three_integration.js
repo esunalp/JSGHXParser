@@ -230,6 +230,10 @@ export function createThreeApp(canvas) {
   controls.target.copy(DEFAULT_CAMERA_TARGET);
   controls.update();
 
+  const sunSky = new PhysicalSunSky(scene);
+  sunSky.setTarget(controls.target);
+  addHelpers(scene);
+
   const geometryGroup = new THREE.Group();
   geometryGroup.name = 'ghx-geometry';
   const overlayGroup = new THREE.Group();
