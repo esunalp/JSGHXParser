@@ -357,10 +357,10 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 2) GHX Parser (XML)
 
-- [ ] Parser met `quick-xml` in `parse::ghx_xml`.
-- [ ] Uit `Object`-chunks `GUID`, `Name`, `Nickname`, persistente data (sliders) extraheren.
-- [ ] Wires: koppel (from node/pin) → (to node/pin).
-- [ ] Slider-params: `Min`, `Max`, `Value`, `Step` uitlezen en in `meta` plaatsen.
+- [x] Parser met `quick-xml` in `parse::ghx_xml`.
+- [x] Uit `Object`-chunks `GUID`, `Name`, `Nickname`, persistente data (sliders) extraheren.
+- [x] Wires: koppel (from node/pin) → (to node/pin).
+- [x] Slider-params: `Min`, `Max`, `Value`, `Step` uitlezen en in `meta` plaatsen.
 
 **Acceptatiecriteria**
 - [ ] Laden van `minimal_line.ghx` reconstrueert identieke graaf (aantal nodes/wires).
@@ -368,9 +368,9 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 3) Topologische Sortering & Evaluatie
 
-- [ ] Kahn’s algorithm implementeren (`topo.rs`) met cycle-detectie.
-- [ ] Evaluator: iterate in topo-volgorde, verzamel inputs via wires of defaults.
-- [ ] Output opslaan per node en eindcollectie samenstellen (alle renderbare geometrie).
+- [x] Kahn’s algorithm implementeren (`topo.rs`) met cycle-detectie.
+- [x] Evaluator: iterate in topo-volgorde, verzamel inputs via wires of defaults.
+- [x] Output opslaan per node en eindcollectie samenstellen (alle renderbare geometrie).
 
 **Acceptatiecriteria**
 - [ ] Deterministische output (zelfde input → identieke output).
