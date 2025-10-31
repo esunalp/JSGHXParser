@@ -378,11 +378,11 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 4) Minimale Componenten (Alpha)
 
-- [ ] **Number Slider**: levert `Value::Number` met `meta{min,max,step}`.
-- [ ] **Add** (numeric): som van twee `Number` inputs (promotie van int niet nodig).
-- [ ] **Construct Point**: `(x,y,z) -> Point`.
-- [ ] **Line (2pt)**: `Point,Point -> CurveLine`.
-- [ ] **Extrude (eenvoudig)**: `CurveLine + hoogte(Number|Vector)` → grof `Surface` (prismatisch), triangulatie simplistisch.
+- [x] **Number Slider**: levert `Value::Number` met `meta{min,max,step}`.
+- [x] **Add** (numeric): som van twee `Number` inputs (promotie van int niet nodig).
+- [x] **Construct Point**: `(x,y,z) -> Point`.
+- [x] **Line (2pt)**: `Point,Point -> CurveLine`.
+- [x] **Extrude (eenvoudig)**: `CurveLine + hoogte(Number|Vector)` → grof `Surface` (prismatisch), triangulatie simplistisch.
 
 **Acceptatiecriteria**
 - [ ] Unit tests per component met randgevallen (NaN, out-of-range slider clamp).
