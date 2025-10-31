@@ -223,24 +223,70 @@ mod tests {
     use crate::graph::node::MetaValue;
 
     #[test]
-    fn parses_minimal_line_graph() {
+    fn parses_minimal_line_graph_with_slider_meta() {
         let xml = include_str!("../../../tools/ghx-samples/minimal_line.ghx");
         let graph = parse_str(xml).expect("graph parsed");
-        assert_eq!(graph.node_count(), 3);
-        assert_eq!(graph.wire_count(), 2);
+        assert_eq!(graph.node_count(), 4);
+        assert_eq!(graph.wire_count(), 3);
 
         let slider = graph
             .nodes()
             .iter()
-            .find(|node| node.nickname.as_deref() == Some("Slider A"))
+            .find(|node| node.nickname.as_deref() == Some("Length"))
             .expect("slider node present");
-        let min = slider
-            .meta("min")
-            .and_then(|value| match value {
-                MetaValue::Number(number) => Some(*number),
-                _ => None,
-            })
-            .expect("slider min value");
-        assert!((min - 0.0).abs() < f64::EPSILON);
+
+        let extract = |key: &str| match slider.meta(key) {
+            Some(MetaValue::Number(number)) => Some(*number),
+            Some(MetaValue::Integer(integer)) => Some(*integer as f64),
+            _ => None,
+        };
+
+        assert_eq!(extract("min"), Some(0.0));
+        assert_eq!(extract("max"), Some(10.0));
+        assert_eq!(extract("step"), Some(0.5));
+        assert_eq!(extract("value"), Some(3.0));
+
+        let line_node = graph
+            .nodes()
+            .iter()
+            .find(|node| node.nickname.as_deref() == Some("Result Line"))
+            .expect("line node present");
+        let has_curve_wire = graph.wires().iter().any(|wire| {
+            wire.to_node == line_node.id && wire.to_pin.0 == "A"
+        });
+        assert!(has_curve_wire, "line component should receive input wire");
+    }
+
+    #[test]
+    fn parses_minimal_extrude_graph() {
+        let xml = include_str!("../../../tools/ghx-samples/minimal_extrude.ghx");
+        let graph = parse_str(xml).expect("graph parsed");
+        assert_eq!(graph.node_count(), 5);
+        assert_eq!(graph.wire_count(), 4);
+
+        let extrude_node = graph
+            .nodes()
+            .iter()
+            .find(|node| node.nickname.as_deref() == Some("Extrude Surface"))
+            .expect("extrude node present");
+        let has_curve_input = graph.wires().iter().any(|wire| {
+            wire.to_node == extrude_node.id && wire.to_pin.0 == "Curve"
+        });
+        let has_distance_input = graph.wires().iter().any(|wire| {
+            wire.to_node == extrude_node.id && wire.to_pin.0 == "Distance"
+        });
+        assert!(has_curve_input, "extrude node should have curve input wire");
+        assert!(has_distance_input, "extrude node should have distance input wire");
+
+        let height_slider = graph
+            .nodes()
+            .iter()
+            .find(|node| node.nickname.as_deref() == Some("Height"))
+            .expect("height slider present");
+        let height_value = match height_slider.meta("value") {
+            Some(MetaValue::Number(number)) => *number,
+            other => panic!("unexpected slider value meta: {other:?}"),
+        };
+        assert!((height_value - 2.0).abs() < f64::EPSILON);
     }
 }

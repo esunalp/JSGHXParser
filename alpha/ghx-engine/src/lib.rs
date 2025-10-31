@@ -362,7 +362,8 @@ fn js_error(message: &str) -> JsValue {
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        JsValue::from_str(message)
+        let _ = message;
+        JsValue::NULL
     }
 }
 

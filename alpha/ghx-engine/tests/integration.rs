@@ -1,3 +1,7 @@
+use ghx_engine::components::ComponentRegistry;
+use ghx_engine::graph::evaluator::{self, EvaluationResult};
+use ghx_engine::graph::value::Value;
+use ghx_engine::parse::ghx_xml;
 use ghx_engine::Engine;
 
 #[test]
@@ -6,76 +10,127 @@ fn engine_initializes() {
     assert!(engine.is_initialized());
 }
 
-#[cfg(target_arch = "wasm32")]
-mod wasm_only {
-    use super::*;
-    use serde::Deserialize;
+#[test]
+fn slider_updates_require_existing_identifier() {
+    let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
+    let mut engine = Engine::new();
+    engine.load_ghx(xml).expect("load ghx");
 
-    #[derive(Debug, Deserialize)]
-    struct SliderDto {
-        id: String,
-        name: String,
-        value: f64,
+    engine
+        .set_slider_value("Length", 4.5)
+        .expect("valid slider name");
+    assert!(engine.set_slider_value("onbekend", 1.0).is_err());
+}
+
+#[test]
+fn geometry_requires_evaluation_first() {
+    let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
+    let mut engine = Engine::new();
+    engine.load_ghx(xml).expect("load ghx");
+
+    assert!(engine.get_geometry().is_err());
+}
+
+#[test]
+fn line_sample_produces_curve_line() {
+    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_line.ghx"));
+    let curve_count = result
+        .geometry
+        .iter()
+        .filter(|value| matches!(value, Value::CurveLine { .. }))
+        .count();
+    assert_eq!(curve_count, 1, "expected exactly one curve line");
+
+    let line = result
+        .geometry
+        .iter()
+        .find_map(|value| match value {
+            Value::CurveLine { p1, p2 } => Some((p1, p2)),
+            _ => None,
+        })
+        .expect("line geometry present");
+
+    assert_point_close(line.0, [0.0, 0.0, 0.0]);
+    assert_point_close(line.1, [3.0, 0.0, 0.0]);
+}
+
+#[test]
+fn extrude_sample_produces_surface_with_faces() {
+    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_extrude.ghx"));
+    let surface = result
+        .geometry
+        .iter()
+        .find_map(|value| match value {
+            Value::Surface { vertices, faces } => Some((vertices, faces)),
+            _ => None,
+        })
+        .expect("surface output present");
+
+    assert_eq!(surface.0.len(), 4);
+    assert!(!surface.1.is_empty());
+}
+
+#[test]
+fn line_sample_matches_expected_snapshot() {
+    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_line.ghx"));
+    let curve = result
+        .geometry
+        .iter()
+        .find(|value| matches!(value, Value::CurveLine { .. }))
+        .expect("curve line present");
+    let expected = Value::CurveLine {
+        p1: [0.0, 0.0, 0.0],
+        p2: [3.0, 0.0, 0.0],
+    };
+
+    assert_value_close(curve, &expected, 1e-9);
+}
+
+fn evaluate_sample(xml: &str) -> EvaluationResult {
+    let graph = ghx_xml::parse_str(xml).expect("parse ghx");
+    let registry = ComponentRegistry::default();
+    evaluator::evaluate(&graph, &registry).expect("evaluate graph")
+}
+
+fn assert_point_close(actual: &[f64; 3], expected: [f64; 3]) {
+    for (idx, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+        let diff = (a - e).abs();
+        assert!(diff < 1e-9, "coordinate {idx} differs: {a} vs {e}");
     }
+}
 
-    #[derive(Debug, Deserialize)]
-    struct GeometryResponse {
-        items: Vec<GeometryItem>,
-    }
-
-    #[derive(Debug, Deserialize)]
-    #[serde(tag = "type")]
-    enum GeometryItem {
-        Point {
-            coordinates: [f64; 3],
-        },
-        CurveLine {
-            points: Vec<[f64; 3]>,
-        },
-        Surface {
-            vertices: Vec<[f64; 3]>,
-            faces: Vec<Vec<u32>>,
-        },
-    }
-
-    #[test]
-    fn sliders_roundtrip_and_geometry_output() {
-        let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
-        let mut engine = Engine::new();
-        engine.load_ghx(xml).expect("load ghx");
-
-        let sliders_value = engine.get_sliders().expect("serialize sliders");
-        let sliders: Vec<SliderDto> =
-            serde_wasm_bindgen::from_value(sliders_value).expect("deserialize sliders");
-        assert_eq!(sliders.len(), 1);
-        assert_eq!(sliders[0].name, "Slider A");
-
-        engine.evaluate().expect("evaluate graph");
-        let geometry_value = engine.get_geometry().expect("geometry available");
-        let geometry: GeometryResponse =
-            serde_wasm_bindgen::from_value(geometry_value).expect("deserialize geometry");
-        assert!(!geometry.items.is_empty());
-        assert!(matches!(geometry.items[0], GeometryItem::CurveLine { .. }));
-    }
-
-    #[test]
-    fn slider_updates_require_existing_identifier() {
-        let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
-        let mut engine = Engine::new();
-        engine.load_ghx(xml).expect("load ghx");
-
-        engine
-            .set_slider_value("Slider A", 3.5)
-            .expect("valid slider name");
-        assert!(engine.set_slider_value("onbekend", 1.0).is_err());
-    }
-
-    #[test]
-    fn geometry_requires_evaluation_first() {
-        let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
-        let mut engine = Engine::new();
-        engine.load_ghx(xml).expect("load ghx");
-
-        assert!(engine.get_geometry().is_err());
+fn assert_value_close(actual: &Value, expected: &Value, tol: f64) {
+    match (actual, expected) {
+        (
+            Value::CurveLine { p1: lp1, p2: lp2 },
+            Value::CurveLine { p1: rp1, p2: rp2 },
+        ) => {
+            assert_point_close(lp1, *rp1);
+            assert_point_close(lp2, *rp2);
+        }
+        (
+            Value::Surface {
+                vertices: lv,
+                faces: lf,
+            },
+            Value::Surface {
+                vertices: rv,
+                faces: rf,
+            },
+        ) => {
+            assert_eq!(lv.len(), rv.len(), "vertex count differs");
+            for (idx, (a, e)) in lv.iter().zip(rv.iter()).enumerate() {
+                for (component, (va, ve)) in a.iter().zip(e.iter()).enumerate() {
+                    let diff = (va - ve).abs();
+                    assert!(
+                        diff <= tol,
+                        "vertex {idx} component {component} differs: {va} vs {ve}"
+                    );
+                }
+            }
+            assert_eq!(lf, rf, "face indices differ");
+        }
+        (Value::Point(a), Value::Point(b)) => assert_point_close(a, *b),
+        _ => panic!("mismatched geometry variants: {actual:?} vs {expected:?}"),
     }
 }
