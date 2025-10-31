@@ -1,1 +1,39 @@
-<!-- Placeholder GHX bestand voor een eenvoudige lijn -->
+<?xml version="1.0" encoding="utf-8"?>
+<ghx version="alpha-0.1">
+  <objects>
+    <object id="0">
+      <guid>{A1111111-1111-1111-1111-111111111111}</guid>
+      <name>Number Slider</name>
+      <nickname>Slider A</nickname>
+      <slider min="0" max="10" value="2.5" step="0.5" />
+      <outputs>
+        <output name="OUT" />
+      </outputs>
+    </object>
+    <object id="1">
+      <guid>{B2222222-2222-2222-2222-222222222222}</guid>
+      <name>Number Slider</name>
+      <nickname>Slider B</nickname>
+      <slider min="0" max="5" value="1.25" step="0.25" />
+      <outputs>
+        <output name="OUT" />
+      </outputs>
+    </object>
+    <object id="2">
+      <guid>{C3333333-3333-3333-3333-333333333333}</guid>
+      <name>Add</name>
+      <nickname>Add</nickname>
+      <inputs>
+        <input name="A" />
+        <input name="B" />
+      </inputs>
+      <outputs>
+        <output name="R" />
+      </outputs>
+    </object>
+  </objects>
+  <wires>
+    <wire from="0:OUT" to="2:A" />
+    <wire from="1:OUT" to="2:B" />
+  </wires>
+</ghx>
