@@ -15,13 +15,13 @@ import {
 } from 'three/tsl';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { smaa } from 'three/addons/tsl/display/SMAANode.js';
-import { PhysicalSunSky } from './physical-sun-sky.js';
+import { PhysicalSunSky } from './shaders/physical-sun-sky.js';
 import {
   cloneSurfaceMaterial,
   createStandardSurfaceMaterial,
   convertMaterialToNode,
   ensureGeometryHasVertexNormals,
-} from './material-utils.js';
+} from './shaders/material-utils.js';
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
