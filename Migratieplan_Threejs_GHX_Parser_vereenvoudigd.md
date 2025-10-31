@@ -303,7 +303,7 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 - [ ] Repo aanmaken met volgende structuur:
   ```text
-  /ghx-engine/                # Rust crate (wasm)
+  /alpha/ghx-engine/                # Rust crate (wasm)
     /src/
       lib.rs
       graph/
@@ -325,16 +325,16 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
     /tests/
       integration.rs
     Cargo.toml
-  /web/                       # Vanilla JS, Three.js front-end
+  /alpha/web/                       # Vanilla JS, Three.js front-end
     index.html
     main.js
     three_integration.js
     ui.js
     pkg/                      # wasm-pack output
-  /docs/
+  /alpha/docs/
     README.md
     CHANGELOG.md
-  /tools/
+  /alpha/tools/
     ghx-samples/              # testbestanden
       minimal_line.ghx
       minimal_extrude.ghx
@@ -474,6 +474,7 @@ CODE REQUIREMENTS
 PARSING
 - Parse GHX XML (roxmltree OR quick-xml). Extract nodes (GUID/Name/Nickname), persistent data (sliders), and wires.
 - Preserve slider metadata {min,max,step,value} and expose via `get_sliders()`.
+- You can find all export Grasshopper components and its values in the files /poc-ghx-three/component-metadata-<category>.js, where <category> is one of the following category names: complex, curve, display, intersect, math, mesh, sets, surface, transform, vector.
 
 EVALUATION
 - Evaluate nodes in topological order and store outputs.
@@ -510,8 +511,8 @@ OUT OF SCOPE
 - Multi-file graphs, shared sliders, multi-threading, advanced geometry kernels, NURBS, robust meshing, typed-array interop.
 
 DELIVERABLES
-- Working WASM build in `/web/pkg` via `wasm-pack build --target web`.
-- `/web/index.html` + `main.js` + `three_integration.js` demo that showcases Line + Extrude.
+- Working WASM build in `/alpha/web/pkg` via `wasm-pack build --target web`.
+- `/alpha/web/index.html` + `main.js` + `three_integration.js` demo that showcases Line + Extrude.
 - `docs/README.md` with build/run instructions and current limitations.
 ```
 
