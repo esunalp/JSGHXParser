@@ -35,6 +35,8 @@ pub enum Value {
     List(Vec<Value>),
     /// Een tekstuele waarde.
     Text(String),
+    /// Een tekstlabel met oriëntatie en optionele kleur.
+    Tag(TextTagValue),
 }
 
 impl Value {
@@ -54,6 +56,7 @@ impl Value {
             Self::DateTime(_) => ValueKind::DateTime,
             Self::List(_) => ValueKind::List,
             Self::Text(_) => ValueKind::Text,
+            Self::Tag(_) => ValueKind::Tag,
         }
     }
 
@@ -142,6 +145,14 @@ impl Value {
         match self {
             Self::DateTime(date_time) => Ok(date_time.primitive()),
             _ => Err(ValueError::type_mismatch("DateTime", self.kind())),
+        }
+    }
+
+    /// Verwacht een `Tag` en retourneert de taggegevens.
+    pub fn expect_tag(&self) -> Result<&TextTagValue, ValueError> {
+        match self {
+            Self::Tag(tag) => Ok(tag),
+            _ => Err(ValueError::type_mismatch("Tag", self.kind())),
         }
     }
 }
@@ -244,6 +255,7 @@ pub enum ValueKind {
     Complex,
     DateTime,
     Text,
+    Tag,
 }
 
 impl fmt::Display for ValueKind {
@@ -261,8 +273,123 @@ impl fmt::Display for ValueKind {
             Self::DateTime => "DateTime",
             Self::List => "List",
             Self::Text => "Text",
+            Self::Tag => "Tag",
         };
         f.write_str(name)
+    }
+}
+
+/// Beschrijving van een vlak in de ruimte.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PlaneValue {
+    pub origin: [f64; 3],
+    pub x_axis: [f64; 3],
+    pub y_axis: [f64; 3],
+    pub z_axis: [f64; 3],
+}
+
+impl PlaneValue {
+    /// Maak een nieuw vlak met opgegeven basisvectoren.
+    #[must_use]
+    pub fn new(
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
+    ) -> Self {
+        Self {
+            origin,
+            x_axis,
+            y_axis,
+            z_axis,
+        }
+    }
+
+    /// Geeft een standaard vlak terug met assen gelijk aan de wereldassen.
+    #[must_use]
+    pub fn default() -> Self {
+        Self {
+            origin: [0.0, 0.0, 0.0],
+            x_axis: [1.0, 0.0, 0.0],
+            y_axis: [0.0, 1.0, 0.0],
+            z_axis: [0.0, 0.0, 1.0],
+        }
+    }
+}
+
+/// RGB kleurwaarden genormaliseerd tussen 0 en 1.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ColorValue {
+    pub r: f64,
+    pub g: f64,
+    pub b: f64,
+}
+
+impl ColorValue {
+    /// Maak een nieuwe kleur aan en klem componenten binnen [0, 1].
+    #[must_use]
+    pub fn new(r: f64, g: f64, b: f64) -> Self {
+        Self {
+            r: clamp01(r),
+            g: clamp01(g),
+            b: clamp01(b),
+        }
+    }
+
+    /// Maak een kleur uit waarden in het bereik [0, 255].
+    #[must_use]
+    pub fn from_rgb255(r: f64, g: f64, b: f64) -> Self {
+        Self::new(r / 255.0, g / 255.0, b / 255.0)
+    }
+
+    /// Maak een grijstint op basis van een scalar.
+    #[must_use]
+    pub fn grayscale(value: f64) -> Self {
+        if value <= 1.0 {
+            Self::new(value, value, value)
+        } else {
+            Self::from_rgb255(value, value, value)
+        }
+    }
+}
+
+fn clamp01(value: f64) -> f64 {
+    if !value.is_finite() {
+        return 0.0;
+    }
+    if value <= 0.0 {
+        0.0
+    } else if value >= 1.0 {
+        1.0
+    } else {
+        value
+    }
+}
+
+/// Beschrijving van een Grasshopper teksttag.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextTagValue {
+    pub plane: PlaneValue,
+    pub text: String,
+    pub size: f64,
+    pub color: Option<ColorValue>,
+}
+
+impl TextTagValue {
+    /// Maak een nieuwe teksttag aan.
+    #[must_use]
+    pub fn new(
+        plane: PlaneValue,
+        text: impl Into<String>,
+        size: f64,
+        color: Option<ColorValue>,
+    ) -> Self {
+        Self {
+            plane,
+            text: text.into(),
+            size,
+            color,
+        }
     }
 }
 
