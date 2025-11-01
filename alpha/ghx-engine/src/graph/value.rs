@@ -27,6 +27,8 @@ pub enum Value {
     Matrix(Matrix),
     /// Een lijst van waarden.
     List(Vec<Value>),
+    /// Een tekstuele waarde.
+    Text(String),
 }
 
 impl Value {
@@ -43,6 +45,7 @@ impl Value {
             Self::Domain(_) => ValueKind::Domain,
             Self::Matrix(_) => ValueKind::Matrix,
             Self::List(_) => ValueKind::List,
+            Self::Text(_) => ValueKind::Text,
         }
     }
 
@@ -169,6 +172,7 @@ pub enum ValueKind {
     Domain,
     List,
     Matrix,
+    Text,
 }
 
 impl fmt::Display for ValueKind {
@@ -183,6 +187,7 @@ impl fmt::Display for ValueKind {
             Self::Domain => "Domain",
             Self::Matrix => "Matrix",
             Self::List => "List",
+            Self::Text => "Text",
         };
         f.write_str(name)
     }
