@@ -291,12 +291,7 @@ pub struct PlaneValue {
 impl PlaneValue {
     /// Maak een nieuw vlak met opgegeven basisvectoren.
     #[must_use]
-    pub fn new(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
-    ) -> Self {
+    pub fn new(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Self {
         Self {
             origin,
             x_axis,

@@ -147,7 +147,7 @@ Markeer de taak als deze gedaan is.
 [x] 14. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_primitive.json staan beschreven.
 [x] 15. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_analysis.json staan beschreven.
 [x] 16. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_division.json staan beschreven.
-[ ] 17. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_spline.json staan beschreven.
+[x] 17. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_spline.json staan beschreven.
 [ ] 18. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_util.json staan beschreven.
 [ ] 19. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_primitive.json staan beschreven.
 [ ] 20. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_freeform.json staan beschreven.
