@@ -1186,11 +1186,7 @@ fn build_tag_values(
             .get(index)
             .cloned()
             .unwrap_or_else(|| text_fallback.clone());
-        let size = sizes
-            .get(index)
-            .copied()
-            .unwrap_or(size_fallback)
-            .max(0.0);
+        let size = sizes.get(index).copied().unwrap_or(size_fallback).max(0.0);
         let color = colors.get(index).cloned().unwrap_or(color_fallback);
         let tag = TextTagValue::new(plane.to_value(), text, size, color);
         tags.push(Value::Tag(tag));
@@ -1229,11 +1225,7 @@ fn parse_color_value(value: &Value) -> Option<ColorValue> {
                         components[2],
                     ))
                 } else {
-                    Some(ColorValue::new(
-                        components[0],
-                        components[1],
-                        components[2],
-                    ))
+                    Some(ColorValue::new(components[0], components[1], components[2]))
                 }
             } else if values.len() == 1 {
                 parse_color_value(&values[0])
@@ -1317,14 +1309,12 @@ fn parse_hex_color(text: &str) -> Option<ColorValue> {
         _ => return None,
     };
 
-    u32::from_str_radix(&expanded, 16)
-        .ok()
-        .map(|value| {
-            let r = ((value >> 16) & 0xFF) as f64;
-            let g = ((value >> 8) & 0xFF) as f64;
-            let b = (value & 0xFF) as f64;
-            ColorValue::from_rgb255(r, g, b)
-        })
+    u32::from_str_radix(&expanded, 16).ok().map(|value| {
+        let r = ((value >> 16) & 0xFF) as f64;
+        let g = ((value >> 8) & 0xFF) as f64;
+        let b = (value & 0xFF) as f64;
+        ColorValue::from_rgb255(r, g, b)
+    })
 }
 
 fn parse_delimited_color(text: &str) -> Option<ColorValue> {
@@ -1864,12 +1854,16 @@ mod tests {
         let first = tags[0].expect_tag().expect("first tag");
         assert_eq!(first.text, "First");
         assert!((first.size - 2.0).abs() < 1e-9);
-        assert!(matches!(first.color, Some(color) if (color.r - 1.0).abs() < 1e-9 && color.g < 1e-9));
+        assert!(
+            matches!(first.color, Some(color) if (color.r - 1.0).abs() < 1e-9 && color.g < 1e-9)
+        );
 
         let second = tags[1].expect_tag().expect("second tag");
         assert_eq!(second.text, "Second");
         assert!((second.size - 3.0).abs() < 1e-9);
-        assert!(matches!(second.color, Some(color) if color.r < 1e-9 && color.g < 1e-9 && color.b < 1e-9));
+        assert!(
+            matches!(second.color, Some(color) if color.r < 1e-9 && color.g < 1e-9 && color.b < 1e-9)
+        );
     }
 
     #[test]
