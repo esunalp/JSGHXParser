@@ -23,6 +23,8 @@ pub enum Value {
     },
     /// Een numeriek domein (1D of 2D).
     Domain(Domain),
+    /// Een matrix van numerieke waarden.
+    Matrix(Matrix),
     /// Een lijst van waarden.
     List(Vec<Value>),
 }
@@ -39,6 +41,7 @@ impl Value {
             Self::CurveLine { .. } => ValueKind::CurveLine,
             Self::Surface { .. } => ValueKind::Surface,
             Self::Domain(_) => ValueKind::Domain,
+            Self::Matrix(_) => ValueKind::Matrix,
             Self::List(_) => ValueKind::List,
         }
     }
@@ -106,6 +109,14 @@ impl Value {
             _ => Err(ValueError::type_mismatch("Domain", self.kind())),
         }
     }
+
+    /// Verwacht een `Matrix` en retourneert een verwijzing.
+    pub fn expect_matrix(&self) -> Result<&Matrix, ValueError> {
+        match self {
+            Self::Matrix(matrix) => Ok(matrix),
+            _ => Err(ValueError::type_mismatch("Matrix", self.kind())),
+        }
+    }
 }
 
 /// Typefout voor wanneer een `Value` naar het verkeerde type wordt
@@ -157,6 +168,7 @@ pub enum ValueKind {
     Surface,
     Domain,
     List,
+    Matrix,
 }
 
 impl fmt::Display for ValueKind {
@@ -169,9 +181,33 @@ impl fmt::Display for ValueKind {
             Self::CurveLine => "CurveLine",
             Self::Surface => "Surface",
             Self::Domain => "Domain",
+            Self::Matrix => "Matrix",
             Self::List => "List",
         };
         f.write_str(name)
+    }
+}
+
+/// Een eenvoudige matrixstructuur die door componenten kan worden gebruikt.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Matrix {
+    pub rows: usize,
+    pub columns: usize,
+    pub values: Vec<f64>,
+}
+
+impl Matrix {
+    /// Maakt een matrix aan wanneer de afmetingen en waarden overeenkomen.
+    #[must_use]
+    pub fn new(rows: usize, columns: usize, values: Vec<f64>) -> Option<Self> {
+        if rows == 0 || columns == 0 || values.len() != rows * columns {
+            return None;
+        }
+        Some(Self {
+            rows,
+            columns,
+            values,
+        })
     }
 }
 
