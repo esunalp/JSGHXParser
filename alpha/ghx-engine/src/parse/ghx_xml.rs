@@ -53,16 +53,16 @@ pub fn parse_str(input: &str) -> ParseResult<Graph> {
 
         if let Some(inputs) = object.inputs {
             for input in inputs.inputs {
-                if let Some(number) = input.as_number()? {
-                    node.set_input(input.name.clone(), Value::Number(number));
+                if let Some(value) = input.as_value() {
+                    node.set_input(input.name.clone(), value);
                 }
             }
         }
 
         if let Some(outputs) = object.outputs {
             for output in outputs.outputs {
-                if let Some(number) = output.as_number()? {
-                    node.set_output(output.name.clone(), Value::Number(number));
+                if let Some(value) = output.as_value() {
+                    node.set_output(output.name.clone(), value);
                 }
             }
         }
@@ -202,12 +202,21 @@ impl GhxPin {
 }
 
 impl GhxPin {
-    fn as_number(&self) -> ParseResult<Option<f64>> {
-        if let Some(value) = self.value() {
-            Ok(Some(value.parse()?))
-        } else {
-            Ok(None)
+    fn as_value(&self) -> Option<Value> {
+        let raw = self.value()?;
+        if let Ok(number) = raw.parse::<f64>() {
+            return Some(Value::Number(number));
         }
+
+        let lowercase = raw.trim().to_lowercase();
+        if lowercase == "true" {
+            return Some(Value::Boolean(true));
+        }
+        if lowercase == "false" {
+            return Some(Value::Boolean(false));
+        }
+
+        Some(Value::Text(raw))
     }
 }
 
