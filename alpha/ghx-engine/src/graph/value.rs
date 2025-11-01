@@ -21,6 +21,8 @@ pub enum Value {
         vertices: Vec<[f64; 3]>,
         faces: Vec<Vec<u32>>,
     },
+    /// Een numeriek domein (1D of 2D).
+    Domain(Domain),
     /// Een lijst van waarden.
     List(Vec<Value>),
 }
@@ -36,6 +38,7 @@ impl Value {
             Self::Vector(_) => ValueKind::Vector,
             Self::CurveLine { .. } => ValueKind::CurveLine,
             Self::Surface { .. } => ValueKind::Surface,
+            Self::Domain(_) => ValueKind::Domain,
             Self::List(_) => ValueKind::List,
         }
     }
@@ -95,6 +98,14 @@ impl Value {
             _ => Err(ValueError::type_mismatch("List", self.kind())),
         }
     }
+
+    /// Verwacht een `Domain` en retourneert een verwijzing.
+    pub fn expect_domain(&self) -> Result<&Domain, ValueError> {
+        match self {
+            Self::Domain(domain) => Ok(domain),
+            _ => Err(ValueError::type_mismatch("Domain", self.kind())),
+        }
+    }
 }
 
 /// Typefout voor wanneer een `Value` naar het verkeerde type wordt
@@ -144,6 +155,7 @@ pub enum ValueKind {
     Vector,
     CurveLine,
     Surface,
+    Domain,
     List,
 }
 
@@ -156,10 +168,37 @@ impl fmt::Display for ValueKind {
             Self::Vector => "Vector",
             Self::CurveLine => "CurveLine",
             Self::Surface => "Surface",
+            Self::Domain => "Domain",
             Self::List => "List",
         };
         f.write_str(name)
     }
+}
+
+/// Een één-dimensionaal numeriek domein.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Domain1D {
+    pub start: f64,
+    pub end: f64,
+    pub min: f64,
+    pub max: f64,
+    pub span: f64,
+    pub length: f64,
+    pub center: f64,
+}
+
+/// Een twee-dimensionaal domein opgebouwd uit twee 1D-domeinen.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Domain2D {
+    pub u: Domain1D,
+    pub v: Domain1D,
+}
+
+/// Beschikbare domeinvarianten die opgeslagen kunnen worden in `Value::Domain`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Domain {
+    One(Domain1D),
+    Two(Domain2D),
 }
 
 #[cfg(test)]

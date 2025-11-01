@@ -10,6 +10,7 @@ pub mod add;
 pub mod construct_point;
 pub mod extrude;
 pub mod line;
+pub mod maths_domain;
 pub mod maths_operators;
 pub mod number_slider;
 
@@ -61,6 +62,7 @@ pub enum ComponentKind {
     Line(line::ComponentImpl),
     Extrude(extrude::ComponentImpl),
     MathsOperator(maths_operators::ComponentKind),
+    MathsDomain(maths_domain::ComponentKind),
 }
 
 impl ComponentKind {
@@ -73,6 +75,7 @@ impl ComponentKind {
             Self::Line(component) => component.evaluate(inputs, meta),
             Self::Extrude(component) => component.evaluate(inputs, meta),
             Self::MathsOperator(component) => component.evaluate(inputs, meta),
+            Self::MathsDomain(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -85,6 +88,7 @@ impl ComponentKind {
             Self::Line(_) => "Line",
             Self::Extrude(_) => "Extrude",
             Self::MathsOperator(component) => component.name(),
+            Self::MathsDomain(component) => component.name(),
         }
     }
 }
@@ -123,6 +127,14 @@ impl Default for ComponentRegistry {
 
         for registration in maths_operators::REGISTRATIONS {
             let kind = ComponentKind::MathsOperator(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in maths_domain::REGISTRATIONS {
+            let kind = ComponentKind::MathsDomain(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
