@@ -25,6 +25,7 @@ pub mod maths_trig;
 pub mod maths_util;
 pub mod number_slider;
 pub mod surface_primitive;
+pub mod surface_freeform;
 pub mod vector_field;
 pub mod vector_grid;
 pub mod vector_plane;
@@ -92,6 +93,7 @@ pub enum ComponentKind {
     MathsTrig(maths_trig::ComponentKind),
     MathsUtil(maths_util::ComponentKind),
     SurfacePrimitive(surface_primitive::ComponentKind),
+    SurfaceFreeform(surface_freeform::ComponentKind),
     VectorVector(vector_vector::ComponentKind),
     VectorPoint(vector_point::ComponentKind),
     VectorPlane(vector_plane::ComponentKind),
@@ -122,6 +124,7 @@ impl ComponentKind {
             Self::MathsTrig(component) => component.evaluate(inputs, meta),
             Self::MathsUtil(component) => component.evaluate(inputs, meta),
             Self::SurfacePrimitive(component) => component.evaluate(inputs, meta),
+            Self::SurfaceFreeform(component) => component.evaluate(inputs, meta),
             Self::VectorVector(component) => component.evaluate(inputs, meta),
             Self::VectorPoint(component) => component.evaluate(inputs, meta),
             Self::VectorPlane(component) => component.evaluate(inputs, meta),
@@ -152,6 +155,7 @@ impl ComponentKind {
             Self::MathsTrig(component) => component.name(),
             Self::MathsUtil(component) => component.name(),
             Self::SurfacePrimitive(component) => component.name(),
+            Self::SurfaceFreeform(component) => component.name(),
             Self::VectorVector(component) => component.name(),
             Self::VectorPoint(component) => component.name(),
             Self::VectorPlane(component) => component.name(),
@@ -299,6 +303,14 @@ impl Default for ComponentRegistry {
 
         for registration in surface_primitive::REGISTRATIONS {
             let kind = ComponentKind::SurfacePrimitive(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in surface_freeform::REGISTRATIONS {
+            let kind = ComponentKind::SurfaceFreeform(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
