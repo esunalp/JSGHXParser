@@ -3,6 +3,8 @@
 
 use core::fmt;
 
+use time::PrimitiveDateTime;
+
 /// Beschikbare waardetypes binnen de evaluator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
@@ -25,6 +27,8 @@ pub enum Value {
     Domain(Domain),
     /// Een matrix van numerieke waarden.
     Matrix(Matrix),
+    /// Een datum-tijdwaarde zonder tijdzone.
+    DateTime(DateTimeValue),
     /// Een lijst van waarden.
     List(Vec<Value>),
     /// Een tekstuele waarde.
@@ -44,6 +48,7 @@ impl Value {
             Self::Surface { .. } => ValueKind::Surface,
             Self::Domain(_) => ValueKind::Domain,
             Self::Matrix(_) => ValueKind::Matrix,
+            Self::DateTime(_) => ValueKind::DateTime,
             Self::List(_) => ValueKind::List,
             Self::Text(_) => ValueKind::Text,
         }
@@ -120,6 +125,14 @@ impl Value {
             _ => Err(ValueError::type_mismatch("Matrix", self.kind())),
         }
     }
+
+    /// Verwacht een `DateTime` en retourneert de waarde.
+    pub fn expect_date_time(&self) -> Result<PrimitiveDateTime, ValueError> {
+        match self {
+            Self::DateTime(date_time) => Ok(date_time.primitive()),
+            _ => Err(ValueError::type_mismatch("DateTime", self.kind())),
+        }
+    }
 }
 
 /// Typefout voor wanneer een `Value` naar het verkeerde type wordt
@@ -172,6 +185,7 @@ pub enum ValueKind {
     Domain,
     List,
     Matrix,
+    DateTime,
     Text,
 }
 
@@ -186,10 +200,31 @@ impl fmt::Display for ValueKind {
             Self::Surface => "Surface",
             Self::Domain => "Domain",
             Self::Matrix => "Matrix",
+            Self::DateTime => "DateTime",
             Self::List => "List",
             Self::Text => "Text",
         };
         f.write_str(name)
+    }
+}
+
+/// Een tijdstip bestaande uit een datum en tijd zonder tijdzone.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DateTimeValue {
+    datetime: PrimitiveDateTime,
+}
+
+impl DateTimeValue {
+    /// Maakt een nieuwe datum-tijdwaarde aan.
+    #[must_use]
+    pub fn from_primitive(datetime: PrimitiveDateTime) -> Self {
+        Self { datetime }
+    }
+
+    /// Geeft de onderliggende `PrimitiveDateTime` terug.
+    #[must_use]
+    pub fn primitive(&self) -> PrimitiveDateTime {
+        self.datetime
     }
 }
 
@@ -244,7 +279,8 @@ pub enum Domain {
 
 #[cfg(test)]
 mod tests {
-    use super::{Value, ValueError, ValueKind};
+    use super::{DateTimeValue, Value, ValueError, ValueKind};
+    use time::macros::datetime;
 
     #[test]
     fn expect_number_accepts_number() {
@@ -306,5 +342,20 @@ mod tests {
 
         let non_list = Value::Number(3.0);
         assert!(matches!(non_list.expect_list(), Err(ValueError { .. })));
+    }
+
+    #[test]
+    fn expect_date_time_returns_datetime() {
+        let datetime = datetime!(2024-06-01 12:30:45);
+        let value = Value::DateTime(DateTimeValue::from_primitive(datetime));
+        assert_eq!(value.expect_date_time().unwrap(), datetime);
+    }
+
+    #[test]
+    fn expect_date_time_rejects_other_types() {
+        let value = Value::Number(1.0);
+        let err = value.expect_date_time().unwrap_err();
+        assert_eq!(err.expected(), "DateTime");
+        assert_eq!(err.found(), ValueKind::Number);
     }
 }

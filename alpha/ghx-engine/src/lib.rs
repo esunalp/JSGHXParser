@@ -323,6 +323,7 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
         Value::Domain(_) => None,
         Value::Matrix(_) => None,
         Value::Text(_) => None,
+        Value::DateTime(_) => None,
     }
 }
 
