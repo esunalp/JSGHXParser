@@ -17,6 +17,11 @@ const PIN_OUTPUT_VERTICES: &str = "V";
 const PIN_OUTPUT_COUNT: &str = "N";
 const PIN_OUTPUT_OFFSET: &str = "O";
 const PIN_OUTPUT_VALID: &str = "V";
+const PIN_OUTPUT_FRAMES: &str = "F";
+const PIN_OUTPUT_PARAMETERS: &str = "t";
+const PIN_OUTPUT_POINTS: &str = "P";
+const PIN_OUTPUT_TANGENTS: &str = "T";
+const PIN_OUTPUT_PARAMETER: &str = "t";
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -35,6 +40,16 @@ pub enum ComponentKind {
     RebuildCurve,
     Explode,
     PolylineCollapse,
+    FilletRadius,
+    Seam,
+    ExtendCurve,
+    PullCurve,
+    PerpFramesObsolete,
+    FilletDistance,
+    DivideCurveObsolete,
+    OffsetOnSurface,
+    FilletParameter,
+    ProjectCurve,
 }
 
 /// Metadata voor registraties in de componentregistry.
@@ -117,6 +132,56 @@ pub const REGISTRATIONS: &[Registration] = &[
         names: &["Polyline Collapse", "Collapse"],
         kind: ComponentKind::PolylineCollapse,
     },
+    Registration {
+        guids: &["{2f407944-81c3-4062-a485-276454ec4b8c}"],
+        names: &["Fillet", "Fillet (Radius)", "Fillet Radius"],
+        kind: ComponentKind::FilletRadius,
+    },
+    Registration {
+        guids: &["{42ad8dc1-b0c0-40df-91f5-2c46e589e6c2}"],
+        names: &["Seam", "Adjust Seam"],
+        kind: ComponentKind::Seam,
+    },
+    Registration {
+        guids: &["{62cc9684-6a39-422e-aefa-ed44643557b9}"],
+        names: &["Extend Curve", "Extend"],
+        kind: ComponentKind::ExtendCurve,
+    },
+    Registration {
+        guids: &["{6b5812f5-bb36-4d74-97fc-5a1f2f77452d}"],
+        names: &["Pull Curve", "Pull"],
+        kind: ComponentKind::PullCurve,
+    },
+    Registration {
+        guids: &["{6da4b70c-ce98-4d52-a2bb-2fadccf39da0}"],
+        names: &["Perp Frames [OBSOLETE]", "Perp Frames Legacy"],
+        kind: ComponentKind::PerpFramesObsolete,
+    },
+    Registration {
+        guids: &["{6fb21315-a032-400e-a80f-248687f5507f}"],
+        names: &["Fillet Distance", "Fillet Dist"],
+        kind: ComponentKind::FilletDistance,
+    },
+    Registration {
+        guids: &["{93b1066f-060e-440d-a638-aae8cbe7acb7}"],
+        names: &["Divide Curve [OBSOLETE]", "Divide Legacy"],
+        kind: ComponentKind::DivideCurveObsolete,
+    },
+    Registration {
+        guids: &["{b6f5cb51-f260-4c74-bf73-deb47de1bf91}"],
+        names: &["Offset on Surface", "Offset On Srf"],
+        kind: ComponentKind::OffsetOnSurface,
+    },
+    Registration {
+        guids: &["{c92cdfc8-3df8-4c4e-abc1-ede092a0aa8a}"],
+        names: &["Fillet Parameter", "Fillet (Parameter)"],
+        kind: ComponentKind::FilletParameter,
+    },
+    Registration {
+        guids: &["{d7ee52ff-89b8-4d1a-8662-3e0dd391d0af}"],
+        names: &["Project Curve", "Project"],
+        kind: ComponentKind::ProjectCurve,
+    },
 ];
 
 impl Component for ComponentKind {
@@ -136,6 +201,16 @@ impl Component for ComponentKind {
             Self::RebuildCurve => evaluate_rebuild_curve(inputs),
             Self::Explode => evaluate_explode(inputs),
             Self::PolylineCollapse => evaluate_polyline_collapse(inputs),
+            Self::FilletRadius => evaluate_fillet_radius(inputs),
+            Self::Seam => evaluate_seam(inputs),
+            Self::ExtendCurve => evaluate_extend_curve(inputs),
+            Self::PullCurve => evaluate_pull_curve(inputs),
+            Self::PerpFramesObsolete => evaluate_perp_frames_obsolete(inputs),
+            Self::FilletDistance => evaluate_fillet_distance(inputs),
+            Self::DivideCurveObsolete => evaluate_divide_curve_obsolete(inputs),
+            Self::OffsetOnSurface => evaluate_offset_on_surface(inputs),
+            Self::FilletParameter => evaluate_fillet_parameter(inputs),
+            Self::ProjectCurve => evaluate_project_curve(inputs),
         }
     }
 }
@@ -158,6 +233,16 @@ impl ComponentKind {
             Self::RebuildCurve => "Rebuild Curve",
             Self::Explode => "Explode",
             Self::PolylineCollapse => "Polyline Collapse",
+            Self::FilletRadius => "Fillet",
+            Self::Seam => "Seam",
+            Self::ExtendCurve => "Extend Curve",
+            Self::PullCurve => "Pull Curve",
+            Self::PerpFramesObsolete => "Perp Frames [OBSOLETE]",
+            Self::FilletDistance => "Fillet Distance",
+            Self::DivideCurveObsolete => "Divide Curve [OBSOLETE]",
+            Self::OffsetOnSurface => "Offset on Surface",
+            Self::FilletParameter => "Fillet (Parameter)",
+            Self::ProjectCurve => "Project Curve",
         }
     }
 }
@@ -461,6 +546,207 @@ fn evaluate_polyline_collapse(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+fn evaluate_fillet_radius(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Fillet vereist minimaal een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Fillet")?;
+    let radius = coerce_number(inputs.get(1), "Fillet Radius")
+        .unwrap_or(0.0)
+        .max(0.0);
+    let filleted = fillet_polyline(&points, radius);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
+    Ok(outputs)
+}
+
+fn evaluate_seam(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Seam vereist minimaal een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Seam")?;
+    if !is_closed_polyline(&points) {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(points));
+        return Ok(outputs);
+    }
+
+    let parameter = coerce_number(inputs.get(1), "Seam Parameter").unwrap_or(0.0);
+    let adjusted = rotate_polyline_seam(&points, parameter);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(adjusted));
+    Ok(outputs)
+}
+
+fn evaluate_extend_curve(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new(
+            "Extend Curve vereist minimaal een curve",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Extend Curve")?;
+    let start = coerce_number(inputs.get(2), "Extend Curve Start").unwrap_or(0.0);
+    let end = coerce_number(inputs.get(3), "Extend Curve End").unwrap_or(0.0);
+    let extended = extend_polyline(&points, start, end);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(extended));
+    Ok(outputs)
+}
+
+fn evaluate_pull_curve(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Pull Curve vereist minimaal een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Pull Curve")?;
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(points));
+    Ok(outputs)
+}
+
+fn evaluate_perp_frames_obsolete(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Perp Frames vereist een curve en segmentaantal",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Perp Frames")?;
+    let segments = coerce_positive_integer(inputs.get(1), "Perp Frames")?;
+    let align = inputs
+        .get(2)
+        .map(|value| coerce_boolean(value, "Perp Frames"))
+        .transpose()?
+        .unwrap_or(false);
+
+    let (frames, parameters) = compute_perp_frames(&points, segments.max(1), align);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames));
+    outputs.insert(PIN_OUTPUT_PARAMETERS.to_owned(), Value::List(parameters));
+    Ok(outputs)
+}
+
+fn evaluate_fillet_distance(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new(
+            "Fillet Distance vereist minimaal een curve",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Fillet Distance")?;
+    let distance = coerce_number(inputs.get(1), "Fillet Distance Parameter")
+        .unwrap_or(0.0)
+        .max(0.0);
+    let filleted = fillet_polyline(&points, distance);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
+    Ok(outputs)
+}
+
+fn evaluate_divide_curve_obsolete(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Divide Curve vereist een curve en segmentaantal",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Divide Curve")?;
+    let segments = coerce_positive_integer(inputs.get(1), "Divide Curve")?;
+
+    let mut point_values = Vec::new();
+    let mut tangent_values = Vec::new();
+    let mut parameter_values = Vec::new();
+
+    for step in 0..=segments.max(1) {
+        let parameter = step as f64 / segments.max(1) as f64;
+        let sample = sample_polyline(&points, parameter);
+        point_values.push(Value::Point(sample.point));
+        tangent_values.push(Value::Vector(sample.tangent));
+        parameter_values.push(Value::Number(parameter));
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(point_values));
+    outputs.insert(PIN_OUTPUT_TANGENTS.to_owned(), Value::List(tangent_values));
+    outputs.insert(
+        PIN_OUTPUT_PARAMETERS.to_owned(),
+        Value::List(parameter_values),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_offset_on_surface(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new(
+            "Offset on Surface vereist minimaal een curve",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Offset on Surface")?;
+    let distance = coerce_number(inputs.get(1), "Offset on Surface Distance").unwrap_or(0.0);
+    let plane = plane_from_polyline(&points);
+    let offset = offset_polyline_points(&points, &plane, distance, is_closed_polyline(&points));
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_CURVES.to_owned(),
+        Value::List(vec![polyline_to_value(offset)]),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_fillet_parameter(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Fillet vereist minimaal een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Fillet Parameter")?;
+    let parameter = coerce_number(inputs.get(1), "Fillet Parameter t").unwrap_or(0.5);
+    let radius = coerce_number(inputs.get(2), "Fillet Parameter Radius")
+        .unwrap_or(0.0)
+        .max(0.0);
+    let (filleted, actual_parameter) = fillet_polyline_at_parameter(&points, parameter, radius);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
+    outputs.insert(
+        PIN_OUTPUT_PARAMETER.to_owned(),
+        Value::Number(actual_parameter),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_project_curve(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new(
+            "Project Curve vereist minimaal een curve",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Project Curve")?;
+    let direction = inputs
+        .get(2)
+        .and_then(|value| coerce_vector(Some(value), "Project Direction").ok())
+        .unwrap_or([0.0, 0.0, 1.0]);
+    let projected = project_polyline(points, direction);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_CURVES.to_owned(),
+        Value::List(vec![polyline_to_value(projected)]),
+    );
+    Ok(outputs)
+}
+
 // --- Hulpfuncties -----------------------------------------------------------
 
 fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
@@ -572,6 +858,17 @@ fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> 
     }
 }
 
+fn coerce_positive_integer(value: Option<&Value>, context: &str) -> Result<usize, ComponentError> {
+    let number = coerce_number(value, context)?;
+    if number < 1.0 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een positief geheel getal",
+            context
+        )));
+    }
+    Ok(number.round().max(1.0) as usize)
+}
+
 fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!("{} vereist een vlak", context)));
@@ -604,6 +901,26 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
         Value::List(values) if values.len() == 1 => coerce_point(values.get(0), context),
         other => Err(ComponentError::new(format!(
             "{} verwacht een punt, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+    let Some(value) = value else {
+        return Err(ComponentError::new(format!(
+            "{} vereist een vector",
+            context
+        )));
+    };
+
+    match value {
+        Value::Vector(vector) => Ok(*vector),
+        Value::Point(point) => Ok(*point),
+        Value::List(values) if values.len() == 1 => coerce_vector(values.get(0), context),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vector, kreeg {}",
             context,
             other.kind()
         ))),
@@ -1109,13 +1426,287 @@ fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
     ]
 }
 
+fn deduplicate_polyline(points: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
+    let mut result = Vec::new();
+    for point in points {
+        if result
+            .last()
+            .map_or(true, |prev| distance(*prev, point) > EPSILON)
+        {
+            result.push(point);
+        }
+    }
+    result
+}
+
+fn fillet_corner(
+    prev: [f64; 3],
+    current: [f64; 3],
+    next: [f64; 3],
+    radius: f64,
+) -> Option<([f64; 3], [f64; 3], [f64; 3])> {
+    if radius <= EPSILON {
+        return None;
+    }
+
+    let to_prev = subtract(current, prev);
+    let to_next = subtract(next, current);
+    let len_prev = length(to_prev);
+    let len_next = length(to_next);
+    if len_prev < EPSILON || len_next < EPSILON {
+        return None;
+    }
+
+    let trim = radius.min(len_prev / 2.0).min(len_next / 2.0);
+    if trim <= EPSILON {
+        return None;
+    }
+
+    let dir_prev = scale(to_prev, 1.0 / len_prev);
+    let dir_next = scale(to_next, 1.0 / len_next);
+    let start = subtract(current, scale(dir_prev, trim));
+    let end = add(current, scale(dir_next, trim));
+    let mid = lerp(start, end, 0.5);
+    Some((start, mid, end))
+}
+
+fn fillet_polyline(points: &[[f64; 3]], radius: f64) -> Vec<[f64; 3]> {
+    if points.len() < 3 || radius <= EPSILON {
+        return points.to_vec();
+    }
+
+    let mut result = Vec::with_capacity(points.len() * 2);
+    result.push(points[0]);
+    for index in 1..points.len() - 1 {
+        let prev = points[index - 1];
+        let current = points[index];
+        let next = points[index + 1];
+        if let Some((start, mid, end)) = fillet_corner(prev, current, next, radius) {
+            if distance(*result.last().unwrap(), start) > EPSILON {
+                result.push(start);
+            }
+            result.push(mid);
+            result.push(end);
+        } else {
+            result.push(current);
+        }
+    }
+    result.push(*points.last().unwrap());
+    deduplicate_polyline(result)
+}
+
+fn fillet_polyline_at_parameter(
+    points: &[[f64; 3]],
+    parameter: f64,
+    radius: f64,
+) -> (Vec<[f64; 3]>, f64) {
+    if points.len() < 3 || radius <= EPSILON {
+        let clamped = parameter.clamp(0.0, 1.0);
+        return (points.to_vec(), clamped);
+    }
+
+    let clamped = parameter.clamp(0.0, 1.0);
+    let segments = points.len().saturating_sub(1) as f64;
+    let mut index = (clamped * segments).round() as isize;
+    index = index.clamp(1, points.len() as isize - 2);
+    let index = index as usize;
+    let actual = index as f64 / segments;
+
+    if let Some((start, mid, end)) =
+        fillet_corner(points[index - 1], points[index], points[index + 1], radius)
+    {
+        let mut result = Vec::with_capacity(points.len() + 2);
+        result.extend_from_slice(&points[..index]);
+        if distance(*result.last().unwrap(), start) > EPSILON {
+            result.push(start);
+        }
+        result.push(mid);
+        result.push(end);
+        result.extend_from_slice(&points[index + 1..]);
+        (deduplicate_polyline(result), actual)
+    } else {
+        (points.to_vec(), actual)
+    }
+}
+
+fn rotate_polyline_seam(points: &[[f64; 3]], parameter: f64) -> Vec<[f64; 3]> {
+    if points.len() < 3 {
+        return points.to_vec();
+    }
+
+    let total_length = polyline_length(points);
+    if total_length < EPSILON {
+        return points.to_vec();
+    }
+
+    let normalized = if parameter.is_finite() {
+        parameter.rem_euclid(1.0)
+    } else {
+        0.0
+    };
+    let target = normalized * total_length;
+    let segments = polyline_segments(points);
+    let mut accumulated = 0.0;
+
+    for (index, segment) in segments.iter().enumerate() {
+        if accumulated + segment.length >= target || index == segments.len() - 1 {
+            let local = if segment.length < EPSILON {
+                0.0
+            } else {
+                ((target - accumulated).max(0.0) / segment.length).clamp(0.0, 1.0)
+            };
+            let seam_point = lerp(segment.start, segment.end, local);
+            let mut result = Vec::with_capacity(points.len() + 1);
+            result.push(seam_point);
+            result.extend(points.iter().skip(index + 1).copied());
+            result.extend(points.iter().take(index + 1).copied());
+            result.push(seam_point);
+            return deduplicate_polyline(result);
+        }
+        accumulated += segment.length;
+    }
+
+    points.to_vec()
+}
+
+fn extend_polyline(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
+    if points.len() < 2 {
+        return points.to_vec();
+    }
+
+    let mut result = points.to_vec();
+    let start_length = start.max(0.0);
+    if start_length > EPSILON {
+        let direction = normalize(subtract(points[1], points[0]));
+        result.insert(0, subtract(points[0], scale(direction, start_length)));
+    }
+
+    let end_length = end.max(0.0);
+    if end_length > EPSILON {
+        let direction = normalize(subtract(*points.last().unwrap(), points[points.len() - 2]));
+        result.push(add(*points.last().unwrap(), scale(direction, end_length)));
+    }
+
+    deduplicate_polyline(result)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PolylineSample {
+    point: [f64; 3],
+    tangent: [f64; 3],
+}
+
+fn sample_polyline(points: &[[f64; 3]], parameter: f64) -> PolylineSample {
+    if points.len() < 2 {
+        return PolylineSample {
+            point: points.first().copied().unwrap_or([0.0, 0.0, 0.0]),
+            tangent: [1.0, 0.0, 0.0],
+        };
+    }
+
+    let clamped = parameter.clamp(0.0, 1.0);
+    let total_length = polyline_length(points);
+    if total_length < EPSILON {
+        return PolylineSample {
+            point: points[0],
+            tangent: subtract(points[1], points[0]),
+        };
+    }
+
+    let target = clamped * total_length;
+    let segments = polyline_segments(points);
+    let mut accumulated = 0.0;
+
+    for segment in &segments {
+        if accumulated + segment.length >= target {
+            let local = if segment.length < EPSILON {
+                0.0
+            } else {
+                ((target - accumulated).max(0.0) / segment.length).clamp(0.0, 1.0)
+            };
+            let point = lerp(segment.start, segment.end, local);
+            let tangent = subtract(segment.end, segment.start);
+            return PolylineSample { point, tangent };
+        }
+        accumulated += segment.length;
+    }
+
+    PolylineSample {
+        point: *points.last().unwrap(),
+        tangent: subtract(*points.last().unwrap(), points[points.len() - 2]),
+    }
+}
+
+fn compute_perp_frames(
+    points: &[[f64; 3]],
+    segments: usize,
+    align: bool,
+) -> (Vec<Value>, Vec<Value>) {
+    let mut frames = Vec::new();
+    let mut parameters = Vec::new();
+    let mut previous_axes: Option<([f64; 3], [f64; 3])> = None;
+
+    for step in 0..=segments {
+        let parameter = step as f64 / segments as f64;
+        let sample = sample_polyline(points, parameter);
+        let tangent = normalize(sample.tangent);
+        let mut normal = normalize(cross([0.0, 0.0, 1.0], tangent));
+        if length_squared(normal) < EPSILON {
+            normal = normalize(cross([1.0, 0.0, 0.0], tangent));
+        }
+        let mut binormal = normalize(cross(tangent, normal));
+
+        if align {
+            if let Some((prev_normal, prev_binormal)) = previous_axes {
+                if dot(normal, prev_normal) < 0.0 {
+                    normal = scale(normal, -1.0);
+                }
+                if dot(binormal, prev_binormal) < 0.0 {
+                    binormal = scale(binormal, -1.0);
+                }
+            }
+            previous_axes = Some((normal, binormal));
+        }
+
+        frames.push(frame_value(sample.point, tangent, normal, binormal));
+        parameters.push(Value::Number(parameter));
+    }
+
+    (frames, parameters)
+}
+
+fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
+    Value::List(vec![
+        Value::Point(origin),
+        Value::Vector(x_axis),
+        Value::Vector(y_axis),
+        Value::Vector(z_axis),
+    ])
+}
+
+fn project_polyline(mut points: Vec<[f64; 3]>, direction: [f64; 3]) -> Vec<[f64; 3]> {
+    if points.is_empty() {
+        return points;
+    }
+
+    let axis = normalize(direction);
+    let origin = points[0];
+    for point in &mut points {
+        let relative = subtract(*point, origin);
+        let distance = dot(relative, axis);
+        *point = subtract(*point, scale(axis, distance));
+    }
+    points
+}
+
 const EPSILON: f64 = 1e-9;
 
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_POLYLINE, PIN_OUTPUT_SEGMENTS,
-        PIN_OUTPUT_SIMPLIFIED, coerce_polyline,
+        Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_PARAMETER, PIN_OUTPUT_PARAMETERS,
+        PIN_OUTPUT_POINTS, PIN_OUTPUT_POLYLINE, PIN_OUTPUT_SEGMENTS, PIN_OUTPUT_SIMPLIFIED,
+        PIN_OUTPUT_TANGENTS, coerce_polyline,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1190,5 +1781,111 @@ mod tests {
         )
         .expect("polyline");
         assert_eq!(points.len(), 2);
+    }
+
+    #[test]
+    fn fillet_radius_adds_intermediate_points() {
+        let component = ComponentKind::FilletRadius;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+            ]),
+            Value::Number(0.5),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("fillet succeed");
+        let curve = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("fillet polyline");
+        assert!(curve.len() >= 4);
+    }
+
+    #[test]
+    fn seam_rotates_closed_curve() {
+        let component = ComponentKind::Seam;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]),
+            ]),
+            Value::Number(0.25),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("seam succeed");
+        let result = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("seam polyline");
+        match result.first() {
+            Some(Value::Point(point)) => assert_eq!(*point, [1.0, 0.0, 0.0]),
+            other => panic!("unexpected first point: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extend_curve_adds_endpoints() {
+        let component = ComponentKind::ExtendCurve;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+            ]),
+            Value::Number(0.0),
+            Value::Number(0.5),
+            Value::Number(0.5),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("extend succeed");
+        let result = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("extended polyline");
+        assert!(result.len() >= 3);
+    }
+
+    #[test]
+    fn divide_curve_obsolete_outputs_samples() {
+        let component = ComponentKind::DivideCurveObsolete;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+            ]),
+            Value::Number(2.0),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("divide succeed");
+        assert!(outputs.contains_key(PIN_OUTPUT_POINTS));
+        assert!(outputs.contains_key(PIN_OUTPUT_TANGENTS));
+        assert!(outputs.contains_key(PIN_OUTPUT_PARAMETERS));
+    }
+
+    #[test]
+    fn fillet_parameter_returns_parameter_output() {
+        let component = ComponentKind::FilletParameter;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+            ]),
+            Value::Number(0.5),
+            Value::Number(0.2),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("fillet parameter succeed");
+        assert!(outputs.contains_key(PIN_OUTPUT_PARAMETER));
     }
 }
