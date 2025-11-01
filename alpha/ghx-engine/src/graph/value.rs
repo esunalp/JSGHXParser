@@ -12,6 +12,8 @@ pub enum Value {
     Number(f64),
     /// Een booleaanse waarde.
     Boolean(bool),
+    /// Een complex getal.
+    Complex(ComplexValue),
     /// Een 3D-punt.
     Point([f64; 3]),
     /// Een 3D-vector.
@@ -42,6 +44,7 @@ impl Value {
         match self {
             Self::Number(_) => ValueKind::Number,
             Self::Boolean(_) => ValueKind::Boolean,
+            Self::Complex(_) => ValueKind::Complex,
             Self::Point(_) => ValueKind::Point,
             Self::Vector(_) => ValueKind::Vector,
             Self::CurveLine { .. } => ValueKind::CurveLine,
@@ -67,6 +70,14 @@ impl Value {
         match self {
             Self::Boolean(value) => Ok(*value),
             _ => Err(ValueError::type_mismatch("Boolean", self.kind())),
+        }
+    }
+
+    /// Verwacht een `Complex` en retourneert de waarde.
+    pub fn expect_complex(&self) -> Result<ComplexValue, ValueError> {
+        match self {
+            Self::Complex(value) => Ok(*value),
+            _ => Err(ValueError::type_mismatch("Complex", self.kind())),
         }
     }
 
@@ -135,6 +146,51 @@ impl Value {
     }
 }
 
+/// Een complex getal bestaande uit een reëel en imaginair deel.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ComplexValue {
+    real: f64,
+    imag: f64,
+}
+
+impl ComplexValue {
+    /// Maakt een nieuw complex getal aan.
+    #[must_use]
+    pub fn new(real: f64, imag: f64) -> Self {
+        Self { real, imag }
+    }
+
+    /// Geeft het reële deel terug.
+    #[must_use]
+    pub fn real(self) -> f64 {
+        self.real
+    }
+
+    /// Geeft het imaginaire deel terug.
+    #[must_use]
+    pub fn imaginary(self) -> f64 {
+        self.imag
+    }
+
+    /// Berekent het complex-conjugaat.
+    #[must_use]
+    pub fn conjugate(self) -> Self {
+        Self::new(self.real, -self.imag)
+    }
+
+    /// Geeft de modulus (lengte) van het complex getal terug.
+    #[must_use]
+    pub fn modulus(self) -> f64 {
+        self.real.hypot(self.imag)
+    }
+
+    /// Geeft het argument (hoek) van het complex getal terug.
+    #[must_use]
+    pub fn argument(self) -> f64 {
+        self.imag.atan2(self.real)
+    }
+}
+
 /// Typefout voor wanneer een `Value` naar het verkeerde type wordt
 /// geconverteerd.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -185,6 +241,7 @@ pub enum ValueKind {
     Domain,
     List,
     Matrix,
+    Complex,
     DateTime,
     Text,
 }
@@ -200,6 +257,7 @@ impl fmt::Display for ValueKind {
             Self::Surface => "Surface",
             Self::Domain => "Domain",
             Self::Matrix => "Matrix",
+            Self::Complex => "Complex",
             Self::DateTime => "DateTime",
             Self::List => "List",
             Self::Text => "Text",
@@ -279,7 +337,7 @@ pub enum Domain {
 
 #[cfg(test)]
 mod tests {
-    use super::{DateTimeValue, Value, ValueError, ValueKind};
+    use super::{ComplexValue, DateTimeValue, Value, ValueError, ValueKind};
     use time::macros::datetime;
 
     #[test]
@@ -308,6 +366,23 @@ mod tests {
         let err = value.expect_boolean().unwrap_err();
         assert_eq!(err.expected(), "Boolean");
         assert_eq!(err.found(), ValueKind::Number);
+    }
+
+    #[test]
+    fn expect_complex_accepts_complex() {
+        let value = Value::Complex(ComplexValue::new(2.0, -3.5));
+        assert_eq!(
+            value.expect_complex().unwrap(),
+            ComplexValue::new(2.0, -3.5)
+        );
+    }
+
+    #[test]
+    fn complex_helpers_compute_properties() {
+        let complex = ComplexValue::new(3.0, 4.0);
+        assert_eq!(complex.modulus(), 5.0);
+        assert_eq!(complex.conjugate(), ComplexValue::new(3.0, -4.0));
+        assert!((complex.argument() - (4.0f64).atan2(3.0)).abs() < 1e-12);
     }
 
     #[test]
