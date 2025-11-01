@@ -16,6 +16,7 @@ pub mod maths_operators;
 pub mod maths_polynomials;
 pub mod maths_script;
 pub mod maths_time;
+pub mod maths_trig;
 pub mod number_slider;
 
 /// Output-map van een component: pinnickname → waarde.
@@ -71,6 +72,7 @@ pub enum ComponentKind {
     MathsMatrix(maths_matrix::ComponentKind),
     MathsScript(maths_script::ComponentKind),
     MathsTime(maths_time::ComponentKind),
+    MathsTrig(maths_trig::ComponentKind),
 }
 
 impl ComponentKind {
@@ -88,6 +90,7 @@ impl ComponentKind {
             Self::MathsMatrix(component) => component.evaluate(inputs, meta),
             Self::MathsScript(component) => component.evaluate(inputs, meta),
             Self::MathsTime(component) => component.evaluate(inputs, meta),
+            Self::MathsTrig(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -105,6 +108,7 @@ impl ComponentKind {
             Self::MathsMatrix(component) => component.name(),
             Self::MathsScript(component) => component.name(),
             Self::MathsTime(component) => component.name(),
+            Self::MathsTrig(component) => component.name(),
         }
     }
 }
@@ -183,6 +187,14 @@ impl Default for ComponentRegistry {
 
         for registration in maths_time::REGISTRATIONS {
             let kind = ComponentKind::MathsTime(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in maths_trig::REGISTRATIONS {
+            let kind = ComponentKind::MathsTrig(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
