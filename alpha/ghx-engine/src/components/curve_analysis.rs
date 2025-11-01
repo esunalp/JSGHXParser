@@ -42,6 +42,24 @@ const PIN_OUTPUT_RADIUS: &str = "R";
 const PIN_OUTPUT_RELATIONSHIP: &str = "R";
 const PIN_OUTPUT_INDEX: &str = "I";
 const PIN_OUTPUT_POINT_PRIME: &str = "P'";
+const PIN_OUTPUT_FRAME: &str = "F";
+const PIN_OUTPUT_BASE_PLANE: &str = "B";
+const PIN_OUTPUT_CURVATURE_VECTOR: &str = "K";
+const PIN_OUTPUT_CURVATURE_CENTER: &str = "C";
+const PIN_OUTPUT_FIRST_DERIVATIVE: &str = "1";
+const PIN_OUTPUT_DERIVATIVES: &str = "d";
+const PIN_OUTPUT_SIDE: &str = "S";
+const PIN_OUTPUT_LEFT: &str = "L";
+const PIN_OUTPUT_RIGHT: &str = "R";
+const PIN_OUTPUT_TORSION: &str = "T";
+const PIN_OUTPUT_X_INTERVAL: &str = "X";
+const PIN_OUTPUT_Y_INTERVAL: &str = "Y";
+const PIN_OUTPUT_HIGHEST: &str = "H";
+const PIN_OUTPUT_LOWEST: &str = "L";
+const PIN_OUTPUT_MIN_PARAMETER: &str = "tMin";
+const PIN_OUTPUT_MIN_DEPTH: &str = "dMin";
+const PIN_OUTPUT_MAX_PARAMETER: &str = "tMax";
+const PIN_OUTPUT_MAX_DEPTH: &str = "dMax";
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -53,6 +71,8 @@ pub enum ComponentKind {
     EvaluateCurveAngle,
     EvaluateCurveLength,
     LengthDomain,
+    DeconstructArc,
+    Discontinuity,
     CurveClosestPoint,
     Closed,
     ControlPointsDetailed,
@@ -62,14 +82,29 @@ pub enum ComponentKind {
     PolygonCenterDetailed,
     PolygonCenterEdge,
     PolygonCenterSimple,
+    PerpFrame,
     EvaluateLength,
     LengthParameter,
     Length,
     CurveMiddle,
     SegmentLengths,
     CurveProximity,
+    CurveFrame,
+    CurvatureGraph,
+    CurveNearestObject,
     ArcCenter,
     PointInCurve,
+    CurveDepth,
+    Curvature,
+    DerivativesFirst,
+    CurveSide,
+    HorizontalFrame,
+    Containment,
+    DerivativesList,
+    CurveDomainAdjust,
+    Torsion,
+    DeconstructRectangle,
+    Extremes,
 }
 
 /// Metadata voor registraties in de componentregistry.
@@ -96,6 +131,16 @@ pub const REGISTRATIONS: &[Registration] = &[
         guids: &["{15ac45a8-b190-420a-bd66-e78ed6bcfaa4}"],
         names: &["Curve Domain", "CrvDom Legacy"],
         kind: ComponentKind::CurveDomain,
+    },
+    Registration {
+        guids: &["{23862862-049a-40be-b558-2418aacbd916}"],
+        names: &["Deconstruct Arc", "DeArc"],
+        kind: ComponentKind::DeconstructArc,
+    },
+    Registration {
+        guids: &["{269eaa85-9997-4d77-a9ba-4c58cb45c9d3}"],
+        names: &["Discontinuity", "CrvDiscontinuity"],
+        kind: ComponentKind::Discontinuity,
     },
     Registration {
         guids: &["{164d0429-e5f5-4292-aa80-3f88d43cdac2}"],
@@ -166,6 +211,11 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::PolygonCenterSimple,
     },
     Registration {
+        guids: &["{69f3e5ee-4770-44b3-8851-ae10ae555398}"],
+        names: &["Perp Frame", "Perp Frame"],
+        kind: ComponentKind::PerpFrame,
+    },
+    Registration {
         guids: &["{6b021f56-b194-4210-b9a1-6cef3b7d0848}"],
         names: &["Evaluate Length", "Eval Length"],
         kind: ComponentKind::EvaluateLength,
@@ -196,6 +246,21 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::CurveProximity,
     },
     Registration {
+        guids: &["{6b2a5853-07aa-4329-ba84-0a5d46b51dbd}"],
+        names: &["Curve Frame", "CrvFrame"],
+        kind: ComponentKind::CurveFrame,
+    },
+    Registration {
+        guids: &["{7376fe41-74ec-497e-b367-1ffe5072608b}"],
+        names: &["Curvature Graph", "CrvGraph"],
+        kind: ComponentKind::CurvatureGraph,
+    },
+    Registration {
+        guids: &["{748f214a-bc64-4556-9da5-4fa59a30c5c7}"],
+        names: &["Curve Nearest Object", "CrvNearest"],
+        kind: ComponentKind::CurveNearestObject,
+    },
+    Registration {
         guids: &["{afff17ed-5975-460b-9883-525ae0677088}"],
         names: &["Arc Center", "CrvCenter"],
         kind: ComponentKind::ArcCenter,
@@ -204,6 +269,61 @@ pub const REGISTRATIONS: &[Registration] = &[
         guids: &["{a72b0bd3-c7a7-458e-875d-09ae1624638c}"],
         names: &["Point In Curve", "InCurve"],
         kind: ComponentKind::PointInCurve,
+    },
+    Registration {
+        guids: &["{a583f722-240a-4fc9-aa1d-021720a4516a}"],
+        names: &["Curve Depth", "CrvDepth"],
+        kind: ComponentKind::CurveDepth,
+    },
+    Registration {
+        guids: &["{aaa665bd-fd6e-4ccb-8d2c-c5b33072125d}"],
+        names: &["Curvature", "CrvCurvature"],
+        kind: ComponentKind::Curvature,
+    },
+    Registration {
+        guids: &["{ab14760f-87a6-462e-b481-4a2c26a9a0d7}"],
+        names: &["Derivatives", "CrvDeriv1"],
+        kind: ComponentKind::DerivativesFirst,
+    },
+    Registration {
+        guids: &["{bb2e13da-09ca-43fd-bef8-8d71f3653af9}"],
+        names: &["Curve Side", "CrvSide"],
+        kind: ComponentKind::CurveSide,
+    },
+    Registration {
+        guids: &["{c048ad76-ffcd-43b1-a007-4dd1b2373326}"],
+        names: &["Horizontal Frame", "CrvHFrame"],
+        kind: ComponentKind::HorizontalFrame,
+    },
+    Registration {
+        guids: &["{c076845a-1a09-4a95-bdcb-cb31c0936c99}"],
+        names: &["Containment", "CrvContain"],
+        kind: ComponentKind::Containment,
+    },
+    Registration {
+        guids: &["{c2e16ca3-9508-4fa4-aeb3-0b1f0ebb72e3}"],
+        names: &["Derivatives", "CrvDerivatives"],
+        kind: ComponentKind::DerivativesList,
+    },
+    Registration {
+        guids: &["{ccfd6ba8-ecb1-44df-a47e-08126a653c51}"],
+        names: &["Curve Domain", "CrvDomain"],
+        kind: ComponentKind::CurveDomainAdjust,
+    },
+    Registration {
+        guids: &["{dbe9fce4-b6b3-465f-9615-34833c4763bd}"],
+        names: &["Torsion", "CrvTorsion"],
+        kind: ComponentKind::Torsion,
+    },
+    Registration {
+        guids: &["{e5c33a79-53d5-4f2b-9a97-d3d45c780edc}"],
+        names: &["Deconstruct Rectangle", "DeRect"],
+        kind: ComponentKind::DeconstructRectangle,
+    },
+    Registration {
+        guids: &["{ebd6c758-19ae-4d74-aed7-b8a0392ff743}"],
+        names: &["Extremes", "CrvExtremes"],
+        kind: ComponentKind::Extremes,
     },
 ];
 
@@ -217,6 +337,8 @@ impl Component for ComponentKind {
             Self::EvaluateCurveAngle => evaluate_curve(inputs, EvaluateOutput::PointTangentAngle),
             Self::EvaluateCurveLength => evaluate_curve(inputs, EvaluateOutput::PointTangentLength),
             Self::LengthDomain => evaluate_length_domain(inputs),
+            Self::DeconstructArc => evaluate_deconstruct_arc(inputs),
+            Self::Discontinuity => evaluate_discontinuity(inputs),
             Self::CurveClosestPoint => evaluate_curve_closest_point(inputs),
             Self::Closed => evaluate_closed(inputs),
             Self::ControlPointsDetailed => {
@@ -234,14 +356,29 @@ impl Component for ComponentKind {
             Self::PolygonCenterSimple => {
                 evaluate_polygon_center(inputs, PolygonCenterMode::VertexOnly)
             }
+            Self::PerpFrame => evaluate_perp_frame(inputs),
             Self::EvaluateLength => evaluate_length(inputs),
             Self::LengthParameter => evaluate_length_parameter(inputs),
             Self::Length => evaluate_curve_length(inputs),
             Self::CurveMiddle => evaluate_curve_middle(inputs),
             Self::SegmentLengths => evaluate_segment_lengths(inputs),
             Self::CurveProximity => evaluate_curve_proximity(inputs),
+            Self::CurveFrame => evaluate_curve_frame(inputs),
+            Self::CurvatureGraph => Ok(BTreeMap::new()),
+            Self::CurveNearestObject => evaluate_curve_nearest_object(inputs),
             Self::ArcCenter => evaluate_arc_center(inputs),
             Self::PointInCurve => evaluate_point_in_curve(inputs),
+            Self::CurveDepth => evaluate_curve_depth(inputs),
+            Self::Curvature => evaluate_curvature(inputs),
+            Self::DerivativesFirst => evaluate_derivatives_first(inputs),
+            Self::CurveSide => evaluate_curve_side(inputs),
+            Self::HorizontalFrame => evaluate_horizontal_frame(inputs),
+            Self::Containment => evaluate_containment(inputs),
+            Self::DerivativesList => evaluate_derivatives_list(inputs),
+            Self::CurveDomainAdjust => evaluate_curve_domain_adjust(inputs),
+            Self::Torsion => evaluate_torsion(inputs),
+            Self::DeconstructRectangle => evaluate_deconstruct_rectangle(inputs),
+            Self::Extremes => evaluate_extremes(inputs),
         }
     }
 }
@@ -257,6 +394,8 @@ impl ComponentKind {
             Self::EvaluateCurveAngle => "Evaluate Curve Angle",
             Self::EvaluateCurveLength => "Evaluate Curve Length",
             Self::LengthDomain => "Length Domain",
+            Self::DeconstructArc => "Deconstruct Arc",
+            Self::Discontinuity => "Discontinuity",
             Self::CurveClosestPoint => "Curve Closest Point",
             Self::Closed => "Curve Closed",
             Self::ControlPointsDetailed => "Control Points Detailed",
@@ -266,14 +405,29 @@ impl ComponentKind {
             Self::PolygonCenterDetailed => "Polygon Center",
             Self::PolygonCenterEdge => "Polygon Center Edge",
             Self::PolygonCenterSimple => "Polygon Center",
+            Self::PerpFrame => "Perp Frame",
             Self::EvaluateLength => "Evaluate Curve Length Factor",
             Self::LengthParameter => "Length Parameter",
             Self::Length => "Curve Length",
             Self::CurveMiddle => "Curve Midpoint",
             Self::SegmentLengths => "Segment Lengths",
             Self::CurveProximity => "Curve Proximity",
+            Self::CurveFrame => "Curve Frame",
+            Self::CurvatureGraph => "Curvature Graph",
+            Self::CurveNearestObject => "Curve Nearest Object",
             Self::ArcCenter => "Curve Center",
             Self::PointInCurve => "Point In Curve",
+            Self::CurveDepth => "Curve Depth",
+            Self::Curvature => "Curvature",
+            Self::DerivativesFirst => "Curve Derivative",
+            Self::CurveSide => "Curve Side",
+            Self::HorizontalFrame => "Horizontal Frame",
+            Self::Containment => "Containment",
+            Self::DerivativesList => "Curve Derivatives",
+            Self::CurveDomainAdjust => "Curve Domain",
+            Self::Torsion => "Torsion",
+            Self::DeconstructRectangle => "Deconstruct Rectangle",
+            Self::Extremes => "Extremes",
         }
     }
 }
@@ -367,6 +521,124 @@ fn evaluate_length_domain(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+fn evaluate_deconstruct_arc(inputs: &[Value]) -> ComponentResult {
+    let points = coerce_polyline(inputs.get(0), "Deconstruct Arc")?;
+    let Some(circle) = fit_circle(&points) else {
+        return Err(ComponentError::new(
+            "Deconstruct Arc kon geen cirkel fitten uit de invoer",
+        ));
+    };
+
+    let x_axis = safe_normalized(subtract(points[0], circle.center))
+        .map(|(v, _)| v)
+        .unwrap_or([1.0, 0.0, 0.0]);
+    let mut y_axis = cross(circle.normal, x_axis);
+    if length_squared(y_axis) < EPSILON {
+        y_axis = cross(x_axis, circle.normal);
+    }
+    let y_axis = normalize(y_axis);
+    let plane_value = Value::List(vec![
+        Value::Point(circle.center),
+        Value::Point(add(circle.center, x_axis)),
+        Value::Point(add(circle.center, y_axis)),
+    ]);
+
+    let arc_length = polyline_length(&points);
+    let angle = if circle.radius < EPSILON {
+        0.0
+    } else {
+        arc_length / circle.radius
+    };
+    let angle_domain = create_domain1d(0.0, angle);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BASE_PLANE.to_owned(), plane_value);
+    outputs.insert(PIN_OUTPUT_RADIUS.to_owned(), Value::Number(circle.radius));
+    outputs.insert(
+        PIN_OUTPUT_ANGLE.to_owned(),
+        Value::Domain(Domain::One(angle_domain)),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_discontinuity(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new(
+            "Discontinuity vereist minimaal een curve",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Discontinuity")?;
+    let level = inputs
+        .get(1)
+        .map(|value| coerce_number(Some(value), "Discontinuity"))
+        .transpose()?
+        .unwrap_or(1.0);
+    let requested = level.clamp(1.0, 3.0);
+
+    let segments = polyline_segments(&points);
+    if segments.len() < 2 {
+        return Ok(BTreeMap::new());
+    }
+
+    let total_length: f64 = segments.iter().map(|segment| segment.length).sum();
+    let mut accumulated = 0.0;
+    let mut parameters = Vec::new();
+    let mut discontinuity_points = Vec::new();
+
+    for index in 1..segments.len() {
+        let previous = &segments[index - 1];
+        let next = &segments[index];
+        let prev_dir = safe_normalized(subtract(previous.end, previous.start))
+            .map(|(v, _)| v)
+            .unwrap_or([0.0, 0.0, 0.0]);
+        let next_dir = safe_normalized(subtract(next.end, next.start))
+            .map(|(v, _)| v)
+            .unwrap_or([0.0, 0.0, 0.0]);
+        let dot_value = clamp(dot(prev_dir, next_dir), -1.0, 1.0);
+        let angle = dot_value.acos();
+        let threshold = if requested >= 2.0 { 1e-4 } else { 1e-3 };
+        if angle > threshold {
+            accumulated += previous.length;
+            let parameter = if total_length < EPSILON {
+                0.0
+            } else {
+                accumulated / total_length
+            };
+            parameters.push(Value::Number(parameter));
+            discontinuity_points.push(Value::Point(previous.end));
+        } else {
+            accumulated += previous.length;
+        }
+    }
+
+    if is_closed(&points) {
+        let first = segments.first().unwrap();
+        let last = segments.last().unwrap();
+        let first_dir = safe_normalized(subtract(first.end, first.start))
+            .map(|(v, _)| v)
+            .unwrap_or([0.0, 0.0, 0.0]);
+        let last_dir = safe_normalized(subtract(last.end, last.start))
+            .map(|(v, _)| v)
+            .unwrap_or([0.0, 0.0, 0.0]);
+        let dot_value = clamp(dot(last_dir, first_dir), -1.0, 1.0);
+        let angle = dot_value.acos();
+        let threshold = if requested >= 2.0 { 1e-4 } else { 1e-3 };
+        if angle > threshold {
+            parameters.push(Value::Number(0.0));
+            discontinuity_points.push(Value::Point(first.start));
+        }
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_POINTS.to_owned(),
+        Value::List(discontinuity_points),
+    );
+    outputs.insert(PIN_OUTPUT_PARAMETER.to_owned(), Value::List(parameters));
+    Ok(outputs)
+}
+
 fn evaluate_curve_closest_point(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(
@@ -387,6 +659,48 @@ fn evaluate_curve_closest_point(inputs: &[Value]) -> ComponentResult {
     outputs.insert(
         PIN_OUTPUT_DISTANCE.to_owned(),
         Value::Number(result.distance),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_perp_frame(inputs: &[Value]) -> ComponentResult {
+    evaluate_frame(inputs, "Perp Frame", FrameMode::Parallel)
+}
+
+fn evaluate_curve_frame(inputs: &[Value]) -> ComponentResult {
+    evaluate_frame(inputs, "Curve Frame", FrameMode::Frenet)
+}
+
+fn evaluate_horizontal_frame(inputs: &[Value]) -> ComponentResult {
+    evaluate_frame(inputs, "Horizontal Frame", FrameMode::Horizontal)
+}
+
+fn evaluate_frame(inputs: &[Value], context: &str, mode: FrameMode) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een curve en parameter",
+            context
+        )));
+    }
+
+    let points = coerce_polyline(inputs.get(0), context)?;
+    let parameter = coerce_number(inputs.get(1), context)?;
+    let sample = sample_curve(&points, parameter);
+    let derivative = approximate_derivative(&points, parameter, 1);
+    let tangent = safe_normalized(derivative)
+        .map(|(v, _)| v)
+        .unwrap_or_else(|| sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
+
+    let frame = match mode {
+        FrameMode::Frenet => compute_frenet_frame(&points, parameter, sample.point, tangent),
+        FrameMode::Parallel => compute_parallel_frame(&points, sample.point, tangent),
+        FrameMode::Horizontal => compute_horizontal_frame(sample.point, tangent),
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_FRAME.to_owned(),
+        frame_value(frame.origin, frame.x_axis, frame.y_axis, frame.z_axis),
     );
     Ok(outputs)
 }
@@ -440,6 +754,745 @@ fn evaluate_point_in_curves(inputs: &[Value]) -> ComponentResult {
         Value::Point(best_projected),
     );
     Ok(outputs)
+}
+
+fn evaluate_curve_nearest_object(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Curve Nearest Object vereist een curve en geometrie",
+        ));
+    }
+
+    let curve = coerce_polyline(inputs.get(0), "Curve Nearest Object")?;
+    let geometry_input = inputs
+        .get(1)
+        .ok_or_else(|| ComponentError::new("Curve Nearest Object vereist geometrie invoer"))?;
+
+    let entries: Vec<&Value> = match geometry_input {
+        Value::List(values) => values.iter().collect(),
+        other => vec![other],
+    };
+    if entries.is_empty() {
+        return Err(ComponentError::new(
+            "Curve Nearest Object vereist minstens één geometrie",
+        ));
+    }
+
+    let mut best_distance = f64::INFINITY;
+    let mut best_point_curve = None;
+    let mut best_point_other = None;
+    let mut best_index = -1;
+
+    for (index, entry) in entries.iter().enumerate() {
+        let points = extract_points(entry);
+        if points.is_empty() {
+            continue;
+        }
+
+        if points.len() == 1 {
+            let result = closest_point_on_polyline(points[0], &curve);
+            if result.distance < best_distance {
+                best_distance = result.distance;
+                best_point_curve = Some(result.point);
+                best_point_other = Some(points[0]);
+                best_index = index as i32;
+            }
+        } else {
+            let other = if points[0] == *points.last().unwrap() {
+                points
+            } else {
+                let mut closed = points.clone();
+                closed.push(points[0]);
+                closed
+            };
+            let proximity = closest_points_between_polylines(&curve, &other);
+            if proximity.distance < best_distance {
+                best_distance = proximity.distance;
+                best_point_curve = Some(proximity.point_a);
+                best_point_other = Some(proximity.point_b);
+                best_index = index as i32;
+            }
+        }
+    }
+
+    if best_index < 0 {
+        return Err(ComponentError::new(
+            "Curve Nearest Object kon geen dichtstbijzijnde geometrie bepalen",
+        ));
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_POINT_A.to_owned(),
+        Value::Point(best_point_curve.unwrap()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_POINT_B.to_owned(),
+        Value::Point(best_point_other.unwrap()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_INDEX.to_owned(),
+        Value::Number(best_index as f64),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_curve_depth(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Curve Depth vereist een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Curve Depth")?;
+    let min_limit = inputs
+        .get(1)
+        .map(|value| coerce_number(Some(value), "Curve Depth"))
+        .transpose()?
+        .unwrap_or(f64::NEG_INFINITY);
+    let max_limit = inputs
+        .get(2)
+        .map(|value| coerce_number(Some(value), "Curve Depth"))
+        .transpose()?
+        .unwrap_or(f64::INFINITY);
+
+    let segments = polyline_segments(&points);
+    if segments.is_empty() {
+        return Err(ComponentError::new(
+            "Curve Depth vereist minstens één segment",
+        ));
+    }
+
+    let total_length: f64 = segments.iter().map(|segment| segment.length).sum();
+    let mut accumulated = 0.0;
+    let mut best_min: Option<(f64, f64)> = None;
+    let mut best_max: Option<(f64, f64)> = None;
+
+    for segment in &segments {
+        consider_depth_point(
+            segment.start,
+            accumulated,
+            total_length,
+            min_limit,
+            max_limit,
+            &mut best_min,
+            &mut best_max,
+        );
+        accumulated += segment.length;
+        consider_depth_point(
+            segment.end,
+            accumulated,
+            total_length,
+            min_limit,
+            max_limit,
+            &mut best_min,
+            &mut best_max,
+        );
+    }
+
+    if best_min.is_none() && best_max.is_none() {
+        return Err(ComponentError::new(
+            "Curve Depth vond geen punten binnen de grenzen",
+        ));
+    }
+
+    let mut outputs = BTreeMap::new();
+    if let Some((parameter, depth)) = best_min {
+        outputs.insert(
+            PIN_OUTPUT_MIN_PARAMETER.to_owned(),
+            Value::Number(parameter),
+        );
+        outputs.insert(PIN_OUTPUT_MIN_DEPTH.to_owned(), Value::Number(depth));
+    }
+    if let Some((parameter, depth)) = best_max {
+        outputs.insert(
+            PIN_OUTPUT_MAX_PARAMETER.to_owned(),
+            Value::Number(parameter),
+        );
+        outputs.insert(PIN_OUTPUT_MAX_DEPTH.to_owned(), Value::Number(depth));
+    }
+    Ok(outputs)
+}
+
+fn evaluate_curvature(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Curvature vereist een curve en parameter",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Curvature")?;
+    let parameter = coerce_number(inputs.get(1), "Curvature")?;
+    let sample = sample_curve(&points, parameter);
+    let derivative = approximate_derivative(&points, parameter, 1);
+    let second = approximate_derivative(&points, parameter, 2);
+    let tangent = safe_normalized(derivative)
+        .map(|(v, _)| v)
+        .unwrap_or(sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
+    let mut normal_component = subtract(second, scale(tangent, dot(second, tangent)));
+    if length_squared(normal_component) < EPSILON {
+        normal_component = [0.0, 0.0, 0.0];
+    }
+    let curvature_vector = normal_component;
+    let (normalized_normal, magnitude) =
+        safe_normalized(curvature_vector).unwrap_or(([0.0, 0.0, 0.0], 0.0));
+    let center = if magnitude < EPSILON {
+        sample.point
+    } else {
+        add(sample.point, scale(normalized_normal, 1.0 / magnitude))
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(
+        PIN_OUTPUT_CURVATURE_VECTOR.to_owned(),
+        Value::Vector(curvature_vector),
+    );
+    outputs.insert(PIN_OUTPUT_CURVATURE_CENTER.to_owned(), Value::Point(center));
+    Ok(outputs)
+}
+
+fn evaluate_derivatives_first(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Derivatives vereist een curve en parameter",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Derivatives")?;
+    let parameter = coerce_number(inputs.get(1), "Derivatives")?;
+    let sample = sample_curve(&points, parameter);
+    let derivative = approximate_derivative(&points, parameter, 1);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(
+        PIN_OUTPUT_FIRST_DERIVATIVE.to_owned(),
+        Value::Vector(derivative),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_curve_side(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new("Curve Side vereist een curve en punt"));
+    }
+
+    let curve = coerce_polyline(inputs.get(0), "Curve Side")?;
+    let point = coerce_point(inputs.get(1), "Curve Side")?;
+    let plane = inputs
+        .get(2)
+        .map(|value| plane_basis_from_value(value, "Curve Side"))
+        .transpose()
+        .unwrap_or_else(|_| None)
+        .unwrap_or_else(|| plane_from_polyline(&curve));
+
+    let closest = closest_point_on_polyline(point, &curve);
+    let tangent = sample_curve(&curve, closest.parameter)
+        .tangent
+        .unwrap_or([1.0, 0.0, 0.0]);
+    let to_point = subtract(point, closest.point);
+    let sign = dot(cross(tangent, to_point), plane.normal);
+    let side = if sign > 1e-6 {
+        1.0
+    } else if sign < -1e-6 {
+        -1.0
+    } else {
+        0.0
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_SIDE.to_owned(), Value::Number(side));
+    outputs.insert(PIN_OUTPUT_LEFT.to_owned(), Value::Boolean(side > 0.0));
+    outputs.insert(PIN_OUTPUT_RIGHT.to_owned(), Value::Boolean(side < 0.0));
+    Ok(outputs)
+}
+
+fn evaluate_containment(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new("Containment vereist een punt en curve"));
+    }
+
+    let point = coerce_point(inputs.get(0), "Containment")?;
+    let curve = coerce_polyline(inputs.get(1), "Containment")?;
+    let classification = classify_point_against_polyline(point, &curve);
+    let relationship = match classification.relationship {
+        0 => 2.0,
+        1 => 0.0,
+        2 => 1.0,
+        _ => 2.0,
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_RELATIONSHIP.to_owned(),
+        Value::Number(relationship),
+    );
+    outputs.insert(
+        PIN_OUTPUT_POINT_PRIME.to_owned(),
+        Value::Point(classification.projected),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_derivatives_list(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Derivatives vereist een curve en parameter",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Derivatives")?;
+    let parameter = coerce_number(inputs.get(1), "Derivatives")?;
+    let count = inputs
+        .get(2)
+        .map(|value| coerce_number(Some(value), "Derivatives"))
+        .transpose()?
+        .unwrap_or(1.0)
+        .round()
+        .clamp(1.0, 3.0) as usize;
+    let sample = sample_curve(&points, parameter);
+
+    let mut derivatives = Vec::with_capacity(count);
+    for order in 1..=count {
+        derivatives.push(Value::Vector(approximate_derivative(
+            &points, parameter, order,
+        )));
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_DERIVATIVES.to_owned(), Value::List(derivatives));
+    Ok(outputs)
+}
+
+fn evaluate_curve_domain_adjust(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Curve Domain vereist een curve"));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Curve Domain")?;
+    let total_length = polyline_length(&points);
+    let domain_value = inputs.get(1);
+    let domain = if let Some(Value::Domain(Domain::One(value))) = domain_value {
+        copy_domain1d(value)
+    } else {
+        create_domain1d(0.0, total_length)
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_CURVE.to_owned(),
+        Value::List(points.iter().copied().map(Value::Point).collect()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_DOMAIN.to_owned(),
+        Value::Domain(Domain::One(domain)),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_torsion(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Torsion vereist een curve en parameter",
+        ));
+    }
+
+    let points = coerce_polyline(inputs.get(0), "Torsion")?;
+    let parameter = coerce_number(inputs.get(1), "Torsion")?;
+    let sample = sample_curve(&points, parameter);
+    let first = approximate_derivative(&points, parameter, 1);
+    let second = approximate_derivative(&points, parameter, 2);
+    let third = approximate_derivative(&points, parameter, 3);
+    let cross12 = cross(first, second);
+    let denominator = length_squared(cross12);
+    let torsion = if denominator < EPSILON {
+        0.0
+    } else {
+        dot(cross12, third) / denominator
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_TORSION.to_owned(), Value::Number(torsion));
+    Ok(outputs)
+}
+
+fn evaluate_deconstruct_rectangle(inputs: &[Value]) -> ComponentResult {
+    let points = coerce_polyline(inputs.get(0), "Deconstruct Rectangle")?;
+    if points.len() < 4 {
+        return Err(ComponentError::new(
+            "Deconstruct Rectangle verwacht minstens vier punten",
+        ));
+    }
+
+    let origin = points[0];
+    let mut x_vec = subtract(points[1], origin);
+    if length_squared(x_vec) < EPSILON {
+        x_vec = [1.0, 0.0, 0.0];
+    }
+    let mut y_vec = [0.0, 0.0, 0.0];
+    for candidate in points.iter().skip(2) {
+        let vector = subtract(*candidate, origin);
+        if length_squared(cross(x_vec, vector)) > EPSILON {
+            y_vec = vector;
+            break;
+        }
+    }
+    if length_squared(y_vec) < EPSILON {
+        y_vec = [0.0, 1.0, 0.0];
+    }
+
+    let x_axis = safe_normalized(x_vec)
+        .map(|(v, _)| v)
+        .unwrap_or([1.0, 0.0, 0.0]);
+    let y_projection = subtract(y_vec, scale(x_axis, dot(y_vec, x_axis)));
+    let y_axis = safe_normalized(y_projection)
+        .map(|(v, _)| v)
+        .unwrap_or([0.0, 1.0, 0.0]);
+    let plane_value = Value::List(vec![
+        Value::Point(origin),
+        Value::Point(add(origin, x_axis)),
+        Value::Point(add(origin, y_axis)),
+    ]);
+
+    let width = length(x_vec);
+    let height = length(subtract(y_vec, scale(x_axis, dot(y_vec, x_axis))));
+    let x_interval = create_domain1d(-width * 0.5, width * 0.5);
+    let y_interval = create_domain1d(-height * 0.5, height * 0.5);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BASE_PLANE.to_owned(), plane_value);
+    outputs.insert(
+        PIN_OUTPUT_X_INTERVAL.to_owned(),
+        Value::Domain(Domain::One(x_interval)),
+    );
+    outputs.insert(
+        PIN_OUTPUT_Y_INTERVAL.to_owned(),
+        Value::Domain(Domain::One(y_interval)),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_extremes(inputs: &[Value]) -> ComponentResult {
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Extremes vereist een curve"));
+    }
+
+    let curve = coerce_polyline(inputs.get(0), "Extremes")?;
+    let plane = inputs
+        .get(1)
+        .map(|value| plane_basis_from_value(value, "Extremes"))
+        .transpose()
+        .unwrap_or_else(|_| None)
+        .unwrap_or_else(|| plane_from_polyline(&curve));
+
+    let mut highest_value = f64::NEG_INFINITY;
+    let mut lowest_value = f64::INFINITY;
+    let mut highest_points = Vec::new();
+    let mut lowest_points = Vec::new();
+
+    for point in &curve {
+        let relative = subtract(*point, plane.origin);
+        let value = dot(relative, plane.normal);
+        if value > highest_value + 1e-6 {
+            highest_points.clear();
+            highest_value = value;
+        }
+        if (value - highest_value).abs() <= 1e-6 {
+            highest_points.push(Value::Point(*point));
+        }
+
+        if value < lowest_value - 1e-6 {
+            lowest_points.clear();
+            lowest_value = value;
+        }
+        if (value - lowest_value).abs() <= 1e-6 {
+            lowest_points.push(Value::Point(*point));
+        }
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_HIGHEST.to_owned(), Value::List(highest_points));
+    outputs.insert(PIN_OUTPUT_LOWEST.to_owned(), Value::List(lowest_points));
+    Ok(outputs)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct CircleFit {
+    center: [f64; 3],
+    radius: f64,
+    normal: [f64; 3],
+}
+
+fn fit_circle(points: &[[f64; 3]]) -> Option<CircleFit> {
+    if points.len() < 3 {
+        return None;
+    }
+    let p0 = points[0];
+    let p1 = points[points.len() / 2];
+    let p2 = *points.last().unwrap();
+    let a = subtract(p1, p0);
+    let b = subtract(p2, p0);
+    let axb = cross(a, b);
+    let denom = 2.0 * dot(axb, axb);
+    if denom.abs() < EPSILON {
+        return None;
+    }
+    let a_len2 = dot(a, a);
+    let b_len2 = dot(b, b);
+    let term1 = cross(axb, a);
+    let term2 = cross(b, axb);
+    let center_offset = scale(add(scale(term1, b_len2), scale(term2, a_len2)), 1.0 / denom);
+    let center = add(p0, center_offset);
+    let radius = distance(center, p0);
+    let normal = normalize(axb);
+    Some(CircleFit {
+        center,
+        radius,
+        normal,
+    })
+}
+
+#[derive(Debug, Clone, Copy)]
+enum FrameMode {
+    Frenet,
+    Parallel,
+    Horizontal,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct FrameData {
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    z_axis: [f64; 3],
+}
+
+fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
+    Value::List(vec![
+        Value::Point(origin),
+        Value::Vector(x_axis),
+        Value::Vector(y_axis),
+        Value::Vector(z_axis),
+    ])
+}
+
+fn compute_frenet_frame(
+    points: &[[f64; 3]],
+    parameter: f64,
+    origin: [f64; 3],
+    tangent: [f64; 3],
+) -> FrameData {
+    let second = approximate_derivative(points, parameter, 2);
+    let mut normal = subtract(second, scale(tangent, dot(second, tangent)));
+    if length_squared(normal) < EPSILON {
+        normal = [0.0, 0.0, 0.0];
+    }
+    let normal = safe_normalized(normal)
+        .map(|(v, _)| v)
+        .unwrap_or_else(|| orthogonal_vector(tangent));
+    let binormal = normalize(cross(tangent, normal));
+    let normal = normalize(cross(binormal, tangent));
+    FrameData {
+        origin,
+        x_axis: tangent,
+        y_axis: normal,
+        z_axis: binormal,
+    }
+}
+
+fn compute_parallel_frame(points: &[[f64; 3]], origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
+    let plane = plane_from_polyline(points);
+    let mut binormal = plane.normal;
+    if length_squared(binormal) < EPSILON || length_squared(cross(binormal, tangent)) < EPSILON {
+        binormal = [0.0, 0.0, 1.0];
+    }
+    if length_squared(cross(binormal, tangent)) < EPSILON {
+        binormal = [1.0, 0.0, 0.0];
+    }
+    let normal = normalize(cross(binormal, tangent));
+    let binormal = normalize(cross(tangent, normal));
+    FrameData {
+        origin,
+        x_axis: tangent,
+        y_axis: normal,
+        z_axis: binormal,
+    }
+}
+
+fn compute_horizontal_frame(origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
+    let mut binormal = [0.0, 0.0, 1.0];
+    if length_squared(cross(binormal, tangent)) < EPSILON {
+        binormal = [1.0, 0.0, 0.0];
+    }
+    let normal = normalize(cross(binormal, tangent));
+    let binormal = normalize(cross(tangent, normal));
+    FrameData {
+        origin,
+        x_axis: tangent,
+        y_axis: normal,
+        z_axis: binormal,
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct PlaneBasis {
+    origin: [f64; 3],
+    normal: [f64; 3],
+}
+
+fn plane_basis_from_value(value: &Value, context: &str) -> Result<PlaneBasis, ComponentError> {
+    match value {
+        Value::List(values) if values.len() >= 3 => {
+            let a = coerce_point(values.get(0), context)?;
+            let b = coerce_point(values.get(1), context)?;
+            let c = coerce_point(values.get(2), context)?;
+            Ok(plane_basis_from_points(a, b, c))
+        }
+        Value::List(values) if values.len() == 2 => {
+            let origin = coerce_point(values.get(0), context)?;
+            let direction_point = coerce_point(values.get(1), context)
+                .or_else(|_| coerce_vector(values.get(1), context))?;
+            let mut x_axis = subtract(direction_point, origin);
+            if length_squared(x_axis) < EPSILON {
+                x_axis = [1.0, 0.0, 0.0];
+            }
+            let x_axis = normalize(x_axis);
+            let normal = orthogonal_vector(x_axis);
+            Ok(PlaneBasis { origin, normal })
+        }
+        Value::Point(point) => Ok(PlaneBasis {
+            origin: *point,
+            normal: [0.0, 0.0, 1.0],
+        }),
+        _ => Err(ComponentError::new(format!(
+            "{} verwacht een vlak, kreeg {}",
+            context,
+            value.kind()
+        ))),
+    }
+}
+
+fn plane_basis_from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> PlaneBasis {
+    let x_axis = normalize(subtract(b, a));
+    let mut temp = subtract(c, a);
+    if length_squared(temp) < EPSILON {
+        temp = orthogonal_vector(x_axis);
+    }
+    let y_axis = normalize(subtract(temp, scale(x_axis, dot(temp, x_axis))));
+    let normal = normalize(cross(x_axis, y_axis));
+    PlaneBasis { origin: a, normal }
+}
+
+fn plane_from_polyline(points: &[[f64; 3]]) -> PlaneBasis {
+    let analysis = analyse_planarity(points);
+    if let Value::List(values) = &analysis.plane_value {
+        if values.len() >= 3 {
+            if let (Ok(a), Ok(b), Ok(c)) = (
+                coerce_point(values.get(0), "Plane"),
+                coerce_point(values.get(1), "Plane"),
+                coerce_point(values.get(2), "Plane"),
+            ) {
+                return plane_basis_from_points(a, b, c);
+            }
+        }
+    }
+    PlaneBasis {
+        origin: points.first().copied().unwrap_or([0.0, 0.0, 0.0]),
+        normal: [0.0, 0.0, 1.0],
+    }
+}
+
+fn consider_depth_point(
+    point: [f64; 3],
+    length_along: f64,
+    total_length: f64,
+    min_limit: f64,
+    max_limit: f64,
+    best_min: &mut Option<(f64, f64)>,
+    best_max: &mut Option<(f64, f64)>,
+) {
+    if point[2] < min_limit - 1e-6 || point[2] > max_limit + 1e-6 {
+        return;
+    }
+    let parameter = if total_length < EPSILON {
+        0.0
+    } else {
+        length_along / total_length
+    };
+    match best_min {
+        None => *best_min = Some((parameter, point[2])),
+        Some((_, depth)) if point[2] < *depth => *best_min = Some((parameter, point[2])),
+        _ => {}
+    }
+    match best_max {
+        None => *best_max = Some((parameter, point[2])),
+        Some((_, depth)) if point[2] > *depth => *best_max = Some((parameter, point[2])),
+        _ => {}
+    }
+}
+
+fn approximate_derivative(points: &[[f64; 3]], parameter: f64, order: usize) -> [f64; 3] {
+    let h = 1.0 / (points.len().max(8) as f64 * 4.0);
+    match order {
+        1 => {
+            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
+            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
+            scale(subtract(forward, backward), 0.5 / h)
+        }
+        2 => {
+            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
+            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
+            let center = sample_curve(points, parameter).point;
+            add(
+                scale(add(forward, backward), 1.0 / (h * h)),
+                scale(center, -2.0 / (h * h)),
+            )
+        }
+        _ => {
+            let forward = sample_curve(points, clamp(parameter + 2.0 * h, 0.0, 1.0)).point;
+            let forward_mid = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
+            let backward_mid = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
+            let backward = sample_curve(points, clamp(parameter - 2.0 * h, 0.0, 1.0)).point;
+            add(
+                scale(
+                    add(forward, scale(forward_mid, -3.0)),
+                    1.0 / (2.0 * h * h * h),
+                ),
+                scale(
+                    add(scale(backward_mid, 3.0), scale(backward, -1.0)),
+                    1.0 / (2.0 * h * h * h),
+                ),
+            )
+        }
+    }
+}
+
+fn copy_domain1d(domain: &Domain1D) -> Domain1D {
+    Domain1D {
+        start: domain.start,
+        end: domain.end,
+        min: domain.min,
+        max: domain.max,
+        span: domain.span,
+        length: domain.length,
+        center: domain.center,
+    }
+}
+
+fn extract_points(value: &Value) -> Vec<[f64; 3]> {
+    match value {
+        Value::Point(point) => vec![*point],
+        Value::CurveLine { p1, p2 } => vec![*p1, *p2],
+        Value::List(values) => {
+            let mut collected = Vec::new();
+            for entry in values {
+                collected.extend(extract_points(entry));
+            }
+            collected
+        }
+        _ => Vec::new(),
+    }
 }
 
 fn evaluate_closed(inputs: &[Value]) -> ComponentResult {
@@ -1184,10 +2237,7 @@ struct PointContainment {
     projected: [f64; 3],
 }
 
-fn classify_point_against_polyline(
-    point: [f64; 3],
-    polyline: &[[f64; 3]],
-) -> PointContainment {
+fn classify_point_against_polyline(point: [f64; 3], polyline: &[[f64; 3]]) -> PointContainment {
     if polyline.len() < 2 {
         return PointContainment {
             relationship: 0,
@@ -1195,11 +2245,7 @@ fn classify_point_against_polyline(
         };
     }
 
-    let average_z = polyline
-        .iter()
-        .map(|pt| pt[2])
-        .sum::<f64>()
-        / polyline.len() as f64;
+    let average_z = polyline.iter().map(|pt| pt[2]).sum::<f64>() / polyline.len() as f64;
     let mut inside = false;
     let mut on_edge = false;
     let mut previous = *polyline.last().unwrap();
@@ -1211,16 +2257,15 @@ fn classify_point_against_polyline(
 
         let yi = previous[1];
         let yj = current[1];
-        let intersects = ((yi > point[1]) != (yj > point[1]))
-            && {
-                let dy = yj - yi;
-                let x_intersection = if dy.abs() < EPSILON {
-                    current[0]
-                } else {
-                    (current[0] - previous[0]) * (point[1] - yi) / dy + previous[0]
-                };
-                x_intersection > point[0]
+        let intersects = ((yi > point[1]) != (yj > point[1])) && {
+            let dy = yj - yi;
+            let x_intersection = if dy.abs() < EPSILON {
+                current[0]
+            } else {
+                (current[0] - previous[0]) * (point[1] - yi) / dy + previous[0]
             };
+            x_intersection > point[0]
+        };
 
         if intersects {
             inside = !inside;
@@ -1248,8 +2293,7 @@ fn point_on_segment_2d(point: [f64; 3], start: [f64; 3], end: [f64; 3]) -> bool 
     let to_point = [point[0] - start[0], point[1] - start[1]];
     let seg_length_sq = seg[0] * seg[0] + seg[1] * seg[1];
     if seg_length_sq < EPSILON {
-        return ((point[0] - start[0]).abs() < EPSILON)
-            && ((point[1] - start[1]).abs() < EPSILON);
+        return ((point[0] - start[0]).abs() < EPSILON) && ((point[1] - start[1]).abs() < EPSILON);
     }
 
     let cross = seg[0] * to_point[1] - seg[1] * to_point[0];
@@ -1292,6 +2336,24 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
         Value::List(values) if values.len() == 1 => coerce_point(values.get(0), context),
         other => Err(ComponentError::new(format!(
             "{} verwacht een punt, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+    let Some(value) = value else {
+        return Err(ComponentError::new(format!(
+            "{} vereist een vector",
+            context
+        )));
+    };
+    match value {
+        Value::Vector(vector) => Ok(*vector),
+        Value::List(values) if values.len() == 1 => coerce_vector(values.get(0), context),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vector, kreeg {}",
             context,
             other.kind()
         ))),
@@ -1358,6 +2420,14 @@ fn normalize(vector: [f64; 3]) -> [f64; 3] {
     safe_normalized(vector)
         .map(|(v, _)| v)
         .unwrap_or([1.0, 0.0, 0.0])
+}
+
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+    if vector[0].abs() > vector[1].abs() {
+        normalize([-vector[2], 0.0, vector[0]])
+    } else {
+        normalize([0.0, vector[2], -vector[1]])
+    }
 }
 
 fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
@@ -1555,10 +2625,7 @@ mod tests {
         ]);
 
         let outputs = ComponentKind::PointInCurve
-            .evaluate(
-                &[Value::Point([2.0, 2.0, 0.0]), curve],
-                &MetaMap::new(),
-            )
+            .evaluate(&[Value::Point([2.0, 2.0, 0.0]), curve], &MetaMap::new())
             .expect("point in curve");
 
         assert!(matches!(
