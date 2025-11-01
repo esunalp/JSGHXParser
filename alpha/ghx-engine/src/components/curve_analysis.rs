@@ -39,10 +39,14 @@ const PIN_OUTPUT_SHORTEST_DOMAIN: &str = "Sd";
 const PIN_OUTPUT_LONGEST_LENGTH: &str = "Ll";
 const PIN_OUTPUT_LONGEST_DOMAIN: &str = "Ld";
 const PIN_OUTPUT_RADIUS: &str = "R";
+const PIN_OUTPUT_RELATIONSHIP: &str = "R";
+const PIN_OUTPUT_INDEX: &str = "I";
+const PIN_OUTPUT_POINT_PRIME: &str = "P'";
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
+    PointInCurves,
     EndPoints,
     CurveDomain,
     EvaluateCurveBasic,
@@ -65,6 +69,7 @@ pub enum ComponentKind {
     SegmentLengths,
     CurveProximity,
     ArcCenter,
+    PointInCurve,
 }
 
 /// Metadata voor registraties in de componentregistry.
@@ -77,6 +82,11 @@ pub struct Registration {
 
 /// Volledige lijst met componentregistraties voor de curve-analysis componenten.
 pub const REGISTRATIONS: &[Registration] = &[
+    Registration {
+        guids: &["{0b04e8b9-00d7-47a7-95c3-0d51e654fe88}"],
+        names: &["Point in Curves", "InCurves"],
+        kind: ComponentKind::PointInCurves,
+    },
     Registration {
         guids: &["{11bbd48b-bb0a-4f1b-8167-fa297590390d}"],
         names: &["End Points", "CrvEnd"],
@@ -190,11 +200,17 @@ pub const REGISTRATIONS: &[Registration] = &[
         names: &["Arc Center", "CrvCenter"],
         kind: ComponentKind::ArcCenter,
     },
+    Registration {
+        guids: &["{a72b0bd3-c7a7-458e-875d-09ae1624638c}"],
+        names: &["Point In Curve", "InCurve"],
+        kind: ComponentKind::PointInCurve,
+    },
 ];
 
 impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
+            Self::PointInCurves => evaluate_point_in_curves(inputs),
             Self::EndPoints => evaluate_end_points(inputs),
             Self::CurveDomain => evaluate_curve_domain(inputs),
             Self::EvaluateCurveBasic => evaluate_curve(inputs, EvaluateOutput::PointTangent),
@@ -225,6 +241,7 @@ impl Component for ComponentKind {
             Self::SegmentLengths => evaluate_segment_lengths(inputs),
             Self::CurveProximity => evaluate_curve_proximity(inputs),
             Self::ArcCenter => evaluate_arc_center(inputs),
+            Self::PointInCurve => evaluate_point_in_curve(inputs),
         }
     }
 }
@@ -233,6 +250,7 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
+            Self::PointInCurves => "Point in Curves",
             Self::EndPoints => "End Points",
             Self::CurveDomain => "Curve Domain",
             Self::EvaluateCurveBasic => "Evaluate Curve",
@@ -255,6 +273,7 @@ impl ComponentKind {
             Self::SegmentLengths => "Segment Lengths",
             Self::CurveProximity => "Curve Proximity",
             Self::ArcCenter => "Curve Center",
+            Self::PointInCurve => "Point In Curve",
         }
     }
 }
@@ -368,6 +387,57 @@ fn evaluate_curve_closest_point(inputs: &[Value]) -> ComponentResult {
     outputs.insert(
         PIN_OUTPUT_DISTANCE.to_owned(),
         Value::Number(result.distance),
+    );
+    Ok(outputs)
+}
+
+fn evaluate_point_in_curves(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Point in Curves vereist een punt en een verzameling curves",
+        ));
+    }
+
+    let point = coerce_point(inputs.get(0), "Point in Curves")?;
+    let curves = coerce_polyline_collection(inputs.get(1), "Point in Curves")?;
+    if curves.is_empty() {
+        return Err(ComponentError::new(
+            "Point in Curves vereist minstens één curve",
+        ));
+    }
+
+    let mut best_relationship = 0;
+    let mut best_index: i32 = -1;
+    let mut best_projected = point;
+
+    for (index, curve) in curves.iter().enumerate() {
+        let classification = classify_point_against_polyline(point, curve);
+        if classification.relationship > best_relationship {
+            best_relationship = classification.relationship;
+            best_index = index as i32;
+            best_projected = classification.projected;
+            if best_relationship == 2 {
+                break;
+            }
+        }
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_RELATIONSHIP.to_owned(),
+        Value::Number(best_relationship as f64),
+    );
+    outputs.insert(
+        PIN_OUTPUT_INDEX.to_owned(),
+        Value::Number(if best_relationship == 0 {
+            -1.0
+        } else {
+            best_index as f64
+        }),
+    );
+    outputs.insert(
+        PIN_OUTPUT_POINT_PRIME.to_owned(),
+        Value::Point(best_projected),
     );
     Ok(outputs)
 }
@@ -632,6 +702,29 @@ fn evaluate_arc_center(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CENTER_SINGLE.to_owned(), Value::Point(center));
     outputs.insert(PIN_OUTPUT_RADIUS.to_owned(), Value::Number(radius));
+    Ok(outputs)
+}
+
+fn evaluate_point_in_curve(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Point In Curve vereist een punt en curve",
+        ));
+    }
+
+    let point = coerce_point(inputs.get(0), "Point In Curve")?;
+    let curve = coerce_polyline(inputs.get(1), "Point In Curve")?;
+    let classification = classify_point_against_polyline(point, &curve);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_RELATIONSHIP.to_owned(),
+        Value::Number(classification.relationship as f64),
+    );
+    outputs.insert(
+        PIN_OUTPUT_POINT_PRIME.to_owned(),
+        Value::Point(classification.projected),
+    );
     Ok(outputs)
 }
 
@@ -1023,6 +1116,40 @@ fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>
     Ok(points)
 }
 
+fn coerce_polyline_collection(
+    value: Option<&Value>,
+    context: &str,
+) -> Result<Vec<Vec<[f64; 3]>>, ComponentError> {
+    let Some(value) = value else {
+        return Err(ComponentError::new(format!(
+            "{} vereist een lijst van curves",
+            context
+        )));
+    };
+
+    match value {
+        Value::List(values) => {
+            if values.is_empty() {
+                return Err(ComponentError::new(format!(
+                    "{} vereist minstens één curve",
+                    context
+                )));
+            }
+
+            if values.iter().all(|entry| matches!(entry, Value::List(_))) {
+                let mut curves = Vec::with_capacity(values.len());
+                for entry in values {
+                    curves.push(coerce_polyline(Some(entry), context)?);
+                }
+                Ok(curves)
+            } else {
+                Ok(vec![coerce_polyline(Some(value), context)?])
+            }
+        }
+        _ => Ok(vec![coerce_polyline(Some(value), context)?]),
+    }
+}
+
 fn collect_points(
     value: &Value,
     output: &mut Vec<[f64; 3]>,
@@ -1050,6 +1177,92 @@ fn collect_points(
             other.kind()
         ))),
     }
+}
+
+struct PointContainment {
+    relationship: i32,
+    projected: [f64; 3],
+}
+
+fn classify_point_against_polyline(
+    point: [f64; 3],
+    polyline: &[[f64; 3]],
+) -> PointContainment {
+    if polyline.len() < 2 {
+        return PointContainment {
+            relationship: 0,
+            projected: point,
+        };
+    }
+
+    let average_z = polyline
+        .iter()
+        .map(|pt| pt[2])
+        .sum::<f64>()
+        / polyline.len() as f64;
+    let mut inside = false;
+    let mut on_edge = false;
+    let mut previous = *polyline.last().unwrap();
+
+    for &current in polyline {
+        if point_on_segment_2d(point, previous, current) {
+            on_edge = true;
+        }
+
+        let yi = previous[1];
+        let yj = current[1];
+        let intersects = ((yi > point[1]) != (yj > point[1]))
+            && {
+                let dy = yj - yi;
+                let x_intersection = if dy.abs() < EPSILON {
+                    current[0]
+                } else {
+                    (current[0] - previous[0]) * (point[1] - yi) / dy + previous[0]
+                };
+                x_intersection > point[0]
+            };
+
+        if intersects {
+            inside = !inside;
+        }
+
+        previous = current;
+    }
+
+    let relationship = if on_edge {
+        1
+    } else if inside {
+        2
+    } else {
+        0
+    };
+
+    PointContainment {
+        relationship,
+        projected: [point[0], point[1], average_z],
+    }
+}
+
+fn point_on_segment_2d(point: [f64; 3], start: [f64; 3], end: [f64; 3]) -> bool {
+    let seg = [end[0] - start[0], end[1] - start[1]];
+    let to_point = [point[0] - start[0], point[1] - start[1]];
+    let seg_length_sq = seg[0] * seg[0] + seg[1] * seg[1];
+    if seg_length_sq < EPSILON {
+        return ((point[0] - start[0]).abs() < EPSILON)
+            && ((point[1] - start[1]).abs() < EPSILON);
+    }
+
+    let cross = seg[0] * to_point[1] - seg[1] * to_point[0];
+    if cross.abs() > 1e-6 {
+        return false;
+    }
+
+    let dot = to_point[0] * seg[0] + to_point[1] * seg[1];
+    if dot < -1e-6 || dot > seg_length_sq + 1e-6 {
+        return false;
+    }
+
+    true
 }
 
 fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
@@ -1164,8 +1377,9 @@ fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
 mod tests {
     use super::{
         Component, ComponentKind, EPSILON, PIN_OUTPUT_CENTER_AREA, PIN_OUTPUT_CENTER_EDGE,
-        PIN_OUTPUT_CENTER_VERTEX, PIN_OUTPUT_DOMAIN, PIN_OUTPUT_END, PIN_OUTPUT_LENGTH,
-        PIN_OUTPUT_PARAMETER, PIN_OUTPUT_POINT, PIN_OUTPUT_START, PIN_OUTPUT_TANGENT,
+        PIN_OUTPUT_CENTER_VERTEX, PIN_OUTPUT_DOMAIN, PIN_OUTPUT_END, PIN_OUTPUT_INDEX,
+        PIN_OUTPUT_LENGTH, PIN_OUTPUT_PARAMETER, PIN_OUTPUT_POINT, PIN_OUTPUT_POINT_PRIME,
+        PIN_OUTPUT_RELATIONSHIP, PIN_OUTPUT_START, PIN_OUTPUT_TANGENT,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::{Domain, Value};
@@ -1290,6 +1504,70 @@ mod tests {
         assert!(matches!(
             outputs.get(PIN_OUTPUT_PARAMETER),
             Some(Value::Number(param)) if (*param - 0.5).abs() < EPSILON
+        ));
+    }
+
+    #[test]
+    fn point_in_curves_prefers_first_containing_region() {
+        let square = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 0.0]),
+        ]);
+        let rectangle = Value::List(vec![
+            Value::Point([2.0, 0.0, 0.0]),
+            Value::Point([3.0, 0.0, 0.0]),
+            Value::Point([3.0, 1.0, 0.0]),
+            Value::Point([2.0, 1.0, 0.0]),
+            Value::Point([2.0, 0.0, 0.0]),
+        ]);
+
+        let outputs = ComponentKind::PointInCurves
+            .evaluate(
+                &[
+                    Value::Point([0.25, 0.25, 0.0]),
+                    Value::List(vec![square, rectangle]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("point in curves");
+
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_RELATIONSHIP),
+            Some(Value::Number(value)) if (*value - 2.0).abs() < EPSILON
+        ));
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_INDEX),
+            Some(Value::Number(value)) if value.abs() < EPSILON
+        ));
+    }
+
+    #[test]
+    fn point_in_curve_reports_outside() {
+        let curve = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 0.0]),
+        ]);
+
+        let outputs = ComponentKind::PointInCurve
+            .evaluate(
+                &[Value::Point([2.0, 2.0, 0.0]), curve],
+                &MetaMap::new(),
+            )
+            .expect("point in curve");
+
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_RELATIONSHIP),
+            Some(Value::Number(value)) if value.abs() < EPSILON
+        ));
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT_PRIME),
+            Some(Value::Point(pt)) if (pt[0] - 2.0).abs() < EPSILON && (pt[1] - 2.0).abs() < EPSILON
         ));
     }
 }
