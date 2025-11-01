@@ -128,8 +128,10 @@ mod tests {
 
 Deze workflow sluit aan op het migratieplan in [`Migratieplan_Threejs_GHX_Parser_vereenvoudigd.md`](./Migratieplan_Threejs_GHX_Parser_vereenvoudigd.md) en zorgt ervoor dat nieuwe componenten naadloos in de vereenvoudigde GHX-engine passen.
 
-## TODO lijst implementaties componenten
-[ ] 1. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_operators.json staan beschreven.
+## TODO lijst implementaties componenten.
+Markeer de taak als deze gedaan is.
+
+[x] 1. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_operators.json staan beschreven.
 [ ] 2. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_domain.json staan beschreven.
 [ ] 3. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_polynomials.json staan beschreven.
 [ ] 4. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_matrix.json staan beschreven.
