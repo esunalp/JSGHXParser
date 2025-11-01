@@ -19,6 +19,7 @@ pub mod maths_time;
 pub mod maths_trig;
 pub mod maths_util;
 pub mod number_slider;
+pub mod vector_vector;
 
 /// Output-map van een component: pinnickname → waarde.
 pub type OutputMap = std::collections::BTreeMap<String, Value>;
@@ -75,6 +76,7 @@ pub enum ComponentKind {
     MathsTime(maths_time::ComponentKind),
     MathsTrig(maths_trig::ComponentKind),
     MathsUtil(maths_util::ComponentKind),
+    VectorVector(vector_vector::ComponentKind),
 }
 
 impl ComponentKind {
@@ -94,6 +96,7 @@ impl ComponentKind {
             Self::MathsTime(component) => component.evaluate(inputs, meta),
             Self::MathsTrig(component) => component.evaluate(inputs, meta),
             Self::MathsUtil(component) => component.evaluate(inputs, meta),
+            Self::VectorVector(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -113,6 +116,7 @@ impl ComponentKind {
             Self::MathsTime(component) => component.name(),
             Self::MathsTrig(component) => component.name(),
             Self::MathsUtil(component) => component.name(),
+            Self::VectorVector(component) => component.name(),
         }
     }
 }
@@ -207,6 +211,14 @@ impl Default for ComponentRegistry {
 
         for registration in maths_util::REGISTRATIONS {
             let kind = ComponentKind::MathsUtil(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in vector_vector::REGISTRATIONS {
+            let kind = ComponentKind::VectorVector(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
