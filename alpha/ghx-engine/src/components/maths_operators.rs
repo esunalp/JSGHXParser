@@ -9,6 +9,20 @@ use super::{Component, ComponentError, ComponentResult};
 
 const EPSILON: f64 = 1e-9;
 
+const PIN_RESULT: &str = "R";
+const PIN_PARTIAL_RESULTS: &str = "Pr";
+const PIN_SERIES: &str = "S";
+const PIN_DIFFERENCES: &str = "D";
+const PIN_OUTPUT_Y: &str = "y";
+const PIN_FACTORIAL: &str = "F";
+const PIN_GREATER_THAN: &str = ">";
+const PIN_GREATER_OR_EQUAL: &str = ">=";
+const PIN_LESS_THAN: &str = "<";
+const PIN_LESS_OR_EQUAL: &str = "<=";
+const PIN_EQUAL: &str = "=";
+const PIN_NOT_EQUAL: &str = "≠";
+const PIN_DIFFERENCE: &str = "dt";
+
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
@@ -269,7 +283,7 @@ fn evaluate_gate_not(inputs: &[Value]) -> ComponentResult {
     }
     let value = coerce_boolean(&inputs[0], "Gate Not")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("R".to_owned(), Value::Boolean(!value));
+    outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(!value));
     Ok(outputs)
 }
 
@@ -300,7 +314,7 @@ fn evaluate_gate_majority(inputs: &[Value]) -> ComponentResult {
     let c = coerce_boolean(&inputs[2], "Gate Majority")?;
     let majority = (a && b) || (a && c) || (b && c);
     let mut outputs = BTreeMap::new();
-    outputs.insert("R".to_owned(), Value::Boolean(majority));
+    outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(majority));
     Ok(outputs)
 }
 
@@ -310,7 +324,7 @@ fn evaluate_absolute(inputs: &[Value]) -> ComponentResult {
     }
     let value = coerce_number(&inputs[0], "Absolute")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("y".to_owned(), Value::Number(value.abs()));
+    outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(value.abs()));
     Ok(outputs)
 }
 
@@ -320,7 +334,7 @@ fn evaluate_negative(inputs: &[Value]) -> ComponentResult {
     }
     let value = coerce_number(&inputs[0], "Negative")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("y".to_owned(), Value::Number(-value));
+    outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(-value));
     Ok(outputs)
 }
 
@@ -393,7 +407,7 @@ fn evaluate_factorial(inputs: &[Value]) -> ComponentResult {
         }
     }
     let mut outputs = BTreeMap::new();
-    outputs.insert("F".to_owned(), Value::Number(result));
+    outputs.insert(PIN_FACTORIAL.to_owned(), Value::Number(result));
     Ok(outputs)
 }
 
@@ -401,15 +415,15 @@ fn evaluate_mass_addition(inputs: &[Value]) -> ComponentResult {
     let values = collect_math_values(inputs);
     if values.is_empty() {
         let mut outputs = BTreeMap::new();
-        outputs.insert("R".to_owned(), Value::Number(0.0));
-        outputs.insert("Pr".to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_RESULT.to_owned(), Value::Number(0.0));
+        outputs.insert(PIN_PARTIAL_RESULTS.to_owned(), Value::List(Vec::new()));
         return Ok(outputs);
     }
     let (result, partial) = sequential_combine(values, add_values)?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("R".to_owned(), result.to_value());
+    outputs.insert(PIN_RESULT.to_owned(), result.to_value());
     outputs.insert(
-        "Pr".to_owned(),
+        PIN_PARTIAL_RESULTS.to_owned(),
         Value::List(partial.into_iter().map(|value| value.to_value()).collect()),
     );
     Ok(outputs)
@@ -419,15 +433,15 @@ fn evaluate_mass_multiplication(inputs: &[Value]) -> ComponentResult {
     let values = collect_math_values(inputs);
     if values.is_empty() {
         let mut outputs = BTreeMap::new();
-        outputs.insert("R".to_owned(), Value::Number(1.0));
-        outputs.insert("Pr".to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_RESULT.to_owned(), Value::Number(1.0));
+        outputs.insert(PIN_PARTIAL_RESULTS.to_owned(), Value::List(Vec::new()));
         return Ok(outputs);
     }
     let (result, partial) = sequential_combine(values, multiply_values)?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("R".to_owned(), result.to_value());
+    outputs.insert(PIN_RESULT.to_owned(), result.to_value());
     outputs.insert(
-        "Pr".to_owned(),
+        PIN_PARTIAL_RESULTS.to_owned(),
         Value::List(partial.into_iter().map(|value| value.to_value()).collect()),
     );
     Ok(outputs)
@@ -452,8 +466,8 @@ fn evaluate_series_addition(inputs: &[Value]) -> ComponentResult {
     if numbers.is_empty() {
         let remainder = goal.map_or(0.0, |g| total - g);
         let mut outputs = BTreeMap::new();
-        outputs.insert("S".to_owned(), Value::List(Vec::new()));
-        outputs.insert("R".to_owned(), Value::Number(remainder));
+        outputs.insert(PIN_SERIES.to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_RESULT.to_owned(), Value::Number(remainder));
         return Ok(outputs);
     }
 
@@ -481,8 +495,8 @@ fn evaluate_series_addition(inputs: &[Value]) -> ComponentResult {
 
     let remainder = goal.map_or(0.0, |g| total - g);
     let mut outputs = BTreeMap::new();
-    outputs.insert("S".to_owned(), Value::List(series));
-    outputs.insert("R".to_owned(), Value::Number(remainder));
+    outputs.insert(PIN_SERIES.to_owned(), Value::List(series));
+    outputs.insert(PIN_RESULT.to_owned(), Value::Number(remainder));
     Ok(outputs)
 }
 
@@ -490,7 +504,7 @@ fn evaluate_relative_differences(inputs: &[Value]) -> ComponentResult {
     let values = collect_math_values(inputs);
     if values.len() < 2 {
         let mut outputs = BTreeMap::new();
-        outputs.insert("D".to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_DIFFERENCES.to_owned(), Value::List(Vec::new()));
         return Ok(outputs);
     }
 
@@ -503,7 +517,7 @@ fn evaluate_relative_differences(inputs: &[Value]) -> ComponentResult {
     }
 
     let mut outputs = BTreeMap::new();
-    outputs.insert("D".to_owned(), Value::List(differences));
+    outputs.insert(PIN_DIFFERENCES.to_owned(), Value::List(differences));
     Ok(outputs)
 }
 
@@ -516,8 +530,8 @@ fn evaluate_larger_than(inputs: &[Value]) -> ComponentResult {
     let a = coerce_number(&inputs[0], "Larger Than")?;
     let b = coerce_number(&inputs[1], "Larger Than")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(">".to_owned(), Value::Boolean(a > b));
-    outputs.insert(">=".to_owned(), Value::Boolean(a >= b));
+    outputs.insert(PIN_GREATER_THAN.to_owned(), Value::Boolean(a > b));
+    outputs.insert(PIN_GREATER_OR_EQUAL.to_owned(), Value::Boolean(a >= b));
     Ok(outputs)
 }
 
@@ -530,8 +544,8 @@ fn evaluate_smaller_than(inputs: &[Value]) -> ComponentResult {
     let a = coerce_number(&inputs[0], "Smaller Than")?;
     let b = coerce_number(&inputs[1], "Smaller Than")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("<".to_owned(), Value::Boolean(a < b));
-    outputs.insert("<=".to_owned(), Value::Boolean(a <= b));
+    outputs.insert(PIN_LESS_THAN.to_owned(), Value::Boolean(a < b));
+    outputs.insert(PIN_LESS_OR_EQUAL.to_owned(), Value::Boolean(a <= b));
     Ok(outputs)
 }
 
@@ -562,8 +576,8 @@ fn evaluate_equality(inputs: &[Value]) -> ComponentResult {
     };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert("=".to_owned(), Value::Boolean(equal));
-    outputs.insert("≠".to_owned(), Value::Boolean(!equal));
+    outputs.insert(PIN_EQUAL.to_owned(), Value::Boolean(equal));
+    outputs.insert(PIN_NOT_EQUAL.to_owned(), Value::Boolean(!equal));
     Ok(outputs)
 }
 
@@ -579,8 +593,11 @@ fn evaluate_similarity(inputs: &[Value]) -> ComponentResult {
     let threshold = coerce_number(&inputs[2], "Similarity")?.abs();
     let difference = (a - b).abs();
     let mut outputs = BTreeMap::new();
-    outputs.insert("=".to_owned(), Value::Boolean(difference <= threshold));
-    outputs.insert("dt".to_owned(), Value::Number(difference));
+    outputs.insert(
+        PIN_EQUAL.to_owned(),
+        Value::Boolean(difference <= threshold),
+    );
+    outputs.insert(PIN_DIFFERENCE.to_owned(), Value::Number(difference));
     Ok(outputs)
 }
 
@@ -596,7 +613,7 @@ fn evaluate_binary_gate(
     let a = coerce_boolean(&inputs[0], "Boolean gate")?;
     let b = coerce_boolean(&inputs[1], "Boolean gate")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert("R".to_owned(), Value::Boolean(operation(a, b)));
+    outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(operation(a, b)));
     Ok(outputs)
 }
 
@@ -822,7 +839,10 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 
 #[cfg(test)]
 mod tests {
-    use super::ComponentKind;
+    use super::{
+        ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
+        PIN_PARTIAL_RESULTS, PIN_RESULT,
+    };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -836,7 +856,10 @@ mod tests {
                 &MetaMap::new(),
             )
             .expect("gate and succeeds");
-        assert!(matches!(outputs.get("R"), Some(Value::Boolean(false))));
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Boolean(false))
+        ));
     }
 
     #[test]
@@ -850,10 +873,14 @@ mod tests {
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("mass addition succeeds");
-        assert!(
-            matches!(outputs.get("R"), Some(Value::Number(total)) if (*total - 6.0).abs() < 1e-9)
-        );
-        assert!(matches!(outputs.get("Pr"), Some(Value::List(partial)) if partial.len() == 3));
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Number(total)) if (*total - 6.0).abs() < 1e-9
+        ));
+        assert!(matches!(
+            outputs.get(PIN_PARTIAL_RESULTS),
+            Some(Value::List(partial)) if partial.len() == 3
+        ));
     }
 
     #[test]
@@ -868,7 +895,7 @@ mod tests {
             .evaluate(&inputs, &MetaMap::new())
             .expect("relative differences succeed");
         assert!(matches!(
-            outputs.get("D"),
+            outputs.get(PIN_DIFFERENCES),
             Some(Value::List(values)) if values.len() == 2
         ));
     }
@@ -883,8 +910,11 @@ mod tests {
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("equality succeeds");
-        assert!(matches!(outputs.get("="), Some(Value::Boolean(true))));
-        assert!(matches!(outputs.get("≠"), Some(Value::Boolean(false))));
+        assert!(matches!(outputs.get(PIN_EQUAL), Some(Value::Boolean(true))));
+        assert!(matches!(
+            outputs.get(PIN_NOT_EQUAL),
+            Some(Value::Boolean(false))
+        ));
     }
 
     #[test]
@@ -894,7 +924,10 @@ mod tests {
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("similarity succeeds");
-        assert!(matches!(outputs.get("dt"), Some(Value::Number(d)) if (*d - 2.0).abs() < 1e-9));
-        assert!(matches!(outputs.get("="), Some(Value::Boolean(true))));
+        assert!(matches!(
+            outputs.get(PIN_DIFFERENCE),
+            Some(Value::Number(d)) if (*d - 2.0).abs() < 1e-9
+        ));
+        assert!(matches!(outputs.get(PIN_EQUAL), Some(Value::Boolean(true))));
     }
 }
