@@ -8,6 +8,7 @@ use crate::graph::value::Value;
 
 pub mod add;
 pub mod construct_point;
+pub mod curve_primitive;
 pub mod extrude;
 pub mod line;
 pub mod maths_domain;
@@ -72,6 +73,7 @@ pub enum ComponentKind {
     ConstructPoint(construct_point::ComponentImpl),
     Line(line::ComponentImpl),
     Extrude(extrude::ComponentImpl),
+    CurvePrimitive(curve_primitive::ComponentKind),
     MathsOperator(maths_operators::ComponentKind),
     MathsDomain(maths_domain::ComponentKind),
     MathsPolynomial(maths_polynomials::ComponentKind),
@@ -96,6 +98,7 @@ impl ComponentKind {
             Self::ConstructPoint(component) => component.evaluate(inputs, meta),
             Self::Line(component) => component.evaluate(inputs, meta),
             Self::Extrude(component) => component.evaluate(inputs, meta),
+            Self::CurvePrimitive(component) => component.evaluate(inputs, meta),
             Self::MathsOperator(component) => component.evaluate(inputs, meta),
             Self::MathsDomain(component) => component.evaluate(inputs, meta),
             Self::MathsPolynomial(component) => component.evaluate(inputs, meta),
@@ -120,6 +123,7 @@ impl ComponentKind {
             Self::ConstructPoint(_) => "Construct Point",
             Self::Line(_) => "Line",
             Self::Extrude(_) => "Extrude",
+            Self::CurvePrimitive(component) => component.name(),
             Self::MathsOperator(component) => component.name(),
             Self::MathsDomain(component) => component.name(),
             Self::MathsPolynomial(component) => component.name(),
@@ -168,6 +172,14 @@ impl Default for ComponentRegistry {
         let extrude = ComponentKind::Extrude(extrude::ComponentImpl);
         registry.register_guid("{962034e9-cc27-4394-afc4-5c16e3447cf9}", extrude);
         registry.register_names(&["Extrude", "Extr"], extrude);
+
+        for registration in curve_primitive::REGISTRATIONS {
+            let kind = ComponentKind::CurvePrimitive(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
 
         for registration in maths_operators::REGISTRATIONS {
             let kind = ComponentKind::MathsOperator(registration.kind);
