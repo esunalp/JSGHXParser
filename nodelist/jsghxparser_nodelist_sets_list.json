@@ -1,0 +1,1172 @@
+[
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Pick'n'Choose",
+    "nickname": "P'n'C",
+    "guid": "03b801eb-87cd-476a-a591-257fe5d5bf0f",
+    "description": "Pick and choose from a set of input data.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Pick pattern of input indices"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "list",
+        "description": "Input stream 0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "list",
+        "description": "Input stream 1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Picked result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Weave",
+    "nickname": "Weave",
+    "guid": "160c1df2-e2e8-48e5-b538-f2d6981007e3",
+    "description": "Weave a set of input streams using a custom pattern.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Weave pattern of input indices"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "list",
+        "description": "Input stream 0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "list",
+        "description": "Input stream 1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Weave",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weave result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "List Length",
+    "nickname": "Lng",
+    "guid": "1817fd29-20ae-4503-b542-f0fb651e67d7",
+    "description": "Measure the length of a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Number of items in L"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "List Item",
+    "nickname": "Item",
+    "guid": "285ddd8a-5398-4a3e-b3c2-361025711a51",
+    "description": "Retrieve a specific item from a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Item index"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Wrap index to list bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Element",
+        "nickname": "E",
+        "access": "item",
+        "description": "Item at {i'}"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Sort List",
+    "nickname": "Sort",
+    "guid": "2b2628ea-3f43-4ce9-8435-9a045d54b5c6",
+    "description": "Sort a list of numeric keys.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "List of sortable keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Optional list to sort synchronously"
+      },
+      {
+        "name": "Values B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Optional list to sort synchronously"
+      },
+      {
+        "name": "Values C",
+        "nickname": "C",
+        "access": "list",
+        "description": "Optional list to sort synchronously"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Sorted keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Synchronous values in A"
+      },
+      {
+        "name": "Values B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Synchronous values in B"
+      },
+      {
+        "name": "Values C",
+        "nickname": "C",
+        "access": "list",
+        "description": "Synchronous values in C"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Sift Pattern",
+    "nickname": "Sift",
+    "guid": "3249222f-f536-467a-89f4-f0353fba455a",
+    "description": "Sift elements in a list using a repeating index pattern.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to sift"
+      },
+      {
+        "name": "Sift Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Sifting pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Output 0",
+        "nickname": "0",
+        "access": "list",
+        "description": "Output for sift index 0"
+      },
+      {
+        "name": "Output 1",
+        "nickname": "1",
+        "access": "list",
+        "description": "Output for sift index 1"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Cross Reference",
+    "nickname": "CrossRef",
+    "guid": "36947590-f0cb-4807-a8f9-9c90c9b20621",
+    "description": "Cross Reference data from multiple lists",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "List (A) to operate on"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "List (B) to operate on"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "Adjusted list (A)"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "Adjusted list (B)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Pick'n'Choose",
+    "nickname": "P'n'C",
+    "guid": "4356ef8f-0ca1-4632-9c39-9e6dcd2b9496",
+    "description": "Pick and choose from a set of input lists.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Pick pattern of input indices"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "list",
+        "description": "Input stream 0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "list",
+        "description": "Input stream 1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Picked result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Shift List",
+    "nickname": "Shift",
+    "guid": "4fdfe351-6c07-47ce-9fb9-be027fb62186",
+    "description": "Offset all items in a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to shift"
+      },
+      {
+        "name": "Shift",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shift offset"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Wrap values"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Shifted list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Weave",
+    "nickname": "Weave",
+    "guid": "50faccbd-9c92-4175-a5fa-d65e36013db6",
+    "description": "Weave a set of input data using a custom pattern.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Weave pattern of input indices"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "list",
+        "description": "Input stream  0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "list",
+        "description": "Input stream  1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Weave",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weave result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "List Item",
+    "nickname": "Item",
+    "guid": "59daf374-bc21-4a5e-8282-5504fb7ae9ae",
+    "description": "Retrieve a specific item from a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Item index"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Wrap index to list bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Item",
+        "nickname": "i",
+        "access": "item",
+        "description": "Item at {i'}"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Shortest List",
+    "nickname": "Short",
+    "guid": "5a13ec19-e4e9-43da-bf65-f93025fa87ca",
+    "description": "Shrink a collection of lists to the shortest length amongst them",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "List (A) to operate on"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "List (B) to operate on"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "Adjusted list (A)"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "Adjusted list (B)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Partition List",
+    "nickname": "Partition",
+    "guid": "5a93246d-2595-4c28-bc2d-90657634f92a",
+    "description": "Partition a list into sub-lists",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to partition"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "list",
+        "description": "Size of partitions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Chunks",
+        "nickname": "C",
+        "access": "tree",
+        "description": "List chunks"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Null Item",
+    "nickname": "Null",
+    "guid": "66fbaae1-0fcf-4dbf-bcba-4395d8f6a3e6",
+    "description": "Test a data item for null or invalidity",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Items",
+        "nickname": "I",
+        "access": "tree",
+        "description": "Items to test"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Null Flags",
+        "nickname": "N",
+        "access": "item",
+        "description": "True if item is Null"
+      },
+      {
+        "name": "Invalid Flags",
+        "nickname": "X",
+        "access": "item",
+        "description": "True if item is Invalid"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "List item [OBSOLETE]",
+    "nickname": "Item",
+    "guid": "6e2ba21a-2252-42f4-8d3f-f5e0f49cc4ef",
+    "description": "This component is obsolete. It has been replaced with a new ITEM component",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "The input list"
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "The index to retrieve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Element",
+        "nickname": "E",
+        "access": "item",
+        "description": "The element at L(i)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Reverse List",
+    "nickname": "Rev",
+    "guid": "6ec97ea8-c559-47a2-8d0f-ce80c794d1f4",
+    "description": "Reverse the order of a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Reversed list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Sort List",
+    "nickname": "Sort",
+    "guid": "6f93d366-919f-4dda-a35e-ba03dd62799b",
+    "description": "Sort a list of numeric keys.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "List of sortable keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Optional list of values to sort synchronously"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "Sorted keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Synchronous values in A"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Replace Items",
+    "nickname": "Replace",
+    "guid": "7a218bfb-b93d-4c1f-83d3-5a0b909dd60b",
+    "description": "Replace certain items in a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to modify"
+      },
+      {
+        "name": "Item",
+        "nickname": "I",
+        "access": "list",
+        "description": "Items to replace with. If no items are supplied, nulls will be inserted."
+      },
+      {
+        "name": "Indices",
+        "nickname": "i",
+        "access": "list",
+        "description": "Replacement index for each item"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "If true, indices will be wrapped"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List with replaced values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Longest List",
+    "nickname": "Long",
+    "guid": "8440fd1b-b6e0-4bdb-aa93-4ec295c213e9",
+    "description": "Grow a collection of lists to the longest length amongst them",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "List (A) to operate on"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "List (B) to operate on"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List (A)",
+        "nickname": "A",
+        "access": "list",
+        "description": "Adjusted list (A)"
+      },
+      {
+        "name": "List (B)",
+        "nickname": "B",
+        "access": "list",
+        "description": "Adjusted list (B)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Split List",
+    "nickname": "Split",
+    "guid": "9ab93e1a-ebdf-4090-9296-b000cff7b202",
+    "description": "Split a list into separate parts.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Splitting index"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Items to the left of (i)"
+      },
+      {
+        "name": "List B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Items to the right of and including (i)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Item Index",
+    "nickname": "Index",
+    "guid": "a759fd55-e6be-4673-8365-c28d5b52c6c0",
+    "description": "Retrieve the index of a certain item in a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to search"
+      },
+      {
+        "name": "Item",
+        "nickname": "i",
+        "access": "item",
+        "description": "Item to search for"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "The index of item in the list, or -1 if the item could not be found."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Sub List",
+    "nickname": "SubSet",
+    "guid": "b333ff42-93bd-406b-8e17-15780719b6ec",
+    "description": "Extract a subset from a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Base list"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Domain of indices to copy"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Remap indices that overshoot list domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Subset of base list"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "list",
+        "description": "Indices of subset items"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Null Item",
+    "nickname": "Null",
+    "guid": "c74efd0e-7fe3-4c2d-8c9d-295c5672fb13",
+    "description": "Test a data item for null or invalidity",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Item",
+        "nickname": "I",
+        "access": "item",
+        "description": "Item to test"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Null Flags",
+        "nickname": "N",
+        "access": "item",
+        "description": "True if item is Null"
+      },
+      {
+        "name": "Invalid Flags",
+        "nickname": "X",
+        "access": "item",
+        "description": "True if item is Invalid"
+      },
+      {
+        "name": "Description",
+        "nickname": "D",
+        "access": "item",
+        "description": "A textual description of the object state"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Sort List",
+    "nickname": "Sort",
+    "guid": "cacb2c64-61b5-46db-825d-c61d5d09cc08",
+    "description": "Sort a list of numeric keys.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "List of sortable keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Optional list of values to sort synchronously"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Sorted keys"
+      },
+      {
+        "name": "Values A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Synchronous values in A"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Dispatch",
+    "nickname": "Dispatch",
+    "guid": "d8332545-21b2-4716-96e3-8559a9876e17",
+    "description": "Dispatch the items in a list into two target lists.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to filter"
+      },
+      {
+        "name": "Dispatch pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Dispatch pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Dispatch target for True values"
+      },
+      {
+        "name": "List B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Dispatch target for False values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Insert Items",
+    "nickname": "Ins",
+    "guid": "e2039b07-d3f3-40f8-af88-d74fed238727",
+    "description": "Insert a collection of items into a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to modify"
+      },
+      {
+        "name": "Item",
+        "nickname": "I",
+        "access": "list",
+        "description": "Items to insert. If no items are supplied, nulls will be inserted."
+      },
+      {
+        "name": "Indices",
+        "nickname": "i",
+        "access": "list",
+        "description": "Insertion index for each item"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "If true, indices will be wrapped"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List with inserted values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Combine Data",
+    "nickname": "Combine",
+    "guid": "e7c80ff6-0299-4303-be36-3080977c14a1",
+    "description": "Combine non-null items out of several inputs",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input 0",
+        "nickname": "0",
+        "access": "item",
+        "description": "Data to combine"
+      },
+      {
+        "name": "Input 1",
+        "nickname": "1",
+        "access": "item",
+        "description": "Data to combine"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting data with as few nulls as possible"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of input that was copied into result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "List",
+    "name": "Replace Nulls",
+    "nickname": "NullRep",
+    "guid": "f3230ecb-3631-4d6f-86f2-ef4b2ed37f45",
+    "description": "Replace nulls or invalid data with other data",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Items",
+        "nickname": "I",
+        "access": "list",
+        "description": "Items to test for null"
+      },
+      {
+        "name": "Replacements",
+        "nickname": "R",
+        "access": "list",
+        "description": "Items to replace nulls with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Items",
+        "nickname": "I",
+        "access": "list",
+        "description": "List without any nulls"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of items replaced"
+      }
+    ]
+  }
+]

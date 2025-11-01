@@ -1,0 +1,1034 @@
+[
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Occlusion",
+    "nickname": "Occ",
+    "guid": "1583bd7e-4ab7-4439-b922-d6f8cd63c399",
+    "description": "Solve occlusion for a collection of view rays and obstructions.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Samples",
+        "nickname": "S",
+        "access": "list",
+        "description": "Sample points for occlusion testing"
+      },
+      {
+        "name": "Obstructions",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstructing geometry"
+      },
+      {
+        "name": "Rays",
+        "nickname": "R",
+        "access": "list",
+        "description": "View rays"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Hits",
+        "nickname": "H",
+        "access": "list",
+        "description": "Number of occluded rays per sample."
+      },
+      {
+        "name": "Occlusion",
+        "nickname": "O",
+        "access": "tree",
+        "description": "Occlusion topology for every individual sample."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Util",
+    "name": "Settings (Quality)",
+    "nickname": "Smooth",
+    "guid": "1b0ee096-cc76-4847-8941-04a9e256de76",
+    "description": "Represents 'Smooth & slower' mesh settings.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      ,
+      "outputs": [
+        {
+          "name": "Settings",
+          "nickname": "S",
+          "access": "item",
+          "description": "Smooth mesh settings"
+        }
+      ]
+    },
+    {
+      "category": "Mesh",
+      "subcategory": "Util",
+      "name": "Delete Vertices",
+      "nickname": "DeleteV",
+      "guid": "23d715f7-4bc6-4e69-b76d-7c04ca2ebf5f",
+      "description": "Delete vertices from a mesh",
+      "library": {
+        "name": "Surface Components",
+        "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+        "version": "1.0.0.0"
+      },
+      "instantiated": true,
+      "inputs": [
+        {
+          "name": "Mesh",
+          "nickname": "M",
+          "access": "item",
+          "description": "Mesh for vertex deletion"
+        },
+        {
+          "name": "Indices",
+          "nickname": "I",
+          "access": "list",
+          "description": "List of all vertex indices to delete"
+        },
+        {
+          "name": "Shrink",
+          "nickname": "S",
+          "access": "item",
+          "description": "Shrink quads, if true, quads will become triangles if possible"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Mesh",
+          "nickname": "M",
+          "access": "item",
+          "description": "Mesh with all indexed vertices removed"
+        }
+      ]
+    },
+    {
+      "category": "Mesh",
+      "subcategory": "Util",
+      "name": "Settings (Speed)",
+      "nickname": "Jagged",
+      "guid": "255ca3e9-2c1e-443a-a404-e76b5c63f4cb",
+      "description": "Represents 'Jagged & faster' mesh settings.",
+      "library": {
+        "name": "Surface Components",
+        "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+        "version": "1.0.0.0"
+      },
+      "instantiated": true,
+      "inputs": [
+        ,
+        "outputs": [
+          {
+            "name": "Settings",
+            "nickname": "S",
+            "access": "item",
+            "description": "Coarse mesh settings"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Mesh Split Plane",
+        "nickname": "MSplit",
+        "guid": "330eb9c9-0098-4375-9078-e00a419d49fb",
+        "description": "Split a mesh with an infinite plane.",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to split"
+          },
+          {
+            "name": "Plane",
+            "nickname": "P",
+            "access": "item",
+            "description": "Splitting plane"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Above",
+            "nickname": "A",
+            "access": "list",
+            "description": "Pieces above the plane."
+          },
+          {
+            "name": "Below",
+            "nickname": "B",
+            "access": "list",
+            "description": "Pieces below the plane."
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Triangulate",
+        "nickname": "Tri",
+        "guid": "3fba11d5-b30a-4146-8d80-d591e7a0a287",
+        "description": "Triangulate all quads in a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to triangulate"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh with only triangle faces"
+          },
+          {
+            "name": "Count",
+            "nickname": "N",
+            "access": "item",
+            "description": "Number of quads that were triangulated"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Unweld Mesh",
+        "nickname": "Unweld",
+        "guid": "47814a17-ca9e-4305-9400-3a9c8d71c19d",
+        "description": "Unweld (split) creases in a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to unweld"
+          },
+          {
+            "name": "Angle",
+            "nickname": "A",
+            "access": "item",
+            "description": "Unweld angle"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Result",
+            "nickname": "R",
+            "access": "item",
+            "description": "Unwelded mesh"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Flip Mesh",
+        "nickname": "FlipM",
+        "guid": "47fbc929-e88a-4a13-882e-dad84763256d",
+        "description": "Flip the normal vectors of a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to flip"
+          },
+          {
+            "name": "Vertex Normals",
+            "nickname": "Vn",
+            "access": "item",
+            "description": "Flip all vertex normals"
+          },
+          {
+            "name": "Face Normals",
+            "nickname": "Fn",
+            "access": "item",
+            "description": "Flip all face normals"
+          },
+          {
+            "name": "Face Orientation",
+            "nickname": "Fo",
+            "access": "item",
+            "description": "Reverse all face orientations"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Result",
+            "nickname": "R",
+            "access": "item",
+            "description": "Flipped mesh"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Blur Mesh",
+        "nickname": "MBlur",
+        "guid": "48a9fa10-8d3c-4767-aca6-81232271f6e0",
+        "description": "Blur the colours on a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to blur"
+          },
+          {
+            "name": "Iterations",
+            "nickname": "I",
+            "access": "item",
+            "description": "Number of consecutive blurring iterations"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh with blurred vertex colours"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Settings (Custom)",
+        "nickname": "Custom Mesh Settings",
+        "guid": "4a0180e5-d8f9-46e7-bd34-ced804601462",
+        "description": "Represents custom mesh settings.",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Stitch Seams",
+            "nickname": "Stitch",
+            "access": "item",
+            "description": "Edges of adjacent faces are matched up if True."
+          },
+          {
+            "name": "Simple Planes",
+            "nickname": "Planes",
+            "access": "item",
+            "description": "Planar faces are meshed with a minimum amount of triangles."
+          },
+          {
+            "name": "Refine",
+            "nickname": "Refine",
+            "access": "item",
+            "description": "Refine the initial grid if it exceeds tolerance accuracy."
+          },
+          {
+            "name": "Min Count",
+            "nickname": "Min",
+            "access": "item",
+            "description": "Minimum number of quads in the initial grid per face."
+          },
+          {
+            "name": "Max Count",
+            "nickname": "Max",
+            "access": "item",
+            "description": "Maximum number of quads in the initial grid per face."
+          },
+          {
+            "name": "Aspect Ratio",
+            "nickname": "Aspect",
+            "access": "item",
+            "description": "Maximum aspect ratio of quads in the initial grid."
+          },
+          {
+            "name": "Max Distance",
+            "nickname": "Max Dist",
+            "access": "item",
+            "description": "Maximum allowed distance between center of edges and underlying surface."
+          },
+          {
+            "name": "Max Angle",
+            "nickname": "Max Angle",
+            "access": "item",
+            "description": "Maximum allowed angle (in degrees) between the normals of two adjacent quads."
+          },
+          {
+            "name": "Min Edge",
+            "nickname": "Min Edge",
+            "access": "item",
+            "description": "Minimum allowed edge length."
+          },
+          {
+            "name": "Max Edge",
+            "nickname": "Max Edge",
+            "access": "item",
+            "description": "Maximum allowed edge length."
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Settings",
+            "nickname": "S",
+            "access": "item",
+            "description": "Smooth mesh settings"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Mesh Join",
+        "nickname": "MJoin",
+        "guid": "4bc9dbbf-fec8-4348-a3af-e33e7edc8e7b",
+        "description": "Join a set of meshes into a single mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Meshes",
+            "nickname": "M",
+            "access": "list",
+            "description": "Meshes to join"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh join result"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Disjoint Mesh",
+        "nickname": "Disjoint",
+        "guid": "4dce5963-dc1a-4710-8991-9437ea23888d",
+        "description": "Split a mesh into disjoint pieces.",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to split"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Meshes",
+            "nickname": "M",
+            "access": "list",
+            "description": "Disjoint pieces"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Cull Faces",
+        "nickname": "CullF",
+        "guid": "57edd208-760a-4f0f-87e6-ca1bbd74133b",
+        "description": "Cull faces from a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh for face culling"
+          },
+          {
+            "name": "Pattern",
+            "nickname": "P",
+            "access": "list",
+            "description": "Face culling pattern"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh with all indicated faces removed"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Mesh Surface",
+        "nickname": "Mesh UV",
+        "guid": "58cf422f-19f7-42f7-9619-fc198c51c657",
+        "description": "Create a Surface UV mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Surface",
+            "nickname": "S",
+            "access": "item",
+            "description": "Surface geometry"
+          },
+          {
+            "name": "U Count",
+            "nickname": "U",
+            "access": "item",
+            "description": "Number of quads in U direction"
+          },
+          {
+            "name": "V Count",
+            "nickname": "V",
+            "access": "item",
+            "description": "Number of quads in V direction"
+          },
+          {
+            "name": "Overhang",
+            "nickname": "H",
+            "access": "item",
+            "description": "Allow faces to overhang trims"
+          },
+          {
+            "name": "Equalize",
+            "nickname": "Q",
+            "access": "item",
+            "description": "Equalize span length"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "UV Mesh"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Mesh Brep",
+        "nickname": "Mesh",
+        "guid": "60e7defa-8b21-4ee1-99aa-a9223d6134ff",
+        "description": "Create a mesh that approximates Brep geometry",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Brep",
+            "nickname": "B",
+            "access": "item",
+            "description": "Brep geometry"
+          },
+          {
+            "name": "Settings",
+            "nickname": "S",
+            "access": "item",
+            "description": "Settings to be used by meshing algorithm"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh approximation"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Quadrangulate",
+        "nickname": "Quad",
+        "guid": "9266a2bb-918f-4675-9c91-f67d0dd33eac",
+        "description": "Quadrangulate as many triangles as possible in a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to quadrangulate"
+          },
+          {
+            "name": "Angle",
+            "nickname": "A",
+            "access": "item",
+            "description": "Angle threshold. Triangles that exceed this kink-angle will not be merged."
+          },
+          {
+            "name": "Ratio",
+            "nickname": "R",
+            "access": "item",
+            "description": "Ratio threshold. Quads that have a ratio (shortest diagonal/longest diagonal) that exceed the threshold, will not be considered."
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Quadrangulated mesh (not all triangles are guaranteed to be converted)."
+          },
+          {
+            "name": "Count",
+            "nickname": "N",
+            "access": "item",
+            "description": "Number of triangles that were quadrangulated"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Cull Vertices",
+        "nickname": "CullV",
+        "guid": "9d50bf9b-46bc-403a-9ec9-1052f51dd6b6",
+        "description": "Cull vertices from a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh for vertex culling"
+          },
+          {
+            "name": "Pattern",
+            "nickname": "P",
+            "access": "list",
+            "description": "Vertex culling pattern"
+          },
+          {
+            "name": "Shrink",
+            "nickname": "S",
+            "access": "item",
+            "description": "Shrink quads, if true, quads will become triangles if possible"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh with all indicated vertices removed"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Weld Mesh",
+        "nickname": "Weld",
+        "guid": "9f6d85c9-1143-4538-bca7-69dcb11a74ef",
+        "description": "Weld (merge) creases in a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to weld"
+          },
+          {
+            "name": "Angle",
+            "nickname": "A",
+            "access": "item",
+            "description": "Weld angle"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Result",
+            "nickname": "R",
+            "access": "item",
+            "description": "Welded mesh"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Exposure",
+        "nickname": "Exposure",
+        "guid": "a78e3fbc-d199-4bd9-8df0-fc4c2743eb31",
+        "description": "Solve mesh exposure for a collection of energy rays and obstructions.",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Shape",
+            "nickname": "S",
+            "access": "item",
+            "description": "Mesh for exposure solution"
+          },
+          {
+            "name": "Obstructions",
+            "nickname": "O",
+            "access": "list",
+            "description": "Optional additional obstructing geometry"
+          },
+          {
+            "name": "Rays",
+            "nickname": "R",
+            "access": "list",
+            "description": "Light ray directions"
+          },
+          {
+            "name": "Energy",
+            "nickname": "E",
+            "access": "list",
+            "description": "Optional Energy values for each ray"
+          },
+          {
+            "name": "Lambert",
+            "nickname": "L",
+            "access": "item",
+            "description": "If true, Lambertian shading will be applied,"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Exposure",
+            "nickname": "E",
+            "access": "list",
+            "description": "Combined exposure for every individual mesh vertex."
+          },
+          {
+            "name": "Range",
+            "nickname": "R",
+            "access": "item",
+            "description": "Exposure Range for the entire mesh."
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Mesh Shadow",
+        "nickname": "MShadow",
+        "guid": "c3dce3e8-c9cc-413c-a93f-732434282fdd",
+        "description": "Compute the shadow outline for a mesh object",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh for shadow casting"
+          },
+          {
+            "name": "Light",
+            "nickname": "L",
+            "access": "item",
+            "description": "Direction of light rays"
+          },
+          {
+            "name": "Plane",
+            "nickname": "P",
+            "access": "item",
+            "description": "Plane that receives the shadows"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Outlines",
+            "nickname": "O",
+            "access": "list",
+            "description": "Shadow contours"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Simple Mesh",
+        "nickname": "SMesh",
+        "guid": "c3f9cea5-6fd4-4db5-959b-08cd08ed9fe1",
+        "description": "Create a mesh that represents a Brep as simply as possible",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Brep",
+            "nickname": "B",
+            "access": "item",
+            "description": "Brep to mesh, only breps with triangle or quad faces are supported."
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Unify Mesh",
+        "nickname": "UniM",
+        "guid": "ca6a48f4-b681-4989-b0c1-301a2929a84c",
+        "description": "Unify the normals of a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to unify"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Result",
+            "nickname": "R",
+            "access": "item",
+            "description": "Unified mesh"
+          },
+          {
+            "name": "Count",
+            "nickname": "N",
+            "access": "item",
+            "description": "Number of faces that were flipped"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Delete Faces",
+        "nickname": "DeleteF",
+        "guid": "d0f1311b-8287-4484-b2ea-1475c6770926",
+        "description": "Delete faces from a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh for face deletion"
+          },
+          {
+            "name": "Indices",
+            "nickname": "I",
+            "access": "list",
+            "description": "List of all face indices to delete"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh with all indexed faces removed"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Align Vertices",
+        "nickname": "AlignVert",
+        "guid": "db661dd7-63a4-44c6-91f2-6faab2471383",
+        "description": "Align nearby vertices in a mesh",
+        "library": {
+          "name": "Surface Components",
+          "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to align"
+          },
+          {
+            "name": "Tolerance",
+            "nickname": "T",
+            "access": "item",
+            "description": "Alignment tolerance"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Result",
+            "nickname": "R",
+            "access": "item",
+            "description": "Aligned mesh"
+          },
+          {
+            "name": "Count",
+            "nickname": "N",
+            "access": "item",
+            "description": "Number of aligned vertices"
+          }
+        ]
+      },
+      {
+        "category": "Mesh",
+        "subcategory": "Util",
+        "name": "Smooth Mesh",
+        "nickname": "MSmooth",
+        "guid": "e45aa4a0-e40d-421c-a335-5185dd131836",
+        "description": "Smooth the vertices of a mesh",
+        "library": {
+          "name": "Triangulation Components",
+          "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+          "version": "1.0.0.0"
+        },
+        "instantiated": true,
+        "inputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Mesh to smooth"
+          },
+          {
+            "name": "Strength",
+            "nickname": "S",
+            "access": "item",
+            "description": "Smoothing strength (0.0=none, 1.0=max)"
+          },
+          {
+            "name": "Skip Naked",
+            "nickname": "N",
+            "access": "item",
+            "description": "Skip naked vertices"
+          },
+          {
+            "name": "Iterations",
+            "nickname": "I",
+            "access": "item",
+            "description": "Number of successive smoothing steps"
+          },
+          {
+            "name": "Limit",
+            "nickname": "L",
+            "access": "item",
+            "description": "Optional maximum displacement per point"
+          }
+        ],
+        "outputs": [
+          {
+            "name": "Mesh",
+            "nickname": "M",
+            "access": "item",
+            "description": "Smoothed mesh"
+          }
+        ]
+      }
+    ]

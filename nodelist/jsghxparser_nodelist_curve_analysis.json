@@ -1,0 +1,1754 @@
+[
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Point in Curves",
+    "nickname": "InCurves",
+    "guid": "0b04e8b9-00d7-47a7-95c3-0d51e654fe88",
+    "description": "Test a point for multiple closed curve containment.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Boundary regions (closed curves only)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Relationship",
+        "nickname": "R",
+        "access": "item",
+        "description": "Point/Region relationship (0 = outside, 1 = coincident, 2 = inside)"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of first region that contains the point"
+      },
+      {
+        "name": "Point",
+        "nickname": "P'",
+        "access": "item",
+        "description": "Point projected on region plane."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "End Points",
+    "nickname": "End",
+    "guid": "11bbd48b-bb0a-4f1b-8167-fa297590390d",
+    "description": "Extract the end points of a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Curve start point"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "Curve end point"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Domain",
+    "nickname": "Dom",
+    "guid": "15ac45a8-b190-420a-bd66-e78ed6bcfaa4",
+    "description": "Retrieve the domain of a curve. This component is obsolete.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Curve domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Curve",
+    "nickname": "Eval",
+    "guid": "164d0429-e5f5-4292-aa80-3f88d43cdac2",
+    "description": "Evaluate a curve at the specified parameter.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve at {t}"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Length Domain",
+    "nickname": "LenD",
+    "guid": "188edd02-14a9-4828-a521-34995b0d1e4a",
+    "description": "Measure the length of a curve subdomain.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to measure"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Subdomain of curve to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Curve length on sub domain"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Arc",
+    "nickname": "DArc",
+    "guid": "23862862-049a-40be-b558-2418aacbd916",
+    "description": "Retrieve the base plane, radius and angle domain of an arc.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Arc or Circle to deconstruct"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Base Plane",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane of arc or circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc or circle"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain (in radians) of arc"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Discontinuity",
+    "nickname": "Disc",
+    "guid": "269eaa85-9997-4d77-a9ba-4c58cb45c9d3",
+    "description": "Find all discontinuities along a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to analyze"
+      },
+      {
+        "name": "Level",
+        "nickname": "L",
+        "access": "item",
+        "description": "Level of discontinuity to test for (1=C1, 2=C2, 3=Cinfinite)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points at discontinuities"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Curve parameters at discontinuities"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Closest Point",
+    "nickname": "Crv CP",
+    "guid": "2dc44b22-b1dd-460a-a704-6462d6e91096",
+    "description": "Find the closest point on a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to project onto curve"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to project onto"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on the curve closest to the base point"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain of closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between base point and curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Closed",
+    "nickname": "Cls",
+    "guid": "323f3245-af49-4489-8677-7a2c73664077",
+    "description": "Test if a curve is closed or periodic.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "item",
+        "description": "True if curve is closed or periodic"
+      },
+      {
+        "name": "Periodic",
+        "nickname": "P",
+        "access": "item",
+        "description": "True if curve is periodic"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Control Points",
+    "nickname": "CP",
+    "guid": "424eb433-2b3a-4859-beaf-804d8af0afd7",
+    "description": "Extract the nurbs control points and knots of a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control points of the Nurbs-form."
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Weights of control points."
+      },
+      {
+        "name": "Knots",
+        "nickname": "K",
+        "access": "list",
+        "description": "Knot vector of Nurbs-form."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Planar",
+    "nickname": "Planar",
+    "guid": "5816ec9c-f170-4c59-ac44-364401ff84cd",
+    "description": "Test a curve for planarity.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Planar",
+        "nickname": "p",
+        "access": "item",
+        "description": "Planarity of curve"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Curve plane"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Deviation from curve plane"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Polygon Center",
+    "nickname": "PCen",
+    "guid": "59e94548-cefd-4774-b3de-48142fc783fb",
+    "description": "Find the center point (average) for a polyline.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to average."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center(V)",
+        "nickname": "Cv",
+        "access": "item",
+        "description": "Average of polyline vertices."
+      },
+      {
+        "name": "Center(E)",
+        "nickname": "Ce",
+        "access": "item",
+        "description": "Average of polyline edges"
+      },
+      {
+        "name": "Center(A)",
+        "nickname": "Ca",
+        "access": "item",
+        "description": "Area centroid of polyline shape"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Control Polygon",
+    "nickname": "CPoly",
+    "guid": "66d2a68e-2f1d-43d2-a53b-c6a4d17e627b",
+    "description": "Extract the nurbs control polygon of a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "C",
+        "access": "item",
+        "description": "Control polygon curve for input curve adjusted for periodicity."
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control polygon points."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Perp Frame",
+    "nickname": "PFrame",
+    "guid": "69f3e5ee-4770-44b3-8851-ae10ae555398",
+    "description": "Solve the perpendicular (zero-twisting) frame at a specified curve parameter.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Perpendicular curve frame at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Evaluate Length",
+    "nickname": "Eval",
+    "guid": "6b021f56-b194-4210-b9a1-6cef3b7d0848",
+    "description": "Evaluate a curve at a certain factor along its length. Length factors can be supplied both in curve units and normalized units. Change the [N] parameter to toggle between the two modes.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length factor for curve evaluation"
+      },
+      {
+        "name": "Normalized",
+        "nickname": "N",
+        "access": "item",
+        "description": "If True, the Length factor is normalized (0.0 ~ 1.0)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at the specified length"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vector at the specified length"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter at the specified length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Frame",
+    "nickname": "Frame",
+    "guid": "6b2a5853-07aa-4329-ba84-0a5d46b51dbd",
+    "description": "Get the curvature frame of a curve at a specified parameter.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter on curve domain to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Curve frame at {t}"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curve Proximity",
+    "nickname": "CrvProx",
+    "guid": "6b7ba278-5c9d-42f1-a61d-6209cbd44907",
+    "description": "Find the pair of closest points between two curves.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Point on curve A closest to curve B"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on curve B closest to curve A"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Smallest distance between two curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Analysis",
+    "name": "Curvature Graph",
+    "nickname": "CrvGraph",
+    "guid": "7376fe41-74ec-497e-b367-1ffe5072608b",
+    "description": "Draws Rhino Curvature Graphs.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve for Curvature graph display"
+      },
+      {
+        "name": "Density",
+        "nickname": "D",
+        "access": "item",
+        "description": "Sampling density of the Graph"
+      },
+      {
+        "name": "Scale",
+        "nickname": "S",
+        "access": "item",
+        "description": "Scale of graph"
+      }
+    ],
+    "outputs": 
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curve Nearest Object",
+  "nickname": "CrvNear",
+  "guid": "748f214a-bc64-4556-9da5-4fa59a30c5c7",
+  "description": "Find the object nearest to a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to search from"
+    },
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "list",
+      "description": "Shapes to search"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "Point on curve closest to nearest shape"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Point on nearest shape closest to curve"
+    },
+    {
+      "name": "Index",
+      "nickname": "I",
+      "access": "item",
+      "description": "Index of nearest shape"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Polygon Center",
+  "nickname": "PCen",
+  "guid": "7bd7b551-ca79-4f01-b95a-7e9ab876f24d",
+  "description": "Find the center point (average) for a polyline.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Polyline",
+      "nickname": "P",
+      "access": "item",
+      "description": "Polyline to average."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Center",
+      "nickname": "C",
+      "access": "item",
+      "description": "Average of polyline."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Point On Curve",
+  "nickname": "CurvePoint",
+  "guid": "7f6a9d34-0470-4bb7-aadd-07496bcbe572",
+  "description": "Evaluates a curve at a specific location",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": false,
+  "inputs": [
+    ,
+    "outputs": 
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Polygon Center",
+  "nickname": "PCen",
+  "guid": "87e7f480-14dc-4478-b1e6-2b8b035d9edc",
+  "description": "Find the center point (average) for a polyline.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Polyline",
+      "nickname": "P",
+      "access": "item",
+      "description": "Polyline to average."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Center(V)",
+      "nickname": "Cv",
+      "access": "item",
+      "description": "Average of polyline vertices."
+    },
+    {
+      "name": "Center(E)",
+      "nickname": "Ce",
+      "access": "item",
+      "description": "Average of polyline edges"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Length Parameter",
+  "nickname": "LenP",
+  "guid": "a1c16251-74f0-400f-9e7c-5e379d739963",
+  "description": "Measure the length of a curve to and from a parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to measure"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "P",
+      "access": "item",
+      "description": "Parameter along curve"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Length",
+      "nickname": "L-",
+      "access": "item",
+      "description": "Curve length from start to parameter"
+    },
+    {
+      "name": "Length",
+      "nickname": "L+",
+      "access": "item",
+      "description": "Curve length from parameter to end"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curve Depth",
+  "nickname": "Depth",
+  "guid": "a583f722-240a-4fc9-aa1d-021720a4516a",
+  "description": "Measure the depth of a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Base curve"
+    },
+    {
+      "name": "Minimum",
+      "nickname": "Min",
+      "access": "item",
+      "description": "Minimum depth"
+    },
+    {
+      "name": "Maximum",
+      "nickname": "Max",
+      "access": "item",
+      "description": "Maximum depth"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Minimum Parameter",
+      "nickname": "tMin",
+      "access": "item",
+      "description": "Parameter along curve where minimum depth occurred."
+    },
+    {
+      "name": "Minimum Depth",
+      "nickname": "dMin",
+      "access": "item",
+      "description": "Minimum depth of curve."
+    },
+    {
+      "name": "Maximum Parameter",
+      "nickname": "tMax",
+      "access": "item",
+      "description": "Parameter along curve where maximum depth occurred."
+    },
+    {
+      "name": "Maximum Depth",
+      "nickname": "dMax",
+      "access": "item",
+      "description": "Maximum depth of curve."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Point In Curve",
+  "nickname": "InCurve",
+  "guid": "a72b0bd3-c7a7-458e-875d-09ae1624638c",
+  "description": "Test a point for closed curve containment.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point for region inclusion test"
+    },
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Boundary region (closed curves only)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Relationship",
+      "nickname": "R",
+      "access": "item",
+      "description": "Point/Region relationship (0 = outside, 1 = coincident, 2 = inside)"
+    },
+    {
+      "name": "Point",
+      "nickname": "P'",
+      "access": "item",
+      "description": "Point projected on region plane."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curvature",
+  "nickname": "Curvature",
+  "guid": "aaa665bd-fd6e-4ccb-8d2c-c5b33072125d",
+  "description": "Evaluate the curvature of a curve at a specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on curve at {t}"
+    },
+    {
+      "name": "Curvature",
+      "nickname": "K",
+      "access": "item",
+      "description": "Curvature vector at {t}"
+    },
+    {
+      "name": "Curvature",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curvature circle at {t}"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Derivatives",
+  "nickname": "CDiv",
+  "guid": "ab14760f-87a6-462e-b481-4a2c26a9a0d7",
+  "description": "Evaluate the derivatives of a curve at a specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on curve at {t}"
+    },
+    {
+      "name": "First derivative",
+      "nickname": "1",
+      "access": "item",
+      "description": "First curve derivative at t (Velocity)"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Center",
+  "nickname": "Cen",
+  "guid": "afff17ed-5975-460b-9883-525ae0677088",
+  "description": "Find the center point and radius of arcs and circles.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Arc",
+      "nickname": "A",
+      "access": "item",
+      "description": "Arc or Circle"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Center",
+      "nickname": "C",
+      "access": "item",
+      "description": "Center of arc or circle"
+    },
+    {
+      "name": "Radius",
+      "nickname": "R",
+      "access": "item",
+      "description": "Radius of arc or circle"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curve Side",
+  "nickname": "Side",
+  "guid": "bb2e13da-09ca-43fd-bef8-8d71f3653af9",
+  "description": "Find on which side of a curve a point exists",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Base curve"
+    },
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to measure."
+    },
+    {
+      "name": "Plane",
+      "nickname": "Pl",
+      "access": "item",
+      "description": "Optional plane to measure in. If omitted, the curve plane will be used."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Side",
+      "nickname": "S",
+      "access": "item",
+      "description": "Side of curve on which point was found (-1=Left, 0=Coincident, +1=Right)."
+    },
+    {
+      "name": "Left",
+      "nickname": "L",
+      "access": "item",
+      "description": "Boolean indicating whether a point is to the left of the curve."
+    },
+    {
+      "name": "Right",
+      "nickname": "R",
+      "access": "item",
+      "description": "Boolean indicating whether a point is to the right of the curve."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Horizontal Frame",
+  "nickname": "HFrame",
+  "guid": "c048ad76-ffcd-43b1-a007-4dd1b2373326",
+  "description": "Get a horizontally aligned frame along a curve at a specified parameter.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Frame",
+      "nickname": "F",
+      "access": "item",
+      "description": "Horizontal curve frame at {t}"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Containment",
+  "nickname": "Con",
+  "guid": "c076845a-1a09-4a95-bdcb-cb31c0936c99",
+  "description": "Test a point for curve region containment.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point for region inclusion test"
+    },
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Boundary region (closed curves only)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Relationship",
+      "nickname": "R",
+      "access": "item",
+      "description": "Point/Region relationship (0 = coincident, 1 = inside, 2 = outside)"
+    },
+    {
+      "name": "Point",
+      "nickname": "P'",
+      "access": "item",
+      "description": "Point projected on region plane."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Derivatives",
+  "nickname": "CDiv",
+  "guid": "c2e16ca3-9508-4fa4-aeb3-0b1f0ebb72e3",
+  "description": "Evaluate the derivatives of a curve at a specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    },
+    {
+      "name": "Count",
+      "nickname": "N",
+      "access": "item",
+      "description": "Number of derivatives to solve"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on curve at {t}"
+    },
+    {
+      "name": "Derivatives",
+      "nickname": "d",
+      "access": "list",
+      "description": "Curve derivative vectors at {t}"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Length",
+  "nickname": "Len",
+  "guid": "c75b62fa-0a33-4da7-a5bd-03fd0068fd93",
+  "description": "Measure the length of a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to measure"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Length",
+      "nickname": "L",
+      "access": "item",
+      "description": "Curve length"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curve Middle",
+  "nickname": "MidPt",
+  "guid": "ccc7b468-e743-4049-891f-299432545898",
+  "description": "Get the point in the middle of a curve",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve for mid-point."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Midpoint",
+      "nickname": "M",
+      "access": "item",
+      "description": "Point in the middle of the curve"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Curve Domain",
+  "nickname": "CrvDom",
+  "guid": "ccfd6ba8-ecb1-44df-a47e-08126a653c51",
+  "description": "Measure and set the curve domain",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to measure/modify"
+    },
+    {
+      "name": "Domain",
+      "nickname": "D",
+      "access": "item",
+      "description": "Optional domain, if omitted the curve will not be modified."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve with new domain."
+    },
+    {
+      "name": "Domain",
+      "nickname": "D",
+      "access": "item",
+      "description": "Domain of original curve."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Control Points",
+  "nickname": "CP",
+  "guid": "d7df7658-e02d-4a48-a345-2195a68db4ef",
+  "description": "Extract the nurbs control points of a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Base curve"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Control points of the Nurbs-form."
+    },
+    {
+      "name": "Weights",
+      "nickname": "W",
+      "access": "list",
+      "description": "Weights of control points."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Torsion",
+  "nickname": "Torsion",
+  "guid": "dbe9fce4-b6b3-465f-9615-34833c4763bd",
+  "description": "Evaluate the torsion of a curve at a specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on curve at {t}"
+    },
+    {
+      "name": "Torsion",
+      "nickname": "T",
+      "access": "item",
+      "description": "Curvature torsion at {t}"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Deconstuct Rectangle",
+  "nickname": "DRec",
+  "guid": "e5c33a79-53d5-4f2b-9a97-d3d45c780edc",
+  "description": "Retrieve the base plane and side intervals of a rectangle.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Rectangle",
+      "nickname": "R",
+      "access": "item",
+      "description": "Rectangle to deconstruct"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Base Plane",
+      "nickname": "B",
+      "access": "item",
+      "description": "Base plane of rectangle"
+    },
+    {
+      "name": "X Interval",
+      "nickname": "X",
+      "access": "item",
+      "description": "Size interval along base plane X axis"
+    },
+    {
+      "name": "Y Interval",
+      "nickname": "Y",
+      "access": "item",
+      "description": "Size interval along base plane Y axis"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Extremes",
+  "nickname": "X-tremez",
+  "guid": "ebd6c758-19ae-4d74-aed7-b8a0392ff743",
+  "description": "Find the extremes (highest and lowest points) on a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Base curve"
+    },
+    {
+      "name": "Plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Plane for extreme direction."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Highest",
+      "nickname": "H",
+      "access": "item",
+      "description": "Highest point on curve."
+    },
+    {
+      "name": "Lowest",
+      "nickname": "L",
+      "access": "item",
+      "description": "Lowest point on curve."
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Closed [OBSOLETE]",
+  "nickname": "Cls",
+  "guid": "f2030fa9-db3f-437e-9b50-5607db6daf87",
+  "description": "This component is OBSOLETE. It has been replaced with a new version.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to test"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Closed",
+      "nickname": "C",
+      "access": "item",
+      "description": "The curve close flag"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Segment Lengths",
+  "nickname": "LenSeg",
+  "guid": "f88a6cd9-1035-4361-b896-4f2dfe79272d",
+  "description": "Finds the shortest and longest segments of a curve.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to measure"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Shortest Length",
+      "nickname": "Sl",
+      "access": "item",
+      "description": "Length of shortest segment"
+    },
+    {
+      "name": "Shortest Domain",
+      "nickname": "Sd",
+      "access": "item",
+      "description": "Curve domain of shortest segment"
+    },
+    {
+      "name": "Longest Length",
+      "nickname": "Ll",
+      "access": "item",
+      "description": "Length of longest segment"
+    },
+    {
+      "name": "Longest Domain",
+      "nickname": "Ld",
+      "access": "item",
+      "description": "Curve domain of longest segment"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Evaluate Curve",
+  "nickname": "Eval",
+  "guid": "fc6979e4-7e91-4508-8e05-37c680779751",
+  "description": "Evaluate a curve at the specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on the curve at {t}"
+    },
+    {
+      "name": "Tangent",
+      "nickname": "T",
+      "access": "item",
+      "description": "Tangent vector at {t}"
+    },
+    {
+      "name": "Angle",
+      "nickname": "A",
+      "access": "item",
+      "description": "Angle (in Radians) of incoming vs. outgoing curve at {t}"
+    }
+  ]
+},
+{
+  "category": "Curve",
+  "subcategory": "Analysis",
+  "name": "Evaluate Curve",
+  "nickname": "Eval",
+  "guid": "fdf09135-fae5-4e5f-b427-b1f384ca3009",
+  "description": "Evaluate a curve at the specified parameter.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to evaluate"
+    },
+    {
+      "name": "Parameter",
+      "nickname": "t",
+      "access": "item",
+      "description": "Parameter on curve domain to evaluate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on the curve at {t}"
+    },
+    {
+      "name": "Tangent",
+      "nickname": "T",
+      "access": "item",
+      "description": "Tangent vector at {t}"
+    },
+    {
+      "name": "Length",
+      "nickname": "L",
+      "access": "item",
+      "description": "Length along the curve from the start to {t}"
+    }
+  ]
+}
+]

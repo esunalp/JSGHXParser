@@ -1,0 +1,674 @@
+[
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Hexagonal",
+    "nickname": "HexGrid",
+    "guid": "125dc122-8544-4617-945e-bb9a0c101c50",
+    "description": "2D grid with hexagonal cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of hexagon radius"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x directions"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid centers"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Rectangular",
+    "nickname": "RecGrid",
+    "guid": "1a25aae0-0b56-497a-85b2-cc5bf7e4b96b",
+    "description": "2D grid with rectangular cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size X",
+        "nickname": "Sx",
+        "access": "item",
+        "description": "Size of grid cells in base plane x-direction"
+      },
+      {
+        "name": "Size Y",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Size of grid cells in base plane y-direction"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "item",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Square",
+    "nickname": "SqGrid",
+    "guid": "40efea60-1902-4c28-8020-27abbb7a1449",
+    "description": "2D grid with square cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of grid cells"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Radial",
+    "nickname": "RadGrid",
+    "guid": "66eedc35-187d-4dab-b49b-408491b1255f",
+    "description": "2D radial grid",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between concentric grid loops"
+      },
+      {
+        "name": "Extent R",
+        "nickname": "Er",
+        "access": "item",
+        "description": "Number of grid cells in radial direction"
+      },
+      {
+        "name": "Extent P",
+        "nickname": "Ep",
+        "access": "item",
+        "description": "Number of grid cells in polar direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid nodes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Square",
+    "nickname": "SqGrid",
+    "guid": "717a1e25-a075-4530-bc80-d43ecc2500d9",
+    "description": "2D grid with square cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of grid cells"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "item",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Radial",
+    "nickname": "RadGrid",
+    "guid": "773183d0-8c00-4fe4-a38c-f8d2408b7415",
+    "description": "2D radial grid",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Distance between concentric grid loops"
+      },
+      {
+        "name": "Extent R",
+        "nickname": "Er",
+        "access": "item",
+        "description": "Number of grid cells in radial direction"
+      },
+      {
+        "name": "Extent P",
+        "nickname": "Ep",
+        "access": "item",
+        "description": "Number of grid cells in polar direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid nodes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Triangular",
+    "nickname": "TriGrid",
+    "guid": "86a9944b-dea5-4126-9433-9e95ff07927a",
+    "description": "2D grid with triangular cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of triangle edges"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x directions"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid centers"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate Geometry",
+    "nickname": "PopGeo",
+    "guid": "c8cb6a5c-2ffd-4095-ba2a-5c35015e09e4",
+    "description": "Populate generic geometry with points",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to populate (curves, surfaces, breps and meshes only)"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate 3D",
+    "nickname": "Pop3D",
+    "guid": "e202025b-dc8e-4c51-ae19-4415b172886f",
+    "description": "Populate a 3-Dimensional region with points",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Box that defines the 3D region for point insertion"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Populate 2D",
+    "nickname": "Pop2D",
+    "guid": "e2d958e8-9f08-44f7-bf47-a684882d0b2a",
+    "description": "Populate a 2-Dimensional region with points",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle that defines the 2D region for point insertion"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of points to add"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for insertion"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Optional pre-existing population"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Population",
+        "nickname": "P",
+        "access": "list",
+        "description": "Population of inserted points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Freeform Cloud",
+    "nickname": "FFCloud",
+    "guid": "f08233f1-9772-4514-8965-bde4948503df",
+    "description": "Distribution of points on any object",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometric guide (Curves, Breps or Meshes only)"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of particles to distribute"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Particle cloud"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Spherical Cloud",
+    "nickname": "SphCloud",
+    "guid": "fd68754e-6c60-44b2-9927-0a58146e0250",
+    "description": "Distribution of points on a sphere",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of sphere"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of sphere"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of particles to distribute"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cloud",
+        "nickname": "C",
+        "access": "list",
+        "description": "Particle cloud"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Particle normals"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Grid",
+    "name": "Rectangular",
+    "nickname": "RecGrid",
+    "guid": "fdedcd0a-ad40-4307-959d-d2891e2f533e",
+    "description": "2D grid with rectangular cells",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for grid"
+      },
+      {
+        "name": "Size X",
+        "nickname": "Sx",
+        "access": "item",
+        "description": "Size of grid cells in base plane x-direction"
+      },
+      {
+        "name": "Size Y",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Size of grid cells in base plane y-direction"
+      },
+      {
+        "name": "Extent X",
+        "nickname": "Ex",
+        "access": "item",
+        "description": "Number of grid cells in base plane x direction"
+      },
+      {
+        "name": "Extent Y",
+        "nickname": "Ey",
+        "access": "item",
+        "description": "Number of grid cells in base plane y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Grid cell outlines"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points at grid corners"
+      }
+    ]
+  }
+]

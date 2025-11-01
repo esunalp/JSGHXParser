@@ -1,0 +1,314 @@
+[
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Box Array",
+    "nickname": "ArrBox",
+    "guid": "9f6f954c-ba7b-4428-bf1e-1768cdff666c",
+    "description": "Create a box array of geometry.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Cell",
+        "nickname": "C",
+        "access": "item",
+        "description": "3D Box array cell"
+      },
+      {
+        "name": "X Count",
+        "nickname": "X",
+        "access": "item",
+        "description": "Number of elements in the array x-direction."
+      },
+      {
+        "name": "Y Count",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Number of elements in the array y-direction."
+      },
+      {
+        "name": "Z Count",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Number of elements in the array z-direction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Arrayed geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Kaleidoscope",
+    "nickname": "KScope",
+    "guid": "b90eaa92-6e38-4054-a915-afcf486224b3",
+    "description": "Apply a kaleidoscope transformation to an object.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Kaleidoscope plane"
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Kaleidoscope segments."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Mirrored geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Curve Array",
+    "nickname": "ArrCurve",
+    "guid": "c6f23658-617f-4ac8-916d-d0d9e7241b25",
+    "description": "Create an array of geometry along a curve.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Array rail curve"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of elements in the array."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Arrayed geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Rectangular Array",
+    "nickname": "ArrRec",
+    "guid": "e521f7c8-92f4-481c-888b-eea109e3d6e9",
+    "description": "Create a rectangular array of geometry.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Cell",
+        "nickname": "C",
+        "access": "item",
+        "description": "Rectangular array cell"
+      },
+      {
+        "name": "X Count",
+        "nickname": "X",
+        "access": "item",
+        "description": "Number of elements in the array x-direction."
+      },
+      {
+        "name": "Y Count",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Number of elements in the array y-direction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Arrayed geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Linear Array",
+    "nickname": "ArrLinear",
+    "guid": "e87db220-a0a0-4d67-a405-f97fd14b2d7a",
+    "description": "Create a linear array of geometry.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Linear array direction and interval"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of elements in array."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Arrayed geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Array",
+    "name": "Polar Array",
+    "nickname": "ArrPolar",
+    "guid": "fca5ad7e-ecac-401d-a357-edda0a251cbc",
+    "description": "Create a polar array of geometry.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polar array plane"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of elements in array."
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Sweep angle in radians (counter-clockwise, starting from plane x-axis)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Arrayed geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  }
+]

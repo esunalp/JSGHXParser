@@ -1,0 +1,614 @@
+[
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Edge Tags",
+    "nickname": "SubDTags",
+    "guid": "048b219e-284a-49f2-ae40-a60465b08447",
+    "description": "Set the edge tags of a SubD shape.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD to modify."
+      },
+      {
+        "name": "Edge Tag",
+        "nickname": "T",
+        "access": "item",
+        "description": "Edge tag descriptor."
+      },
+      {
+        "name": "Edge IDs",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edge identifiers."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "Modified SuD shape."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Box",
+    "nickname": "SubDBox",
+    "guid": "10487e4e-a405-48b5-b188-5a8a6328418b",
+    "description": "Create a subdivision box",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Box"
+      },
+      {
+        "name": "Density",
+        "nickname": "D",
+        "access": "item",
+        "description": "Subdivision density"
+      },
+      {
+        "name": "Creases",
+        "nickname": "C",
+        "access": "item",
+        "description": "Sharp box creases"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Edges",
+    "nickname": "SubDEdges",
+    "guid": "2183c4c6-b5b3-45d2-9261-2096c9357f92",
+    "description": "Extract all edge data from a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "list",
+        "description": "Edge line"
+      },
+      {
+        "name": "Edge",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edge curve"
+      },
+      {
+        "name": "Tag",
+        "nickname": "T",
+        "access": "list",
+        "description": "Edge tag"
+      },
+      {
+        "name": "Id",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge identifier"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Fuse",
+    "nickname": "Fuse",
+    "guid": "264b4aa6-4915-4a67-86a7-22a5c4acf565",
+    "description": "Combine 2 SubD objects",
+    "library": {
+      "name": "Kangaroo2 Components",
+      "id": "c2ea695e-1a09-6f42-266d-113498879f60",
+      "version": "2.5.3"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First SubD or Mesh object to be fused"
+      },
+      {
+        "name": "SubD B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second SubD or Mesh object to be fused"
+      },
+      {
+        "name": "Boolean Option",
+        "nickname": "O",
+        "access": "item",
+        "description": "Boolean type: 0=Union, 1=Intersection, 2=A-B, 3=B-A"
+      },
+      {
+        "name": "Smoothing",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of smoothing steps to perform on the join"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Fuse",
+        "nickname": "F",
+        "access": "item",
+        "description": "Fused result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "MultiPipe",
+    "nickname": "MP",
+    "guid": "4bfe1bf6-fbc9-4ad2-bf28-a7402e1392ee",
+    "description": "Create a branching pipe around a network of lines/curves",
+    "library": {
+      "name": "Kangaroo2 Components",
+      "id": "c2ea695e-1a09-6f42-266d-113498879f60",
+      "version": "2.5.3"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "Curves",
+        "access": "list",
+        "description": "The curves to pipe. Also accepts meshes"
+      },
+      {
+        "name": "NodeSize",
+        "nickname": "NodeSize",
+        "access": "list",
+        "description": "Pipe radius. If one value given, it is applied to all. Alternatively, provide a list of radii corresponding to each point in SizePoints"
+      },
+      {
+        "name": "SizePoints",
+        "nickname": "SizePoints",
+        "access": "list",
+        "description": "If you are supplying multiple radii for NodeSize, these points identify which node to set as which radius. If only some of the nodes have their radius set this way, the values will be interpolated across the shape"
+      },
+      {
+        "name": "EndOffset",
+        "nickname": "EndOffset",
+        "access": "item",
+        "description": "The distance of the first edge loop away from the node as a multiplier of NodeSize. If this is set to zero, no intermediate edge loop is added, to give a smoother shape."
+      },
+      {
+        "name": "StrutSize",
+        "nickname": "StrutSize",
+        "access": "item",
+        "description": "The size of the struts between nodes as a multiplier of NodeSize. <1 gives tapering struts, >1 gives bulging struts"
+      },
+      {
+        "name": "Segment",
+        "nickname": "Segment",
+        "access": "item",
+        "description": "Approximate spacing of edge loops along each strut. If set to zero, no additional edge loops are added"
+      },
+      {
+        "name": "KinkAngle",
+        "nickname": "KinkAngle",
+        "access": "item",
+        "description": "When the input to 'Curves' are smooth curves, this sets the maximum angle between consecutive segments when discretizing"
+      },
+      {
+        "name": "CubeFit",
+        "nickname": "CubeFit",
+        "access": "item",
+        "description": "If >0 this attempts to fit a cube at each node. Should be a value between 0 and 1, where 0 = never, and 1 = always, depending on how close to orthogonal its connected lines are."
+      },
+      {
+        "name": "Caps",
+        "nickname": "Caps",
+        "access": "item",
+        "description": "Cap option - 0:None, 1:Round, 2:Flat"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pipe",
+        "nickname": "P",
+        "access": "item",
+        "description": "Resulting Pipe SubD"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Faces",
+    "nickname": "SubDFaces",
+    "guid": "83c81431-17bc-4bff-bb85-be0a846bd044",
+    "description": "Extract all face data from a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "list",
+        "description": "Face centre point"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "list",
+        "description": "Number of edges (and vertices) which surround this face."
+      },
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edge identifiers"
+      },
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertex identifiers"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD from Mesh",
+    "nickname": "SubDMesh",
+    "guid": "855a2c73-31c0-41d2-b061-57d54229d11b",
+    "description": "Create a SubD from a control mesh",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Control Mesh"
+      },
+      {
+        "name": "Creases",
+        "nickname": "Cr",
+        "access": "item",
+        "description": "Subdivision crease option"
+      },
+      {
+        "name": "Corners",
+        "nickname": "Co",
+        "access": "item",
+        "description": "Subdivision corner option"
+      },
+      {
+        "name": "Interpolate",
+        "nickname": "I",
+        "access": "item",
+        "description": "Interpolate mesh vertices"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Vertex Tags",
+    "nickname": "SubDVTags",
+    "guid": "954a8963-bb2c-4847-9012-69ff34acddd5",
+    "description": "Set the vertex tags of a SubD shape.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD to modify."
+      },
+      {
+        "name": "Vertex Tag",
+        "nickname": "T",
+        "access": "item",
+        "description": "Vertex tag descriptor. (S=smooth, C=crease, L=corner, D=dart)"
+      },
+      {
+        "name": "Vertex IDs",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertex identifiers."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "Modified SuD shape."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "Mesh from SubD",
+    "nickname": "MeshSubD",
+    "guid": "c0b3c6e9-d05d-4c51-a0df-1ce2678c7a33",
+    "description": "Get the approximation mesh of a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      },
+      {
+        "name": "Density",
+        "nickname": "D",
+        "access": "item",
+        "description": "Subdivision density"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh approximation"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Control Polygon",
+    "nickname": "SubDPoly",
+    "guid": "c1a57c2a-11c5-4f77-851e-0a7dffef848e",
+    "description": "Extract the control polygon from a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Control mesh"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Vertices",
+    "nickname": "SubDVerts",
+    "guid": "cd9efa8f-0084-4d52-ab13-ad88ff22dc46",
+    "description": "Extract all vertex data from a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "list",
+        "description": "Vertex location on control net."
+      },
+      {
+        "name": "Id",
+        "nickname": "I",
+        "access": "list",
+        "description": "Vertex identifier"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "MultiPipe",
+    "nickname": "MP",
+    "guid": "f1b75016-5818-4ece-be56-065253a2357d",
+    "description": "Create a branching pipe around a network of lines/curves",
+    "library": {
+      "name": "Kangaroo2 Components",
+      "id": "c2ea695e-1a09-6f42-266d-113498879f60",
+      "version": "2.5.3"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "The curves to pipe. Also accepts meshes"
+      },
+      {
+        "name": "NodeSize",
+        "nickname": "N",
+        "access": "list",
+        "description": "Pipe radius. If one value given, it is applied to all. Alternatively, provide a list of radii corresponding to each point in SizePoints"
+      },
+      {
+        "name": "SizePoints",
+        "nickname": "SP",
+        "access": "list",
+        "description": "If you are supplying multiple radii for NodeSize, these points identify which node to set as which radius. If only some of the nodes have their radius set this way, the values will be interpolated across the shape"
+      },
+      {
+        "name": "EndOffset",
+        "nickname": "E",
+        "access": "item",
+        "description": "The distance of the first edge loop away from the node as a multiplier of NodeSize. If this is set to zero, no intermediate edge loop is added, to give a smoother shape."
+      },
+      {
+        "name": "StrutSize",
+        "nickname": "SS",
+        "access": "item",
+        "description": "The size of the struts between nodes as a multiplier of NodeSize. <1 gives tapering struts, >1 gives bulging struts"
+      },
+      {
+        "name": "Segment",
+        "nickname": "S",
+        "access": "item",
+        "description": "Approximate spacing of edge loops along each strut. If set to zero, no additional edge loops are added"
+      },
+      {
+        "name": "KinkAngle",
+        "nickname": "KA",
+        "access": "item",
+        "description": "When the input to 'Curves' are smooth curves, this sets the maximum angle between consecutive segments when discretizing"
+      },
+      {
+        "name": "CubeFit",
+        "nickname": "CF",
+        "access": "item",
+        "description": "If >0 this attempts to fit a cube at each node. Should be a value between 0 and 1, where 0 = never, and 1 = always, depending on how close to orthogonal its connected lines are."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pipe",
+        "nickname": "P",
+        "access": "item",
+        "description": "Resulting Pipe SubD"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "SubD",
+    "name": "SubD Vertices",
+    "nickname": "SubDVerts",
+    "guid": "fc8ad805-2cbf-4447-b41b-50c0be591fcd",
+    "description": "Extract all vertex data from a SubD.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "SubD",
+        "nickname": "S",
+        "access": "item",
+        "description": "SubD"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "list",
+        "description": "Vertex location on control net."
+      },
+      {
+        "name": "Id",
+        "nickname": "I",
+        "access": "list",
+        "description": "Vertex identifier."
+      },
+      {
+        "name": "Tag",
+        "nickname": "T",
+        "access": "list",
+        "description": "Vertex tag type."
+      }
+    ]
+  }
+]

@@ -1,0 +1,1112 @@
+[
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Twisted Box",
+    "nickname": "TBox",
+    "guid": "124de0f5-65f8-4ae0-8f61-8fb066e2ba02",
+    "description": "Create a twisted box from corner points.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner (0,0,0)"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner (1,0,0)"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner (1,1,0)"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Fourth corner (0,1,0)"
+      },
+      {
+        "name": "Corner E",
+        "nickname": "E",
+        "access": "item",
+        "description": "Fifth corner (0,0,1)"
+      },
+      {
+        "name": "Corner F",
+        "nickname": "F",
+        "access": "item",
+        "description": "Sixth corner (1,0,1)"
+      },
+      {
+        "name": "Corner G",
+        "nickname": "G",
+        "access": "item",
+        "description": "Seventh corner (1,1,1)"
+      },
+      {
+        "name": "Corner H",
+        "nickname": "H",
+        "access": "item",
+        "description": "Last corner (0,1,1)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Twisted Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Twisted box connecting all corners"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Maelstrom",
+    "nickname": "Maelstrom",
+    "guid": "134a849b-0ff4-4f36-bdd5-95e3996bae8b",
+    "description": "Spirally deforms objects as if they were caught in a whirlpool",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Spiral base plane."
+      },
+      {
+        "name": "First",
+        "nickname": "R0",
+        "access": "item",
+        "description": "First radius"
+      },
+      {
+        "name": "Second",
+        "nickname": "R1",
+        "access": "item",
+        "description": "Second radius"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Coil angle in radians"
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Stretch",
+    "nickname": "Stretch",
+    "guid": "2a27f87c-61c5-47c2-a0b7-7863f31a3594",
+    "description": "Deforms objects by stretching them along a finite axis.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Stretch axis"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of new stretch axis."
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Spatial Deform (custom)",
+    "nickname": "Deform",
+    "guid": "331b74f1-1f1f-4f37-b253-24fcdada29e3",
+    "description": "Perform spatial deformation based on custom space syntax.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Syntax",
+        "nickname": "S",
+        "access": "list",
+        "description": "Points describing space syntax."
+      },
+      {
+        "name": "Forces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Forces (one for each point in space"
+      },
+      {
+        "name": "Falloff",
+        "nickname": "f",
+        "access": "item",
+        "description": "Falloff function (for variable 'x')"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Deformed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Mirror Surface",
+    "nickname": "Mirror",
+    "guid": "3431f5c6-7578-4d26-a2b6-dfc064a9c65e",
+    "description": "Mirror a point in a surface.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to mirror"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Mirror surface"
+      },
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Mirror frame (if true, mirror behaviour extends beyond surface edge)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirrored point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Mirror distance"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Point Deform",
+    "nickname": "PDeform",
+    "guid": "4dbd15c7-ebcb-4af6-b3bd-32e80502520c",
+    "description": "Deform a shape by moving control-points individually",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control-point locations to deform."
+      },
+      {
+        "name": "Motion",
+        "nickname": "M",
+        "access": "list",
+        "description": "Motion vector for each control-point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Deformed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Surface Box",
+    "nickname": "SBox",
+    "guid": "4f65c681-9331-4818-9d54-6290cae686c3",
+    "description": "Create a twisted box on a surface patch.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Surface domain"
+      },
+      {
+        "name": "Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Height of surface box"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Twisted Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting surface box"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Bend Deform",
+    "nickname": "Bend",
+    "guid": "539f5564-4fc0-4fc1-a7d3-b802fa2ef072",
+    "description": "Deform a shape by bending it",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Bending Arc",
+        "nickname": "B",
+        "access": "item",
+        "description": "Bending arc segment"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Deformed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Surface Morph",
+    "nickname": "SrfMorph",
+    "guid": "5889b68f-fd88-4032-860f-869fb69654dd",
+    "description": "Morph geometry into surface UVW coordinates",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Reference",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reference box to map from"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to map onto"
+      },
+      {
+        "name": "U Domain",
+        "nickname": "U",
+        "access": "item",
+        "description": "Surface space U extents"
+      },
+      {
+        "name": "V Domain",
+        "nickname": "V",
+        "access": "item",
+        "description": "Surface space V extents"
+      },
+      {
+        "name": "W Domain",
+        "nickname": "W",
+        "access": "item",
+        "description": "Surface space W extents"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Deformed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Blend Box",
+    "nickname": "BlendBox",
+    "guid": "6283fb37-e273-4eb2-8d2a-e347881e3928",
+    "description": "Create a twisted box between two surfaces.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface A",
+        "nickname": "Sa",
+        "access": "item",
+        "description": "First surface"
+      },
+      {
+        "name": "Domain A",
+        "nickname": "Da",
+        "access": "item",
+        "description": "Domain on first surface"
+      },
+      {
+        "name": "Surface B",
+        "nickname": "Sb",
+        "access": "item",
+        "description": "Second surface"
+      },
+      {
+        "name": "Domain B",
+        "nickname": "Db",
+        "access": "item",
+        "description": "Domain on second surface"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Twisted Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting blend box"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Spatial Deform",
+    "nickname": "Deform",
+    "guid": "66e6596f-6c8f-4ac3-99e0-0c4b7a59a7f7",
+    "description": "Perform spatial deformation based on custom space syntax.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Syntax",
+        "nickname": "S",
+        "access": "list",
+        "description": "Points describing space syntax."
+      },
+      {
+        "name": "Forces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Forces (one for each point in space"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Deformed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Mirror Surface",
+    "nickname": "Mirror",
+    "guid": "6ce1aa3c-626b-4db7-8b5b-bf74c78f8c5e",
+    "description": "Mirror geometry in a freeform surface.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to mirror"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Mirror surface"
+      },
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Mirror frame (if true, mirror behaviour extends beyond surface edge)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Camera Obscura",
+    "nickname": "CO",
+    "guid": "7ee33ede-4ce1-482c-ab1a-eb7f9151fbc5",
+    "description": "Camera Obscura (point mirror) transformation.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirror point"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Scaling factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Twist",
+    "nickname": "Twist",
+    "guid": "9509cb30-d24f-4f55-a5ac-bf0b12a06cfa",
+    "description": "Deforms objects by twisting them around an axis.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Twist axis"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Twist angle in radians"
+      },
+      {
+        "name": "Infinite",
+        "nickname": "I",
+        "access": "item",
+        "description": "If true, the deformation is constant throughout the object, even if the axis is shorter than the object."
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Mirror Curve",
+    "nickname": "Mirror",
+    "guid": "9c9f8219-ae88-4d29-ba1b-3433ed713639",
+    "description": "Mirror a shape in a freeform curve.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to mirror"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Mirror curve"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Mirror tangent (if true, mirror behaviour extends beyond curve ends)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Sporph",
+    "nickname": "Sporph",
+    "guid": "9cacad37-b09f-4b54-b2b1-1ccdc2e3ffea",
+    "description": "Deforms an object from a source surface to a target surface",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "S0",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P0",
+        "access": "item",
+        "description": "U,V parameter on base surface used for orienting."
+      },
+      {
+        "name": "Target",
+        "nickname": "S1",
+        "access": "item",
+        "description": "Target surface"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P1",
+        "access": "item",
+        "description": "U,V parameter on target surface used for orienting."
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Taper",
+    "nickname": "Taper",
+    "guid": "ad0ee51e-c86f-4668-8de5-b55b850f6001",
+    "description": "Deforms objects toward or away from an axis",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Taper axis"
+      },
+      {
+        "name": "Start",
+        "nickname": "R0",
+        "access": "item",
+        "description": "Radius at start of taper axis"
+      },
+      {
+        "name": "End",
+        "nickname": "R1",
+        "access": "item",
+        "description": "Radius at end of taper axis"
+      },
+      {
+        "name": "Flat",
+        "nickname": "F",
+        "access": "item",
+        "description": "If true, then a one-directional, one-dimensional taper is created."
+      },
+      {
+        "name": "Infinite",
+        "nickname": "I",
+        "access": "item",
+        "description": "If true, the deformation happens throughout the geometry, even if the axis is shorter. If false, the deformation takes place only the length of the axis."
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Flow",
+    "nickname": "Flow",
+    "guid": "c3249da4-3f8e-4400-833e-e4e984d28657",
+    "description": "Re-aligns objects from a base curve to a target curve.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "C0",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Target",
+        "nickname": "C1",
+        "access": "item",
+        "description": "Target curve"
+      },
+      {
+        "name": "Reverse Base",
+        "nickname": "R0",
+        "access": "item",
+        "description": "If true, then direction of the base curve is reversed."
+      },
+      {
+        "name": "Reverse Target",
+        "nickname": "R1",
+        "access": "item",
+        "description": "If true, then direction of the target curve is reversed."
+      },
+      {
+        "name": "Stretch",
+        "nickname": "S",
+        "access": "item",
+        "description": "If true, the length of objects along the curve directions is changed to reflect the curve dimensions."
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Box Morph",
+    "nickname": "Morph",
+    "guid": "d8940ff0-dd4a-4e74-9361-54df537b50db",
+    "description": "Morph an object into a twisted box.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Reference",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reference box"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target box"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Mirror Curve",
+    "nickname": "Mirror",
+    "guid": "f8452dc8-aea6-4654-a72f-c0fd62626d36",
+    "description": "Mirror a point in a curve.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Points to mirror"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Mirror curve"
+      },
+      {
+        "name": "Tangent",
+        "nickname": "T",
+        "access": "item",
+        "description": "Mirror tangent (if true, mirror behaviour extends beyond curve ends)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirrored point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Mirror distance"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Map to Surface",
+    "nickname": "Map Srf",
+    "guid": "fc5b7d12-7247-4de0-81bc-9b2c2f8f72f6",
+    "description": "Map a curve onto a surface via control points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to map"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface for initial coordinate space"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Surface for target coordinate space"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Mapped curve"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Morph",
+    "name": "Splop",
+    "nickname": "Splop",
+    "guid": "ff4e6ccd-47ba-4c8c-8287-2a1f2cb1fa5e",
+    "description": "Wraps geometry onto a surface.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to deform"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Source plane of deformation"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to wrap geometry onto"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "uv",
+        "access": "item",
+        "description": "U,V parameter on surface used for orienting"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Rigid",
+        "nickname": "R",
+        "access": "item",
+        "description": "Geometry will not be deformed as it is transformed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Morphed geometry"
+      }
+    ]
+  }
+]

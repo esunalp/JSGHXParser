@@ -1,0 +1,848 @@
+[
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Angle",
+    "nickname": "Angle",
+    "guid": "152a264e-fc74-40e5-88cc-d1a681cd09c3",
+    "description": "Compute the angle between two vectors.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle (in radians) between vectors"
+      },
+      {
+        "name": "Reflex",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reflex angle (in radians) between vectors"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Cross Product",
+    "nickname": "XProd",
+    "guid": "2a5cfb31-028a-4b34-b4e1-9b20ae15312e",
+    "description": "Compute vector cross product.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Cross product vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Divide",
+    "nickname": "VDiv",
+    "guid": "310e1065-d03a-4858-bcd1-809d39c042af",
+    "description": "Perform vector-scalar division.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Denominator"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Divided vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Dot Product",
+    "nickname": "DProd",
+    "guid": "43b9ea8f-f772-40f2-9880-011a9c3cbbb0",
+    "description": "Compute vector dot product.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize input"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Dot product",
+        "nickname": "D",
+        "access": "item",
+        "description": "Vector dot product"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector XYZ",
+    "nickname": "Vec",
+    "guid": "56b92eab-d121-43f7-94d3-6cd8f0ddead8",
+    "description": "Create a vector from {xyz} components.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "X component",
+        "nickname": "X",
+        "access": "item",
+        "description": "Vector {x} component"
+      },
+      {
+        "name": "Y component",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Vector {y} component"
+      },
+      {
+        "name": "Z component",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Vector {z} component"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector construct"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Solar Incidence",
+    "nickname": "Solar",
+    "guid": "59e1f848-38d4-4cbf-ad7f-40ffc52acdf5",
+    "description": "Gets the solar incidence vector for a certain time and place",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location on Earth"
+      },
+      {
+        "name": "Time",
+        "nickname": "T",
+        "access": "item",
+        "description": "Time and date for solar incidence computation"
+      },
+      {
+        "name": "Orientation",
+        "nickname": "P",
+        "access": "item",
+        "description": "Local plane (X=East, Y=North)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Solar incidence vector"
+      },
+      {
+        "name": "Elevation",
+        "nickname": "E",
+        "access": "item",
+        "description": "Angle between horizon and solar vector"
+      },
+      {
+        "name": "Horizon",
+        "nickname": "H",
+        "access": "item",
+        "description": "True if sun is above the horizon"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Colour suggestion"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Mass Addition",
+    "nickname": "MassAdd",
+    "guid": "63f79e72-36c0-4489-a0c2-9ded0b9ca41f",
+    "description": "Perform mass addition on a collection of vectors.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vectors",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vectors to add"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize vectors prior to addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Total vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of sum vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Multiply",
+    "nickname": "VMul",
+    "guid": "63fff845-7c61-4dfb-ba12-44d481b4bf0f",
+    "description": "Perform vector-scalar multiplication.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Multiplication factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Multiplied vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector Length",
+    "nickname": "VLen",
+    "guid": "675e31bf-1775-48d7-bb8d-76b77786dd53",
+    "description": "Compute the length (amplitude) of a vector.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Amplitude",
+    "nickname": "Amp",
+    "guid": "6ec39468-dae7-4ffa-a766-f2ab22a2c62e",
+    "description": "Set the amplitude (length) of a vector.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      },
+      {
+        "name": "Amplitude",
+        "nickname": "A",
+        "access": "item",
+        "description": "Amplitude (length) value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Resulting vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit X",
+    "nickname": "X",
+    "guid": "79f9fbb3-8f1d-4d9a-88a9-f7961b1012cd",
+    "description": "Unit vector parallel to the world {x} axis.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {x} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Z",
+    "nickname": "Z",
+    "guid": "9103c240-a6a9-4223-9b42-dbd19bf38e2b",
+    "description": "Unit vector parallel to the world {z} axis.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {z} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Vector 2Pt",
+    "nickname": "Vec2Pt",
+    "guid": "934ede4a-924a-4973-bb05-0dc4b36fae75",
+    "description": "Create a vector between two points.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Base point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Tip point"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Vector length"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Deconstruct Vector",
+    "nickname": "DeVec",
+    "guid": "a50fcd4a-cf42-4c3f-8616-022761e6cc93",
+    "description": "Deconstruct a vector into its component parts.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Input vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X component",
+        "nickname": "X",
+        "access": "item",
+        "description": "Vector {x} component"
+      },
+      {
+        "name": "Y component",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Vector {y} component"
+      },
+      {
+        "name": "Z component",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Vector {z} component"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Angle",
+    "nickname": "Angle",
+    "guid": "b464fccb-50e7-41bd-9789-8438db9bea9f",
+    "description": "Compute the angle between two vectors.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for 2D angle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle (in radians) between vectors"
+      },
+      {
+        "name": "Reflex",
+        "nickname": "R",
+        "access": "item",
+        "description": "Reflex angle (in radians) between vectors"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Rotate",
+    "nickname": "VRot",
+    "guid": "b6d7ba20-cf74-4191-a756-2216a36e30a7",
+    "description": "Rotate a vector around an axis.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Vector to rotate"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Rotation axis"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle (in radians)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Rotated vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Mass Addition",
+    "nickname": "MassAdd",
+    "guid": "b7f1178f-4222-47fd-9766-5d06e869362b",
+    "description": "Perform mass addition on a collection of vectors.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vectors",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vectors to add"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize vectors prior to addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Total vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Vector",
+    "nickname": "Unit",
+    "guid": "d2da1306-259a-4994-85a4-672d8a4c7805",
+    "description": "Unitize vector.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Unit vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Unit Y",
+    "nickname": "Y",
+    "guid": "d3d195ea-2d59-4ffa-90b1-8b7ff3369f69",
+    "description": "Unit vector parallel to the world {y} axis.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Unit multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Unit vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "World {y} vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Reverse",
+    "nickname": "Rev",
+    "guid": "d5788074-d75d-4021-b1a3-0bf992928584",
+    "description": "Reverse a vector (multiply by -1).",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Base vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Reversed vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Vector",
+    "name": "Addition",
+    "nickname": "VAdd",
+    "guid": "fb012ef9-4734-4049-84a0-b92b85bb09da",
+    "description": "Perform vector-vector addition.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First vector"
+      },
+      {
+        "name": "Vector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second vector"
+      },
+      {
+        "name": "Unitize",
+        "nickname": "U",
+        "access": "item",
+        "description": "Unitize output"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vector",
+        "nickname": "V",
+        "access": "item",
+        "description": "Sum vector"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Sum vector length"
+      }
+    ]
+  }
+]

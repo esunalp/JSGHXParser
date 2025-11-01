@@ -1,0 +1,1130 @@
+[
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate And",
+    "nickname": "And",
+    "guid": "040f195d-0b4e-4fe0-901f-fedb2fd3db15",
+    "description": "Perform boolean conjunction (AND gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First boolean for AND operation"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second boolean for AND operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Absolute",
+    "nickname": "Abs",
+    "guid": "28124995-cf99-4298-b6f4-c75a8e379f18",
+    "description": "Compute the absolute of a value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Subtraction",
+    "nickname": "A-B",
+    "guid": "2c56ab33-c7cc-4129-886c-d5856b714010",
+    "description": "Mathematical subtraction",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Item to subtract from (minuend)"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Item to subtract (subtrahend)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The result of the Subtraction"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Larger Than",
+    "nickname": "Larger",
+    "guid": "30d58600-1aab-42db-80a3-f1ea6c4269a0",
+    "description": "Larger than (or equal to)",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "First Number",
+        "nickname": "A",
+        "access": "item",
+        "description": "Number to test"
+      },
+      {
+        "name": "Second Number",
+        "nickname": "B",
+        "access": "item",
+        "description": "Number to test against"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Larger than",
+        "nickname": ">",
+        "access": "item",
+        "description": "True if A > B"
+      },
+      {
+        "name": "… or Equal to",
+        "nickname": ">=",
+        "access": "item",
+        "description": "True if A >= B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Similarity",
+    "nickname": "Similar",
+    "guid": "40177d8a-a35c-4622-bca7-d150031fe427",
+    "description": "Test for similarity of two numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "First Number",
+        "nickname": "A",
+        "access": "item",
+        "description": "Number to compare"
+      },
+      {
+        "name": "Second Number",
+        "nickname": "B",
+        "access": "item",
+        "description": "Number to compare to"
+      },
+      {
+        "name": "Threshold",
+        "nickname": "T%",
+        "access": "item",
+        "description": "Percentage (0% ~ 100%) of A and B below which similarity is assumed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Similarity",
+        "nickname": "=",
+        "access": "item",
+        "description": "True if A ≈ B"
+      },
+      {
+        "name": "Absolute difference",
+        "nickname": "dt",
+        "access": "item",
+        "description": "The absolute difference between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Modulus",
+    "nickname": "Mod",
+    "guid": "431bc610-8ae1-4090-b217-1a9d9c519fe2",
+    "description": "Divides two numbers and returns only the remainder.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First number for modulo (dividend)"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second number for modulo (divisor)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The remainder of A/B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Nor",
+    "nickname": "Nor",
+    "guid": "548177c2-d1db-4172-b667-bec979e2d38b",
+    "description": "Perform boolean joint denial (NOR gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Left hand boolean"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Right hand boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Integer Division",
+    "nickname": "A\\B",
+    "guid": "54db2568-3441-4ae2-bcef-92c4cc608e11",
+    "description": "Mathematical integer division",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Item to divide (dividend)"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Item to divide with (divisor)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of integer division"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Series Addition",
+    "nickname": "SA",
+    "guid": "586706a8-109b-43ec-b581-743e920c951a",
+    "description": "Perform serial addition until a goal has been reached",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Number pool from which to take summands"
+      },
+      {
+        "name": "Goal",
+        "nickname": "G",
+        "access": "item",
+        "description": "Goal value of addition series"
+      },
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Starting value of addition series"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Series",
+        "nickname": "S",
+        "access": "list",
+        "description": "Addition series"
+      },
+      {
+        "name": "Remainder",
+        "nickname": "R",
+        "access": "item",
+        "description": "Difference between series summation and goal"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Mass Addition",
+    "nickname": "MA",
+    "guid": "5b850221-b527-4bd6-8c62-e94168cd6efa",
+    "description": "Perform mass addition of a list of items",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input values for mass addition."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of mass addition"
+      },
+      {
+        "name": "Partial Results",
+        "nickname": "Pr",
+        "access": "list",
+        "description": "List of partial results"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Nand",
+    "nickname": "Nand",
+    "guid": "5ca5de6b-bc71-46c4-a8f7-7f30d7040acb",
+    "description": "Perform boolean alternative denial (NAND gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Left hand boolean"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Right hand boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Or",
+    "nickname": "Or",
+    "guid": "5cad70f9-5a53-4c5c-a782-54a479b4abe3",
+    "description": "Perform boolean disjunction (OR gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First boolean for OR operation"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second boolean for OR operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Equality",
+    "nickname": "Equals",
+    "guid": "5db0fb89-4f22-4f09-a777-fa5e55aed7ec",
+    "description": "Test for (in)equality of two numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "First Number",
+        "nickname": "A",
+        "access": "item",
+        "description": "Number to compare"
+      },
+      {
+        "name": "Second Number",
+        "nickname": "B",
+        "access": "item",
+        "description": "Number to compare to"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Equality",
+        "nickname": "=",
+        "access": "item",
+        "description": "True if A = B"
+      },
+      {
+        "name": "Inequality",
+        "nickname": "≠",
+        "access": "item",
+        "description": "True if A ≠ B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Majority",
+    "nickname": "Vote",
+    "guid": "78669f9c-4fea-44fd-ab12-2a69eeec58de",
+    "description": "Calculates the majority vote among three booleans.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First boolean"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second boolean"
+      },
+      {
+        "name": "C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Average value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Power",
+    "nickname": "Pow",
+    "guid": "78fed580-851b-46fe-af2f-6519a9d378e0",
+    "description": "Raise a value to a power.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "The item to be raised"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "The exponent"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "A raised to the B power"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Factorial",
+    "nickname": "Fac",
+    "guid": "80da90e3-3ea9-4cfe-b7cc-2b6019f850e3",
+    "description": "Returns the factorial of an integer.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Input integer"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Factorial",
+        "nickname": "F",
+        "access": "item",
+        "description": "Factorial of {N}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Mass Multiplication",
+    "nickname": "MM",
+    "guid": "921775f7-bf22-4cfc-a4db-c415a56069c4",
+    "description": "Perform mass multiplication of a list of numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input numbers for mass multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of mass multiplication"
+      },
+      {
+        "name": "Partial Results",
+        "nickname": "Pr",
+        "access": "list",
+        "description": "List of partial results"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Subtraction",
+    "nickname": "A-B",
+    "guid": "9c007a04-d0d9-48e4-9da3-9ba142bc4d46",
+    "description": "Mathematical subtraction",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First operand for subtraction"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second operand for subtraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of subtraction"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Division",
+    "nickname": "A/B",
+    "guid": "9c85271f-89fa-4e9f-9f4a-d75802120ccc",
+    "description": "Mathematical division",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Item to divide (dividend)"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Item to divide with (divisor)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The result of the Division"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Factorial",
+    "nickname": "Fac",
+    "guid": "a0a38131-c5fc-4984-b05d-34cf57f0c018",
+    "description": "Returns the factorial of an integer.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Input integer"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Factorial",
+        "nickname": "F",
+        "access": "item",
+        "description": "Factorial of {N}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Addition",
+    "nickname": "A+B",
+    "guid": "a0d62394-a118-422d-abb3-6af115c75b25",
+    "description": "Mathematical addition",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for addition"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of addition"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Negative",
+    "nickname": "Neg",
+    "guid": "a3371040-e552-4bc8-b0ff-10a840258e88",
+    "description": "Compute the negative of a value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Smaller Than",
+    "nickname": "Smaller",
+    "guid": "ae840986-cade-4e5a-96b0-570f007d4fc0",
+    "description": "Smaller than (or equal to)",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "First Number",
+        "nickname": "A",
+        "access": "item",
+        "description": "Number to test"
+      },
+      {
+        "name": "Second Number",
+        "nickname": "B",
+        "access": "item",
+        "description": "Number to test against"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Smaller than",
+        "nickname": "<",
+        "access": "item",
+        "description": "True if A < B"
+      },
+      {
+        "name": "… or Equal to",
+        "nickname": "<=",
+        "access": "item",
+        "description": "True if A <= B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Xnor",
+    "nickname": "Xnor",
+    "guid": "b6aedcac-bf43-42d4-899e-d763612f834d",
+    "description": "Perform boolean biconditional (XNOR gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Left hand boolean"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Right hand boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Multiplication",
+    "nickname": "A×B",
+    "guid": "b8963bb1-aa57-476e-a20e-ed6cf635a49c",
+    "description": "Mathematical multiplication",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for multiplication"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The result of the Multiplication"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Not",
+    "nickname": "Not",
+    "guid": "cb2c7d3c-41b4-4c6d-a6bd-9235bd2851bb",
+    "description": "Perform boolean negation (NOT gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Boolean value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Inverse of {A}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Multiplication",
+    "nickname": "A×B",
+    "guid": "ce46b74e-00c9-43c4-805a-193b69ea4a11",
+    "description": "Mathematical multiplication",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for multiplication"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for multiplication"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of multiplication"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Addition",
+    "nickname": "A+B",
+    "guid": "d18db32b-7099-4eea-85c4-8ba675ee8ec3",
+    "description": "Mathematical addition",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for addition"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for addition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The result of the Addition"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Relative Differences",
+    "nickname": "RelDif",
+    "guid": "dd17d442-3776-40b3-ad5b-5e188b56bd4c",
+    "description": "Compute relative differences for a list of data",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "List of data to operate on (numbers or points or vectors allowed)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Differenced",
+        "nickname": "D",
+        "access": "list",
+        "description": "Differences between consecutive items"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Gate Xor",
+    "nickname": "Xor",
+    "guid": "de4a0d86-2709-4564-935a-88bf4d40af89",
+    "description": "Perform boolean exclusive disjunction (XOR gate).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Left hand boolean"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Right hand boolean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Operators",
+    "name": "Mass Multiplication",
+    "nickname": "MM",
+    "guid": "e44c1bd7-72cc-4697-80c9-02787baf7bb4",
+    "description": "Perform mass multiplication of a list of items",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input values for mass multiplication."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of mass multiplication"
+      },
+      {
+        "name": "Partial Results",
+        "nickname": "Pr",
+        "access": "list",
+        "description": "List of partial results"
+      }
+    ]
+  }
+]

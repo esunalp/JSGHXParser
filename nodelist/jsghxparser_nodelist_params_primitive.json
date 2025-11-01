@@ -1,0 +1,380 @@
+[
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "File Path",
+    "nickname": "Path",
+    "guid": "06953bda-1d37-4d58-9b38-4b3c74e54c8f",
+    "description": "Contains a collection of file paths",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Domain",
+    "nickname": "Domain",
+    "guid": "15b7afe5-d0d0-43e1-b894-34fcfe3be384",
+    "description": "Contains a collection of numeric domains",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Colour",
+    "nickname": "Col",
+    "guid": "203a91c3-287a-43b6-a9c5-ebb96240a650",
+    "description": "Contains a collection of RGB colours",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Shader",
+    "nickname": "Shader",
+    "guid": "288cfe66-f3dc-4c9a-bb96-ef81f47fe724",
+    "description": "Contains a collection of display materials",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Symbol Display",
+    "nickname": "SymDis",
+    "guid": "2bcd153c-c964-4199-b8e4-4a19dfd34967",
+    "description": "Symbol display properties",
+    "library": {
+      "name": "Field Components",
+      "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+      "version": "1.0.0.0"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Integer",
+    "nickname": "Int",
+    "guid": "2e3ab970-8545-46bb-836c-1c11e5610bce",
+    "description": "Contains a collection of integer numbers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Number",
+    "nickname": "Num",
+    "guid": "3e8ca6be-fda8-4aaf-b5c0-3c54c8bb7312",
+    "description": "Contains a collection of floating point numbers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Text",
+    "nickname": "Txt",
+    "guid": "3ede854e-c753-40eb-84cb-b48008f14fd4",
+    "description": "Contains a collection of text fragments",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Marshalling signal parameter",
+    "nickname": "Data",
+    "guid": "4018985c-f9e8-4a8f-8d4d-518aec276f60",
+    "description": "Contains a collection of generic data",
+    "library": {
+      "name": "",
+      "id": "00000000-0000-0000-0000-000000000000",
+      "version": ""
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Complex",
+    "nickname": "C",
+    "guid": "476c0cf8-bc3c-4f1c-a61a-6e91e1f8b91e",
+    "description": "Contains a collection of complex numbers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Constant",
+    "nickname": "constant",
+    "guid": "4ad6703b-84cd-4957-a1b3-f1c6ec270d9c",
+    "description": "Define a document-wide constant for use in Expressions",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Data Path",
+    "nickname": "Path",
+    "guid": "56c9c942-791f-4eeb-a4f0-82b93f1c0909",
+    "description": "Contains a collection of data-tree paths",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Culture",
+    "nickname": "Culture",
+    "guid": "7fa15783-70da-485c-98c0-a099e6988c3e",
+    "description": "Contains a collection of culture specifiers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Time",
+    "nickname": "Time",
+    "guid": "81dfff08-0c83-4f1b-a358-14791d642d9e",
+    "description": "Contains a collection of times and dates",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Data",
+    "nickname": "Data",
+    "guid": "8ec86459-bf01-4409-baee-174d0d2b13d0",
+    "description": "Contains a collection of generic data",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Domain²",
+    "nickname": "Domain²",
+    "guid": "90744326-eb53-4a0e-b7ef-4b45f5473d6e",
+    "description": "Contains a collection of 2D number domains",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Matrix",
+    "nickname": "Matrix",
+    "guid": "bd4a8a18-a3cc-40ba-965b-3be91fee563b",
+    "description": "Contains a collection of numeric matrices",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Boolean",
+    "nickname": "Bool",
+    "guid": "cb95db89-6165-43b6-9c41-5702bc5bf137",
+    "description": "Contains a collection of boolean values",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Receiver",
+    "nickname": "Receiver",
+    "guid": "f19b8c33-dff2-4cc2-b95b-b4005ff3c10c",
+    "description": "A data receiver object.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Domain²",
+    "nickname": "Domain²",
+    "guid": "fa36c19d-b108-440c-b33d-a0a4642b45cc",
+    "description": "Contains a collection of 2D number domains. This parameter is obsolete, it has been replaced with a parameter that can store persistent data.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Params",
+    "subcategory": "Primitive",
+    "name": "Guid",
+    "nickname": "ID",
+    "guid": "faf6e3bb-4c84-4cbf-bd88-6d6a0db5667a",
+    "description": "Contains a collection of Globally Unique Identifiers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  }
+]

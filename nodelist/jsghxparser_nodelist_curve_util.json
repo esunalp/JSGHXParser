@@ -1,0 +1,1028 @@
+[
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Curve",
+    "nickname": "Offset",
+    "guid": "1a38d325-98de-455c-93f1-bca431bc1243",
+    "description": "Offset a curve with a specified distance.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane for offset operation"
+      },
+      {
+        "name": "Corners",
+        "nickname": "C",
+        "access": "item",
+        "description": "Corner type flag. Possible values:    none = 0  sharp = 1  round = 2  smooth = 3  chamfer = 4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Resulting offsets"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Flip Curve",
+    "nickname": "Flip",
+    "guid": "22990b1f-9be6-477c-ad89-f775cd347105",
+    "description": "Flip a curve using an optional guide curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to flip"
+      },
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "item",
+        "description": "Optional guide curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Flipped curve"
+      },
+      {
+        "name": "Flag",
+        "nickname": "F",
+        "access": "item",
+        "description": "Flip action"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Curve To Polyline",
+    "nickname": "ToPoly",
+    "guid": "2956d989-3599-476f-bc92-1d847aff98b6",
+    "description": "Convert a curve to a polyline.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to simplify"
+      },
+      {
+        "name": "Tolerance (distance)",
+        "nickname": "Td",
+        "access": "item",
+        "description": "Deviation tolerance"
+      },
+      {
+        "name": "Tolerance (angle)",
+        "nickname": "Ta",
+        "access": "item",
+        "description": "Angle tolerance in radians"
+      },
+      {
+        "name": "MinEdge",
+        "nickname": "E-",
+        "access": "item",
+        "description": "Optional minimum allowed segment length"
+      },
+      {
+        "name": "MaxEdge",
+        "nickname": "E+",
+        "access": "item",
+        "description": "Optional maximum allowed segment length"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Converted curve"
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of polyline segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet",
+    "nickname": "Fillet",
+    "guid": "2f407944-81c3-4062-a485-276454ec4b8c",
+    "description": "Fillet the sharp corners of a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of fillet"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve with filleted corners"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Seam",
+    "nickname": "Seam",
+    "guid": "42ad8dc1-b0c0-40df-91f5-2c46e589e6c2",
+    "description": "Adjust the seam of a closed curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to adjust"
+      },
+      {
+        "name": "Seam",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter of new seam"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Adjusted curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Smooth Polyline",
+    "nickname": "SmoothPLine",
+    "guid": "5c5fbc42-3e1d-4081-9cf1-148d0b1d9610",
+    "description": "Smooth the vertices of a polyline curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to smooth"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Smoothing strength (0 = none, 1 = maximum)"
+      },
+      {
+        "name": "Times",
+        "nickname": "T",
+        "access": "item",
+        "description": "Number of times to apply the smoothing operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Smoothed polyline"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Extend Curve",
+    "nickname": "Ext",
+    "guid": "62cc9684-6a39-422e-aefa-ed44643557b9",
+    "description": "Extend a curve by a specified distance.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to extend"
+      },
+      {
+        "name": "Type",
+        "nickname": "T",
+        "access": "item",
+        "description": "Type of extension (0=Line, 1=Arc, 2=Smooth)"
+      },
+      {
+        "name": "Start",
+        "nickname": "L0",
+        "access": "item",
+        "description": "Extension length at start of curve"
+      },
+      {
+        "name": "End",
+        "nickname": "L1",
+        "access": "item",
+        "description": "Extension length at end of curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Extended curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Pull Curve",
+    "nickname": "Pull",
+    "guid": "6b5812f5-bb36-4d74-97fc-5a1f2f77452d",
+    "description": "Pull a curve onto a surface.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to pull"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface that pulls"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve pulled onto the surface"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Perp Frames [OBSOLETE]",
+    "nickname": "Frm",
+    "guid": "6da4b70c-ce98-4d52-a2bb-2fadccf39da0",
+    "description": "OBSOLETE_COMPONENT replaced by a New Perpendicular frame routine",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "item",
+        "description": "Curvature frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet Distance",
+    "nickname": "Fillet",
+    "guid": "6fb21315-a032-400e-a80f-248687f5507f",
+    "description": "Fillet the sharp corners of a curve by distance.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance from corner of fillet start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve with filleted corners"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Join Curves",
+    "nickname": "Join",
+    "guid": "8073a420-6bec-49e3-9b18-367f6fd76ac3",
+    "description": "Join as many curves as possible",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Curves to join"
+      },
+      {
+        "name": "Preserve",
+        "nickname": "P",
+        "access": "item",
+        "description": "Preserve direction of input curves"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Joined curves and individual curves that could not be joined."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Curve Loose",
+    "nickname": "Offset (L)",
+    "guid": "80e55fc2-933b-4bfb-a353-12358786dba8",
+    "description": "Offset the control-points of a curve with a specified distance.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional Plane for offset operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting offset"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Reduce",
+    "nickname": "RedPLine",
+    "guid": "884646c3-0e70-4ad1-90c5-42601ee26450",
+    "description": "Reduce a polyline by removing least significant vertices.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to reduce"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tolerance (allowed deviation between original and reduction)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Reduced polyline"
+      },
+      {
+        "name": "Reduction",
+        "nickname": "R",
+        "access": "item",
+        "description": "Number of vertices removed during reduction"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Simplify Curve",
+    "nickname": "Simplify",
+    "guid": "922dc7e5-0f0e-4c21-ae4b-f6a8654e63f6",
+    "description": "Simplify a curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to simplify"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "t",
+        "access": "item",
+        "description": "Optional deviation tolerance (if omitted, the current document tolerance is used)"
+      },
+      {
+        "name": "Angle Tolerance",
+        "nickname": "a",
+        "access": "item",
+        "description": "Optional angle tolerance (if omitted, the current document tolerance is used)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Simplified curve"
+      },
+      {
+        "name": "Simplified",
+        "nickname": "S",
+        "access": "item",
+        "description": "True if curve was modified in any way"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Rebuild Curve",
+    "nickname": "ReB",
+    "guid": "9333c5b3-11f9-423c-bbb5-7e5156430219",
+    "description": "Rebuild a curve with a specific number of control-points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to rebuild"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional degree of curve (if omitted, input degree is used)"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of control points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "item",
+        "description": "Preserve curve end tangents"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Rebuild curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Divide curve [OBSOLETE]",
+    "nickname": "Div",
+    "guid": "93b1066f-060e-440d-a638-aae8cbe7acb7",
+    "description": "[OBSOLETE; Replaced by new Divide Component]",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "item",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fit Curve",
+    "nickname": "Fit",
+    "guid": "a3f9f19e-3e6c-4ac7-97c3-946de32c3e8e",
+    "description": "Fit a curve along another curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fit"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional degree of curve (if omitted, input degree is used)"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "Ft",
+        "access": "item",
+        "description": "Tolerance for fitting (if omitted, document tolerance is used)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Fitted curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Explode",
+    "nickname": "Explode",
+    "guid": "afb96615-c59a-45c9-9cac-e27acb1c7ca0",
+    "description": "Explode a curve into smaller segments.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to explode"
+      },
+      {
+        "name": "Recursive",
+        "nickname": "R",
+        "access": "item",
+        "description": "Recursive decomposition until all segments are atomic"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Exploded segments that make up the base curve"
+      },
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertices of the exploded segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset on Srf",
+    "nickname": "OffsetS",
+    "guid": "b6f5cb51-f260-4c74-bf73-deb47de1bf91",
+    "description": "Offset a curve on a surface with a specified distance.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface for offset operation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Resulting offsets"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Polyline Collapse",
+    "nickname": "PCol",
+    "guid": "be298882-28c9-45b1-980d-7192a531c9a9",
+    "description": "Collapse short segments in a polyline curve.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline curve"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "t",
+        "access": "item",
+        "description": "Segment length tolerance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polyline",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Resulting polyline"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments that were collapsed"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Loose 3D",
+    "nickname": "Offset (3D)",
+    "guid": "c6fe61e7-25e2-4333-9172-f4e2a123fcfe",
+    "description": "Offset the control-points of a curve with a specified distance in 3D.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting offset"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Fillet",
+    "nickname": "Fillet",
+    "guid": "c92cdfc8-3df8-4c4e-abc1-ede092a0aa8a",
+    "description": "Fillet a curve at a parameter.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to fillet"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Curve parameter for fillet"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of fillet"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Filleted curve"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter where the fillet eventually occured"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Project",
+    "nickname": "Project",
+    "guid": "d7ee52ff-89b8-4d1a-8662-3e0dd391d0af",
+    "description": "Project a curve onto a Brep.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to project"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to project onto"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Projection direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Projected curves"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Util",
+    "name": "Offset Polyline",
+    "nickname": "OP",
+    "guid": "e2c6cab3-91ea-4c01-900c-646642d3e436",
+    "description": "Offset a 2D polyline",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline to offset"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "list",
+        "description": "Offset results"
+      },
+      {
+        "name": "Valid",
+        "nickname": "V",
+        "access": "list",
+        "description": "Offset validity"
+      }
+    ]
+  }
+]

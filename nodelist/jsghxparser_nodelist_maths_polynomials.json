@@ -1,0 +1,338 @@
+[
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Square",
+    "nickname": "Sqr",
+    "guid": "2280dde4-9fa2-4b4a-ae2f-37d554861367",
+    "description": "Compute the square of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Natural logarithm",
+    "nickname": "Ln",
+    "guid": "23afc7aa-2d2f-4ae7-b876-bf366246b826",
+    "description": "Compute the natural logarithm of a value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Logarithm",
+    "nickname": "Log",
+    "guid": "27d6f724-a701-4585-992f-3897488abf08",
+    "description": "Compute the Base-10 logarithm of a value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Power of 10",
+    "nickname": "10º",
+    "guid": "2ebb82ef-1f90-4ac9-9a71-1fe0f4ef7044",
+    "description": "Raise 10 to the power of N.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Cube Root",
+    "nickname": "Cbrt",
+    "guid": "5b0be57a-31f5-4446-a11a-ae0d348bca90",
+    "description": "Compute the cube root of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "One Over X",
+    "nickname": "1/x",
+    "guid": "797d922f-3a1d-46fe-9155-358b009b5997",
+    "description": "Compute one over x.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Power of 2",
+    "nickname": "2º",
+    "guid": "7a1e5fd7-b7da-4244-a261-f1da66614992",
+    "description": "Raise 2 to the power of N.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Log N",
+    "nickname": "LogN",
+    "guid": "7ab8d289-26a2-4dd4-b4ad-df5b477999d8",
+    "description": "Return the N-base logarithm of a number.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Number",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value"
+      },
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Logarithm base"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Cube",
+    "nickname": "Cube",
+    "guid": "7e3185eb-a38c-4949-bcf2-0e80dee3a344",
+    "description": "Compute the cube of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Square Root",
+    "nickname": "Sqrt",
+    "guid": "ad476cb7-b6d1-41c8-986b-0df243a64146",
+    "description": "Compute the square root of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Polynomials",
+    "name": "Power of E",
+    "nickname": "Eº",
+    "guid": "c717f26f-e4a0-475c-8e1c-b8f77af1bc99",
+    "description": "Raise E to the power of N.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  }
+]

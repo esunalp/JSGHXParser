@@ -1,0 +1,1760 @@
+[
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Simplify Tree",
+    "nickname": "Simplify",
+    "guid": "06b3086c-1e9d-41c2-bcfc-bb843156196e",
+    "description": "Simplify a tree by removing the overlap shared amongst all branches.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Tree to simplify."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Simplified tree."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Clean Tree",
+    "nickname": "Clean",
+    "guid": "071c3940-a12d-4b77-bb23-42b5d3314a0d",
+    "description": "Removed all null and invalid items from a data tree.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Remove Nulls",
+        "nickname": "N",
+        "access": "item",
+        "description": "Remove null items from the tree."
+      },
+      {
+        "name": "Remove Invalid",
+        "nickname": "X",
+        "access": "item",
+        "description": "Remove invalid items from the tree."
+      },
+      {
+        "name": "Remove Empty",
+        "nickname": "E",
+        "access": "item",
+        "description": "Remove empty branches from the tree."
+      },
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to clean"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Spotless data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge Multiple",
+    "nickname": "Merge",
+    "guid": "0b6c5dac-6c93-4158-b8d1-ca3187d45f25",
+    "description": "Merge multiple input streams into one",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "tree",
+        "description": "Input stream #2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "tree",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Graft Tree",
+    "nickname": "Graft",
+    "guid": "10a8674b-f4bb-4fdf-a56e-94dc606ecf33",
+    "description": "Graft a tree by adding an extra branch for every data item.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data to graft"
+      },
+      {
+        "name": "Strip",
+        "nickname": "S",
+        "access": "item",
+        "description": "Do not create branches for null items"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "item",
+        "description": "Graft result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Trim Tree",
+    "nickname": "Trim",
+    "guid": "1177d6ee-3993-4226-9558-52b7fd63e1e3",
+    "description": "Reduce the complexity of a tree by merging the outermost branches.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to flatten"
+      },
+      {
+        "name": "Depth",
+        "nickname": "D",
+        "access": "item",
+        "description": "Number of outermost branches to merge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Trimmed data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Simplify Tree",
+    "nickname": "Simplify",
+    "guid": "1303da7b-e339-4e65-a051-82c4dce8224d",
+    "description": "Simplify a data tree by removing the overlap shared amongst all branches.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to simplify."
+      },
+      {
+        "name": "Front",
+        "nickname": "F",
+        "access": "item",
+        "description": "Limit path collapse to indices at the start of the path only."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Simplified data tree."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Path Compare",
+    "nickname": "Compare",
+    "guid": "1d8b0e2c-e772-4fa9-b7f7-b158251b34b8",
+    "description": "Compare a path to a mask pattern",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Path",
+        "nickname": "P",
+        "access": "item",
+        "description": "Path to compare"
+      },
+      {
+        "name": "Mask",
+        "nickname": "M",
+        "access": "item",
+        "description": "Comparison mask"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Comparison",
+        "nickname": "C",
+        "access": "item",
+        "description": "Comparison (True = Match, False = Mismatch)"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 10",
+    "nickname": "M10",
+    "guid": "22f66ff6-d281-453c-bd8c-36ed24026783",
+    "description": "Merge ten streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      },
+      {
+        "name": "Stream D",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Input stream #4"
+      },
+      {
+        "name": "Stream E",
+        "nickname": "E",
+        "access": "tree",
+        "description": "Input stream #5"
+      },
+      {
+        "name": "Stream F",
+        "nickname": "F",
+        "access": "tree",
+        "description": "Input stream #6"
+      },
+      {
+        "name": "Stream G",
+        "nickname": "G",
+        "access": "tree",
+        "description": "Input stream #7"
+      },
+      {
+        "name": "Stream H",
+        "nickname": "H",
+        "access": "tree",
+        "description": "Input stream #8"
+      },
+      {
+        "name": "Stream I",
+        "nickname": "I",
+        "access": "tree",
+        "description": "Input stream #9"
+      },
+      {
+        "name": "Stream J",
+        "nickname": "J",
+        "access": "tree",
+        "description": "Input stream #10"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Relative Items",
+    "nickname": "RelItem2",
+    "guid": "2653b135-4df1-4a6b-820c-55e2ad3bc1e0",
+    "description": "Retrieve a relative item combo from two data trees",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "First Data Tree"
+      },
+      {
+        "name": "Tree B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Second Data Tree"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Relative offset for item combo"
+      },
+      {
+        "name": "Wrap Paths",
+        "nickname": "Wp",
+        "access": "item",
+        "description": "Wrap paths when the shift is out of bounds"
+      },
+      {
+        "name": "Wrap Items",
+        "nickname": "Wi",
+        "access": "item",
+        "description": "Wrap items when the shift is out of bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Item A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Item in tree A"
+      },
+      {
+        "name": "Item B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Relative item in tree B"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Shift Paths",
+    "nickname": "PShift",
+    "guid": "2d61f4e0-47c5-41d6-a41d-6afa96ee63af",
+    "description": "Shift the indices in all data tree paths",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data to modify"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Offset to apply to each branch"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Shifted data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Tree Branch",
+    "nickname": "Branch",
+    "guid": "3a710c1e-1809-4e19-8c15-82adce31cd62",
+    "description": "Retrieve a specific branch from a data tree.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data Tree"
+      },
+      {
+        "name": "Path",
+        "nickname": "P",
+        "access": "item",
+        "description": "Data tree branch path"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Branch",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Branch at {P}"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge",
+    "nickname": "Merge",
+    "guid": "3cadddef-1e2b-4c09-9390-0e8f78f7609f",
+    "description": "Merge a bunch of data streams",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data 1",
+        "nickname": "D1",
+        "access": "tree",
+        "description": "Data stream 1"
+      },
+      {
+        "name": "Data 2",
+        "nickname": "D2",
+        "access": "tree",
+        "description": "Data stream 2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "tree",
+        "description": "Result of merge"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Stream Filter",
+    "nickname": "Filter",
+    "guid": "3e5582a1-901a-4f7c-b58d-f5d7e3166124",
+    "description": "Filters a collection of input streams",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Gate",
+        "nickname": "G",
+        "access": "item",
+        "description": "Index of Gate stream"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "tree",
+        "description": "Input stream at index 0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "tree",
+        "description": "Input stream at index 1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "tree",
+        "description": "Filtered stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Flip Matrix",
+    "nickname": "Flip",
+    "guid": "41aa4112-9c9b-42f4-847e-503b9d90e4c7",
+    "description": "Flip a matrix-like data tree by swapping rows and columns.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data matrix to flip"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Flipped data matrix"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Match Tree",
+    "nickname": "Match",
+    "guid": "46372d0d-82dc-4acb-adc3-25d1fde04c4e",
+    "description": "Match one data tree with another.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to modify"
+      },
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "tree",
+        "description": "Data tree to match"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Matched data tree containing the data of T but the layout of G"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 03",
+    "nickname": "M3",
+    "guid": "481f0339-1299-43ba-b15c-c07891a8f822",
+    "description": "Merge three streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Clean Tree",
+    "nickname": "Clean",
+    "guid": "70ce4230-da08-4fce-b29d-63dc42a88585",
+    "description": "Remove all null and invalid entries from a Data Tree.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data Tree to clean"
+      },
+      {
+        "name": "Invalid",
+        "nickname": "X",
+        "access": "item",
+        "description": "Remove invalid entries in addition to null entries."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "item",
+        "description": "Spotless data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Stream Gate",
+    "nickname": "Gate",
+    "guid": "71fcc052-6add-4d70-8d97-cfb37ea9d169",
+    "description": "Redirects a stream into specific outputs.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "tree",
+        "description": "Input stream"
+      },
+      {
+        "name": "Gate",
+        "nickname": "G",
+        "access": "item",
+        "description": "Gate index of output stream"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Target 0",
+        "nickname": "0",
+        "access": "tree",
+        "description": "Output for Gate index 0"
+      },
+      {
+        "name": "Target 1",
+        "nickname": "1",
+        "access": "tree",
+        "description": "Output for Gate index 1"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Explode Tree",
+    "nickname": "BANG!",
+    "guid": "74cad441-2264-45fe-a57d-85034751208a",
+    "description": "Extract all the branches from a tree",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data to explode"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Branch 0",
+        "nickname": "-",
+        "access": "tree",
+        "description": "All data inside the branch at index: 0"
+      },
+      {
+        "name": "Branch 1",
+        "nickname": "-",
+        "access": "tree",
+        "description": "All data inside the branch at index: 1"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Clean Tree",
+    "nickname": "Clean",
+    "guid": "7991bc5f-8a01-4768-bfb0-a39357ac6b84",
+    "description": "Removed all null and invalid items from a data tree.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to clean"
+      },
+      {
+        "name": "Clean Invalid",
+        "nickname": "X",
+        "access": "item",
+        "description": "Remove invalid items in addition to null items."
+      },
+      {
+        "name": "Clean Empty",
+        "nickname": "E",
+        "access": "item",
+        "description": "Remove empty branches."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Spotless data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge",
+    "nickname": "Merge",
+    "guid": "86866576-6cc0-485a-9cd2-6f7d493f57f7",
+    "description": "Merge two streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Graft Tree",
+    "nickname": "Graft",
+    "guid": "87e1d9ef-088b-4d30-9dda-8a7448a17329",
+    "description": "Graft a data tree by adding an extra branch for every item.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to graft"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Grafted data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Explode Tree",
+    "nickname": "BANG!",
+    "guid": "8a470a35-d673-4779-a65e-ba95765e59e4",
+    "description": "Extract all the branches from a tree",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to explode"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Branch 0",
+        "nickname": "0",
+        "access": "tree",
+        "description": "First branch in tree"
+      },
+      {
+        "name": "Branch 1",
+        "nickname": "1",
+        "access": "tree",
+        "description": "Second branch in tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Construct Path",
+    "nickname": "Path",
+    "guid": "946cb61e-18d2-45e3-8840-67b0efa26528",
+    "description": "Construct a data tree branch path.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Branch path indices"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Branch",
+        "nickname": "B",
+        "access": "item",
+        "description": "Branch path"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Tree Statistics",
+    "nickname": "TStat",
+    "guid": "99bee19d-588c-41a0-b9b9-1d00fb03ea1a",
+    "description": "Get some statistics regarding a data tree.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data Tree to analyze"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Paths",
+        "nickname": "P",
+        "access": "list",
+        "description": "All the paths of the tree"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "list",
+        "description": "The length of each branch in the tree"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of paths and branches in the tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Flatten Tree",
+    "nickname": "Flatten",
+    "guid": "a13fcd5d-81af-4337-a32e-28dd7e23ae4c",
+    "description": "Removes all branching information from a data tree.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data stream to flatten"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Squished data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 08",
+    "nickname": "M8",
+    "guid": "a70aa477-0109-4e75-ba73-78725dca0274",
+    "description": "Merge eight streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      },
+      {
+        "name": "Stream D",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Input stream #4"
+      },
+      {
+        "name": "Stream E",
+        "nickname": "E",
+        "access": "tree",
+        "description": "Input stream #5"
+      },
+      {
+        "name": "Stream F",
+        "nickname": "F",
+        "access": "tree",
+        "description": "Input stream #6"
+      },
+      {
+        "name": "Stream G",
+        "nickname": "G",
+        "access": "tree",
+        "description": "Input stream #7"
+      },
+      {
+        "name": "Stream H",
+        "nickname": "H",
+        "access": "tree",
+        "description": "Input stream #8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 06",
+    "nickname": "M6",
+    "guid": "ac9b4faf-c9d5-4f6a-a5e9-58c0c2cac116",
+    "description": "Merge six streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      },
+      {
+        "name": "Stream D",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Input stream #4"
+      },
+      {
+        "name": "Stream E",
+        "nickname": "E",
+        "access": "tree",
+        "description": "Input stream #5"
+      },
+      {
+        "name": "Stream F",
+        "nickname": "F",
+        "access": "tree",
+        "description": "Input stream #6"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 04",
+    "nickname": "M4",
+    "guid": "b5be5d1f-717f-493c-b958-816957f271fd",
+    "description": "Merge four streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      },
+      {
+        "name": "Stream D",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Input stream #4"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Unflatten Tree",
+    "nickname": "Unflatten",
+    "guid": "b8e2aa8f-8830-4ee1-bb59-613ea279c281",
+    "description": "Unflatten a data tree by moving items back into branches.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to unflatten"
+      },
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "tree",
+        "description": "Guide data tree that defines the path layout"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Unflattened data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Replace Paths",
+    "nickname": "Replace",
+    "guid": "bfaaf799-77dc-4f31-9ad8-2f7d1a80aeb0",
+    "description": "Find & replace paths in a data tree",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data stream to process"
+      },
+      {
+        "name": "Search",
+        "nickname": "S",
+        "access": "list",
+        "description": "Search masks"
+      },
+      {
+        "name": "Replace",
+        "nickname": "R",
+        "access": "list",
+        "description": "Respective replacement paths"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Processed tree data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Tree Item",
+    "nickname": "Item",
+    "guid": "c1ec65a3-bda4-4fad-87d0-edf86ed9d81c",
+    "description": "Retrieve a specific item from a data tree.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data Tree"
+      },
+      {
+        "name": "Path",
+        "nickname": "P",
+        "access": "item",
+        "description": "Data tree branch path"
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Item index"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Wrap index to list bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Element",
+        "nickname": "E",
+        "access": "item",
+        "description": "Item at {P:i'}"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Entwine",
+    "nickname": "Entwine",
+    "guid": "c9785b8e-2f30-4f90-8ee3-cca710f82402",
+    "description": "Flatten and combine a collection of data streams",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Branch {0;0}",
+        "nickname": "{0;0}",
+        "access": "tree",
+        "description": "Data to entwine"
+      },
+      {
+        "name": "Branch {0;1}",
+        "nickname": "{0;1}",
+        "access": "tree",
+        "description": "Data to entwine"
+      },
+      {
+        "name": "Branch {0;2}",
+        "nickname": "{0;2}",
+        "access": "tree",
+        "description": "Data to entwine"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Entwined result"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Stream Gate",
+    "nickname": "Gate",
+    "guid": "d6313940-216b-487f-b511-6c8a5b87eae7",
+    "description": "Redirects a stream into specific outputs.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "tree",
+        "description": "Input stream"
+      },
+      {
+        "name": "Gate",
+        "nickname": "G",
+        "access": "item",
+        "description": "Gate index of output stream"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Target 0",
+        "nickname": "0",
+        "access": "item",
+        "description": "Output for Gate index 0"
+      },
+      {
+        "name": "Target 1",
+        "nickname": "1",
+        "access": "item",
+        "description": "Output for Gate index 1"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Split Tree",
+    "nickname": "Split",
+    "guid": "d8b1e7ac-cd31-4748-b262-e07e53068afc",
+    "description": "Split a data tree into two parts using path masks.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Tree to split"
+      },
+      {
+        "name": "Masks",
+        "nickname": "M",
+        "access": "list",
+        "description": "Splitting masks"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Positive",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Positive set of data (all branches that match any of the masks)"
+      },
+      {
+        "name": "Negative",
+        "nickname": "N",
+        "access": "tree",
+        "description": "Negative set of data (all branches that do not match any of the masks"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Deconstruct Path",
+    "nickname": "DPath",
+    "guid": "df6d9197-9a6e-41a2-9c9d-d2221accb49e",
+    "description": "Deconstruct a data tree path into individual integers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Branch",
+        "nickname": "B",
+        "access": "item",
+        "description": "Branch path"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Branch path indices"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Null Check",
+    "nickname": "Null",
+    "guid": "e6859d1e-2b3d-4704-93ea-32714acae176",
+    "description": "Test all items in a data tree for null.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Data tree to test"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Null",
+        "nickname": "N",
+        "access": "item",
+        "description": "True if corresponding item is null"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Stream Filter",
+    "nickname": "Filter",
+    "guid": "eeafc956-268e-461d-8e73-ee05c6f72c01",
+    "description": "Filters a collection of input streams",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Gate",
+        "nickname": "G",
+        "access": "item",
+        "description": "Index of Gate stream"
+      },
+      {
+        "name": "Stream 0",
+        "nickname": "0",
+        "access": "tree",
+        "description": "Input stream at index 0"
+      },
+      {
+        "name": "Stream 1",
+        "nickname": "1",
+        "access": "tree",
+        "description": "Input stream at index 1"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "tree",
+        "description": "Filtered stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Merge 05",
+    "nickname": "M5",
+    "guid": "f4b0f7b4-5a10-46c4-8191-58d7d66ffdff",
+    "description": "Merge five streams into one.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Stream A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Input stream #1"
+      },
+      {
+        "name": "Stream B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Input stream #2"
+      },
+      {
+        "name": "Stream C",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Input stream #3"
+      },
+      {
+        "name": "Stream D",
+        "nickname": "D",
+        "access": "tree",
+        "description": "Input stream #4"
+      },
+      {
+        "name": "Stream E",
+        "nickname": "E",
+        "access": "tree",
+        "description": "Input stream #5"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Stream",
+        "nickname": "S",
+        "access": "item",
+        "description": "Merged stream"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Flatten Tree",
+    "nickname": "Flatten",
+    "guid": "f80cfe18-9510-4b89-8301-8e58faf423bb",
+    "description": "Flatten a data tree by removing all branching information.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to flatten"
+      },
+      {
+        "name": "Path",
+        "nickname": "P",
+        "access": "item",
+        "description": "Path of flattened tree"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Flattened data tree"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Path Mapper",
+    "nickname": "Path Mapper",
+    "guid": "f9b89a46-bc5d-4f7a-9a6f-134f93ac3af9",
+    "description": "Perform lexical operations on data trees.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Relative Item",
+    "nickname": "RelItem",
+    "guid": "fac0d5be-e3ff-4bbb-9742-ec9a54900d41",
+    "description": "Retrieve a relative item combo from a data tree",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Tree to operate on"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Relative offset for item combo"
+      },
+      {
+        "name": "Wrap Paths",
+        "nickname": "Wp",
+        "access": "item",
+        "description": "Wrap paths when the shift is out of bounds"
+      },
+      {
+        "name": "Wrap Items",
+        "nickname": "Wi",
+        "access": "item",
+        "description": "Wrap items when the shift is out of bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Item A",
+        "nickname": "A",
+        "access": "tree",
+        "description": "Tree item"
+      },
+      {
+        "name": "Item B",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Tree item relative to A"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Tree",
+    "name": "Prune Tree",
+    "nickname": "Prune",
+    "guid": "fe769f85-8900-45dd-ba11-ec9cd6c778c6",
+    "description": "Remove small branches from a Data Tree.",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Data tree to prune"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "N0",
+        "access": "item",
+        "description": "Remove branches with fewer than N0 items."
+      },
+      {
+        "name": "Maximum",
+        "nickname": "N1",
+        "access": "item",
+        "description": "Remove branches with more than N1 items (use zero to ignore upper limit)."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tree",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Pruned tree"
+      }
+    ]
+  }
+]

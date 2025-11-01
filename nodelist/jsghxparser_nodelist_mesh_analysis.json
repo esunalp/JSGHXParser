@@ -1,0 +1,458 @@
+[
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Inclusion",
+    "nickname": "MInc",
+    "guid": "01e3991d-18bd-474f-9fbd-076a8700159f",
+    "description": "Test a point for Mesh inclusion",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for inclusion test (only closed meshes will be considered)"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Strict",
+        "nickname": "S",
+        "access": "item",
+        "description": "If true, then the inclusion is strict"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "I",
+        "access": "item",
+        "description": "Inside flag for point inclusion"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Depth",
+    "nickname": "MDepth",
+    "guid": "07a3b2a0-c4d0-4638-9044-39ac4681e782",
+    "description": "Validate the depth of a mesh.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for inclusion test (only closed meshes will be considered)"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "Min",
+        "access": "item",
+        "description": "Minimum valid mesh depth."
+      },
+      {
+        "name": "Maximum",
+        "nickname": "Max",
+        "access": "item",
+        "description": "Maximum valid mesh depth."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Coloured mesh"
+      },
+      {
+        "name": "Valid",
+        "nickname": "V",
+        "access": "item",
+        "description": "True if mesh does not exceed limits"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Boundaries",
+    "nickname": "FaceB",
+    "guid": "08d45f16-c708-4ede-8fd3-b70a0a7abd8f",
+    "description": "Convert all mesh faces to polylines",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face boundary extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boundaries",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boundary polylines for each mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Boundaries",
+    "nickname": "FaceB",
+    "guid": "0b4ac802-fc4a-4201-9c66-0078b837c1eb",
+    "description": "Convert all mesh faces to polylines",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for face boundary extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boundaries",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boundary polylines for each mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Edges",
+    "nickname": "MEdges",
+    "guid": "2b9bf01d-5fe5-464c-b0b3-b469eb5f2efb",
+    "description": "Get all the edges of a mesh",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for edge extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Naked Edges",
+        "nickname": "E1",
+        "access": "list",
+        "description": "Edges with valence 1 (a single adjacent face)"
+      },
+      {
+        "name": "Interior Edges",
+        "nickname": "E2",
+        "access": "list",
+        "description": "Edges with valence 2 (two adjacent faces)"
+      },
+      {
+        "name": "Non-Manifold Edges",
+        "nickname": "E3",
+        "access": "list",
+        "description": "Edges with valence 3 or higher"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Closest Point",
+    "nickname": "MeshCP",
+    "guid": "a559fee2-4b76-4370-8042-c7440cd75049",
+    "description": "Finds the closest point on a mesh",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point to search from"
+      },
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to search for closest point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Location on mesh closest to search point"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Face index of closest point"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mesh parameter for closest point"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Face",
+    "nickname": "DeFace",
+    "guid": "aab142b1-b870-46de-8e86-654c9a554d90",
+    "description": "Deconstruct a mesh face into its four corner indices.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Mesh face"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face vertex"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face vertex"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face vertex"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Index of fourth face vertex (identical to C if face is a triangle)"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Mesh Eval",
+    "nickname": "MEval",
+    "guid": "b2dc090f-b022-4264-8889-87e22979336e",
+    "description": "Evaluate a mesh at a given parameter",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to evaluate"
+      },
+      {
+        "name": "Parameter",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mesh parameter for evaluation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at mesh parameter"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal vector at mesh parameter"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Colour at mesh parameter"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Mesh",
+    "nickname": "DeMesh",
+    "guid": "ba2d8f57-0738-42b4-b5a5-fe4d853517eb",
+    "description": "Deconstruct a mesh into its component parts.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Mesh vertices"
+      },
+      {
+        "name": "Faces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Mesh faces"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Mesh vertex colours"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Mesh normals"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Normals",
+    "nickname": "FaceN",
+    "guid": "cb4ca22c-3419-4962-a078-ad4ff7f1f929",
+    "description": "Extract the normals and center points of all faces in a mesh",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for normal and center point extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Centers",
+        "nickname": "C",
+        "access": "list",
+        "description": "Center-points of all faces"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Normal vectors for all faces"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Analysis",
+    "name": "Face Circles",
+    "nickname": "FaceC",
+    "guid": "d8cf1555-a0d5-43cb-8a10-46f8c014db3a",
+    "description": "Solve the circumscribed circles for all mesh faces",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh for normal and center point extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Centers",
+        "nickname": "C",
+        "access": "list",
+        "description": "Circum-circles for all mesh triangles (quads are skipped)"
+      },
+      {
+        "name": "Ratio",
+        "nickname": "R",
+        "access": "list",
+        "description": "Ratio of triangles; altitude / longest edge. (quads are skipped)"
+      }
+    ]
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Quick Graph",
+    "nickname": "Graph",
+    "guid": "2b69bf71-4e69-43aa-b7be-4f6ce7e45bef",
+    "description": "Display a set of y-values as a graph",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Image Gallery",
+    "nickname": "Gallery",
+    "guid": "54ab3f01-a769-4742-a7bf-cec48a1acb6f",
+    "description": "Display a sequence of images",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Value Tracker",
+    "nickname": "Tracker",
+    "guid": "615367b4-c9d0-4cb7-986c-cb861226136f",
+    "description": "Track a collection of numeric values over time",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Pie Chart",
+    "nickname": "Pie",
+    "guid": "952c2bcc-b5ec-480a-a0d7-27f016632e33",
+    "description": "Displays a set of text fragments as a pie chart",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Bar Graph",
+    "nickname": "Bar Graph",
+    "guid": "e1905a16-da43-4705-bd65-41d34328c4e6",
+    "description": "Bar graph representation of a set of numbers",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Graphs",
+    "name": "Legend",
+    "nickname": "Legend",
+    "guid": "f6867cdd-2216-4451-9134-7da94bdcd5af",
+    "description": "Display a legend consisting of Tags and Colours",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "list",
+        "description": "Legend colours"
+      },
+      {
+        "name": "Tags",
+        "nickname": "T",
+        "access": "list",
+        "description": "Legend tags"
+      },
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional legend rectangle in 3D space"
+      }
+    ],
+    "outputs": 
+  ]
+}
+]

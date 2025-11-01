@@ -1,0 +1,638 @@
+[
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Find Domain",
+    "nickname": "FDom",
+    "guid": "0b5c7fad-0473-41aa-bf52-d7a861dcaa29",
+    "description": "Find the first domain that contains a specific value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domains",
+        "nickname": "D",
+        "access": "list",
+        "description": "Collection of domains to search"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number to test"
+      },
+      {
+        "name": "Strict",
+        "nickname": "S",
+        "access": "item",
+        "description": "Strict comparison, if true then the value must be on the interior of a domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Index of first domain that includes the specified value"
+      },
+      {
+        "name": "Neighbour",
+        "nickname": "N",
+        "access": "item",
+        "description": "Index of domain that is closest to the specified value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Remap Numbers",
+    "nickname": "ReMap",
+    "guid": "2fcc2743-8339-4cdf-a046-a1f17439191d",
+    "description": "Remap numbers into a new numeric domain",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value to remap"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Source domain"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mapped",
+        "nickname": "R",
+        "access": "item",
+        "description": "Remapped number"
+      },
+      {
+        "name": "Clipped",
+        "nickname": "C",
+        "access": "item",
+        "description": "Remapped and clipped number"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Deconstruct Domain²",
+    "nickname": "DeDom2Num",
+    "guid": "47c30f9d-b685-4d4d-9b20-5b60e48d5af8",
+    "description": "Deconstruct a two-dimensional domain into four numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Base domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "U min",
+        "nickname": "U0",
+        "access": "item",
+        "description": "Lower limit of domain in {u} direction"
+      },
+      {
+        "name": "U max",
+        "nickname": "U1",
+        "access": "item",
+        "description": "Upper limit of domain in {u} direction"
+      },
+      {
+        "name": "V min",
+        "nickname": "V0",
+        "access": "item",
+        "description": "Lower limit of domain in {v} direction"
+      },
+      {
+        "name": "V max",
+        "nickname": "V1",
+        "access": "item",
+        "description": "Upper limit of domain in {v} direction"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Divide Domain²",
+    "nickname": "Divide",
+    "guid": "75ac008b-1bc2-4edd-b967-667d628b9d24",
+    "description": "Divides a two-dimensional domain into equal segments.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Base domain"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of segments in {u} direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of segments in {v} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Individual segments"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Divide Domain",
+    "nickname": "Div",
+    "guid": "75ef4190-91a2-42d9-a245-32a7162b0384",
+    "description": "Divide a domain into equal segments.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Base domain"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Division segments"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Deconstruct Domain",
+    "nickname": "DeDomain",
+    "guid": "825ea536-aebb-41e9-af32-8baeb2ecb590",
+    "description": "Deconstruct a numeric domain into its component parts.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Base domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start of domain"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End of domain"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Construct Domain²",
+    "nickname": "Dom²",
+    "guid": "8555a743-36c1-42b8-abcc-06d9cb94519f",
+    "description": "Create a two-dimensional domain from two simple domains.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain U",
+        "nickname": "U",
+        "access": "item",
+        "description": "Domain in {u} direction"
+      },
+      {
+        "name": "Domain V",
+        "nickname": "V",
+        "access": "item",
+        "description": "Domain in {v} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "2D Domain",
+        "nickname": "I²",
+        "access": "item",
+        "description": "Two dimensional numeric domain of {u} and {v}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Construct Domain²",
+    "nickname": "Dom²Num",
+    "guid": "9083b87f-a98c-4e41-9591-077ae4220b19",
+    "description": "Create a two-dimensinal domain from four numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "U min",
+        "nickname": "U0",
+        "access": "item",
+        "description": "Lower limit of domain in {u} direction"
+      },
+      {
+        "name": "U max",
+        "nickname": "U1",
+        "access": "item",
+        "description": "Upper limit of domain in {u} direction"
+      },
+      {
+        "name": "V min",
+        "nickname": "V0",
+        "access": "item",
+        "description": "Lower limit of domain in {v} direction"
+      },
+      {
+        "name": "V max",
+        "nickname": "V1",
+        "access": "item",
+        "description": "Upper limit of domain in {v} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "2D Domain",
+        "nickname": "I²",
+        "access": "item",
+        "description": "Two dimensional numeric domain of {u} and {v}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Consecutive Domains",
+    "nickname": "Consec",
+    "guid": "95992b33-89e1-4d36-bd35-2754a11af21e",
+    "description": "Create consecutive domains from a list of numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Numbers for consecutive domains"
+      },
+      {
+        "name": "Additive",
+        "nickname": "A",
+        "access": "item",
+        "description": "If True, values are added to a sum-total"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domains",
+        "nickname": "D",
+        "access": "list",
+        "description": "Domains describing the spaces between the numbers"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Remap Numbers",
+    "nickname": "ReMap",
+    "guid": "9624aeeb-f2a1-49da-b1c7-8789db217177",
+    "description": "Remap numbers into a new numeric domain",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Values to remap"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Optional source domain. If left blank, the value range will be used."
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Remapped numbers."
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Construct Domain",
+    "nickname": "Dom",
+    "guid": "d1a28e95-cf96-4936-bf34-8bf142d731bf",
+    "description": "Create a numeric domain from two numeric extremes.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain start",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start value of numeric domain"
+      },
+      {
+        "name": "Domain end",
+        "nickname": "B",
+        "access": "item",
+        "description": "End value of numeric domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Numeric domain between {A} and {B}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Bounds 2D",
+    "nickname": "Bnd",
+    "guid": "dd53b24c-003a-4a04-b185-a44d91633cbe",
+    "description": "Create a numeric two-dimensional domain which encompasses a list of coordinates.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Coordinates",
+        "nickname": "C",
+        "access": "list",
+        "description": "Two dimensional coordinates to include in Bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Numeric two-dimensional domain between the lowest and highest numbers in {N.x ; N.y}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Deconstruct Domain²",
+    "nickname": "DeDom2",
+    "guid": "f0adfc96-b175-46a6-80c7-2b0ee17395c4",
+    "description": "Deconstruct a two-dimensional domain into its component parts",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Base domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "U component",
+        "nickname": "U",
+        "access": "item",
+        "description": "{u} component of domain"
+      },
+      {
+        "name": "V component",
+        "nickname": "V",
+        "access": "item",
+        "description": "{v} component of domain"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Includes",
+    "nickname": "Inc",
+    "guid": "f217f873-92f1-47ae-ad71-ca3c5a45c3f8",
+    "description": "Test a numeric value to see if it is included in the domain",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value to test for inclusion"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Domain to test with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Includes",
+        "nickname": "I",
+        "access": "item",
+        "description": "True if the value is included in the domain"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between the value and the nearest value inside the domain"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Bounds",
+    "nickname": "Bnd",
+    "guid": "f44b92b0-3b5b-493a-86f4-fd7408c3daf3",
+    "description": "Create a numeric domain which encompasses a list of numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Numbers to include in Bounds"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Domain",
+        "nickname": "I",
+        "access": "item",
+        "description": "Numeric Domain between the lowest and highest numbers in {N}"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Domain",
+    "name": "Remap Numbers",
+    "nickname": "ReMap",
+    "guid": "fa314286-867b-41fa-a7f6-3f474197bb81",
+    "description": "Remap numbers into a new numeric domain",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value to remap"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Optional source domain."
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Remapped number."
+      }
+    ]
+  }
+]

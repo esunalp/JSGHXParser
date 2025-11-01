@@ -1,0 +1,644 @@
+[
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Delete Consecutive",
+    "nickname": "DCon",
+    "guid": "190d042c-2270-4bc1-81c0-4f90c170c9c9",
+    "description": "Delete consecutive similar members in a set.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "Set to operate on."
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "If true, the last and first member are considered to be adjacent."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "Set with consecutive identical members removed."
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of members removed."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Key/Value Search",
+    "nickname": "KeySearch",
+    "guid": "1edcc3cf-cf84-41d4-8204-561162cfe510",
+    "description": "Extract an item from a collection using a key-value match",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "A list of key values."
+      },
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "A list of value data, one for each key."
+      },
+      {
+        "name": "Search",
+        "nickname": "S",
+        "access": "item",
+        "description": "A key value to search for"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting item in the value list that matches the Search key"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Create Set",
+    "nickname": "CSet",
+    "guid": "2cb4bf85-a282-464c-b42c-8e735d2a0a74",
+    "description": "Creates the valid set from a list of items (a valid set only contains distinct elements).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List of data."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "A set of all the distincts values in L."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Member Index",
+    "nickname": "MIndex",
+    "guid": "3ff27857-b988-417a-b495-b24c733dbd00",
+    "description": "Find the occurences of a specific member in a set.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "Set to operate on."
+      },
+      {
+        "name": "Member",
+        "nickname": "M",
+        "access": "item",
+        "description": "Member to search for."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "list",
+        "description": "Indices of member."
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of occurences of the member."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "SubSet",
+    "nickname": "SubSet",
+    "guid": "4cfc0bb0-0745-4772-a520-39f9bf3d99bc",
+    "description": "Test two sets for inclusion.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Super set."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Sub set."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "True if all items in B are present in A."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Disjoint",
+    "nickname": "Disjoint",
+    "guid": "81800098-1060-4e2b-80d4-17f835cc825f",
+    "description": "Test whether two sets are disjoint.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "True if none of the items in A occur in B."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Intersection",
+    "nickname": "Intersection",
+    "guid": "82f19c48-9e73-43a4-ae6c-3a8368099b08",
+    "description": "Creates the intersection of two sets (the collection of unique objects present in both sets).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Data for set Intersection"
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Data for set Intersection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "list",
+        "description": "The Set Union of all input sets"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Intersection",
+    "nickname": "Intersection",
+    "guid": "8a55f680-cf53-4634-a486-b828de92b71d",
+    "description": "Creates the intersection of two sets (the collection of unique objects present in both sets).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set for Intersection"
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set for Intersection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "list",
+        "description": "The Set Union of A and B"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Union",
+    "nickname": "SUnion",
+    "guid": "8eed5d78-7810-4ba1-968e-8a1f1db98e39",
+    "description": "Creates the union of two sets (the collection of unique objects present in either set).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Data for set Union."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Data for set Union."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "list",
+        "description": "The Set Union of A and B."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Create Set",
+    "nickname": "CSet",
+    "guid": "98c3c63a-e78a-43ea-a111-514fcf312c95",
+    "description": "Creates the valid set from a list of items (a valid set only contains distinct elements).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List of data."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "A set of all the distincts values in L"
+      },
+      {
+        "name": "Map",
+        "nickname": "M",
+        "access": "list",
+        "description": "An index map from original indices to set indices"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Union",
+    "nickname": "SUnion",
+    "guid": "ab34845d-4ab9-4ff4-8870-eedd0c5594cb",
+    "description": "Creates the union of two sets (the collection of unique objects present in either set).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set for Union."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set for Union."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "list",
+        "description": "The Set Union of A and B."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Find similar member",
+    "nickname": "FSim",
+    "guid": "b4d4235f-14ff-4d4e-a29a-b358dcd2baf4",
+    "description": "Find the most similar member in a set.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "item",
+        "description": "Data to search for."
+      },
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "Set to search."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Hit",
+        "nickname": "H",
+        "access": "item",
+        "description": "Member in S closest to D."
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Index of H in set."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Replace Members",
+    "nickname": "Replace",
+    "guid": "bafac914-ede4-4a59-a7b2-cc41bc3de961",
+    "description": "Replace members in a set.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set",
+        "nickname": "S",
+        "access": "list",
+        "description": "Set to operate on."
+      },
+      {
+        "name": "Find",
+        "nickname": "F",
+        "access": "list",
+        "description": "Item(s) to replace."
+      },
+      {
+        "name": "Replace",
+        "nickname": "R",
+        "access": "list",
+        "description": "Item(s) to replace with."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Sets with replaced members."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Difference (S)",
+    "nickname": "ExDiff",
+    "guid": "d2461702-3164-4894-8c10-ed1fc4b52965",
+    "description": "Create the symmetric difference of two sets (the collection of objects present in A or B but not both).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set for symmetric difference."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set for symmetric difference."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "ExDifference",
+        "nickname": "X",
+        "access": "list",
+        "description": "The symmetric difference between A and B."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Majority",
+    "nickname": "Majority",
+    "guid": "d4136a7b-7422-4660-9404-640474bd2725",
+    "description": "Determine majority member presence amongst three sets.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set."
+      },
+      {
+        "name": "Set C",
+        "nickname": "C",
+        "access": "list",
+        "description": "Third set."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Set containing all unique elements in that occur in at least two of the input sets."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Carthesian Product",
+    "nickname": "CProd",
+    "guid": "deffaf1e-270a-4c15-a693-9216b68afd4a",
+    "description": "Create the Carthesian product for two sets of identical cardinality.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set for carthesian product."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set for carthesian product."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Product",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Carthesian product of A and B."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sets",
+    "name": "Set Difference",
+    "nickname": "Difference",
+    "guid": "e3b1a10c-4d49-4140-b8e6-0b5732a26c31",
+    "description": "Create the difference of two sets (the collection of objects present in A but not in B).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Set A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Set to subtract from."
+      },
+      {
+        "name": "Set B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Substraction set."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "list",
+        "description": "The Set Difference of A minus B"
+      }
+    ]
+  }
+]

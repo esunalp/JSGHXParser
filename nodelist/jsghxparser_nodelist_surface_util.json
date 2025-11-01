@@ -1,0 +1,1046 @@
+[
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Divide Surface [OBSOLETE]",
+    "nickname": "Divide",
+    "guid": "082976f0-c741-4df8-a1d4-89891bf8619f",
+    "description": "Generate a grid of {uv} points on a surface.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to divide"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of segments in {u} direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of segments in {v} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "list",
+        "description": "Normal vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "uv",
+        "access": "list",
+        "description": "Parameter coordinates at division points"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Brep Join",
+    "nickname": "Join",
+    "guid": "1addcc85-b04e-46e6-bd4a-6f6c93bf7efd",
+    "description": "Join a number of Breps together",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Breps",
+        "nickname": "B",
+        "access": "list",
+        "description": "Breps to join"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Breps",
+        "nickname": "B",
+        "access": "list",
+        "description": "Joined Breps"
+      },
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "list",
+        "description": "Closed flag for each resulting Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Surface Frames",
+    "nickname": "SFrames",
+    "guid": "332378f4-acb2-43fe-8593-ed22bfeb2721",
+    "description": "Generate a grid of {uv} frames on a surface",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to divide"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of segments in U-direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of segments in V-direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "tree",
+        "description": "Surface Frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "uv",
+        "access": "tree",
+        "description": "Parameter coordinates at division points"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Fillet Edge",
+    "nickname": "FilEdge",
+    "guid": "4b87eb13-f87c-4ff1-ae0e-6c9f1f2aecbd",
+    "description": "Fillet some edges of a brep.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shape to fillet"
+      },
+      {
+        "name": "Blend",
+        "nickname": "B",
+        "access": "item",
+        "description": "Fillet blend type"
+      },
+      {
+        "name": "Metric",
+        "nickname": "M",
+        "access": "item",
+        "description": "Fillet metric type"
+      },
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edge indices to fillet"
+      },
+      {
+        "name": "Radii",
+        "nickname": "R",
+        "access": "list",
+        "description": "Fillet radii/measures per edge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "B",
+        "access": "item",
+        "description": "Filleted Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Divide Surface",
+    "nickname": "SDivide",
+    "guid": "5106bafc-d5d4-4983-83e7-7be3ed07f502",
+    "description": "Generate a grid of {uv} points on a surface.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to divide"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of segments in {u} direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of segments in {v} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Division points"
+      },
+      {
+        "name": "Normals",
+        "nickname": "N",
+        "access": "tree",
+        "description": "Normal vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "uv",
+        "access": "tree",
+        "description": "Parameter coordinates at division points"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Surface Frames [OBSOLETE]",
+    "nickname": "Frames",
+    "guid": "59143f40-32f3-47c1-b9ae-1a09eb9c926b",
+    "description": "Generate a grid of {uv} frames on a surface",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to divide"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of segments in U-direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of segments in V-direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Surface Frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "uv",
+        "access": "list",
+        "description": "Parameter coordinates at division points"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Copy Trim",
+    "nickname": "Trim",
+    "guid": "5d192b90-1ae3-4439-bbde-b05976fc4ac3",
+    "description": "Copy UV trim data from one surface to another.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Source surface"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target surface"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Retrimmed surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Edges from Directions",
+    "nickname": "EdgesDir",
+    "guid": "64ff9813-8fe8-4708-ac9f-61b825213e83",
+    "description": "Select brep edges based on edge direction",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Directions",
+        "nickname": "D",
+        "access": "list",
+        "description": "Directions to filter"
+      },
+      {
+        "name": "Reflex",
+        "nickname": "R",
+        "access": "item",
+        "description": "If true, angle test includes the reflex angle"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Direction angle tolerance."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Found edges"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge indices"
+      },
+      {
+        "name": "Map",
+        "nickname": "M",
+        "access": "list",
+        "description": "Direction map per edge"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Isotrim",
+    "nickname": "SubSrf",
+    "guid": "6a9ccaab-1b03-484e-bbda-be9c81584a66",
+    "description": "Extract an isoparametric subset of a surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Domain of subset"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Subset of base surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Closed Edges",
+    "nickname": "EdgesCls",
+    "guid": "70905be1-e22f-4fa8-b9ae-e119d417904f",
+    "description": "Select closed edges.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Tangency",
+        "nickname": "T",
+        "access": "item",
+        "description": "If true, consecutive tangent edges will be taken into account."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Closed",
+        "nickname": "C",
+        "access": "list",
+        "description": "Closed edge curves"
+      },
+      {
+        "name": "Closed Indices",
+        "nickname": "Ci",
+        "access": "list",
+        "description": "Closed edge indices."
+      },
+      {
+        "name": "Open",
+        "nickname": "O",
+        "access": "list",
+        "description": "Open edge curves."
+      },
+      {
+        "name": "Open Indices",
+        "nickname": "Oi",
+        "access": "list",
+        "description": "Open edge indices."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Edges from Faces",
+    "nickname": "EdgesFaces",
+    "guid": "71e99dbb-2d79-4f02-a8a6-e87a09d54f47",
+    "description": "Select all brep edges that delineate certain faces",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for face coincidence check"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Found edges"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge indices"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Edges from Points",
+    "nickname": "EdgesPt",
+    "guid": "73269f6a-9645-4638-8d5e-88064dd289bd",
+    "description": "Select brep edges based on point coincidence",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for coincidence check"
+      },
+      {
+        "name": "Valence",
+        "nickname": "V",
+        "access": "item",
+        "description": "Minimum valence of points per edge"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Optional coincidence tolerance."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Found edges"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge indices"
+      },
+      {
+        "name": "Map",
+        "nickname": "M",
+        "access": "list",
+        "description": "Point map per edge"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Convex Edges",
+    "nickname": "EdgesCvx",
+    "guid": "8248da39-0729-4e04-8395-267b3259bc2f",
+    "description": "Select concave or convex brep edges.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Convex",
+        "nickname": "Cv",
+        "access": "list",
+        "description": "Fully convex edge indices"
+      },
+      {
+        "name": "Concave",
+        "nickname": "Cc",
+        "access": "list",
+        "description": "Fully concave edge indices"
+      },
+      {
+        "name": "Mixed",
+        "nickname": "Mx",
+        "access": "list",
+        "description": "Mixed concavity edge indices"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Retrim",
+    "nickname": "Retrim",
+    "guid": "a1da39b7-6387-4522-bf2b-2eaee6b14072",
+    "description": "Retrim a surface based on 3D trim data from another surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Source surface providing the UV trim data."
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target surface to be trimmed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Retrimmed surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Loft Options",
+    "nickname": "Loft",
+    "guid": "a8da9901-f5fb-49ec-9cd1-dfa7b788263e",
+    "description": "Contains a collection of lofting options",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Offset Surface",
+    "nickname": "Offset",
+    "guid": "b25c5762-f90e-4839-9fc5-74b74ab42b1e",
+    "description": "Offset a surface by a fixed amount.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Retrim",
+        "nickname": "T",
+        "access": "item",
+        "description": "Retrim offset"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Offset result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Cap Holes",
+    "nickname": "Cap",
+    "guid": "b648d933-ddea-4e75-834c-8f6f3793e311",
+    "description": "Cap all planar holes in a Brep.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to cap"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Capped Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Flip",
+    "nickname": "Flip",
+    "guid": "c3d1f2b8-8596-4e8d-8861-c28ba8ffb4f4",
+    "description": "Flip the normals of a surface based on local or remote geometry",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to flip"
+      },
+      {
+        "name": "Guide",
+        "nickname": "G",
+        "access": "item",
+        "description": "Optional guide surface to match"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Flipped surface"
+      },
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result: True if surface was flipped"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Merge Faces",
+    "nickname": "FMerge",
+    "guid": "d6b43673-55dd-4e2f-95c4-6c69a14513a6",
+    "description": "Merge all adjacent co-planar faces in a brep",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to simplify"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Breps",
+        "nickname": "B",
+        "access": "item",
+        "description": "Simplified Brep"
+      },
+      {
+        "name": "Before",
+        "nickname": "N0",
+        "access": "item",
+        "description": "Number of faces before simplification"
+      },
+      {
+        "name": "After",
+        "nickname": "N1",
+        "access": "item",
+        "description": "Number of faces after simplification"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Edges from Linearity",
+    "nickname": "EdgesLin",
+    "guid": "e4ff8101-73c9-4802-8c5d-704d8721b909",
+    "description": "Select brep edges based on linearity",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "L-",
+        "access": "item",
+        "description": "Minimum linearity deviation for edge inclusion."
+      },
+      {
+        "name": "Maximum",
+        "nickname": "L+",
+        "access": "item",
+        "description": "Maximum linearity deviation for edge inclusion."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Found edges"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge indices"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Offset Surface Loose",
+    "nickname": "Offset (L)",
+    "guid": "e7e43403-f913-4d83-8aff-5b1c7a7f9fbc",
+    "description": "Offset a surface by moving the control points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Offset distance"
+      },
+      {
+        "name": "Retrim",
+        "nickname": "T",
+        "access": "item",
+        "description": "Retrim offset"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Offset result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Cap Holes Ex",
+    "nickname": "CapEx",
+    "guid": "f6409a9c-3d2a-4b14-9f2c-e3c3f2cb72f8",
+    "description": "Cap as many holes as possible in a Brep.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to cap"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Capped Brep"
+      },
+      {
+        "name": "Caps",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of caps added"
+      },
+      {
+        "name": "Solid",
+        "nickname": "S",
+        "access": "item",
+        "description": "Value indicating whether capped brep is solid"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Untrim",
+    "nickname": "Untrim",
+    "guid": "fa92858a-a180-4545-ad4d-0dc644b3a2a8",
+    "description": "Remove all trim curves from a surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Untrimmed surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Util",
+    "name": "Edges from Length",
+    "nickname": "EdgesLen",
+    "guid": "ff187e6a-84bc-4bb9-a572-b39006a0576d",
+    "description": "Select brep edges based on length",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for edge extraction"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "L-",
+        "access": "item",
+        "description": "Minimum edge length for inclusion."
+      },
+      {
+        "name": "Maximum",
+        "nickname": "L+",
+        "access": "item",
+        "description": "Maximum edge length for inclusion."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Found edges"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Edge indices"
+      }
+    ]
+  }
+]

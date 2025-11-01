@@ -1,0 +1,734 @@
+[
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "XY Plane",
+    "nickname": "XY",
+    "guid": "17b7152b-d30d-4d50-b9ef-c9fe25576fc2",
+    "description": "World XY plane.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World XY plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Align Planes",
+    "nickname": "Align",
+    "guid": "2318aee8-01fe-4ea8-9524-6966023fc622",
+    "description": "Align planes by minimizing their serial rotation.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Planes",
+        "nickname": "P",
+        "access": "list",
+        "description": "Planes to align"
+      },
+      {
+        "name": "Master",
+        "nickname": "M",
+        "access": "item",
+        "description": "Optional master plane (if omitted the first plane in P is the master plane)."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Planes",
+        "nickname": "P",
+        "access": "list",
+        "description": "Aligned planes"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Fit",
+    "nickname": "PlFit",
+    "guid": "33bfc73c-19b2-480b-81e6-f3523a012ea6",
+    "description": "Fit a plane through a set of points.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "dx",
+        "access": "item",
+        "description": "Maximum deviation between points and plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Offset",
+    "nickname": "Pl Offset",
+    "guid": "3a0c7bda-3d22-4588-8bab-03f57a52a6ea",
+    "description": "Offset a plane.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for offset"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Offset distance (along base plane z-axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Offset plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Deconstruct Plane",
+    "nickname": "DePlane",
+    "guid": "3cd2949b-4ea8-4ffb-a70c-5c380f9f46ea",
+    "description": "Deconstruct a plane into its component parts.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to deconstruct"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin point"
+      },
+      {
+        "name": "X-Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "X-Axis vector"
+      },
+      {
+        "name": "Y-Axis",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Y-Axis vector"
+      },
+      {
+        "name": "Z-Axis",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Z-Axis vector"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Coordinates",
+    "nickname": "PlCoord",
+    "guid": "5f127fa4-ca61-418e-bb2d-e3739d900f1f",
+    "description": "Get the coordinates of a point in a plane axis system.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Input point"
+      },
+      {
+        "name": "System",
+        "nickname": "S",
+        "access": "item",
+        "description": "Local coordinate system"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "X coordinate",
+        "nickname": "X",
+        "access": "item",
+        "description": "Point {x} coordinate"
+      },
+      {
+        "name": "Y coordinate",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Point {y} coordinate"
+      },
+      {
+        "name": "Z coordinate",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Point {z} coordinate"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Origin",
+    "nickname": "Pl Origin",
+    "guid": "75eec078-a905-47a1-b0d2-0934182b1e3d",
+    "description": "Change the origin point of a plane",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "New origin point of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "XZ Plane",
+    "nickname": "XZ",
+    "guid": "8cc3a196-f6a0-49ea-9ed9-0cb343a3ae64",
+    "description": "World XZ plane.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World XZ plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Adjust Plane",
+    "nickname": "PAdjust",
+    "guid": "9ce34996-d8c6-40d3-b442-1a7c8c093614",
+    "description": "Adjust a plane to match a new normal direction",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to adjust"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "New plane z-axis direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Adjusted plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Closest Point",
+    "nickname": "CP",
+    "guid": "b075c065-efda-4c9f-9cc9-288362b1b4b9",
+    "description": "Find the closest point on a plane.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sample point"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projected point"
+      },
+      {
+        "name": "UV Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinates of projected point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Signed distance between point and plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Construct Plane",
+    "nickname": "Pl",
+    "guid": "bc3e379e-7206-4e7b-b63a-ff61f4b38a3e",
+    "description": "Construct a plane from an origin point and {x}, {y} axes.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      },
+      {
+        "name": "X-Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "X-Axis direction of plane"
+      },
+      {
+        "name": "Y-Axis",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Y-Axis direction of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Constructed plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Flip Plane",
+    "nickname": "PFlip",
+    "guid": "c73e1ed0-82a2-40b0-b4df-8f10e445d60b",
+    "description": "Flip or swap the axes of a plane",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to adjust"
+      },
+      {
+        "name": "Reverse X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Reverse the x-axis direction"
+      },
+      {
+        "name": "Reverse Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Reverse the y-axis direction"
+      },
+      {
+        "name": "Swap axes",
+        "nickname": "S",
+        "access": "item",
+        "description": "Swap the x and y axis directions"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Flipped plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane 3Pt",
+    "nickname": "Pl 3Pt",
+    "guid": "c98a6015-7a2f-423c-bc66-bdc505249b45",
+    "description": "Create a plane through three points.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Origin point"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "X-direction point"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Orientation point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Line + Pt",
+    "nickname": "LnPt",
+    "guid": "ccc3f2ff-c9f6-45f8-aa30-8a924a9bda36",
+    "description": "Create a plane from a line and a point.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line constraint. Plane origin will be at line startpoint. Plane x-axis will be parallel to line direction."
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on plane. Point must not be co-linear with line."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Plane Normal",
+    "nickname": "Pl",
+    "guid": "cfb6b17f-ca82-4f5d-b604-d4f69f569de3",
+    "description": "Create a plane perpendicular to a vector.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      },
+      {
+        "name": "Z-Axis",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Z-Axis direction of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Line + Line",
+    "nickname": "LnLn",
+    "guid": "d788ad7f-6d68-4106-8b2f-9e55e6e107c0",
+    "description": "Create a plane from two line segments.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First line constraint. Plane origin will be at line start."
+      },
+      {
+        "name": "Line B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second line constraint. Line B should be co-planar with but not parallel to Line A."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane definition"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Align Plane",
+    "nickname": "Align",
+    "guid": "e76040ec-3b91-41e1-8e00-c74c23b89391",
+    "description": "Perform minimal rotation to align a plane with a guide vector",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to straighten"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Straightening guide direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Straightened plane"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "Rotate Plane",
+    "nickname": "PRot",
+    "guid": "f6f14b09-6497-4564-8403-09e4eb5a6b82",
+    "description": "Perform plane rotation around plane z-axis",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane to rotate"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation (counter clockwise) around plane z-axis in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rotated plane"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Plane",
+    "name": "YZ Plane",
+    "nickname": "YZ",
+    "guid": "fad344bc-09b1-4855-a2e6-437ef5715fe3",
+    "description": "World YZ plane.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Origin",
+        "nickname": "O",
+        "access": "item",
+        "description": "Origin of plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "World YZ plane"
+      }
+    ]
+  }
+]

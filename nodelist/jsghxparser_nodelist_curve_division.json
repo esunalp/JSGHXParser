@@ -1,0 +1,524 @@
+[
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Curve Frames",
+    "nickname": "Frames",
+    "guid": "0e94542a-2e46-4793-9f98-2200b06b28f4",
+    "description": "Generate a number of equally spaced curve frames.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curve frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Distance",
+    "nickname": "DivDist",
+    "guid": "1e531c08-9c80-46d6-8850-1b50d1dae69f",
+    "description": "Divide a curve with a preset distance between points",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Curve",
+    "nickname": "Divide",
+    "guid": "2162e72e-72fc-4bf8-9459-d4d82fa8aa14",
+    "description": "Divide a curve into equal length segments",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Kinks",
+        "nickname": "K",
+        "access": "item",
+        "description": "Split segments at kinks"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Shatter",
+    "nickname": "Shatter",
+    "guid": "2ad2a4d4-3de1-42f6-a4b8-f71835f35710",
+    "description": "Shatter a curve into segments.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameters to split at"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "list",
+        "description": "Shattered remains"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Contour (ex)",
+    "nickname": "Contour",
+    "guid": "3e7e4827-6edd-4e10-93ac-cc234414d2b9",
+    "description": "Create a set of Curve contours",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to contour"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for contours"
+      },
+      {
+        "name": "Offsets",
+        "nickname": "O",
+        "access": "list",
+        "description": "Contour offsets from base plane (if omitted, you must specify distances instead)"
+      },
+      {
+        "name": "Distances",
+        "nickname": "D",
+        "access": "list",
+        "description": "Distances between contours (if omitted, you must specify offset instead)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contour points (grouped by section)"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "tree",
+        "description": "Curve parameters for all contour points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide By Deviation",
+    "nickname": "DivideDev",
+    "guid": "6e9c0577-ae4a-4b21-8880-0ec3daf3eb4d",
+    "description": "Divide a curve into segments with equal deviation",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "d",
+        "access": "list",
+        "description": "Maximum deviation from segment to curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Contour",
+    "nickname": "Contour",
+    "guid": "88cff285-7f5e-41b3-96d5-9588ff9a52b1",
+    "description": "Create a set of Curve contours",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to contour"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Contour start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "N",
+        "access": "item",
+        "description": "Contour normal direction"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between contours"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contour points (grouped by section)"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "tree",
+        "description": "Curve parameters for all contour points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Horizontal Frames",
+    "nickname": "HFrames",
+    "guid": "8d058945-ce47-4e7c-82af-3269295d7890",
+    "description": "Generate a number of equally spaced, horizontally aligned curve frames.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curvature frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Dash Pattern",
+    "nickname": "Dash",
+    "guid": "95866bbe-648e-4e2b-a97c-7d04679e94e0",
+    "description": "Convert a curve to a dash pattern.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to dash"
+      },
+      {
+        "name": "Pattern",
+        "nickname": "Pt",
+        "access": "list",
+        "description": "An collection of dash and gap lengths."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Dashes",
+        "nickname": "D",
+        "access": "list",
+        "description": "Dash segments"
+      },
+      {
+        "name": "Gaps",
+        "nickname": "G",
+        "access": "list",
+        "description": "Gap segments"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Perp Frames",
+    "nickname": "PFrames",
+    "guid": "983c7600-980c-44da-bc53-c804067f667f",
+    "description": "Generate a number of equally spaced, perpendicular frames along a curve.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Align",
+        "nickname": "A",
+        "access": "item",
+        "description": "Align the frames"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frames",
+        "nickname": "F",
+        "access": "list",
+        "description": "Curve frames"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at frame points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Division",
+    "name": "Divide Length",
+    "nickname": "DivLength",
+    "guid": "fdc466a9-d3b8-4056-852a-09dba0f74aca",
+    "description": "Divide a curve into segments with a preset length",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to divide"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Division points"
+      },
+      {
+        "name": "Tangents",
+        "nickname": "T",
+        "access": "list",
+        "description": "Tangent vectors at division points"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameter values at division points"
+      }
+    ]
+  }
+]

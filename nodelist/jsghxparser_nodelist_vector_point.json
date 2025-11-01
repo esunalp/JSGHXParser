@@ -1,0 +1,1190 @@
+[
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Numbers to Points",
+    "nickname": "Num2Pt",
+    "guid": "0ae07da9-951b-4b9b-98ca-d312c252374d",
+    "description": "Convert a list of numbers to a list of points",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Numbers to merge into points"
+      },
+      {
+        "name": "Mask",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mask for coordinate composition"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Ordered list of points"
+      }
+    ]
+  },
+  {
+    "category": "Vector",
+    "subcategory": "Point",
+    "name": "Text Tag 3D",
+    "nickname": "Tag",
+    "guid": "18564c36-5652-4c63-bb6f-f0e1273666dd",
+    "description": "Represents a list of 3D text tags in a Rhino viewport",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Location",
+        "nickname": "L",
+        "access": "item",
+        "description": "Location and orientation of text tag"
+      },
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "The text to display"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size of text"
+      },
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Optional colour of tag"
+      }
+    ],
+    "outputs": 
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Point Cylindrical",
+  "nickname": "Pt",
+  "guid": "23603075-be64-4d86-9294-c3c125a12104",
+  "description": "Create a point from cylindrical {angle,radius,elevation} coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Base plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Plane defining cylindrical coordinate space"
+    },
+    {
+      "name": "Angle",
+      "nickname": "A",
+      "access": "item",
+      "description": "Angle in radians for P(x,y) rotation"
+    },
+    {
+      "name": "Radius",
+      "nickname": "R",
+      "access": "item",
+      "description": "Radius of cylinder"
+    },
+    {
+      "name": "Elevation",
+      "nickname": "E",
+      "access": "item",
+      "description": "Elevation of point"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "Pt",
+      "access": "item",
+      "description": "Cylindrical point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Construct Point",
+  "nickname": "Pt",
+  "guid": "3581f42a-9592-4549-bd6b-1c0fc39d067b",
+  "description": "Construct a point from {xyz} coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "X coordinate",
+      "nickname": "X",
+      "access": "item",
+      "description": "{x} coordinate"
+    },
+    {
+      "name": "Y coordinate",
+      "nickname": "Y",
+      "access": "item",
+      "description": "{y} coordinate"
+    },
+    {
+      "name": "Z coordinate",
+      "nickname": "Z",
+      "access": "item",
+      "description": "{z} coordinate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "Pt",
+      "access": "item",
+      "description": "Point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Closest Points",
+  "nickname": "CPs",
+  "guid": "446014c4-c11c-45a7-8839-c45dc60950d6",
+  "description": "Find closest points in a point collection.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to search from"
+    },
+    {
+      "name": "Cloud",
+      "nickname": "C",
+      "access": "list",
+      "description": "Cloud of points to search"
+    },
+    {
+      "name": "Count",
+      "nickname": "N",
+      "access": "item",
+      "description": "Number of closest points to find"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Closest Point",
+      "nickname": "P",
+      "access": "list",
+      "description": "Point in [C] closest to [P]"
+    },
+    {
+      "name": "CP Index",
+      "nickname": "i",
+      "access": "list",
+      "description": "Index of closest point"
+    },
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "list",
+      "description": "Distance between [P] and [C](i)"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Text Tag",
+  "nickname": "Tag",
+  "guid": "4b3d38d3-0620-42e5-9ae8-0d4d9ad914cd",
+  "description": "Represents a list of text tags in a Rhino viewport",
+  "library": {
+    "name": "Grasshopper",
+    "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+    "version": "1.0.0007"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Location",
+      "nickname": "L",
+      "access": "item",
+      "description": "Location of text tag"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "The text to display"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Sort Points",
+  "nickname": "Sort Pt",
+  "guid": "4e86ba36-05e2-4cc0-a0f5-3ad57c91f04e",
+  "description": "Sort points by Euclidean coordinates (first x, then y, then z)",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Points to sort"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Sorted points"
+    },
+    {
+      "name": "Indices",
+      "nickname": "I",
+      "access": "list",
+      "description": "Point index map"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Project Point",
+  "nickname": "Project",
+  "guid": "5184b8cb-b71e-4def-a590-cd2c9bc58906",
+  "description": "Project a point onto a collection of shapes",
+  "library": {
+    "name": "Triangulation Components",
+    "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to project"
+    },
+    {
+      "name": "Direction",
+      "nickname": "D",
+      "access": "item",
+      "description": "Projection direction"
+    },
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "list",
+      "description": "Geometry to project onto"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Projected point"
+    },
+    {
+      "name": "Index",
+      "nickname": "I",
+      "access": "item",
+      "description": "Index of object that was projected onto"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Closest Point",
+  "nickname": "CP",
+  "guid": "571ca323-6e55-425a-bf9e-ee103c7ba4b9",
+  "description": "Find closest point in a point collection.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to search from"
+    },
+    {
+      "name": "Cloud",
+      "nickname": "C",
+      "access": "list",
+      "description": "Cloud of points to search"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Closest Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point in [C] closest to [P]"
+    },
+    {
+      "name": "CP Index",
+      "nickname": "i",
+      "access": "item",
+      "description": "Index of closest point"
+    },
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "item",
+      "description": "Distance between [P] and [C](i)"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Sort Along Curve",
+  "nickname": "AlongCrv",
+  "guid": "59aaebf8-6654-46b7-8386-89223c773978",
+  "description": "Sort points along a curve",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Points to sort"
+    },
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve to sort along"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Sorted points"
+    },
+    {
+      "name": "Indices",
+      "nickname": "I",
+      "access": "list",
+      "description": "Point index map"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "To Polar",
+  "nickname": "Polar",
+  "guid": "61647ba2-31eb-4921-9632-df81e3286f7d",
+  "description": "Convert a 3D point to plane polar coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "3D point to transcribe"
+    },
+    {
+      "name": "System",
+      "nickname": "S",
+      "access": "item",
+      "description": "Plane defining polar coordinate space"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Phi",
+      "nickname": "P",
+      "access": "item",
+      "description": "Planar angle in radians (counter-clockwise starting at the plane X-axis)"
+    },
+    {
+      "name": "Theta",
+      "nickname": "T",
+      "access": "item",
+      "description": "Vertical angle in radians"
+    },
+    {
+      "name": "Radius",
+      "nickname": "R",
+      "access": "item",
+      "description": "Distance from system origin to point"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Deconstruct Point",
+  "nickname": "DePoint",
+  "guid": "670fcdba-da07-4eb4-b1c1-bfa0729d767d",
+  "description": "Deconstruct a point into its component parts.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Input point"
+    },
+    {
+      "name": "System",
+      "nickname": "S",
+      "access": "item",
+      "description": "Local coordinate system"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "X coordinate",
+      "nickname": "X",
+      "access": "item",
+      "description": "Point {x} coordinate"
+    },
+    {
+      "name": "Y coordinate",
+      "nickname": "Y",
+      "access": "item",
+      "description": "Point {y} coordinate"
+    },
+    {
+      "name": "Z coordinate",
+      "nickname": "Z",
+      "access": "item",
+      "description": "Point {z} coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Cull Duplicates",
+  "nickname": "CullPt",
+  "guid": "6eaffbb2-3392-441a-8556-2dc126aa8910",
+  "description": "Cull points that are coincident within tolerance",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Points to operate on"
+    },
+    {
+      "name": "Tolerance",
+      "nickname": "T",
+      "access": "item",
+      "description": "Proximity tolerance distance"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Culled points"
+    },
+    {
+      "name": "Indices",
+      "nickname": "I",
+      "access": "list",
+      "description": "Index map of culled points"
+    },
+    {
+      "name": "Valence",
+      "nickname": "V",
+      "access": "list",
+      "description": "Number of input points represented by this output point"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Point Groups",
+  "nickname": "PGroups",
+  "guid": "81f6afc9-22d9-49f0-8579-1fd7e0df6fa6",
+  "description": "Create groups from nearby points",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Points to group"
+    },
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "item",
+      "description": "Distance threshold for group inclusion"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Groups",
+      "nickname": "G",
+      "access": "tree",
+      "description": "Point groups"
+    },
+    {
+      "name": "Indices",
+      "nickname": "I",
+      "access": "tree",
+      "description": "Group indices"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Construct Point",
+  "nickname": "Pt",
+  "guid": "8a5aae11-8775-4ee5-b4fc-db3a1bd89c2f",
+  "description": "Construct a point from individual coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "X coordinate",
+      "nickname": "X",
+      "access": "item",
+      "description": "{x} coordinate"
+    },
+    {
+      "name": "Y coordinate",
+      "nickname": "Y",
+      "access": "item",
+      "description": "{y} coordinate"
+    },
+    {
+      "name": "Z coordinate",
+      "nickname": "Z",
+      "access": "item",
+      "description": "{z} coordinate"
+    },
+    {
+      "name": "System",
+      "nickname": "S",
+      "access": "item",
+      "description": "Coordinate system for point"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "Pt",
+      "access": "item",
+      "description": "Point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Grid Hexagonal [OBSOLETE]",
+  "nickname": "HexGrid",
+  "guid": "8ce6a747-6d36-4bd4-8af0-9a1081df417d",
+  "description": "Generate a hexagonal grid of points.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Base plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Base plane of point grid"
+    },
+    {
+      "name": "Radius",
+      "nickname": "R",
+      "access": "item",
+      "description": "Radius (in grid cells) of the grid."
+    },
+    {
+      "name": "Grid Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Distance between points"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Grid",
+      "nickname": "G",
+      "access": "list",
+      "description": "Resulting point grid"
+    },
+    {
+      "name": "Cells",
+      "nickname": "C",
+      "access": "list",
+      "description": "Cell outlines of the grid"
+    },
+    {
+      "name": "Centers",
+      "nickname": "M",
+      "access": "list",
+      "description": "Center plane for each cell"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Pull Point",
+  "nickname": "Pull",
+  "guid": "902289da-28dc-454b-98d4-b8f8aa234516",
+  "description": "Pull a point to a variety of geometry.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to search from"
+    },
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "list",
+      "description": "Geometry that pulls"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Closest Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on [G] closest to [P]"
+    },
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "item",
+      "description": "Distance between [P] and its projection onto [G]"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Distance",
+  "nickname": "Dist",
+  "guid": "93b8e93d-f932-402c-b435-84be04d87666",
+  "description": "Compute Euclidean distance between two point coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "First point"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Second point"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "item",
+      "description": "Distance between A and B"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Grid Rectangular [OBSOLETE]",
+  "nickname": "RecGrid",
+  "guid": "99f1e47c-978d-468f-bb3d-a3df44552a8e",
+  "description": "Generate a rectangular grid.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Base plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Base plane of point grid"
+    },
+    {
+      "name": "X count",
+      "nickname": "X",
+      "access": "item",
+      "description": "Number of steps along the plane X direction"
+    },
+    {
+      "name": "Y count",
+      "nickname": "Y",
+      "access": "item",
+      "description": "Number of steps along the plane Y direction"
+    },
+    {
+      "name": "Grid Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Distance between points"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Grid",
+      "nickname": "G",
+      "access": "list",
+      "description": "Resulting point grid"
+    },
+    {
+      "name": "Cells",
+      "nickname": "C",
+      "access": "list",
+      "description": "Grid cell outlines"
+    },
+    {
+      "name": "Centers",
+      "nickname": "M",
+      "access": "list",
+      "description": "Grid cell centers"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Deconstruct",
+  "nickname": "pDecon",
+  "guid": "9abae6b7-fa1d-448c-9209-4a8155345841",
+  "description": "Deconstruct a point into its component parts.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Input point"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "X component",
+      "nickname": "X",
+      "access": "item",
+      "description": "Point {x} component"
+    },
+    {
+      "name": "Y component",
+      "nickname": "Y",
+      "access": "item",
+      "description": "Point {y} component"
+    },
+    {
+      "name": "Z component",
+      "nickname": "Z",
+      "access": "item",
+      "description": "Point {z} component"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Barycentric",
+  "nickname": "BCentric",
+  "guid": "9adffd61-f5d1-4e9e-9572-e8d9145730dc",
+  "description": "Create a point from barycentric {u,v,w} coordinates",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "First anchor point"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Second anchor point"
+    },
+    {
+      "name": "Point C",
+      "nickname": "C",
+      "access": "item",
+      "description": "Third anchor point"
+    },
+    {
+      "name": "Coordinate U",
+      "nickname": "U",
+      "access": "item",
+      "description": "First barycentric coordinate"
+    },
+    {
+      "name": "Coordinate V",
+      "nickname": "V",
+      "access": "item",
+      "description": "Second barycentric coordinate"
+    },
+    {
+      "name": "Coordinate W",
+      "nickname": "W",
+      "access": "item",
+      "description": "Third barycentric coordinate"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Barycentric point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Point Polar",
+  "nickname": "Pt",
+  "guid": "a435f5c8-28a2-43e8-a52a-0b6e73c2e300",
+  "description": "Create a point from polar {phi,theta,offset} coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Base plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Plane defining polar coordinate space"
+    },
+    {
+      "name": "XY angle",
+      "nickname": "xy",
+      "access": "item",
+      "description": "Angle in radians for P(x,y) rotation"
+    },
+    {
+      "name": "Z angle",
+      "nickname": "z",
+      "access": "item",
+      "description": "Angle in radians for P(z) rotation"
+    },
+    {
+      "name": "Offset",
+      "nickname": "d",
+      "access": "item",
+      "description": "Offset distance for point"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "Pt",
+      "access": "item",
+      "description": "Polar point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Point Oriented",
+  "nickname": "Pt",
+  "guid": "aa333235-5922-424c-9002-1e0b866a854b",
+  "description": "Create a point from plane {u,v,w} coordinates.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Base plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Plane defining coordinate space"
+    },
+    {
+      "name": "U component",
+      "nickname": "U",
+      "access": "item",
+      "description": "U parameter on plane"
+    },
+    {
+      "name": "V component",
+      "nickname": "V",
+      "access": "item",
+      "description": "V parameter on plane"
+    },
+    {
+      "name": "W component",
+      "nickname": "W",
+      "access": "item",
+      "description": "W parameter on plane (elevation)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Point",
+      "nickname": "Pt",
+      "access": "item",
+      "description": "Oriented point coordinate"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Coordinate Mask",
+  "nickname": "CMask",
+  "guid": "bc26bf46-e81b-429a-b168-16d50cc89bd7",
+  "description": "Represents a list of point coordinate masks",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": false,
+  "inputs": [
+    ,
+    "outputs": 
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Pull Point",
+  "nickname": "Pull",
+  "guid": "cf3a0865-4882-46bd-91a1-d512acf95be4",
+  "description": "Pull a point to a variety of geometry.",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to search from"
+    },
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "list",
+      "description": "Geometry that pulls"
+    },
+    {
+      "name": "Closest",
+      "nickname": "C",
+      "access": "item",
+      "description": "Only return the closest pull"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Closest Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point on [G] closest to [P]"
+    },
+    {
+      "name": "Distance",
+      "nickname": "D",
+      "access": "item",
+      "description": "Distance between [P] and its projection onto [G]"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Points to Numbers",
+  "nickname": "Pt2Num",
+  "guid": "d24169cc-9922-4923-92bc-b9222efc413f",
+  "description": "Convert a list of points to a list of numbers",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Points to parse"
+    },
+    {
+      "name": "Mask",
+      "nickname": "M",
+      "access": "item",
+      "description": "Mask for coordinate extraction"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Numbers",
+      "nickname": "N",
+      "access": "list",
+      "description": "Ordered list of coordinates"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Point",
+  "name": "Text Tag 3D",
+  "nickname": "Tag",
+  "guid": "ebf4d987-09b9-4825-a735-cac3d4770c19",
+  "description": "Represents a list of 3D text tags in a Rhino viewport",
+  "library": {
+    "name": "Grasshopper",
+    "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+    "version": "1.0.0007"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Location",
+      "nickname": "L",
+      "access": "item",
+      "description": "Location and orientation of text tag"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "The text to display"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Size of text"
+    }
+  ],
+  "outputs": 
+]
+}
+]

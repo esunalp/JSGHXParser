@@ -1,0 +1,308 @@
+[
+  {
+    "category": "Display",
+    "subcategory": "Preview",
+    "name": "Cloud Display",
+    "nickname": "Cloud",
+    "guid": "059b72b0-9bb3-4542-a805-2dcd27493164",
+    "description": "Draw a collection of points as a fuzzy cloud",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Location for each blob"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Colour for each blob"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Size for each blob"
+      }
+    ],
+    "outputs": 
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Custom Preview",
+  "nickname": "Preview",
+  "guid": "537b0419-bbc2-4ff4-bf08-afe526367b2c",
+  "description": "Allows for customized geometry previews",
+  "library": {
+    "name": "Grasshopper",
+    "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+    "version": "1.0.0007"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "item",
+      "description": "Geometry to preview"
+    },
+    {
+      "name": "Material",
+      "nickname": "M",
+      "access": "item",
+      "description": "The material override"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Symbol Display",
+  "nickname": "Symbol",
+  "guid": "62d5ead4-53c4-4d0b-b5ce-6bd6e0850ab8",
+  "description": "Display symbols",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Location",
+      "nickname": "P",
+      "access": "item",
+      "description": "Symbol location"
+    },
+    {
+      "name": "Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Symbol display properties"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Dot Display",
+  "nickname": "Dots",
+  "guid": "6b1bd8b2-47a4-4aa6-a471-3fd91c62a486",
+  "description": "Draw a collection of coloured dots",
+  "library": {
+    "name": "Vector Components",
+    "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Dot location"
+    },
+    {
+      "name": "Colour",
+      "nickname": "C",
+      "access": "item",
+      "description": "Dot colour"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dot size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Create Material",
+  "nickname": "Material",
+  "guid": "76975309-75a6-446a-afed-f8653720a9f2",
+  "description": "Create an OpenGL material.",
+  "library": {
+    "name": "Math Components",
+    "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Diffuse",
+      "nickname": "Kd",
+      "access": "item",
+      "description": "Colour of the diffuse channel"
+    },
+    {
+      "name": "Specular",
+      "nickname": "Ks",
+      "access": "item",
+      "description": "Colour of the specular highlight"
+    },
+    {
+      "name": "Emission",
+      "nickname": "Ke",
+      "access": "item",
+      "description": "Emissive colour of the material"
+    },
+    {
+      "name": "Transparency",
+      "nickname": "T",
+      "access": "item",
+      "description": "Amount of transparency (0.0 = opaque, 1.0 = transparent"
+    },
+    {
+      "name": "Shine",
+      "nickname": "S",
+      "access": "item",
+      "description": "Amount of shinyness (0 = none, 1 = low shine, 100 = max shine"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Material",
+      "nickname": "M",
+      "access": "item",
+      "description": "Resulting material"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Symbol (Simple)",
+  "nickname": "SymSim",
+  "guid": "79747717-1874-4c34-b790-faef53b50569",
+  "description": "Simple symbol display properties",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Style",
+      "nickname": "X",
+      "access": "item",
+      "description": "Symbol style"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Primary radius or outer size"
+    },
+    {
+      "name": "Rotation",
+      "nickname": "R",
+      "access": "item",
+      "description": "Rotation angle"
+    },
+    {
+      "name": "Colour",
+      "nickname": "C",
+      "access": "item",
+      "description": "Main colour"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Symbol Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Symbol display properties"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Preview",
+  "name": "Symbol (Advanced)",
+  "nickname": "SymAdv",
+  "guid": "e5c82975-8011-412c-b56d-bb7fc9e7f28d",
+  "description": "Advanced symbol display properties",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Style",
+      "nickname": "X",
+      "access": "item",
+      "description": "Symbol style"
+    },
+    {
+      "name": "Size Primary",
+      "nickname": "S1",
+      "access": "item",
+      "description": "Symbol size"
+    },
+    {
+      "name": "Size Secondary",
+      "nickname": "S2",
+      "access": "item",
+      "description": "Alternative size or offset (depending on style)."
+    },
+    {
+      "name": "Rotation",
+      "nickname": "R",
+      "access": "item",
+      "description": "Rotation angle"
+    },
+    {
+      "name": "Fill",
+      "nickname": "Cf",
+      "access": "item",
+      "description": "Fill colour"
+    },
+    {
+      "name": "Edge",
+      "nickname": "Ce",
+      "access": "item",
+      "description": "Edge colour"
+    },
+    {
+      "name": "Width",
+      "nickname": "W",
+      "access": "item",
+      "description": "Edge width"
+    },
+    {
+      "name": "Adjust",
+      "nickname": "A",
+      "access": "item",
+      "description": "Adjust apparent size based on view"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Symbol Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Symbol display properties"
+    }
+  ]
+}
+]

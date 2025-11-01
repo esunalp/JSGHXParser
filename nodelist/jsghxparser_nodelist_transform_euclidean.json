@@ -1,0 +1,830 @@
+[
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Sanity XForm",
+    "nickname": "MWHAHAHA!!",
+    "guid": "03b3db66-d7e8-4d2d-bc0c-122913317254",
+    "description": "Apply a sanity transformation to f a r - a w a y, tiny or HUGE geometry",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Geometry to transform"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Sane geometry"
+      },
+      {
+        "name": "Wackometry",
+        "nickname": "W",
+        "access": "list",
+        "description": "Reinstated insane geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Orient",
+    "nickname": "Orient",
+    "guid": "378d0690-9da0-4dd1-ab16-1d15246e7c22",
+    "description": "Orient an object. Orientation is sometimes called a 'ChangeBasis tranformation'. It allows for remapping of geometry from one axis-system to another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Source",
+        "nickname": "A",
+        "access": "item",
+        "description": "Initial plane"
+      },
+      {
+        "name": "Target",
+        "nickname": "B",
+        "access": "item",
+        "description": "Final plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reoriented geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate Axis",
+    "nickname": "RotAx",
+    "guid": "3ac8e589-37f5-477d-aa61-6699702c5728",
+    "description": "Rotate an object around an axis.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Rotation axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate 3D",
+    "nickname": "Rot3D",
+    "guid": "3dfb9a77-6e05-4016-9f20-94f78607d672",
+    "description": "Rotate an object around a center point and an axis vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of rotation"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Axis of rotation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Move To Plane",
+    "nickname": "MoveToPlane",
+    "guid": "4fe87ef8-49e4-4605-9859-87940d62e1de",
+    "description": "Translate (move) an object onto a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Target plane"
+      },
+      {
+        "name": "Above",
+        "nickname": "A",
+        "access": "item",
+        "description": "Move when above plane"
+      },
+      {
+        "name": "Below",
+        "nickname": "B",
+        "access": "item",
+        "description": "Move when below plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate Axis",
+    "nickname": "RotAx",
+    "guid": "55959599-0b44-4333-8427-a73564ea7ffb",
+    "description": "Rotate an object around an axis.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Rotation axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate Direction",
+    "nickname": "Rotate",
+    "guid": "5edaea74-32cb-4586-bd72-66694eb73160",
+    "description": "Rotate an object from one direction to another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Rotation center point"
+      },
+      {
+        "name": "From",
+        "nickname": "F",
+        "access": "item",
+        "description": "Initial direction"
+      },
+      {
+        "name": "To",
+        "nickname": "T",
+        "access": "item",
+        "description": "Final direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate 3D",
+    "nickname": "Rot3D",
+    "guid": "955d887b-c83b-4c61-bf35-df5d4c4abd9b",
+    "description": "Rotate an object around a center point and an axis vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of rotation"
+      },
+      {
+        "name": "Axis",
+        "nickname": "X",
+        "access": "item",
+        "description": "Axis of rotation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Orient",
+    "nickname": "Orient",
+    "guid": "a35811bc-1034-4491-acb8-608a8cfa27b1",
+    "description": "Orient an object. Orientation is sometimes called a 'ChangeBasis tranformation'. It allows for remapping of geometry from one axis-system to another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Initial",
+        "nickname": "A",
+        "access": "item",
+        "description": "Reference plane"
+      },
+      {
+        "name": "Final",
+        "nickname": "B",
+        "access": "item",
+        "description": "Target plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reoriented geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Mirror",
+    "nickname": "Mirror",
+    "guid": "a70bdac1-1ed2-40d3-b687-3437bc150af0",
+    "description": "Mirror an object.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirror plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Move",
+    "nickname": "Move",
+    "guid": "b40f28a2-ba30-4ac2-afe5-a6ece7f985fc",
+    "description": "Translate (move) an object along a vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Translation",
+        "nickname": "T",
+        "access": "item",
+        "description": "Translation vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate",
+    "nickname": "Rotate",
+    "guid": "b661519d-43fd-4e5a-b244-d54d9fae2bde",
+    "description": "Rotate an object in a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rotation plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate",
+    "nickname": "Rotate",
+    "guid": "b7798b74-037e-4f0c-8ac7-dc1043d093e0",
+    "description": "Rotate an object in a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rotation plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Rotated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate Axis [OBSOLETE]",
+    "nickname": "RotAx",
+    "guid": "bef50d22-e6b3-45fd-b7be-1c501502186b",
+    "description": "This component is obsolete. It has been replaced by another Rotate Axis component",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to move"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Rotation angle in radians"
+      },
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start of axis"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End of axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Move Away From",
+    "nickname": "MoveAway",
+    "guid": "dd9f597a-4db0-42b1-9cb2-5607ec97db09",
+    "description": "Translate (move) an object away from another object.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to move"
+      },
+      {
+        "name": "Emitter",
+        "nickname": "E",
+        "access": "item",
+        "description": "Geometry to move away from"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance to move (negative values move towards)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Move",
+    "nickname": "Move",
+    "guid": "e9eb1dcf-92f6-4d4d-84ae-96222d60f56b",
+    "description": "Translate (move) an object along a vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Motion",
+        "nickname": "T",
+        "access": "item",
+        "description": "Translation vector"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Translated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Mirror",
+    "nickname": "Mirror",
+    "guid": "f12daa2f-4fd5-48c1-8ac3-5dea476912ca",
+    "description": "Mirror an object.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirror plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Euclidean",
+    "name": "Rotate Euler",
+    "nickname": "RotEuler",
+    "guid": "f838b4f6-42fa-4d77-9615-f6b2d142ba68",
+    "description": "Rotate an object with (KUKA) Euler notation",
+    "library": {
+      "name": "RobotsExtended",
+      "id": "1144ad19-a43a-4b2b-870f-19ab431ca98f",
+      "version": "1.6.7.2"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "Geo",
+        "access": "list",
+        "description": "Geometry or plane to rotate"
+      },
+      {
+        "name": "Rotation Plane",
+        "nickname": "Pln",
+        "access": "list",
+        "description": "Plane to use for center or rotation"
+      },
+      {
+        "name": "Z-Axis",
+        "nickname": "A",
+        "access": "list",
+        "description": "Degree of rotation on Z-Axis"
+      },
+      {
+        "name": "Y-Axis",
+        "nickname": "B",
+        "access": "list",
+        "description": "Degree of rotation on Y-Axis"
+      },
+      {
+        "name": "X-Axis",
+        "nickname": "C",
+        "access": "list",
+        "description": "Degree of rotation on X-Axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "list",
+        "description": "Rotated geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "list",
+        "description": "Transformation data"
+      }
+    ]
+  }
+]

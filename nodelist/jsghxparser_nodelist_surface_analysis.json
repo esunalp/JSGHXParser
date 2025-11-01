@@ -1,0 +1,1718 @@
+[
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Edges",
+    "nickname": "Edges",
+    "guid": "0148a65d-6f42-414a-9db7-9a9b2eb78437",
+    "description": "Extract the edge curves of a brep.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Naked",
+        "nickname": "En",
+        "access": "list",
+        "description": "Naked edge curves"
+      },
+      {
+        "name": "Interior",
+        "nickname": "Ei",
+        "access": "list",
+        "description": "Interior edge curves"
+      },
+      {
+        "name": "Non-Manifold",
+        "nickname": "Em",
+        "access": "list",
+        "description": "Non-Manifold edge curves"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Surface Inflection",
+    "nickname": "SInf",
+    "guid": "0efd7f0c-f63d-446d-970e-9fb0e636ea41",
+    "description": "Compute the inflection curves for a surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to analyse"
+      },
+      {
+        "name": "Tolerance",
+        "nickname": "T",
+        "access": "item",
+        "description": "Sampling tolerance"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Inflection curves"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Evaluate Box",
+    "nickname": "Box",
+    "guid": "13b40e9c-3aed-4669-b2e8-60bd02091421",
+    "description": "Evaluate a box in normalised {UVW} space.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base box"
+      },
+      {
+        "name": "U parameter",
+        "nickname": "U",
+        "access": "item",
+        "description": "{u} parameter (values between 0.0 and 1.0 are inside the box)"
+      },
+      {
+        "name": "V parameter",
+        "nickname": "V",
+        "access": "item",
+        "description": "{v} parameter (values between 0.0 and 1.0 are inside the box)"
+      },
+      {
+        "name": "W parameter",
+        "nickname": "W",
+        "access": "item",
+        "description": "{w} parameter (values between 0.0 and 1.0 are inside the box)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Plane at {uvw} coordinate"
+      },
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Point at {uvw} coordinate"
+      },
+      {
+        "name": "Include",
+        "nickname": "I",
+        "access": "item",
+        "description": "True if point is inside or on box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Surface Points",
+    "nickname": "SrfPt",
+    "guid": "15128198-399d-4d6c-9586-1f65db3ce7bf",
+    "description": "Get the control-points of a Nurbs Surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface for control-point extraction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Control point locations"
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Control point weights"
+      },
+      {
+        "name": "Greville",
+        "nickname": "G",
+        "access": "list",
+        "description": "Greville uv points"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of points along U direction"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of points along V direction"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Area Moments",
+    "nickname": "AMoments",
+    "guid": "1eb7b856-ec7d-40b6-a76c-f216a11df37c",
+    "description": "Solve area moments for breps, meshes and planar closed curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Brep, mesh or planar closed curve for area computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of geometry"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Volume",
+    "nickname": "Volume",
+    "guid": "224f7648-5956-4b26-80d9-8d771f3dfd5d",
+    "description": "Solve volume properties for closed breps and meshes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Closed brep or mesh for volume computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of geometry"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Shape In Brep",
+    "nickname": "ShapeIn",
+    "guid": "2ba64356-be21-4c12-bbd4-ced54f04c8ef",
+    "description": "Tests whether a shape is inside a brep",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Closed brep for inside/outside testing"
+      },
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shape for inside/outside testing"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Relation",
+        "nickname": "R",
+        "access": "item",
+        "description": "Relationship of shape to brep (0=inside, 1=intersecting, 2=outside)"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Area",
+    "nickname": "Area",
+    "guid": "2e205f24-9279-47b2-b414-d06dcd0b21a7",
+    "description": "Solve area properties for breps, meshes and planar closed curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Brep, mesh or planar closed curve for area computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Area centroid of geometry"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Volume Moments",
+    "nickname": "VMoments",
+    "guid": "2e685fd9-7b8f-461b-b330-44857b099937",
+    "description": "Solve volume properties for closed breps and meshes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Closed brep or mesh for volume computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of geometry"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Evaluate Surface",
+    "nickname": "EvalSrf",
+    "guid": "353b206e-bde5-4f02-a913-b3b8a977d4b9",
+    "description": "Evaluate local surface properties at a {uv} coordinate.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at {uv}"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal at {uv}"
+      },
+      {
+        "name": "U direction",
+        "nickname": "U",
+        "access": "item",
+        "description": "U direction at {uv}"
+      },
+      {
+        "name": "V direction",
+        "nickname": "V",
+        "access": "item",
+        "description": "V direction at {uv}"
+      },
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Frame at {uv}"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Principal Curvature",
+    "nickname": "Curvature",
+    "guid": "404f75ac-5594-4c48-ad8a-7d0f472bbf8a",
+    "description": "Evaluate the principal curvature of a surface at a {uv} coordinate.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Surface frame at (uv) coordinate"
+      },
+      {
+        "name": "Maximum",
+        "nickname": "C¹",
+        "access": "item",
+        "description": "Maximum (absolute) principal curvature"
+      },
+      {
+        "name": "Minimum",
+        "nickname": "C²",
+        "access": "item",
+        "description": "Minimum (absolute) principal curvature"
+      },
+      {
+        "name": "Max direction",
+        "nickname": "K¹",
+        "access": "item",
+        "description": "Principal curvature direction corresponding to C¹."
+      },
+      {
+        "name": "Min direction",
+        "nickname": "K²",
+        "access": "item",
+        "description": "Principal curvature direction corresponding to C²."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Surface Curvature",
+    "nickname": "Curvature",
+    "guid": "4139f3a3-cf93-4fc0-b5e0-18a3acd0b003",
+    "description": "Evaluate the surface curvature at a {uv} coordinate.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Surface frame at {uv} coordinate"
+      },
+      {
+        "name": "Gaussian",
+        "nickname": "G",
+        "access": "item",
+        "description": "Gaussian curvature"
+      },
+      {
+        "name": "Mean",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mean curvature"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Surface Closest Point",
+    "nickname": "Srf CP",
+    "guid": "4a9e9a8e-0943-4438-b360-129c30f2bb0f",
+    "description": "Find the closest point on a surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Sample point"
+      },
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Closest point"
+      },
+      {
+        "name": "UV Point",
+        "nickname": "uvP",
+        "access": "item",
+        "description": "{uv} coordinates of closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between sample point and surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Volume Moments",
+    "nickname": "VMoments",
+    "guid": "4b5f79e1-c2b3-4b9c-b97d-470145a3ca74",
+    "description": "Solve volume properties for closed breps and meshes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Closed brep or mesh for volume computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of geometry"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Inertia (error)",
+        "nickname": "I±",
+        "access": "item",
+        "description": "Errors on Moments of inertia"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary (error)",
+        "nickname": "S±",
+        "access": "item",
+        "description": "Errors on Secondary moments"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Closest Point",
+    "nickname": "Brep CP",
+    "guid": "4beead95-8aa2-4613-8bb9-24758a0f5c4c",
+    "description": "Find the closest point on a brep",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Sample point"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Closest point"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal direction at closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between sample point and Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Area Moments",
+    "nickname": "AMoments",
+    "guid": "5d2fb801-2905-4a55-9d48-bbb22c73ad13",
+    "description": "Solve Brep area moments.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of Brep"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Area centroid of Brep"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Inertia (error)",
+        "nickname": "I±",
+        "access": "item",
+        "description": "Errors on Moments of inertia"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary (error)",
+        "nickname": "S±",
+        "access": "item",
+        "description": "Errors on Secondary moments"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Volume",
+    "nickname": "Volume",
+    "guid": "7c0523e8-79c9-45a2-8777-cf0d46bc5432",
+    "description": "Solve volume properties for closed breps and meshes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Closed brep or mesh for volume computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of geometry"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Point In Breps",
+    "nickname": "BrepsInc",
+    "guid": "859daa86-3ab7-49cb-9eda-f2811c984070",
+    "description": "Test whether a point is inside a collection of closed breps",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "list",
+        "description": "Breps for inclusion test"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Strict",
+        "nickname": "S",
+        "access": "item",
+        "description": "If true, then the inclusion is strict"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "I",
+        "access": "item",
+        "description": "True if point is on the inside at least one of the Breps."
+      },
+      {
+        "name": "Index",
+        "nickname": "i",
+        "access": "item",
+        "description": "Index of first brep that contains the point, or -1"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Topology",
+    "nickname": "Topology",
+    "guid": "866ee39d-9ebf-4e1d-b209-324c56825605",
+    "description": "Get and display the topology of a brep.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Face|Face Adjacency",
+        "nickname": "FF",
+        "access": "tree",
+        "description": "For each face lists all faces that surround it."
+      },
+      {
+        "name": "Face|Edge Adjacency",
+        "nickname": "FE",
+        "access": "tree",
+        "description": "For each face lists all edges that surround it."
+      },
+      {
+        "name": "Edge|Face Adjacency",
+        "nickname": "EF",
+        "access": "tree",
+        "description": "for each edge lists all faces that surround it."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Area",
+    "nickname": "Area",
+    "guid": "86b28a7e-94d9-4791-8306-e13e10d5f8d5",
+    "description": "Solve area properties for breps, meshes and planar closed curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Brep, mesh or planar closed curve for area computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Area centroid of geometry"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Brep",
+    "nickname": "DeBrep",
+    "guid": "8d372bdc-9800-45e9-8a26-6e33c5253e21",
+    "description": "Deconstruct a brep into its constituent parts.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Faces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Faces of Brep"
+      },
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edges of Brep"
+      },
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertices of Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Box Corners",
+    "nickname": "Box Corners",
+    "guid": "a10e8cdf-7c7a-4aac-aa70-ddb7010ab231",
+    "description": "Extract all 8 corners of a box.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base box"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Corner at {x=min, y=min, z=min}"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Corner at {x=max, y=min, z=min}"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Corner at {x=max, y=max, z=min}"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Corner at {x=min, y=max, z=min}"
+      },
+      {
+        "name": "Corner E",
+        "nickname": "E",
+        "access": "item",
+        "description": "Corner at {x=min, y=min, z=max}"
+      },
+      {
+        "name": "Corner F",
+        "nickname": "F",
+        "access": "item",
+        "description": "Corner at {x=max, y=min, z=max}"
+      },
+      {
+        "name": "Corner G",
+        "nickname": "G",
+        "access": "item",
+        "description": "Corner at {x=max, y=max, z=max}"
+      },
+      {
+        "name": "Corner H",
+        "nickname": "H",
+        "access": "item",
+        "description": "Corner at {x=min, y=min, z=max}"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Evaluate Surface",
+    "nickname": "EvalSrf",
+    "guid": "aa1dc107-70de-473e-9636-836030160fc3",
+    "description": "Evaluate local surface properties at a {uv} coordinate.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point at {uv}"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal at {uv}"
+      },
+      {
+        "name": "Frame",
+        "nickname": "F",
+        "access": "item",
+        "description": "Frame at {uv}"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Area",
+    "nickname": "Area",
+    "guid": "ab766b01-a3f5-4257-831a-fc84d7b288b4",
+    "description": "Solve Brep area properties.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of Brep"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Area centroid of Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Wireframe",
+    "nickname": "Wires",
+    "guid": "ac750e41-2450-4f98-9658-98fef97b01b2",
+    "description": "Extract the wireframe curves of a brep.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      },
+      {
+        "name": "Density",
+        "nickname": "D",
+        "access": "item",
+        "description": "Wireframe isocurve density"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Wireframe",
+        "nickname": "W",
+        "access": "list",
+        "description": "Wireframe curves"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Box Properties",
+    "nickname": "BoxProp",
+    "guid": "af9cdb9d-9617-4827-bb3c-9efd88c76a70",
+    "description": "Get some properties of a box",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Box to analyze"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center point of box"
+      },
+      {
+        "name": "Diagonal",
+        "nickname": "D",
+        "access": "item",
+        "description": "Diagonal vector of box"
+      },
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of box"
+      },
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of box"
+      },
+      {
+        "name": "Degeneracy",
+        "nickname": "d",
+        "access": "item",
+        "description": "Degeneracy of box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Osculating Circles",
+    "nickname": "Osc",
+    "guid": "b799b7c0-76df-4bdb-b3cc-401b1d021aa5",
+    "description": "Calculate the principal osculating circles of a surface at a {uv} coordinate.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "uv",
+        "access": "item",
+        "description": "{uv} coordinate to evaluate"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Surface point at {uv} coordinate"
+      },
+      {
+        "name": "First circle",
+        "nickname": "C1",
+        "access": "item",
+        "description": "First osculating circle"
+      },
+      {
+        "name": "Second circle",
+        "nickname": "C2",
+        "access": "item",
+        "description": "Second osculating circle"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Volume",
+    "nickname": "Volume",
+    "guid": "c72d0184-bb99-4af4-a629-4662e1c3d428",
+    "description": "Solve Brep volume properties.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of Brep"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Area Moments",
+    "nickname": "AMoments",
+    "guid": "c98c1666-5f29-4bb8-aafd-bb5a708e8a95",
+    "description": "Solve area moments for breps, meshes and planar closed curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Brep, mesh or planar closed curve for area computation"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of geometry"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Area centroid of geometry"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Inertia (error)",
+        "nickname": "I±",
+        "access": "item",
+        "description": "Errors on Moments of inertia"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary (error)",
+        "nickname": "S±",
+        "access": "item",
+        "description": "Errors on Secondary moments"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Closest Point",
+    "nickname": "Brep CP",
+    "guid": "cdd5d441-3bad-4f19-a370-6cf180b6f0fa",
+    "description": "Find the closest point on a brep",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Sample point"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Closest point"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between sample point and Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Is Planar",
+    "nickname": "Planar",
+    "guid": "d4bc9653-c770-4bee-a31d-d120cbb75b39",
+    "description": "Test whether a surface is planar",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to test for planarity"
+      },
+      {
+        "name": "Interior",
+        "nickname": "I",
+        "access": "item",
+        "description": "Limit planarity test to the interior of trimmed surfaces"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Planar",
+        "nickname": "F",
+        "access": "item",
+        "description": "Planarity flag of surface"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Surface plane"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Deconstruct Box",
+    "nickname": "DeBox",
+    "guid": "db7d83b1-2898-4ef9-9be5-4e94b4e2048d",
+    "description": "Deconstruct a box into its constituent parts.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base box"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Box plane"
+      },
+      {
+        "name": "X",
+        "nickname": "X",
+        "access": "item",
+        "description": "{x} dimension of box"
+      },
+      {
+        "name": "Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "{y} dimension of box"
+      },
+      {
+        "name": "Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "{z} dimension of box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Point In Brep",
+    "nickname": "BrepInc",
+    "guid": "e03561f8-0e66-41d3-afde-62049f152443",
+    "description": "Test whether a point is inside a closed brep",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep for inclusion test"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for inclusion test"
+      },
+      {
+        "name": "Strict",
+        "nickname": "S",
+        "access": "item",
+        "description": "If true, then the inclusion is strict"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "I",
+        "access": "item",
+        "description": "True if point is on the inside of the Brep."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Dimensions",
+    "nickname": "Dim",
+    "guid": "f241e42e-8983-4ed3-b869-621c07630b00",
+    "description": "Get the approximate dimensions of a surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Surface to measure"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "U dimension",
+        "nickname": "U",
+        "access": "item",
+        "description": "Approximate dimension in U direction"
+      },
+      {
+        "name": "V dimension",
+        "nickname": "V",
+        "access": "item",
+        "description": "Approximate dimension in V direction"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Point In Trim",
+    "nickname": "TrimInc",
+    "guid": "f881810b-96de-4668-a95a-f9a6d683e65c",
+    "description": "Test whether a {uv} coordinate is inside the trimmed portion of a surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "UV Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "UV point to test for trim inclusion"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inclusion",
+        "nickname": "I",
+        "access": "item",
+        "description": "Inclusion flag. TRUE if point is inside the trim boundaries."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Analysis",
+    "name": "Brep Volume Moments",
+    "nickname": "VMoments",
+    "guid": "ffdfcfc5-3933-4c38-b680-8bb530e243ff",
+    "description": "Solve Brep volume moments.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Volume",
+        "nickname": "V",
+        "access": "item",
+        "description": "Volume of Brep"
+      },
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Volume centroid of Brep"
+      },
+      {
+        "name": "Inertia",
+        "nickname": "I",
+        "access": "item",
+        "description": "Moments of inertia around the centroid"
+      },
+      {
+        "name": "Inertia (error)",
+        "nickname": "I±",
+        "access": "item",
+        "description": "Errors on Moments of inertia"
+      },
+      {
+        "name": "Secondary",
+        "nickname": "S",
+        "access": "item",
+        "description": "Secondary moments of inertia around the centroid"
+      },
+      {
+        "name": "Secondary (error)",
+        "nickname": "S±",
+        "access": "item",
+        "description": "Errors on Secondary moments"
+      },
+      {
+        "name": "Gyration",
+        "nickname": "G",
+        "access": "item",
+        "description": "Radii of gyration"
+      }
+    ]
+  }
+]

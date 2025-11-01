@@ -1,0 +1,770 @@
+[
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Degrees",
+    "nickname": "Deg",
+    "guid": "0d77c51e-584f-44e8-aed2-c2ddf4803888",
+    "description": "Convert an angle specified in radians to degrees",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Radians",
+        "nickname": "R",
+        "access": "item",
+        "description": "Angle in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Degrees",
+        "nickname": "D",
+        "access": "item",
+        "description": "Angle in degrees"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Tangent",
+    "nickname": "Tan",
+    "guid": "0f31784f-7177-4104-8500-1f4f4a306df4",
+    "description": "Compute the tangent of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "CoTangent",
+    "nickname": "Cot",
+    "guid": "1f602c33-f38e-4f47-898b-359f0a4de3c2",
+    "description": "Compute the co-tangent (reciprocal of the Tangent) of an angle.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Circumcentre",
+    "nickname": "CCentre",
+    "guid": "21d0767c-5340-4087-aa09-398d0e706908",
+    "description": "Generate the triangle circumcentre from perpendicular bisectors.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First triangle corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second triangle corner"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third triangle corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circumcentre",
+        "nickname": "C",
+        "access": "item",
+        "description": "Circumcentre point for triangle"
+      },
+      {
+        "name": "Bisector AB",
+        "nickname": "AB",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from edge AB"
+      },
+      {
+        "name": "Bisector BC",
+        "nickname": "BC",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from edge AB"
+      },
+      {
+        "name": "Bisector CA",
+        "nickname": "CA",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from edge AB"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Orthocentre",
+    "nickname": "OCentre",
+    "guid": "36dd5551-b6bd-4246-bd2f-1fd91eb2f02d",
+    "description": "Generate the triangle orthocentre from altitudes.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First triangle corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second triangle corner"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third triangle corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Orthocentre",
+        "nickname": "C",
+        "access": "item",
+        "description": "Orthocentre point for triangle"
+      },
+      {
+        "name": "Altitude AB",
+        "nickname": "AB",
+        "access": "item",
+        "description": "Altitude line connecting edge AB with corner C"
+      },
+      {
+        "name": "Altitude BC",
+        "nickname": "BC",
+        "access": "item",
+        "description": "Altitude line connecting edge BC with corner A"
+      },
+      {
+        "name": "Altitude CA",
+        "nickname": "CA",
+        "access": "item",
+        "description": "Altitude line connecting edge CA with corner B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "ArcCosine",
+    "nickname": "ACos",
+    "guid": "49584390-d541-41f7-b5f6-1f9515ac0f73",
+    "description": "Compute the angle whose cosine is the specified value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Secant",
+    "nickname": "Sec",
+    "guid": "60103def-1bb7-4700-b294-3a89100525c4",
+    "description": "Compute the secant (reciprocal of the Cosine) of an angle.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Sine",
+    "nickname": "Sin",
+    "guid": "7663efbb-d9b8-4c6a-a0da-c3750a7bbe77",
+    "description": "Compute the sine of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Triangle Trigonometry",
+    "nickname": "Trig",
+    "guid": "92af1a02-9b87-43a0-8c45-0ce1b81555ec",
+    "description": "Generic triangle trigonometry",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "α",
+        "access": "item",
+        "description": "Optional alpha angle"
+      },
+      {
+        "name": "Beta",
+        "nickname": "β",
+        "access": "item",
+        "description": "Optional beta angle"
+      },
+      {
+        "name": "Gamma",
+        "nickname": "γ",
+        "access": "item",
+        "description": "Optional gamma angle"
+      },
+      {
+        "name": "A length",
+        "nickname": "A",
+        "access": "item",
+        "description": "Optional length of A edge (opposite alpha)"
+      },
+      {
+        "name": "B length",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional length of B edge (opposite beta)"
+      },
+      {
+        "name": "C length",
+        "nickname": "C",
+        "access": "item",
+        "description": "Optional length of C edge (opposite gamma)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Alpha",
+        "nickname": "α",
+        "access": "item",
+        "description": "Computed alpha angle"
+      },
+      {
+        "name": "Beta",
+        "nickname": "β",
+        "access": "item",
+        "description": "Computed beta angle"
+      },
+      {
+        "name": "Gamma",
+        "nickname": "γ",
+        "access": "item",
+        "description": "Computed gamma angle"
+      },
+      {
+        "name": "A length",
+        "nickname": "A",
+        "access": "item",
+        "description": "Computed length of A edge"
+      },
+      {
+        "name": "B length",
+        "nickname": "B",
+        "access": "item",
+        "description": "Computed length of B edge"
+      },
+      {
+        "name": "C length",
+        "nickname": "C",
+        "access": "item",
+        "description": "Computed length of C edge"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Sinc",
+    "nickname": "Sinc",
+    "guid": "a2d9503d-a83c-4d71-81e0-02af8d09cd0c",
+    "description": "Compute the sinc (Sinus Cardinalis) of a value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Radians",
+    "nickname": "Rad",
+    "guid": "a4cd2751-414d-42ec-8916-476ebf62d7fe",
+    "description": "Convert an angle specified in degrees to radians",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Degrees",
+        "nickname": "D",
+        "access": "item",
+        "description": "Angle in degrees"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Radians",
+        "nickname": "R",
+        "access": "item",
+        "description": "Angle in radians"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Centroid",
+    "nickname": "Centroid",
+    "guid": "afbcbad4-2a2a-4954-8040-d999e316d2bd",
+    "description": "Generate the triangle centroid from medians.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First triangle corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second triangle corner"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third triangle corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Centroid",
+        "nickname": "C",
+        "access": "item",
+        "description": "Centroid point for triangle"
+      },
+      {
+        "name": "Median AB",
+        "nickname": "AB",
+        "access": "item",
+        "description": "Median line connecting edge AB with corner C"
+      },
+      {
+        "name": "Median BC",
+        "nickname": "BC",
+        "access": "item",
+        "description": "Median line connecting edge BC with corner A"
+      },
+      {
+        "name": "Median CA",
+        "nickname": "CA",
+        "access": "item",
+        "description": "Median line connecting edge CA with corner B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "ArcTangent",
+    "nickname": "ATan",
+    "guid": "b4647919-d041-419e-99f5-fa0dc0ddb8b6",
+    "description": "Compute the angle whose tangent is the specified value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Incentre",
+    "nickname": "ICentre",
+    "guid": "c3342ea2-e181-46aa-a9b9-e438ccbfb831",
+    "description": "Generate the triangle incentre from angle bisectors.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First triangle corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second triangle corner"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third triangle corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Incentre",
+        "nickname": "I",
+        "access": "item",
+        "description": "Incentre point for triangle"
+      },
+      {
+        "name": "Bisector A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from corner A"
+      },
+      {
+        "name": "Bisector B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from corner B"
+      },
+      {
+        "name": "Bisector C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Perpendicular bisector line emanating from corner C"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "ArcSine",
+    "nickname": "ASin",
+    "guid": "cc15ba56-fae7-4f05-b599-cb7c43b60e11",
+    "description": "Compute the angle whose sine is the specified value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "CoSecant",
+    "nickname": "Csc",
+    "guid": "d222500b-dfd5-45e0-933e-eabefd07cbfa",
+    "description": "Compute the co-secant (reciprocal of the Sine) of an angle.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Cosine",
+    "nickname": "Cos",
+    "guid": "d2d2a900-780c-4d58-9a35-1f9d8d35df6f",
+    "description": "Compute the cosine of a value",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Value",
+        "nickname": "x",
+        "access": "item",
+        "description": "Input value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Trig",
+    "name": "Right Trigonometry",
+    "nickname": "RTrig",
+    "guid": "e75d4624-8ee2-4067-ac8d-c56bdc901d83",
+    "description": "Right triangle trigonometry",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "α",
+        "access": "item",
+        "description": "Optional alpha angle"
+      },
+      {
+        "name": "Beta",
+        "nickname": "β",
+        "access": "item",
+        "description": "Optional beta angle"
+      },
+      {
+        "name": "P length",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional length of P edge"
+      },
+      {
+        "name": "Q length",
+        "nickname": "Q",
+        "access": "item",
+        "description": "Optional length of Q edge"
+      },
+      {
+        "name": "R length",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional length of R edge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Alpha",
+        "nickname": "α",
+        "access": "item",
+        "description": "Computed alpha angle"
+      },
+      {
+        "name": "Beta",
+        "nickname": "β",
+        "access": "item",
+        "description": "Computed beta angle"
+      },
+      {
+        "name": "P length",
+        "nickname": "P",
+        "access": "item",
+        "description": "Computed length of P edge"
+      },
+      {
+        "name": "Q length",
+        "nickname": "Q",
+        "access": "item",
+        "description": "Computed length of Q edge"
+      },
+      {
+        "name": "R length",
+        "nickname": "R",
+        "access": "item",
+        "description": "Computed length of R edge"
+      }
+    ]
+  }
+]

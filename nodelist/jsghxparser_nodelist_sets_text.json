@@ -1,0 +1,746 @@
+[
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Concatenate",
+    "nickname": "Concat",
+    "guid": "01cbd6e3-ccbe-4c24-baeb-46e10553e18b",
+    "description": "Concatenate two fragments of text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "A",
+        "access": "item",
+        "description": "Text to append to."
+      },
+      {
+        "name": "End",
+        "nickname": "B",
+        "access": "item",
+        "description": "Text to append."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting text consisting of A+B"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Split",
+    "nickname": "Split",
+    "guid": "04887d01-504c-480e-b2a2-01ea19cc5922",
+    "description": "Split some text into fragments using separators",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to split."
+      },
+      {
+        "name": "Separators",
+        "nickname": "C",
+        "access": "item",
+        "description": "Separator characters."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Resulting text fragments"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Fragment",
+    "nickname": "Fragment",
+    "guid": "07e0811f-034a-4504-bca0-2d03b2c46217",
+    "description": "Extract a fragment (subset) of some text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to operate on."
+      },
+      {
+        "name": "Start",
+        "nickname": "i",
+        "access": "item",
+        "description": "Zero based index of first character to copy."
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Optional number of characters to copy. If blank, the entire remainder will be copied."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Fragment",
+        "nickname": "F",
+        "access": "item",
+        "description": "The resulting text fragment"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Join",
+    "nickname": "Join",
+    "guid": "1274d51a-81e6-4ccf-ad1f-0edf4c769cac",
+    "description": "Join a collection of text fragments into one",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "list",
+        "description": "Text fragments to join."
+      },
+      {
+        "name": "Join",
+        "nickname": "J",
+        "access": "item",
+        "description": "Fragment separator."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting text"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Sort Text",
+    "nickname": "TSort",
+    "guid": "1ff80a00-1b1d-4fb3-926a-0c246261fc55",
+    "description": "Sort a collection of text fragments",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "Text fragments to sort (sorting key)"
+      },
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Optional values to sort synchronously"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "Sorted text fragments"
+      },
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Sorted values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Concatenate",
+    "nickname": "Concat",
+    "guid": "2013e425-8713-42e2-a661-b57e78840337",
+    "description": "Concatenate some fragments of text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Fragment A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First text fragment"
+      },
+      {
+        "name": "Fragment B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second text fragment"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Resulting text consisting of all the fragments"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text On Surface",
+    "nickname": "TextSrf",
+    "guid": "28504f1f-a8d9-40c8-b8aa-529413456258",
+    "description": "Create a collection of textual symbols aligned on a surface.",
+    "library": {
+      "name": "Field Components",
+      "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to create."
+      },
+      {
+        "name": "Font",
+        "nickname": "F",
+        "access": "item",
+        "description": "Font name, with optional 'Bold' or 'Italic' tags."
+      },
+      {
+        "name": "Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Height of text shapes."
+      },
+      {
+        "name": "Depth",
+        "nickname": "D",
+        "access": "item",
+        "description": "Depth of text shapes."
+      },
+      {
+        "name": "Base Line",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base line for text."
+      },
+      {
+        "name": "Base Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Optional base surface for text orientation. Surfaces, meshes and SubDs are all allowed."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Symbols",
+        "nickname": "S",
+        "access": "list",
+        "description": "Symbols making up the text shapes."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Match Text",
+    "nickname": "TMatch",
+    "guid": "3756c55f-95c3-442c-a027-6b3ab0455a94",
+    "description": "Match a text against a pattern",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to match"
+      },
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional wildcard pattern for matching"
+      },
+      {
+        "name": "RegEx",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional RegEx pattern for matching"
+      },
+      {
+        "name": "Case",
+        "nickname": "C",
+        "access": "item",
+        "description": "Compare using case-sensitive matching"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Match",
+        "nickname": "M",
+        "access": "item",
+        "description": "True if the text adheres to all supplied patterns"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Replace Text",
+    "nickname": "Rep",
+    "guid": "4df8df00-3635-45bd-95e6-f9206296c110",
+    "description": "Replace all occurences of a specific text fragment with another",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to operate on."
+      },
+      {
+        "name": "Find",
+        "nickname": "F",
+        "access": "item",
+        "description": "Fragment to replace."
+      },
+      {
+        "name": "Replace",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional fragment to replace with. If blank, all occurences of F will be removed."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Result of text replacement"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Format",
+    "nickname": "Format",
+    "guid": "758d91a0-4aec-47f8-9671-16739a8a2c5d",
+    "description": "Format some data using placeholders and formatting tags",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Format",
+        "nickname": "F",
+        "access": "item",
+        "description": "Text format"
+      },
+      {
+        "name": "Culture",
+        "nickname": "C",
+        "access": "item",
+        "description": "Formatting culture"
+      },
+      {
+        "name": "Data 0",
+        "nickname": "0",
+        "access": "item",
+        "description": "Data to insert at {0} placeholders"
+      },
+      {
+        "name": "Data 1",
+        "nickname": "1",
+        "access": "item",
+        "description": "Data to insert at {1} placeholders"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Formatted text"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Characters",
+    "nickname": "Chars",
+    "guid": "86503240-d884-43f9-9323-efe30488a6e1",
+    "description": "Break text into individual characters",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to split."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "C",
+        "access": "list",
+        "description": "Resulting characters"
+      },
+      {
+        "name": "Unicode",
+        "nickname": "U",
+        "access": "list",
+        "description": "Unicode value of character"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Case",
+    "nickname": "Case",
+    "guid": "b1991128-8bf1-4dea-8497-4b7188a64e9d",
+    "description": "Change the CaSiNg of a piece of text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to modify"
+      },
+      {
+        "name": "Culture",
+        "nickname": "C",
+        "access": "item",
+        "description": "Cultural rules for text casing"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Upper Case",
+        "nickname": "U",
+        "access": "item",
+        "description": "Upper case representation of T"
+      },
+      {
+        "name": "Lower Case",
+        "nickname": "L",
+        "access": "item",
+        "description": "Lower case representation of T"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Case",
+    "nickname": "Case",
+    "guid": "bdd2a14a-1302-4152-a484-7198716d1a11",
+    "description": "Change the CaSiNg of a piece of text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to operate on."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Upper Case",
+        "nickname": "U",
+        "access": "item",
+        "description": "Upper case representation of S"
+      },
+      {
+        "name": "Lower Case",
+        "nickname": "L",
+        "access": "item",
+        "description": "Lower case representation of S"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Format",
+    "nickname": "Format",
+    "guid": "c8203c3c-6bcd-4f8c-a906-befd92ebf0cb",
+    "description": "Format some text using placeholders and formatting tags",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Format",
+        "nickname": "F",
+        "access": "item",
+        "description": "Text format"
+      },
+      {
+        "name": "Data 0",
+        "nickname": "0",
+        "access": "item",
+        "description": "Data to insert at {0} tags"
+      },
+      {
+        "name": "Data 1",
+        "nickname": "1",
+        "access": "item",
+        "description": "Data to insert at {1} tags"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Formatted text"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Sort Text",
+    "nickname": "TSort",
+    "guid": "cec16c67-7b8b-41f7-a5a5-f675177e524b",
+    "description": "Sort a collection of text fragments",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "Text fragments to sort (sorting key)"
+      },
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Optional values to sort synchronously"
+      },
+      {
+        "name": "Culture",
+        "nickname": "C",
+        "access": "item",
+        "description": "Cultural sorting rules"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Keys",
+        "nickname": "K",
+        "access": "list",
+        "description": "Sorted text fragments"
+      },
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Sorted values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Length",
+    "nickname": "Len",
+    "guid": "dca05f6f-e3d9-42e3-b3bb-eb20363fb335",
+    "description": "Get the length (character count) of some text",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to measure."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Number of characters"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Trim",
+    "nickname": "Trim",
+    "guid": "e4cb7168-5e32-4c54-b425-5a31c6fd685a",
+    "description": "Remove whitespace characters from the start and end of some text.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Text to split."
+      },
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Trim whitespace at start."
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "Trim whitespace at end."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "Trimmed text."
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Text",
+    "name": "Text Distance",
+    "nickname": "TDist",
+    "guid": "f7608c4d-836c-4adf-9d1f-3b04e6a2647d",
+    "description": "Compute the Levenshtein distance between two fragments of text.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Text A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First text fragment"
+      },
+      {
+        "name": "Text B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second text fragment"
+      },
+      {
+        "name": "Case",
+        "nickname": "C",
+        "access": "item",
+        "description": "Compare using case-sensitive matching"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Levenshtein distance between the two fragments"
+      }
+    ]
+  }
+]

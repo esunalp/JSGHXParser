@@ -1,0 +1,1016 @@
+[
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Fit Loft",
+    "nickname": "FitLoft",
+    "guid": "342aa574-1327-4bc2-8daf-203da2a45676",
+    "description": "Create a loft fitted through a set of curves.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Count U",
+        "nickname": "Nu",
+        "access": "item",
+        "description": "Number of points along curve direction"
+      },
+      {
+        "name": "Degree U",
+        "nickname": "Du",
+        "access": "item",
+        "description": "Degree along curve direction"
+      },
+      {
+        "name": "Degree V",
+        "nickname": "Dv",
+        "access": "item",
+        "description": "Degree perpendicular to curve direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Loft result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Edge Surface",
+    "nickname": "EdgeSrf",
+    "guid": "36132830-e2ef-4476-8ea1-6a43922344f0",
+    "description": "Create a surface from two, three or four edge curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve"
+      },
+      {
+        "name": "Curve C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Optional Third curve"
+      },
+      {
+        "name": "Curve D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional Fourth curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Brep representing the edge-surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Extrude Along",
+    "nickname": "ExtrCrv",
+    "guid": "38a5638b-6d01-4417-bf11-976d925f8a71",
+    "description": "Extrude curves and surfaces along a curve.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Profile curve or surface"
+      },
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Extrusion curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Extrusion",
+        "nickname": "E",
+        "access": "item",
+        "description": "Extrusion result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Loft Options",
+    "nickname": "Loft Opt",
+    "guid": "45f19d16-1c9f-4b0f-a9a6-45a77f3d206c",
+    "description": "Create loft options from atomic inputs",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Closed",
+        "nickname": "Cls",
+        "access": "item",
+        "description": "Closed loft"
+      },
+      {
+        "name": "Adjust",
+        "nickname": "Adj",
+        "access": "item",
+        "description": "Adjust seams"
+      },
+      {
+        "name": "Rebuild",
+        "nickname": "Rbd",
+        "access": "item",
+        "description": "Rebuild count (zero = no rebuild)"
+      },
+      {
+        "name": "Refit",
+        "nickname": "Rft",
+        "access": "item",
+        "description": "Refit tolerance (zero = no refit)"
+      },
+      {
+        "name": "Type",
+        "nickname": "T",
+        "access": "item",
+        "description": "Loft type (0=Normal, 1=Loose, 2=Tight, 3=Straight, 5=Uniform)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Options",
+        "nickname": "O",
+        "access": "item",
+        "description": "Loft options"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Surface From Points",
+    "nickname": "SrfGrid",
+    "guid": "4b04a1e1-cddf-405d-a7db-335aaa940541",
+    "description": "Create a nurbs surface from a grid of points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Grid of points"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of points in {u} direction"
+      },
+      {
+        "name": "Interpolate",
+        "nickname": "I",
+        "access": "item",
+        "description": "Interpolate samples"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Patch",
+    "nickname": "Patch",
+    "guid": "57b2184c-8931-4e70-9220-612ec5b3809a",
+    "description": "Create a patch surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Curves to patch"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to patch"
+      },
+      {
+        "name": "Spans",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of spans"
+      },
+      {
+        "name": "Flexibility",
+        "nickname": "F",
+        "access": "item",
+        "description": "Patch flexibility (low number; less flexibility)"
+      },
+      {
+        "name": "Trim",
+        "nickname": "T",
+        "access": "item",
+        "description": "Attempt to trim the result"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Patch",
+        "nickname": "P",
+        "access": "item",
+        "description": "Patch result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Control Point Loft",
+    "nickname": "CPLoft",
+    "guid": "5c270622-ee80-45a4-b07a-bd8ffede92a2",
+    "description": "Create a loft through curve control points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Degree",
+        "nickname": "D",
+        "access": "item",
+        "description": "Degree perpendicular to curve direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Loft result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Sum Surface",
+    "nickname": "SumSrf",
+    "guid": "5e33c760-adcd-4235-b1dd-05cf72eb7a38",
+    "description": "Create a sum surface from two edge curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "BRep representing the sum-surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Ruled Surface",
+    "nickname": "RuleSrf",
+    "guid": "6e5de495-ba76-42d0-9985-a5c265e9aeca",
+    "description": "Create a surface between two curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Ruled surface between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Network Surface",
+    "nickname": "NetSurf",
+    "guid": "71506fa8-9bf0-432d-b897-b2e0c5ac316c",
+    "description": "Create a surface from curve networks",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves U",
+        "nickname": "U",
+        "access": "list",
+        "description": "Curves in U direction"
+      },
+      {
+        "name": "Curves V",
+        "nickname": "V",
+        "access": "list",
+        "description": "Curves in V direction"
+      },
+      {
+        "name": "Continuity",
+        "nickname": "C",
+        "access": "item",
+        "description": "Surface continuity (0=loose, 1=position, 2=tangency, 3=curvature)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Network surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Sweep2",
+    "nickname": "Swp2",
+    "guid": "75164624-395a-4d24-b60b-6bf91cab0194",
+    "description": "Create a sweep surface with two rail curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Rail 1",
+        "nickname": "R¹",
+        "access": "item",
+        "description": "First rail curve"
+      },
+      {
+        "name": "Rail 2",
+        "nickname": "R²",
+        "access": "item",
+        "description": "Second rail curve"
+      },
+      {
+        "name": "Sections",
+        "nickname": "S",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Same Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Create a sweep with same-height properties."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Brep",
+        "nickname": "S",
+        "access": "list",
+        "description": "Resulting Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Pipe Variable",
+    "nickname": "VPipe",
+    "guid": "888f9c3c-f1e1-4344-94b0-5ee6a45aee11",
+    "description": "Create a pipe surface with variable radii around a rail curve.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Parameters",
+        "nickname": "t",
+        "access": "list",
+        "description": "Curve parameters for radii"
+      },
+      {
+        "name": "Radii",
+        "nickname": "R",
+        "access": "list",
+        "description": "A list of radii for every defined parameter"
+      },
+      {
+        "name": "Caps",
+        "nickname": "E",
+        "access": "item",
+        "description": "Specifies the type of caps (0=None, 1=Flat, 2=Round)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pipe",
+        "nickname": "P",
+        "access": "list",
+        "description": "Resulting Pipe"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Extrude Linear",
+    "nickname": "Extrude",
+    "guid": "8efd5eb9-a896-486e-9f98-d8d1a07a49f3",
+    "description": "Extrude curves and surfaces along a straight path.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Profile",
+        "nickname": "P",
+        "access": "item",
+        "description": "Profile curve or surface"
+      },
+      {
+        "name": "Orientation (P)",
+        "nickname": "Po",
+        "access": "item",
+        "description": "Plane indicating orientation of profile shape"
+      },
+      {
+        "name": "Axis",
+        "nickname": "A",
+        "access": "item",
+        "description": "Extrusion axis"
+      },
+      {
+        "name": "Orientation (A)",
+        "nickname": "Ao",
+        "access": "item",
+        "description": "Optional orientational plane for the axis"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Extrusion",
+        "nickname": "E",
+        "access": "item",
+        "description": "Extrusion result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Extrude",
+    "nickname": "Extr",
+    "guid": "962034e9-cc27-4394-afc4-5c16e3447cf9",
+    "description": "Extrude curves and surfaces along a vector.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Profile curve or surface"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Extrusion direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Extrusion",
+        "nickname": "E",
+        "access": "item",
+        "description": "Extrusion result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Loft",
+    "nickname": "Loft",
+    "guid": "a7a41d0a-2188-4f7a-82cc-1a2c4e4ec850",
+    "description": "Create a lofted surface through a set of section curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Options",
+        "nickname": "O",
+        "access": "item",
+        "description": "Loft options"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Loft",
+        "nickname": "L",
+        "access": "item",
+        "description": "Resulting Loft surfaces"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Extrude Angled",
+    "nickname": "ExtrAng",
+    "guid": "ae57e09b-a1e4-4d05-8491-abd232213bc9",
+    "description": "Extrude a planar polyline at angles",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Polyline",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polyline base curve"
+      },
+      {
+        "name": "Base height",
+        "nickname": "Hb",
+        "access": "item",
+        "description": "Height of vertical portion."
+      },
+      {
+        "name": "Top height",
+        "nickname": "Ht",
+        "access": "item",
+        "description": "Height of top surface."
+      },
+      {
+        "name": "Angles",
+        "nickname": "A",
+        "access": "list",
+        "description": "Angles per polyline edge."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Extruded shape"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Sweep1",
+    "nickname": "Swp1",
+    "guid": "bb6666e7-d0f4-41ec-a257-df2371619f13",
+    "description": "Create a sweep surface with one rail curve.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Rail",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rail curve"
+      },
+      {
+        "name": "Sections",
+        "nickname": "S",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Miter",
+        "nickname": "M",
+        "access": "item",
+        "description": "Kink miter type (0=None, 1=Trim, 2=Rotate)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Brep",
+        "nickname": "S",
+        "access": "list",
+        "description": "Resulting Brep"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Extrude Point",
+    "nickname": "Extr",
+    "guid": "be6636b2-2f1a-4d42-897b-fdef429b6f17",
+    "description": "Extrude curves and surfaces to a point.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Profile curve or surface"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Extrusion tip"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Extrusion",
+        "nickname": "E",
+        "access": "item",
+        "description": "Extrusion result"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Pipe",
+    "nickname": "Pipe",
+    "guid": "c277f778-6fdf-4890-8f78-347efb23c406",
+    "description": "Create a pipe surface around a rail curve.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Pipe radius"
+      },
+      {
+        "name": "Caps",
+        "nickname": "E",
+        "access": "item",
+        "description": "Specifies the type of caps (0=None, 1=Flat, 2=Round)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pipe",
+        "nickname": "P",
+        "access": "list",
+        "description": "Resulting Pipe"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "4Point Surface",
+    "nickname": "Srf4Pt",
+    "guid": "c77a8b3b-c569-4d81-9b59-1c27299a1c45",
+    "description": "Create a surface connecting three or four corner points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Optional fourth corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Fragment Patch",
+    "nickname": "FPatch",
+    "guid": "cb56b26c-2595-4d03-bdb2-eb2e6aeba82d",
+    "description": "Create a fragmented patch from a polyline boundary",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Fragment polyline boundary"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Patch",
+        "nickname": "P",
+        "access": "item",
+        "description": "Fragmented patch"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Revolution",
+    "nickname": "RevSrf",
+    "guid": "cdee962f-4202-456b-a1b4-f3ed9aa0dc29",
+    "description": "Create a surface of revolution.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "P",
+        "access": "item",
+        "description": "Profile curve"
+      },
+      {
+        "name": "Axis",
+        "nickname": "A",
+        "access": "item",
+        "description": "Revolution axis"
+      },
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Angle domain (in radians)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Brep representing the revolution result."
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Boundary Surfaces",
+    "nickname": "Boundary",
+    "guid": "d51e9b65-aa4e-4fd6-976c-cef35d421d05",
+    "description": "Create planar surfaces from a collection of boundary edge curves.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Boundary curves"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surfaces",
+        "nickname": "S",
+        "access": "list",
+        "description": "Resulting boundary surfaces"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Freeform",
+    "name": "Rail Revolution",
+    "nickname": "RailRev",
+    "guid": "d8d68c35-f869-486d-adf3-69ee3cc2d501",
+    "description": "Create a surface of revolution using a sweep rail.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "P",
+        "access": "item",
+        "description": "Profile curve"
+      },
+      {
+        "name": "Rail",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rail curve"
+      },
+      {
+        "name": "Axis",
+        "nickname": "A",
+        "access": "item",
+        "description": "Revolution axis"
+      },
+      {
+        "name": "Scale",
+        "nickname": "S",
+        "access": "item",
+        "description": "Scale height of profile curve"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Brep representing the Rail-Revolve result."
+      }
+    ]
+  }
+]

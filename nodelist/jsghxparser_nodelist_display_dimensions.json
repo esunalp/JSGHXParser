@@ -1,0 +1,770 @@
+[
+  {
+    "category": "Display",
+    "subcategory": "Dimensions",
+    "name": "Arc Dimension",
+    "nickname": "ArcDim",
+    "guid": "1bd97813-4fec-4453-9645-4ac920844f9d",
+    "description": "Create an angle annotation based on an arc.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Arc guide"
+      },
+      {
+        "name": "Offset",
+        "nickname": "O",
+        "access": "item",
+        "description": "Dimension offset"
+      },
+      {
+        "name": "Text",
+        "nickname": "T",
+        "access": "item",
+        "description": "Dimension text"
+      },
+      {
+        "name": "Size",
+        "nickname": "S",
+        "access": "item",
+        "description": "Dimension size"
+      }
+    ],
+    "outputs": 
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Make2D Perspective View",
+  "nickname": "M2D Perspective",
+  "guid": "33359c6d-984e-42f3-a869-0c3364ab33b6",
+  "description": "Define a perspective view for a Make2D solution",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Camera",
+      "nickname": "C",
+      "access": "item",
+      "description": "Camera position"
+    },
+    {
+      "name": "Frame",
+      "nickname": "F",
+      "access": "item",
+      "description": "Projection framing."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "View",
+      "nickname": "V",
+      "access": "item",
+      "description": "Parallel view"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Text Tag",
+  "nickname": "Tag",
+  "guid": "3b220754-4114-4170-b6c3-b286b86ed524",
+  "description": "Represents a list of text tags in a Rhino viewport",
+  "library": {
+    "name": "Grasshopper",
+    "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+    "version": "1.0.0007"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Location",
+      "nickname": "L",
+      "access": "item",
+      "description": "Location of text tag"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "The text to display"
+    },
+    {
+      "name": "Colour",
+      "nickname": "C",
+      "access": "item",
+      "description": "Optional colour for tag"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Aligned Dimension",
+  "nickname": "AlignDim",
+  "guid": "3de3d3a0-1a1b-488c-b3d9-3fba0fdf07a8",
+  "description": "Create a distance annotation between two points",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Plane for dimension"
+    },
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "First dimension point"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Second dimension point"
+    },
+    {
+      "name": "Offset",
+      "nickname": "O",
+      "access": "item",
+      "description": "Offset for base line"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Make2D Parallel View",
+  "nickname": "M2D Parallel",
+  "guid": "3fc08088-d75d-43bc-83cc-7a654f156cb7",
+  "description": "Define a parallel view for a Make2D solution",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Projection",
+      "nickname": "P",
+      "access": "item",
+      "description": "View projection."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "View",
+      "nickname": "V",
+      "access": "item",
+      "description": "Parallel view"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Make2D Rhino View",
+  "nickname": "M2D Rhino",
+  "guid": "4ac24770-e38b-4363-be38-551a3b134707",
+  "description": "Import a Rhino view for a Make2D solution",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Name",
+      "nickname": "N",
+      "access": "item",
+      "description": "Named view or viewport name."
+    },
+    {
+      "name": "Clip",
+      "nickname": "C",
+      "access": "item",
+      "description": "If true, the view will be clipped to the frustum."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "View",
+      "nickname": "V",
+      "access": "item",
+      "description": "Parallel view"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Linear Dimension",
+  "nickname": "LinearDim",
+  "guid": "5018bf8d-8566-4917-a6e3-5a623bda8079",
+  "description": "Create a distance annotation between points, projected to a line.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Dimension base line"
+    },
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "First dimension point"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Second dimension point"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Text Tag 3D",
+  "nickname": "Tag",
+  "guid": "5a41528b-12b9-40dc-a3f2-842034d267c4",
+  "description": "Represents a list of 3D text tags in a Rhino viewport",
+  "library": {
+    "name": "Grasshopper",
+    "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+    "version": "1.0.0007"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Location",
+      "nickname": "L",
+      "access": "item",
+      "description": "Location and orientation of text tag"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "The text to display"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Size of text"
+    },
+    {
+      "name": "Colour",
+      "nickname": "C",
+      "access": "item",
+      "description": "Optional colour of tag"
+    },
+    {
+      "name": "Justification",
+      "nickname": "J",
+      "access": "item",
+      "description": "Text justification"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Pattern Hatch",
+  "nickname": "PHatch",
+  "guid": "5f9e4549-8135-4a90-97c8-8a34bf05e99a",
+  "description": "Create a patterned hatch",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Boundaries",
+      "nickname": "B",
+      "access": "list",
+      "description": "Boundary curves for hatch objects"
+    },
+    {
+      "name": "Pattern",
+      "nickname": "P",
+      "access": "item",
+      "description": "Hatch pattern style"
+    },
+    {
+      "name": "Scale",
+      "nickname": "S",
+      "access": "item",
+      "description": "Pattern scale"
+    },
+    {
+      "name": "Angle",
+      "nickname": "A",
+      "access": "item",
+      "description": "Pattern angle"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Gradient Hatch",
+  "nickname": "GHatch",
+  "guid": "6ce90407-9eac-4a1a-a81a-949b601f18f3",
+  "description": "Create a gradient hatch",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Boundaries",
+      "nickname": "B",
+      "access": "list",
+      "description": "Boundary curves for hatch objects"
+    },
+    {
+      "name": "Axis",
+      "nickname": "A",
+      "access": "item",
+      "description": "Gradient axis"
+    },
+    {
+      "name": "Colour 1",
+      "nickname": "C1",
+      "access": "item",
+      "description": "Colour at start of axis."
+    },
+    {
+      "name": "Colour 2",
+      "nickname": "C2",
+      "access": "item",
+      "description": "Colour at end of axis."
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Serial Dimension",
+  "nickname": "SerialDim",
+  "guid": "7dd42002-75bb-4f41-857f-472a140b3b28",
+  "description": "Create a distance annotation between multiple points, projected to a line.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Dimension base line"
+    },
+    {
+      "name": "Points",
+      "nickname": "P",
+      "access": "list",
+      "description": "Dimension points, the first one marks the zero point"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Circular Dimension",
+  "nickname": "CircleDim",
+  "guid": "7e9489e0-122d-401a-aba8-f1dae0217c40",
+  "description": "Create an angle annotation projected to a circle.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Circle",
+      "nickname": "C",
+      "access": "item",
+      "description": "Dimension guide circle"
+    },
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "First angle point"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "Second angle point"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Angular Dimensions (Mesh)",
+  "nickname": "AngleDimMesh",
+  "guid": "91f3bde5-26e6-432e-a5fe-a2938b2a94f9",
+  "description": "Create angle annotations for all mesh corners.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Mesh",
+      "nickname": "M",
+      "access": "item",
+      "description": "Mesh to annotate"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    },
+    {
+      "name": "Length Factor",
+      "nickname": "F",
+      "access": "item",
+      "description": "Radius of dimension as part of edge length."
+    },
+    {
+      "name": "Minimum Angle",
+      "nickname": "A0",
+      "access": "item",
+      "description": "Threshold angle below which dimensions are not drawn."
+    },
+    {
+      "name": "Maximum Angle",
+      "nickname": "A1",
+      "access": "item",
+      "description": "Threshold angle above which dimensions are not drawn."
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Make2D",
+  "nickname": "Make2D",
+  "guid": "96e40f6b-ba46-4102-bf15-ebf90471f4a0",
+  "description": "Create a hidden line drawing from geometry",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Geometry",
+      "nickname": "G",
+      "access": "list",
+      "description": "Geometry to include (Breps, Meshes and Curves only)."
+    },
+    {
+      "name": "Clipping Planes",
+      "nickname": "C",
+      "access": "list",
+      "description": "Optional clipping planes."
+    },
+    {
+      "name": "View",
+      "nickname": "V",
+      "access": "item",
+      "description": "Make2D projection details"
+    },
+    {
+      "name": "Tangent Edges",
+      "nickname": "Te",
+      "access": "item",
+      "description": "Whether or not to compute tangent edges."
+    },
+    {
+      "name": "Tangent Seams",
+      "nickname": "Ts",
+      "access": "item",
+      "description": "Whether or not to compute tangent seams."
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Visible curves",
+      "nickname": "V",
+      "access": "list",
+      "description": "List of visible curves"
+    },
+    {
+      "name": "Visible index",
+      "nickname": "Vi",
+      "access": "list",
+      "description": "For each visible curve, index of source object"
+    },
+    {
+      "name": "Visible type",
+      "nickname": "Vt",
+      "access": "list",
+      "description": "For each visible curve, type description"
+    },
+    {
+      "name": "Hidden curves",
+      "nickname": "H",
+      "access": "list",
+      "description": "List of hidden curves"
+    },
+    {
+      "name": "Hidden index",
+      "nickname": "Hi",
+      "access": "list",
+      "description": "For each hidden curve, index of source object"
+    },
+    {
+      "name": "Hidden type",
+      "nickname": "Ht",
+      "access": "list",
+      "description": "For each hidden curve, type description"
+    }
+  ]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Marker Dimension",
+  "nickname": "MarkDim",
+  "guid": "c5208969-16f9-48af-8a86-e500c033fb76",
+  "description": "Create a text annotation at a point",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Dimension base line"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Line Dimension",
+  "nickname": "LineDim",
+  "guid": "d78f026a-0109-4bcc-bf91-d08475711466",
+  "description": "Create a distance annotation along a line.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Dimension base line"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+},
+{
+  "category": "Display",
+  "subcategory": "Dimensions",
+  "name": "Angular Dimension",
+  "nickname": "AngleDim",
+  "guid": "fc6b519e-df6d-4ce1-a1f4-083f1c217c14",
+  "description": "Create an angle annotation between points.",
+  "library": {
+    "name": "Curve Components",
+    "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Center",
+      "nickname": "C",
+      "access": "item",
+      "description": "Angle centre point"
+    },
+    {
+      "name": "Point A",
+      "nickname": "A",
+      "access": "item",
+      "description": "End of first angle direction"
+    },
+    {
+      "name": "Point B",
+      "nickname": "B",
+      "access": "item",
+      "description": "End of second angle direction"
+    },
+    {
+      "name": "Reflex",
+      "nickname": "R",
+      "access": "item",
+      "description": "Create dimension for reflex angle"
+    },
+    {
+      "name": "Text",
+      "nickname": "T",
+      "access": "item",
+      "description": "Dimension text"
+    },
+    {
+      "name": "Size",
+      "nickname": "S",
+      "access": "item",
+      "description": "Dimension size"
+    }
+  ],
+  "outputs": 
+]
+}
+]

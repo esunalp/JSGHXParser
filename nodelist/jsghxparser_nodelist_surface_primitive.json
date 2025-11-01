@@ -1,0 +1,800 @@
+[
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Cylinder",
+    "nickname": "Cyl",
+    "guid": "0373008a-80ee-45be-887d-ab5a244afc29",
+    "description": "Create a cylindrical surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Cylinder radius"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Cylinder height"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cylinder",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting cylinder"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Cone",
+    "nickname": "Cone",
+    "guid": "03e331ed-c4d1-4a23-afa2-f57b87d2043c",
+    "description": "Create a conical surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius at cone base"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Cone height"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cone",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting cone"
+      },
+      {
+        "name": "Tip",
+        "nickname": "T",
+        "access": "item",
+        "description": "Tip of cone"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Bounding Box",
+    "nickname": "BBox",
+    "guid": "0bb3d234-9097-45db-9998-621639c87d3b",
+    "description": "Solve oriented geometry bounding boxes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Content",
+        "nickname": "C",
+        "access": "list",
+        "description": "Geometry to contain"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "BoundingBox orientation plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "list",
+        "description": "Aligned bounding box in world coordinates"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "list",
+        "description": "Bounding box in orientation plane coordinates"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Cone [OBSOLETE]",
+    "nickname": "Cone",
+    "guid": "22e61c07-c02f-4c53-b567-c821a164fd92",
+    "description": "This component is obsolete and has been replaced by another Cone component.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane of cone"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius at cone base"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length override"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cone",
+        "nickname": "C",
+        "access": "item",
+        "description": "The 3D cone"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Center Box",
+    "nickname": "Box",
+    "guid": "28061aae-04fb-4cb5-ac45-16f3b66bc0a4",
+    "description": "Create a box centered on a plane.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Size of box in {x} direction."
+      },
+      {
+        "name": "Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Size of box in {y} direction."
+      },
+      {
+        "name": "Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Size of box in {z} direction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Box 2Pt",
+    "nickname": "Box",
+    "guid": "2a43ef96-8f87-4892-8b94-237a47e8d3cf",
+    "description": "Create a box defined by two points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Quad Sphere",
+    "nickname": "QSph",
+    "guid": "361790d6-9d66-4808-8c5a-8de9c218c227",
+    "description": "Create a spherical brep made from quad nurbs patches.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sphere radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Sphere",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting quad sphere"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Plane Surface",
+    "nickname": "PlaneSrf",
+    "guid": "439a55a5-2f9e-4f66-9de2-32f24fec2ef5",
+    "description": "Create a plane surface",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Surface base plane"
+      },
+      {
+        "name": "X Size",
+        "nickname": "X",
+        "access": "item",
+        "description": "Dimensions in X direction"
+      },
+      {
+        "name": "Y Size",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Dimensions in Y direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Resulting plane surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Bounding Box",
+    "nickname": "BBox",
+    "guid": "6aa8da2e-6f25-4585-8b37-aa44609beb46",
+    "description": "Solve world oriented geometry bounding boxes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Content",
+        "nickname": "C",
+        "access": "list",
+        "description": "Geometry to contain"
+      },
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "item",
+        "description": "Create a single unified box for all objects"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "list",
+        "description": "World aligned bounding box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Domain Box",
+    "nickname": "Box",
+    "guid": "79aa7f47-397c-4d3f-9761-aaf421bb7f5f",
+    "description": "Create a box defined by a base plane and size domains.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Domain of the box in the {x} direction."
+      },
+      {
+        "name": "Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Domain of the box in the {y} direction."
+      },
+      {
+        "name": "Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Domain of the box in the {z} direction."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Bounding Box",
+    "nickname": "BBox",
+    "guid": "87df35c8-6e1d-4e2a-821a-7c1066714409",
+    "description": "Solve oriented geometry bounding boxes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Content",
+        "nickname": "C",
+        "access": "list",
+        "description": "Geometry to contain"
+      },
+      {
+        "name": "Union",
+        "nickname": "U",
+        "access": "item",
+        "description": "Create a single unified box for all objects"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "BoundingBox orientation plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "list",
+        "description": "Aligned bounding box in world coordinates"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "list",
+        "description": "Bounding box in orientation plane coordinates"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Box 2Pt [OBSOLETE]",
+    "nickname": "Box",
+    "guid": "9aef6eb4-98c3-4b0e-b875-1a7cb1bb1038",
+    "description": "Create a box defined by two points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Bounding Box [OBSOLETE]",
+    "nickname": "BBox",
+    "guid": "9d375779-649d-49f1-baaf-04560a51cd3d",
+    "description": "Solve world oriented geometry bounding boxes.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Content",
+        "nickname": "C",
+        "access": "item",
+        "description": "Geometry to contain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "World aligned bounding box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Sphere 4Pt",
+    "nickname": "Sph4Pt",
+    "guid": "b083c06d-9a71-4f40-b354-1d80bba1e858",
+    "description": "Create a spherical surface from 4 points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point 1",
+        "nickname": "P1",
+        "access": "item",
+        "description": "First point"
+      },
+      {
+        "name": "Point 2",
+        "nickname": "P2",
+        "access": "item",
+        "description": "Second point (cannot be coincident with P1)"
+      },
+      {
+        "name": "Point 3",
+        "nickname": "P3",
+        "access": "item",
+        "description": "Third point (cannot be colinear with P1 & P2)"
+      },
+      {
+        "name": "Point 4",
+        "nickname": "P4",
+        "access": "item",
+        "description": "Fourth point (cannot be coplanar with P1, P2 & P3)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of sphere"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of sphere"
+      },
+      {
+        "name": "Sphere",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sphere fitted to P1~P4"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Box Rectangle",
+    "nickname": "BoxRec",
+    "guid": "d0a56c9e-2483-45e7-ab98-a450b97f1bc0",
+    "description": "Create a box defined by a rectangle and a height.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Base rectangle"
+      },
+      {
+        "name": "Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Box height"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting box"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Plane Through Shape",
+    "nickname": "PxS",
+    "guid": "d8698126-0e91-4ae7-ba05-2490258573ea",
+    "description": "Make a rectangular surface that is larger than a given shape.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Surface plane"
+      },
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shape to exceed"
+      },
+      {
+        "name": "Inflate",
+        "nickname": "I",
+        "access": "item",
+        "description": "Boundary inflation amount"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting planar surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Sphere",
+    "nickname": "Sph",
+    "guid": "dabc854d-f50e-408a-b001-d043c7de151d",
+    "description": "Create a spherical surface.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sphere radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Sphere",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting sphere"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Sphere Fit",
+    "nickname": "SFit",
+    "guid": "e7ffb3af-2d77-4804-a260-755308bf8285",
+    "description": "Fit a sphere to a 3D collection of points",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of fitted sphere"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of fitted sphere"
+      },
+      {
+        "name": "Sphere",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sphere surface"
+      }
+    ]
+  },
+  {
+    "category": "Surface",
+    "subcategory": "Primitive",
+    "name": "Plane Through Box",
+    "nickname": "PxB",
+    "guid": "f565fd67-5a98-4b48-9ea9-2e184a9ef0e6",
+    "description": "Fit a rectangular surface through a Box.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Section plane"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Box to intersect"
+      },
+      {
+        "name": "Inflate",
+        "nickname": "I",
+        "access": "item",
+        "description": "Box inflation value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Surfaces",
+        "nickname": "S",
+        "access": "item",
+        "description": "Resulting planar surface"
+      }
+    ]
+  }
+]

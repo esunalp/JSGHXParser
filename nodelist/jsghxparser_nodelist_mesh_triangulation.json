@@ -1,0 +1,1070 @@
+[
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Facet Dome",
+    "nickname": "Facet",
+    "guid": "190c0070-8cbf-4347-94c2-d84bbb488d55",
+    "description": "Create a facetted dome",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points on dome that describe the facet centers"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional bounding box for facet boundary"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional radius for facets"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Complete facet pattern"
+      },
+      {
+        "name": "Dome",
+        "nickname": "D",
+        "access": "item",
+        "description": "dome surface"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Quad Remesh",
+    "nickname": "QRMesh",
+    "guid": "1a17d3f0-c8f8-4ee9-8dab-ea1c29db6a49",
+    "description": "Perform quad-remeshing on a shape.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to operate on"
+      },
+      {
+        "name": "Guides",
+        "nickname": "G",
+        "access": "list",
+        "description": "Guide curves"
+      },
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Remeshing settings"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Quad result",
+        "nickname": "Q",
+        "access": "item",
+        "description": "Resulting mesh with quad faces only."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Delaunay Mesh",
+    "nickname": "Del",
+    "guid": "1eb4f6ff-3547-4184-bead-1b01e7cfd668",
+    "description": "Delaunay triangulation",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for triangulate"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Substrate",
+    "nickname": "Substrate",
+    "guid": "415750fd-c0ec-4411-84d0-01f28ab23066",
+    "description": "Substrate algorithm inspired by Jared Tarbell (Complexification.net)",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Border",
+        "nickname": "B",
+        "access": "item",
+        "description": "Border for substrate"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of lines in substrate"
+      },
+      {
+        "name": "Angles",
+        "nickname": "A",
+        "access": "list",
+        "description": "Base angles (in radians) in substrate"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Angular deviation (in radians) of new lines"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random seed for solution"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Substrate",
+        "nickname": "S",
+        "access": "list",
+        "description": "Substrate diagram"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Proximity 2D",
+    "nickname": "Prox",
+    "guid": "458ed0e0-19a3-419b-8ead-f524925b8a35",
+    "description": "Search for two-dimensional proximity within a point list",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If null, the best fit plane is used"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Maximum number of closest points to find"
+      },
+      {
+        "name": "Min Radius",
+        "nickname": "R-",
+        "access": "item",
+        "description": "Optional minimum search radius."
+      },
+      {
+        "name": "Max Radius",
+        "nickname": "R+",
+        "access": "item",
+        "description": "Optional maximum search radius."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Links",
+        "nickname": "L",
+        "access": "tree",
+        "description": "Proximity links"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Proximity topology"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Cell",
+    "nickname": "VCell",
+    "guid": "7b181be1-30e7-4a97-915a-1b461741aef8",
+    "description": "Compute a single 3D Voronoi cell",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Seed point for voronoi cell"
+      },
+      {
+        "name": "Neighbours",
+        "nickname": "N",
+        "access": "list",
+        "description": "Neighbour points"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional cell boundary"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cell",
+        "nickname": "C",
+        "access": "item",
+        "description": "Voronoi 3D cell"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "QuadTree",
+    "nickname": "QT",
+    "guid": "8102032b-9699-4949-ab12-3017a31d1062",
+    "description": "A two-dimensional quadtree structure",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If omitted, the best fit plane is used"
+      },
+      {
+        "name": "Square",
+        "nickname": "S",
+        "access": "item",
+        "description": "Square leafs"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Permitted content per leaf"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Quads",
+        "nickname": "Q",
+        "access": "tree",
+        "description": "Quad tree leaves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points per quad"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "TriRemesh",
+    "nickname": "TriRemesh",
+    "guid": "866222ee-6093-4af8-8944-2f9264885385",
+    "description": "Convert a Brep or Mesh into a mesh of near equilateral triangles",
+    "library": {
+      "name": "Kangaroo2 Components",
+      "id": "c2ea695e-1a09-6f42-266d-113498879f60",
+      "version": "2.5.3"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "Geometry",
+        "access": "item",
+        "description": "Initial Mesh, Brep, Surface or Curve to remesh"
+      },
+      {
+        "name": "Target",
+        "nickname": "Target",
+        "access": "item",
+        "description": "Optional different target mesh to pull to. If none given, initial mesh is used."
+      },
+      {
+        "name": "Sharp",
+        "nickname": "Sharp",
+        "access": "item",
+        "description": "Preserve sharp features"
+      },
+      {
+        "name": "Features",
+        "nickname": "Features",
+        "access": "list",
+        "description": "Optional additional curves or points to preserve"
+      },
+      {
+        "name": "Length",
+        "nickname": "Length",
+        "access": "item",
+        "description": "Target edge length"
+      },
+      {
+        "name": "Iterations",
+        "nickname": "Iters",
+        "access": "item",
+        "description": "Number of remeshing steps to perform"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Triangulation",
+        "nickname": "T",
+        "access": "item",
+        "description": "Remeshed result"
+      },
+      {
+        "name": "Dual",
+        "nickname": "D",
+        "access": "item",
+        "description": "Dual Ngon mesh"
+      },
+      {
+        "name": "Creases",
+        "nickname": "C",
+        "access": "list",
+        "description": "Edge lines of sharp features"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Convex Hull",
+    "nickname": "Hull",
+    "guid": "9d0c5284-ea24-4f9f-a183-ef57fc48b5b8",
+    "description": "Compute the planar, convex hull for a collection of points",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for convex hull solution"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Hull",
+        "nickname": "H",
+        "access": "item",
+        "description": "Convex hull in base plane space"
+      },
+      {
+        "name": "Hull(z)",
+        "nickname": "Hz",
+        "access": "item",
+        "description": "Convex hull in world space"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Indices of points on convex hull"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Groups",
+    "nickname": "VorGroup",
+    "guid": "9d4854fe-70db-4863-967b-4120d0b6d2e4",
+    "description": "Compute a custom set of nested voronoi diagrams.",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Diagram boundary"
+      },
+      {
+        "name": "Generation 1",
+        "nickname": "G1",
+        "access": "list",
+        "description": "Points in generation 1"
+      },
+      {
+        "name": "Generation 2",
+        "nickname": "G2",
+        "access": "list",
+        "description": "Points in generation 2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Diagram 1",
+        "nickname": "D1",
+        "access": "list",
+        "description": "Voronoi diagram for generation 1"
+      },
+      {
+        "name": "Diagram 2",
+        "nickname": "D2",
+        "access": "list",
+        "description": "Voronoi diagram for generation 2"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi",
+    "nickname": "Voronoi",
+    "guid": "a4011be0-1c91-45bd-8280-17dd3a9f46f1",
+    "description": "Planar voronoi diagram for a collection of points",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional cell radius"
+      },
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional containment boundary for diagram."
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the voronoi diagram."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "OcTree",
+    "nickname": "OcT",
+    "guid": "a59a68ad-fdd6-41dd-88f0-d7a6fb8d2e16",
+    "description": "A three-dimensional oc-tree structure",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Square",
+        "nickname": "S",
+        "access": "item",
+        "description": "Square leafs"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Permitted content per leaf"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Boxes",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Oc-tree leave boxes"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "tree",
+        "description": "Points per box"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi Groups",
+    "nickname": "VorGroup",
+    "guid": "ab454a50-debf-46d1-9bd1-82648416a802",
+    "description": "Compute a custom set of nested voronoi diagrams.",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Plane for diagram"
+      },
+      {
+        "name": "Generation 1",
+        "nickname": "G1",
+        "access": "list",
+        "description": "Points in generation 1"
+      },
+      {
+        "name": "Generation 2",
+        "nickname": "G2",
+        "access": "list",
+        "description": "Points in generation 2"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Diagram 1",
+        "nickname": "D1",
+        "access": "list",
+        "description": "Voronoi diagram for generation 1 points"
+      },
+      {
+        "name": "Diagram 2",
+        "nickname": "D2",
+        "access": "list",
+        "description": "Voronoi diagram for generation 2 points"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Quadmesh Settings",
+    "nickname": "QMS",
+    "guid": "b7cbe6eb-0608-4038-88e0-50495a559a41",
+    "description": "A collection of Quad-Remeshing settings",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": false,
+    "inputs": [
+      ,
+      "outputs": 
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi 3D",
+    "nickname": "Voronoi³",
+    "guid": "ba9bb57a-61cf-4207-a1c4-994e371ba4f9",
+    "description": "Volumetric voronoi diagram for a collection of points",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional diagram boundary"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the 3D Voronoi diagram"
+      },
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "list",
+        "description": "List of boolean values indicating for each cell whether it is part of the original boundary"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall(t) Custom",
+    "nickname": "MetaBall(t)",
+    "guid": "c4373505-a4cf-4992-8db1-fd6e6bb5850d",
+    "description": "2D Metaball isosurface by threshold and custom charge values",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Charge",
+        "nickname": "C",
+        "access": "list",
+        "description": "Point charges (positive values only)"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Threshold",
+        "nickname": "T",
+        "access": "item",
+        "description": "Isocurve threshold value"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for default accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurves"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall(t)",
+    "nickname": "MetaBall(t)",
+    "guid": "c48cf4d4-432c-41b6-b77a-77650479a31f",
+    "description": "2D Metaball isosurface by threshold",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Threshold",
+        "nickname": "T",
+        "access": "item",
+        "description": "Isocurve threshold value"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for default accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurves"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Delaunay Edges",
+    "nickname": "Con",
+    "guid": "db2a4d25-23fa-4887-8983-ee5293cc82c0",
+    "description": "Delaunay connectivity",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for triangulate"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Connectivity",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Topological Connectivity diagram"
+      },
+      {
+        "name": "Edges",
+        "nickname": "E",
+        "access": "list",
+        "description": "Edges of the connectivity diagram"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "MetaBall",
+    "nickname": "MetaBall",
+    "guid": "dc934310-67eb-4d1d-8607-7cc62a501dd9",
+    "description": "2D Metaball isocurve through point",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Point charge locations"
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Metaball section plane"
+      },
+      {
+        "name": "Point",
+        "nickname": "X",
+        "access": "item",
+        "description": "Isocurve intersection"
+      },
+      {
+        "name": "Accuracy",
+        "nickname": "A",
+        "access": "item",
+        "description": "Isocurve sampling accuracy (leave blank for adaptive accuracy)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Isocurve",
+        "nickname": "I",
+        "access": "list",
+        "description": "Metaball isocurve"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Proximity 3D",
+    "nickname": "Prox",
+    "guid": "e504d619-4467-437a-92fa-c6822d16b066",
+    "description": "Search for three-dimensional proximity within a point list",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Input points"
+      },
+      {
+        "name": "Group",
+        "nickname": "G",
+        "access": "item",
+        "description": "Maximum number of closest points to find"
+      },
+      {
+        "name": "Min Radius",
+        "nickname": "R-",
+        "access": "item",
+        "description": "Optional minimum search radius."
+      },
+      {
+        "name": "Max Radius",
+        "nickname": "R+",
+        "access": "item",
+        "description": "Optional maximum search radius."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Links",
+        "nickname": "L",
+        "access": "tree",
+        "description": "Proximity links"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Proximity topology"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Voronoi",
+    "nickname": "Voronoi",
+    "guid": "ee9261ab-75a4-478f-b483-a50b755b07fd",
+    "description": "Planar voronoi diagram for a collection of points",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points for Voronoi diagram"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional cell radius"
+      },
+      {
+        "name": "Box",
+        "nickname": "B",
+        "access": "item",
+        "description": "Optional containment box for diagram."
+      },
+      {
+        "name": "Plane",
+        "nickname": "Pl",
+        "access": "item",
+        "description": "Optional base plane. If no plane is provided, then the best-fit plane will be used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Cells",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cells of the voronoi diagram."
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Triangulation",
+    "name": "Quad Remesh Settings",
+    "nickname": "QRSettings",
+    "guid": "f562505b-4c49-49d1-932d-c8804b3fcec6",
+    "description": "Create setting for Quad-remeshing.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Target Count",
+        "nickname": "Tc",
+        "access": "item",
+        "description": "Number of quads to aim for in the result."
+      },
+      {
+        "name": "Adaptive Size",
+        "nickname": "As",
+        "access": "item",
+        "description": "A number in the range [0, 100] controlling how the quad sizes change depending on curvature."
+      },
+      {
+        "name": "Adaptive Count",
+        "nickname": "Ac",
+        "access": "item",
+        "description": "True if the number of quads is allowed to be higher for high-curvature areas."
+      },
+      {
+        "name": "Hard Edges",
+        "nickname": "He",
+        "access": "item",
+        "description": "Detect and retain hard edges in the input mesh."
+      },
+      {
+        "name": "Seam Edges",
+        "nickname": "Se",
+        "access": "item",
+        "description": "Detect and retain brep-face boundary edges (0=Off, 1=Smart, 2=Strict)."
+      },
+      {
+        "name": "Symmetry",
+        "nickname": "Sy",
+        "access": "item",
+        "description": "Symmetry axis (0=none, 1=X, 2=Y, 3=Z)."
+      },
+      {
+        "name": "Guide Curves",
+        "nickname": "Gc",
+        "access": "item",
+        "description": "Guide curve influence. (0=approximate, 1=edge-ring, 2=edge-loop)."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Settings",
+        "nickname": "S",
+        "access": "item",
+        "description": "Quad-remesher settings"
+      }
+    ]
+  }
+]

@@ -1,0 +1,776 @@
+[
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Cull Pattern",
+    "nickname": "Cull",
+    "guid": "008e9a6f-478a-4813-8c8a-546273bc3a6b",
+    "description": "Cull (remove) elements in a list using a repeating bit mask.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to cull"
+      },
+      {
+        "name": "Cull Pattern",
+        "nickname": "P",
+        "access": "list",
+        "description": "Culling pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Culled list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Char Sequence",
+    "nickname": "CharSeq",
+    "guid": "01640871-69ea-40ac-9380-4660d6d28bd2",
+    "description": "Create a sequence of textual characters.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of elements in the sequence."
+      },
+      {
+        "name": "Char Pool",
+        "nickname": "P",
+        "access": "item",
+        "description": "Pool of characters available to the sequence."
+      },
+      {
+        "name": "Format",
+        "nickname": "F",
+        "access": "item",
+        "description": "Optional formatting mask"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Sequence",
+        "nickname": "S",
+        "access": "list",
+        "description": "Sequence of character tags"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Random",
+    "nickname": "Random",
+    "guid": "2ab17f9a-d852-4405-80e1-938c5e57e78d",
+    "description": "Generate a list of pseudo random numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Range",
+        "nickname": "R",
+        "access": "item",
+        "description": "Domain of random numeric range"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of random values"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Seed of random engine"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Random",
+        "nickname": "R",
+        "access": "list",
+        "description": "Random numbers"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Random Reduce",
+    "nickname": "Reduce",
+    "guid": "455925fd-23ff-4e57-a0e7-913a4165e659",
+    "description": "Randomly remove N items from a list",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to reduce"
+      },
+      {
+        "name": "Reduction",
+        "nickname": "R",
+        "access": "item",
+        "description": "Number of items to remove"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random Generator Seed value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Reduced list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Cull Index",
+    "nickname": "Cull i",
+    "guid": "501aecbb-c191-4d13-83d6-7ee32445ac50",
+    "description": "Cull (remove) indexed elements from a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to cull"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Culling indices"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Wrap indices to list range"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Culled list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Stack Data",
+    "nickname": "Stack",
+    "guid": "5fa4e736-0d82-4af0-97fb-30a79f4cbf41",
+    "description": "Duplicate individual items in a list of data",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Data to stack"
+      },
+      {
+        "name": "Stack",
+        "nickname": "S",
+        "access": "list",
+        "description": "Stacking pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Stacked data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Cull Index",
+    "nickname": "Cull i",
+    "guid": "6568e019-f59c-4984-84d6-96bd5bfbe9e7",
+    "description": "Cull (remove) indexed elements from a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to cull"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Culling indices"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Culled list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Cull Nth",
+    "nickname": "CullN",
+    "guid": "932b9817-fcc6-4ac3-b5fd-c0e8eeadc53f",
+    "description": "Cull (remove) every Nth element in a list.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "List to cull"
+      },
+      {
+        "name": "Cull frequency",
+        "nickname": "N",
+        "access": "item",
+        "description": "Cull frequency"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Culled list"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Range",
+    "nickname": "Range",
+    "guid": "9445ca40-cc73-4861-a455-146308676855",
+    "description": "Create a range of numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Domain",
+        "nickname": "D",
+        "access": "item",
+        "description": "Domain of numeric range"
+      },
+      {
+        "name": "Steps",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of steps"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Range",
+        "nickname": "R",
+        "access": "list",
+        "description": "Range of numbers"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "RandomEx",
+    "nickname": "RndEx",
+    "guid": "a12dddbf-bb49-4ef4-aeb8-5653bc882cbd",
+    "description": "Generate random data between extremes.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Min",
+        "nickname": "L0",
+        "access": "item",
+        "description": "Lower limit"
+      },
+      {
+        "name": "Max",
+        "nickname": "L1",
+        "access": "item",
+        "description": "Upper limit"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of values to generate"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Random Seed"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Random values"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Random",
+    "nickname": "Random",
+    "guid": "b7e4e0ef-a01d-48c4-93be-2a12d4417e22",
+    "description": "Generate a list of pseudo random numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Range",
+        "nickname": "R",
+        "access": "item",
+        "description": "Domain of random numeric range"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of random values"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Seed of random engine"
+      },
+      {
+        "name": "Integers",
+        "nickname": "I",
+        "access": "item",
+        "description": "Limit to integers only"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Range",
+        "nickname": "R",
+        "access": "list",
+        "description": "Range of random numbers"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Repeat Data",
+    "nickname": "Repeat",
+    "guid": "c40dc145-9e36-4a69-ac1a-6d825c654993",
+    "description": "Repeat a pattern until it reaches a certain length.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Pattern to repeat"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of final pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Repeated data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Duplicate Data",
+    "nickname": "Dup",
+    "guid": "dd8134c0-109b-4012-92be-51d843edfff7",
+    "description": "Duplicate data a predefined number of times.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Data to duplicate"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of duplicates"
+      },
+      {
+        "name": "Order",
+        "nickname": "O",
+        "access": "item",
+        "description": "Retain list order"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Duplicated data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Series",
+    "nickname": "Series",
+    "guid": "e64c5fb1-845c-4ab1-8911-5f338516ba67",
+    "description": "Create a series of numbers.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "First number in the series"
+      },
+      {
+        "name": "Step",
+        "nickname": "N",
+        "access": "item",
+        "description": "Step size for each successive number"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of values in the series"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Series",
+        "nickname": "S",
+        "access": "list",
+        "description": "Series of numbers"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Duplicate data [OBSOLETE]",
+    "nickname": "Dup",
+    "guid": "e6e344aa-f45b-43d5-a2d9-9cf8e8e608dc",
+    "description": "Duplicates some data a number of times",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "The data to duplicate"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of times to duplicate the data"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "item",
+        "description": "The duplicated data"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Sequence",
+    "nickname": "Seq",
+    "guid": "e9b2d2a6-0377-4c1c-a89e-b3f219a95b4d",
+    "description": "Generate a sequence of numbers",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Notation",
+        "nickname": "N",
+        "access": "item",
+        "description": "Sequence notation"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Final length of sequence"
+      },
+      {
+        "name": "Initial",
+        "nickname": "I",
+        "access": "list",
+        "description": "Initial values in sequence"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Sequence",
+        "nickname": "S",
+        "access": "list",
+        "description": "Sequence"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Jitter",
+    "nickname": "Jitter",
+    "guid": "f02a20f6-bb49-4e3d-b155-8ed5d3c6b000",
+    "description": "Randomly shuffles a list of values.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "List",
+        "nickname": "L",
+        "access": "list",
+        "description": "Values to shuffle"
+      },
+      {
+        "name": "Jitter",
+        "nickname": "J",
+        "access": "item",
+        "description": "Shuffling strength. (0.0 = no shuffling, 1.0 = complete shuffling)"
+      },
+      {
+        "name": "Seed",
+        "nickname": "S",
+        "access": "item",
+        "description": "Seed of shuffling engine"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Values",
+        "nickname": "V",
+        "access": "list",
+        "description": "Shuffled values"
+      },
+      {
+        "name": "Indices",
+        "nickname": "I",
+        "access": "list",
+        "description": "Index map of shuffled items"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Split [OBSOLETE]",
+    "nickname": "Split",
+    "guid": "fbcf0d42-c9a5-4ca5-8d5b-567fb54abc43",
+    "description": "This component is OBSOLETE. It has been replaced",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Input data stream"
+      },
+      {
+        "name": "Boolean",
+        "nickname": "B",
+        "access": "item",
+        "description": "Boolean evaluation flag"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "False",
+        "nickname": "F",
+        "access": "item",
+        "description": "Output stream in case of B = False"
+      },
+      {
+        "name": "True",
+        "nickname": "T",
+        "access": "item",
+        "description": "Output stream in case of B = True"
+      }
+    ]
+  },
+  {
+    "category": "Sets",
+    "subcategory": "Sequence",
+    "name": "Fibonacci",
+    "nickname": "Fib",
+    "guid": "fe99f302-3d0d-4389-8494-bd53f7935a02",
+    "description": "Creates a Fibonacci sequence.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Seed A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First seed number of the sequence"
+      },
+      {
+        "name": "Seed B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second seed number of the sequence"
+      },
+      {
+        "name": "Number",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of values in the sequence"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Series",
+        "nickname": "S",
+        "access": "list",
+        "description": "First N numbers in this Fibonacci sequence"
+      }
+    ]
+  }
+]

@@ -1,0 +1,512 @@
+[
+  {
+    "category": "Vector",
+    "subcategory": "Field",
+    "name": "Tensor Display",
+    "nickname": "FTensor",
+    "guid": "08619b6d-f9c4-4cb2-adcd-90959f08dc0d",
+    "description": "Display the tensor vectors of a field section",
+    "library": {
+      "name": "Field Components",
+      "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Field",
+        "nickname": "F",
+        "access": "item",
+        "description": "Field to evaluate"
+      },
+      {
+        "name": "Section",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle describing section"
+      },
+      {
+        "name": "Samples",
+        "nickname": "N",
+        "access": "item",
+        "description": "Section sample count indicator"
+      }
+    ],
+    "outputs": 
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Spin Force",
+  "nickname": "FSpin",
+  "guid": "4b59e893-d4ee-4e31-ae24-a489611d1088",
+  "description": "Create a field due to a spin force",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Plane",
+      "nickname": "P",
+      "access": "item",
+      "description": "Center and orientation of spin disc"
+    },
+    {
+      "name": "Strength",
+      "nickname": "S",
+      "access": "item",
+      "description": "Strength of spin force at center of disc"
+    },
+    {
+      "name": "Radius",
+      "nickname": "R",
+      "access": "item",
+      "description": "Radius unit of spin disc"
+    },
+    {
+      "name": "Decay",
+      "nickname": "D",
+      "access": "item",
+      "description": "Decay of spin force"
+    },
+    {
+      "name": "Bounds",
+      "nickname": "B",
+      "access": "item",
+      "description": "Optional bounds for the field"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field due to vector force"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Scalar Display",
+  "nickname": "FScalar",
+  "guid": "55f9ce6a-490c-4f25-a536-a3d47b794752",
+  "description": "Display the scalar values of a field section",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to evaluate"
+    },
+    {
+      "name": "Section",
+      "nickname": "S",
+      "access": "item",
+      "description": "Rectangle describing section"
+    },
+    {
+      "name": "Samples",
+      "nickname": "N",
+      "access": "item",
+      "description": "Section sample count indicator"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Section display mesh"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Direction Display",
+  "nickname": "FDir",
+  "guid": "5ba20fab-6d71-48ea-a98f-cb034db6bbdc",
+  "description": "Display the force directions of a field section",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to evaluate"
+    },
+    {
+      "name": "Section",
+      "nickname": "S",
+      "access": "item",
+      "description": "Rectangle describing section"
+    },
+    {
+      "name": "Samples",
+      "nickname": "N",
+      "access": "item",
+      "description": "Section sample count indicator"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Section display mesh"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Line Charge",
+  "nickname": "LCharge",
+  "guid": "8cc9eb88-26a7-4baa-a896-13e5fc12416a",
+  "description": "Create a field due to a line charge",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Geometry of line segment charge"
+    },
+    {
+      "name": "Charge",
+      "nickname": "C",
+      "access": "item",
+      "description": "Charge of point object"
+    },
+    {
+      "name": "Bounds",
+      "nickname": "B",
+      "access": "item",
+      "description": "Optional bounds for the field"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field due to line charge"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Evaluate Field",
+  "nickname": "EvF",
+  "guid": "a7c9f738-f8bd-4f64-8e7f-33341183e493",
+  "description": "Evaluate a field at a point",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to evaluate"
+    },
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to evaluate at"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Tensor",
+      "nickname": "T",
+      "access": "item",
+      "description": "Field tensor at sample location"
+    },
+    {
+      "name": "Strength",
+      "nickname": "S",
+      "access": "item",
+      "description": "Field strength at sample location"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Field Line",
+  "nickname": "FLine",
+  "guid": "add6be3e-c57f-4740-96e4-5680abaa9169",
+  "description": "Compute the field line through a certain point",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to evaluate"
+    },
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Point to start from"
+    },
+    {
+      "name": "Steps",
+      "nickname": "N",
+      "access": "item",
+      "description": "Number of samples"
+    },
+    {
+      "name": "Accuracy",
+      "nickname": "A",
+      "access": "item",
+      "description": "Accuracy hint (will only be loosely obeyed)"
+    },
+    {
+      "name": "Method",
+      "nickname": "M",
+      "access": "item",
+      "description": "Solver (1=Euler, 2=RK2, 3=RK3, 4=RK4)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Curve",
+      "nickname": "C",
+      "access": "item",
+      "description": "Curve approximation of field line through P"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Break Field",
+  "nickname": "BreakF",
+  "guid": "b27d53bc-e713-475d-81fd-71cdd8de2e58",
+  "description": "Break a field into individual elements",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to break"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Fields",
+      "nickname": "F",
+      "access": "list",
+      "description": "Elemental fields"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Perpendicular Display",
+  "nickname": "FPerp",
+  "guid": "bf106e4c-68f4-476f-b05b-9c15fb50e078",
+  "description": "Display the perpendicularity of a field through a section",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field to evaluate"
+    },
+    {
+      "name": "Section",
+      "nickname": "S",
+      "access": "item",
+      "description": "Rectangle describing section"
+    },
+    {
+      "name": "Samples",
+      "nickname": "N",
+      "access": "item",
+      "description": "Section sample count indicator"
+    },
+    {
+      "name": "Positive Colour",
+      "nickname": "C+",
+      "access": "item",
+      "description": "Colour for positive (straight up) forces"
+    },
+    {
+      "name": "Negative Colour",
+      "nickname": "C-",
+      "access": "item",
+      "description": "Colour for negative (straight down) forces"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Display",
+      "nickname": "D",
+      "access": "item",
+      "description": "Section display mesh"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Point Charge",
+  "nickname": "PCharge",
+  "guid": "cffdbaf3-8d33-4b38-9cad-c264af9fc3f4",
+  "description": "Create a field due to a point charge",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Point",
+      "nickname": "P",
+      "access": "item",
+      "description": "Location of point charge"
+    },
+    {
+      "name": "Charge",
+      "nickname": "C",
+      "access": "item",
+      "description": "Charge of point object"
+    },
+    {
+      "name": "Decay",
+      "nickname": "D",
+      "access": "item",
+      "description": "Decay of charge potential"
+    },
+    {
+      "name": "Bounds",
+      "nickname": "B",
+      "access": "item",
+      "description": "Optional bounds for the field"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field due to point charge"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Vector Force",
+  "nickname": "FVector",
+  "guid": "d27cc1ea-9ef7-47bf-8ee2-c6662da0e3d9",
+  "description": "Create a field due to a vector force",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Line",
+      "nickname": "L",
+      "access": "item",
+      "description": "Geometry of line segment charge"
+    },
+    {
+      "name": "Bounds",
+      "nickname": "B",
+      "access": "item",
+      "description": "Optional bounds for the field"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Field due to vector force"
+    }
+  ]
+},
+{
+  "category": "Vector",
+  "subcategory": "Field",
+  "name": "Merge Fields",
+  "nickname": "MergeF",
+  "guid": "d9a6fbd2-2e9f-472e-8147-33bf0233a115",
+  "description": "Merge a collection of fields into one",
+  "library": {
+    "name": "Field Components",
+    "id": "933181df-1c9e-4c8f-8d8a-1840d5e7e061",
+    "version": "1.0.0.0"
+  },
+  "instantiated": true,
+  "inputs": [
+    {
+      "name": "Fields",
+      "nickname": "F",
+      "access": "list",
+      "description": "Fields to merge"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "Field",
+      "nickname": "F",
+      "access": "item",
+      "description": "Merged field"
+    }
+  ]
+}
+]

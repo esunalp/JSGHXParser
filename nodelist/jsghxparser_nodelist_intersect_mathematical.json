@@ -1,0 +1,1082 @@
+[
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Curve | Line",
+    "nickname": "CLX",
+    "guid": "0e3173b6-91c6-4845-a748-e45d4fdbc262",
+    "description": "Solve intersection events for a curve and a line.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to intersect"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line to intersect with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection events"
+      },
+      {
+        "name": "Params",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameters on curve"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of intersection events"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Contour (ex)",
+    "nickname": "Contour",
+    "guid": "246cda78-5e88-4087-ba09-ae082bbc4af8",
+    "description": "Create a set of Brep or Mesh contours",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Brep or Mesh to contour"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane for contours"
+      },
+      {
+        "name": "Offsets",
+        "nickname": "O",
+        "access": "list",
+        "description": "Contour offsets from base plane (if omitted, you must specify distances instead)"
+      },
+      {
+        "name": "Distances",
+        "nickname": "D",
+        "access": "list",
+        "description": "Distances between contours (if omitted, you must specify offset instead)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contours (grouped by section)"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Plane | Plane",
+    "nickname": "PPX",
+    "guid": "290cf9c4-0711-4704-851e-4c99e3343ac5",
+    "description": "Solve the intersection event of two planes.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First plane"
+      },
+      {
+        "name": "Plane B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Intersection line"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Contour",
+    "nickname": "Contour",
+    "guid": "3b112fb6-3eba-42d2-ba75-0f903c18faab",
+    "description": "Create a set of Brep or Mesh contours",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Brep or Mesh to contour"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Contour start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "N",
+        "access": "item",
+        "description": "Contour normal direction"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance between contours"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Contours",
+        "nickname": "C",
+        "access": "tree",
+        "description": "Resulting contours (grouped by section)"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Mesh | Plane",
+    "nickname": "Sec",
+    "guid": "3b1ae469-0e9b-461d-8c30-fa5a7de8b7a9",
+    "description": "Solve intersection events for a Mesh and a Plane (otherwise known as section).",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base Mesh"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Section plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Section polylines"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Mesh | Ray",
+    "nickname": "MeshRay",
+    "guid": "4c02a168-9aba-4f42-8951-2719f24d391f",
+    "description": "Intersect a mesh with a semi-infinite ray",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to intersect"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Ray start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Ray direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "X",
+        "access": "item",
+        "description": "First intersection point"
+      },
+      {
+        "name": "Hit",
+        "nickname": "H",
+        "access": "item",
+        "description": "Boolean indicating hit or miss"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Brep | Plane",
+    "nickname": "Sec",
+    "guid": "4fe828e8-fa95-4cc5-9a8c-c33856ecc783",
+    "description": "Solve intersection events for a Brep and a plane (otherwise known as section).",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Section plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Section curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Section points"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Line | Line",
+    "nickname": "LLX",
+    "guid": "6d4b82a7-8c1d-4bec-af7b-ca321ba4beb1",
+    "description": "Solve intersection events for two lines.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line 1",
+        "nickname": "A",
+        "access": "item",
+        "description": "First line for intersection"
+      },
+      {
+        "name": "Line 2",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second line for intersection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Param A",
+        "nickname": "tA",
+        "access": "item",
+        "description": "Parameter on line A"
+      },
+      {
+        "name": "Param B",
+        "nickname": "tB",
+        "access": "item",
+        "description": "Parameter on line B"
+      },
+      {
+        "name": "Point A",
+        "nickname": "pA",
+        "access": "item",
+        "description": "Point on line A"
+      },
+      {
+        "name": "Point B",
+        "nickname": "pB",
+        "access": "item",
+        "description": "Point on line B"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Line | Plane",
+    "nickname": "PLX",
+    "guid": "75d0442c-1aa3-47cf-bd94-457b42c16e9f",
+    "description": "Solve intersection event for a line and a plane.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Base line"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection event"
+      },
+      {
+        "name": "Param L",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameter {t} on infinite line"
+      },
+      {
+        "name": "Param P",
+        "nickname": "uv",
+        "access": "item",
+        "description": "Parameter {uv} on plane"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "IsoVist Ray",
+    "nickname": "IVRay",
+    "guid": "769f5b35-1780-4823-b593-118ecc3560e0",
+    "description": "Compute a single isovist sample at a location",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Sample",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sampling ray"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sample radius"
+      },
+      {
+        "name": "Obstacles",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstacle outlines"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection point of the sample ray with the obstacles"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance from ray start to intersection point"
+      },
+      {
+        "name": "Hit",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hit flag indicating whether the ray hit any of the obstacles"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Plane Region",
+    "nickname": "PlReg",
+    "guid": "80e3614a-25ae-43e7-bb0a-760e68ade864",
+    "description": "Create a bounded region from intersecting planes.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Region plane and origin"
+      },
+      {
+        "name": "Bounds",
+        "nickname": "B",
+        "access": "list",
+        "description": "Region bounding planes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Bounded region"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Curve | Line",
+    "nickname": "CLX",
+    "guid": "9396be03-8159-43bf-b3e7-2c86c8d04fc0",
+    "description": "Solve intersection events for a curve and a line.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to intersect"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line to intersect with"
+      },
+      {
+        "name": "First",
+        "nickname": "F",
+        "access": "item",
+        "description": "Limit to first intersection only"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection events"
+      },
+      {
+        "name": "Params",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameters on curve"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Number of intersection events"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "IsoVist Ray",
+    "nickname": "IVRay",
+    "guid": "93d0dcbc-6207-4745-aaf7-fe57a880f959",
+    "description": "Compute a single isovist sample at a location",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Sample",
+        "nickname": "S",
+        "access": "item",
+        "description": "Sampling ray"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sample radius"
+      },
+      {
+        "name": "Obstacles",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstacle outlines (curves, planes, meshes and breps are allowed)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection point of the sample ray with the obstacles"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "item",
+        "description": "Distance from ray start to intersection point"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "item",
+        "description": "Obstacle index for hit, or -1 if no obstacle was hit"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Surface | Line",
+    "nickname": "SLX",
+    "guid": "a834e823-ae01-44d8-9066-c138eeb6f391",
+    "description": "Solve intersection events for a surface and a line.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Intersection line"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Intersection overlap curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points"
+      },
+      {
+        "name": "UV Points",
+        "nickname": "uv",
+        "access": "list",
+        "description": "Surface {uv} coordinates at intersection events"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "list",
+        "description": "Surface normal vector at intersection events"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Curve | Plane",
+    "nickname": "PCX",
+    "guid": "b7c12ed1-b09a-4e15-996f-3fa9f3f16b1c",
+    "description": "Solve intersection events for a curve and a plane.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base curve"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection events"
+      },
+      {
+        "name": "Params C",
+        "nickname": "t",
+        "access": "list",
+        "description": "Parameters {t} on curve"
+      },
+      {
+        "name": "Params P",
+        "nickname": "uv",
+        "access": "list",
+        "description": "Parameters {uv} on plane"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "IsoVist",
+    "nickname": "IVist",
+    "guid": "c08ac8f7-cf90-4cdb-9862-2ba66b8408ef",
+    "description": "Compute an isovist sampling at a location",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Sampling plane and origin"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Sample count"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sample radius"
+      },
+      {
+        "name": "Obstacles",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstacle outlines"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points of the sample rays with the obstacles"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "list",
+        "description": "List of intersection distances"
+      },
+      {
+        "name": "Hits",
+        "nickname": "H",
+        "access": "list",
+        "description": "List of ray|obstacle hit flags"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Surface | Line",
+    "nickname": "SCX",
+    "guid": "c2c73357-bfd2-45af-89ff-40ca02a3442f",
+    "description": "Solve intersection events for a surface and a line.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Surface",
+        "nickname": "S",
+        "access": "item",
+        "description": "Base surface"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Intersection line"
+      },
+      {
+        "name": "First",
+        "nickname": "F",
+        "access": "item",
+        "description": "Limit to first intersection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Intersection overlap curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points"
+      },
+      {
+        "name": "UV Points",
+        "nickname": "uv",
+        "access": "list",
+        "description": "Surface {uv} coordinates at intersection events"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "list",
+        "description": "Surface normal vector at intersection events"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "IsoVist",
+    "nickname": "IVist",
+    "guid": "cab92254-1c79-4e5a-9972-0a4412b35c88",
+    "description": "Compute an isovist sampling at a location",
+    "library": {
+      "name": "Triangulation Components",
+      "id": "49c4cb5e-6c87-439f-9582-32ba2f3c367d",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Sampling plane and origin"
+      },
+      {
+        "name": "Count",
+        "nickname": "N",
+        "access": "item",
+        "description": "Sample count"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Sample radius"
+      },
+      {
+        "name": "Obstacles",
+        "nickname": "O",
+        "access": "list",
+        "description": "Obstacle outlines"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points of the sample rays with the obstacles"
+      },
+      {
+        "name": "Distance",
+        "nickname": "D",
+        "access": "list",
+        "description": "List of intersection distances"
+      },
+      {
+        "name": "Index",
+        "nickname": "I",
+        "access": "list",
+        "description": "List of obstacle indices for each hit, or -1 if no obstacle was hit"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Curve | Line [OBSOLETE]",
+    "nickname": "CLX",
+    "guid": "ddaea1a9-d6bd-4a18-ac11-8a4993954a03",
+    "description": "Solve intersection events for a curve and a line.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to intersect"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line to intersect with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "item",
+        "description": "Intersection events"
+      },
+      {
+        "name": "Params",
+        "nickname": "t",
+        "access": "item",
+        "description": "Parameters on curve"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Brep | Line",
+    "nickname": "BLX",
+    "guid": "ed0742f9-6647-4d95-9dfd-9ad17080ae9c",
+    "description": "Solve intersection events for a Brep and a line.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Intersection line"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Intersection overlap curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Plane | Plane | Plane",
+    "nickname": "3PX",
+    "guid": "f1ea5a4b-1a4f-4cf4-ad94-1ecfb9302b6e",
+    "description": "Solve the intersection events of three planes.",
+    "library": {
+      "name": "Vector Components",
+      "id": "6029726d-3429-42ad-8023-62e9c9cf94ec",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First plane"
+      },
+      {
+        "name": "Plane B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second plane"
+      },
+      {
+        "name": "Plane C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Point",
+        "nickname": "Pt",
+        "access": "item",
+        "description": "Intersection point"
+      },
+      {
+        "name": "Line AB",
+        "nickname": "AB",
+        "access": "item",
+        "description": "Intersection line between A and B"
+      },
+      {
+        "name": "Line AC",
+        "nickname": "AC",
+        "access": "item",
+        "description": "Intersection line between A and C"
+      },
+      {
+        "name": "Line BC",
+        "nickname": "BC",
+        "access": "item",
+        "description": "Intersection line between B and C"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Mathematical",
+    "name": "Brep | Line",
+    "nickname": "BLX",
+    "guid": "ff880808-6daf-4f6c-88c1-058120ad6ba9",
+    "description": "Solve intersection events for a Brep and a line.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base Brep"
+      },
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Intersection line"
+      },
+      {
+        "name": "First",
+        "nickname": "F",
+        "access": "item",
+        "description": "Limit to first intersection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Intersection overlap curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Intersection points"
+      }
+    ]
+  }
+]

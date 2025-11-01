@@ -1,0 +1,662 @@
+[
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Maximum",
+    "nickname": "Max",
+    "guid": "0d1e2027-f153-460d-84c0-f9af431b08cb",
+    "description": "Return the greater of two items.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for comparison"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for comparison"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The greater of A and B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Pi",
+    "nickname": "Pi",
+    "guid": "0d2ccfb3-9d41-4759-9452-da6a522c3eaa",
+    "description": "Returns a factor of Pi.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "N",
+        "access": "item",
+        "description": "Factor to be multiplied by Pi"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Output",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Complex Components",
+    "nickname": "Complex",
+    "guid": "1f384257-b26b-4160-a6d3-1dcd89b64acd",
+    "description": "Extract the Real and Imaginary components from a complex number",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Complex",
+        "nickname": "C",
+        "access": "item",
+        "description": "Complex number to disembowel"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Real",
+        "nickname": "R",
+        "access": "item",
+        "description": "Real component of complex number"
+      },
+      {
+        "name": "Imaginary",
+        "nickname": "i",
+        "access": "item",
+        "description": "Imaginary component of complex number"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Weighted Average",
+    "nickname": "Wav",
+    "guid": "338666eb-14c5-4d9b-82e2-2b5be60655df",
+    "description": "Solve the arithmetic weighted average for a set of items",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input values for averaging"
+      },
+      {
+        "name": "Weights",
+        "nickname": "W",
+        "access": "list",
+        "description": "Collection of weights for each value"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arithmetic mean",
+        "nickname": "AM",
+        "access": "item",
+        "description": "Arithmetic mean (average) of all input values"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Extremes",
+    "nickname": "Extrz",
+    "guid": "37084b3f-2b66-4f3a-9737-80d0b0b7f0cb",
+    "description": "Find the extremes in a list of values",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Value for comparison"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Value for comparison"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mininum",
+        "nickname": "V-",
+        "access": "item",
+        "description": "Lowest of all values"
+      },
+      {
+        "name": "Maximum",
+        "nickname": "V+",
+        "access": "item",
+        "description": "Highest of all values"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Minimum",
+    "nickname": "Min",
+    "guid": "57308b30-772d-4919-ac67-e86c18f3a996",
+    "description": "Return the lesser of two items.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First item for comparison"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second item for comparison"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "item",
+        "description": "The lesser of A and B"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Blur Numbers",
+    "nickname": "NBlur",
+    "guid": "57e1d392-e3fb-4de9-be98-982854a92351",
+    "description": "Blur a list of numbers by averaging neighbours",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Numbers to blur"
+      },
+      {
+        "name": "Strength",
+        "nickname": "S",
+        "access": "item",
+        "description": "Blurring strength (0=none, 1=full)"
+      },
+      {
+        "name": "Iterations",
+        "nickname": "I",
+        "access": "item",
+        "description": "Number of successive blurring iterations"
+      },
+      {
+        "name": "Lock",
+        "nickname": "L",
+        "access": "item",
+        "description": "Lock first and last value"
+      },
+      {
+        "name": "Wrap",
+        "nickname": "W",
+        "access": "item",
+        "description": "Treat the list as a cyclical collection"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "list",
+        "description": "Blurred numbers"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Smooth Numbers",
+    "nickname": "Smooth",
+    "guid": "5b424e1c-d061-43cd-8c20-db84564b0502",
+    "description": "Smooth out changing numbers over time",
+    "library": {
+      "name": "Grasshopper",
+      "id": "e0d8b0dc-549e-442b-91bb-f975c585c42a",
+      "version": "1.0.0007"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "tree",
+        "description": "Changing numbers"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Numbers",
+        "nickname": "N",
+        "access": "tree",
+        "description": "Smoothened numbers"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Create Complex",
+    "nickname": "Complex",
+    "guid": "63d12974-2915-4ccf-ac26-5d566c3bac92",
+    "description": "Create a complex number from a Real and an Imaginary component",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Real",
+        "nickname": "R",
+        "access": "item",
+        "description": "Real component of complex number"
+      },
+      {
+        "name": "Imaginary",
+        "nickname": "i",
+        "access": "item",
+        "description": "Imaginary component of complex number"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Complex",
+        "nickname": "C",
+        "access": "item",
+        "description": "Complex number"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Average",
+    "nickname": "Avr",
+    "guid": "7986486c-621a-48fb-8f27-a28a22c91cc9",
+    "description": "Solve the arithmetic average for a set of items",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input values for averaging"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arithmetic mean",
+        "nickname": "AM",
+        "access": "item",
+        "description": "Arithmetic mean (average) of all input values"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Complex Conjugate",
+    "nickname": "z*",
+    "guid": "7d2a6064-51f0-45b2-adc4-f417b30dcd15",
+    "description": "Create the conjugate of a Complex number",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Complex",
+        "nickname": "C",
+        "access": "item",
+        "description": "Complex number"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Conjugate",
+        "nickname": "C",
+        "access": "item",
+        "description": "Conjugate of the Complex number [C]"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Complex Modulus",
+    "nickname": "CMod",
+    "guid": "88fb33f9-f467-452b-a0e3-44bdb78a9b06",
+    "description": "Get the modulus of a Complex number",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Complex",
+        "nickname": "C",
+        "access": "item",
+        "description": "Complex number"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Modulus",
+        "nickname": "M",
+        "access": "item",
+        "description": "Modulus of the Complex number [C]"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Round",
+    "nickname": "Round",
+    "guid": "a50c4a3b-0177-4c91-8556-db95de6c56c8",
+    "description": "Round a floating point value.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Number",
+        "nickname": "x",
+        "access": "item",
+        "description": "Number to round"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Nearest",
+        "nickname": "N",
+        "access": "item",
+        "description": "Integer nearest to x"
+      },
+      {
+        "name": "Floor",
+        "nickname": "F",
+        "access": "item",
+        "description": "First integer smaller than or equal to x"
+      },
+      {
+        "name": "Ceiling",
+        "nickname": "C",
+        "access": "item",
+        "description": "First integer larger than or equal to x"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Natural logarithm",
+    "nickname": "E",
+    "guid": "b6cac37c-21b9-46c6-bd0d-17ff67796578",
+    "description": "Returns a factor of the natural number (e).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "N",
+        "access": "item",
+        "description": "Factor to be multiplied by e"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Output",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Truncate",
+    "nickname": "Trunc",
+    "guid": "bd96f893-d57b-4f04-90d0-dca0d72ff2f9",
+    "description": "Perform truncation of numerical extremes",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Input",
+        "nickname": "I",
+        "access": "list",
+        "description": "Input values for truncation"
+      },
+      {
+        "name": "Truncation factor",
+        "nickname": "t",
+        "access": "item",
+        "description": "Truncation factor. Must be between 0.0 (no trucation) and 1.0 (full truncation)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "T",
+        "access": "list",
+        "description": "Truncated set"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Complex Argument",
+    "nickname": "Arg",
+    "guid": "be715e4c-d6d8-447b-a9c3-6fea700d0b83",
+    "description": "Get the argument of a Complex number",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Complex",
+        "nickname": "C",
+        "access": "item",
+        "description": "Complex number"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Argument",
+        "nickname": "A",
+        "access": "item",
+        "description": "Argument of the Complex number [C]"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Golden Ratio",
+    "nickname": "Phi",
+    "guid": "cb22d3ed-93d8-4629-bdf2-c0c7c25afd2c",
+    "description": "Returns a factor of the golden ratio (Phi).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "N",
+        "access": "item",
+        "description": "Factor to be multiplied by Phi"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Output",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Epsilon",
+    "nickname": "Eps",
+    "guid": "deadf87d-99a6-4980-90c3-f98350aa6f0f",
+    "description": "Returns a factor of double precision floating point epsilon.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Factor",
+        "nickname": "N",
+        "access": "item",
+        "description": "Factor to be multiplied by epsilon"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Output",
+        "nickname": "y",
+        "access": "item",
+        "description": "Output value"
+      }
+    ]
+  },
+  {
+    "category": "Maths",
+    "subcategory": "Util",
+    "name": "Interpolate data",
+    "nickname": "Interp",
+    "guid": "e168ff6b-e5c0-48f1-b831-f6996bf3b459",
+    "description": "Interpolate a collection of data.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Data",
+        "nickname": "D",
+        "access": "list",
+        "description": "Data to interpolate (simple data types only)."
+      },
+      {
+        "name": "Parameter",
+        "nickname": "t",
+        "access": "item",
+        "description": "Normalised interpolation parameter."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Interpolated value."
+      }
+    ]
+  }
+]

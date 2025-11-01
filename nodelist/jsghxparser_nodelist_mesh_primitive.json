@@ -1,0 +1,458 @@
+[
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Sphere",
+    "nickname": "MSphere",
+    "guid": "0a391eac-5048-443c-9c1b-f592299b6dd6",
+    "description": "Create a mesh sphere.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of mesh sphere"
+      },
+      {
+        "name": "U Count",
+        "nickname": "U",
+        "access": "item",
+        "description": "Number of faces around sphere"
+      },
+      {
+        "name": "V Count",
+        "nickname": "V",
+        "access": "item",
+        "description": "Number of faces from pole to pole"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh sphere"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Quad",
+    "nickname": "Quad",
+    "guid": "1cb59c86-7f6b-4e52-9a0c-6441850e9520",
+    "description": "Create a mesh quad.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face corner"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face corner"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face corner"
+      },
+      {
+        "name": "Corner D",
+        "nickname": "D",
+        "access": "item",
+        "description": "Index of fourth face corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Quadrangular mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Box",
+    "nickname": "MBox",
+    "guid": "2696bd14-3fb5-4750-827f-86df6c31d664",
+    "description": "Create a mesh box.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base box"
+      },
+      {
+        "name": "X Count",
+        "nickname": "X",
+        "access": "item",
+        "description": "Face count in {x} direction"
+      },
+      {
+        "name": "Y Count",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Face count in {y} direction"
+      },
+      {
+        "name": "Z Count",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Face count in {z} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "The 3D mesh box"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Triangle",
+    "nickname": "Triangle",
+    "guid": "5a4ddedd-5af9-49e5-bace-12910a8b9366",
+    "description": "Create a mesh triangle.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Index of first face corner"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Index of second face corner"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Index of third face corner"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Face",
+        "nickname": "F",
+        "access": "item",
+        "description": "Triangular mesh face"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Sphere Ex",
+    "nickname": "MSphereEx",
+    "guid": "76f85ee4-5a88-4511-8ba7-30df07e50533",
+    "description": "Create a mesh sphere from square patches.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of mesh sphere"
+      },
+      {
+        "name": "Count",
+        "nickname": "C",
+        "access": "item",
+        "description": "Number of faces along each patch edge"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh sphere"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Plane",
+    "nickname": "MPlane",
+    "guid": "8adbf481-7589-4a40-b490-006531ea001d",
+    "description": "Create a mesh plane.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Boundary",
+        "nickname": "B",
+        "access": "item",
+        "description": "Rectangle describing boundary of plane"
+      },
+      {
+        "name": "Width count",
+        "nickname": "W",
+        "access": "item",
+        "description": "Number of faces along {x} direction"
+      },
+      {
+        "name": "Height count",
+        "nickname": "H",
+        "access": "item",
+        "description": "Number of faces along {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh plane"
+      },
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of mesh plane"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Colours",
+    "nickname": "MCol",
+    "guid": "d2cedf38-1149-4adc-8dbf-b06571cb5106",
+    "description": "Assign a repeating colour pattern to a mesh object.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Colour pattern"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Coloured mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Plane",
+    "nickname": "MPlane",
+    "guid": "dd8d834f-40f1-4a84-8e4b-9fa8efe7be41",
+    "description": "Create a mesh plane.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Base",
+        "nickname": "B",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Width",
+        "nickname": "W",
+        "access": "item",
+        "description": "Domain of width"
+      },
+      {
+        "name": "Height",
+        "nickname": "H",
+        "access": "item",
+        "description": "Domain of height"
+      },
+      {
+        "name": "Width count",
+        "nickname": "Cw",
+        "access": "item",
+        "description": "Number of faces along {x} direction"
+      },
+      {
+        "name": "Height count",
+        "nickname": "Ch",
+        "access": "item",
+        "description": "Number of faces along {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh plane"
+      },
+      {
+        "name": "Area",
+        "nickname": "A",
+        "access": "item",
+        "description": "Area of mesh plane"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Construct Mesh",
+    "nickname": "ConMesh",
+    "guid": "e2c0f9db-a862-4bd9-810c-ef2610e7a56f",
+    "description": "Construct a mesh from vertices, faces and optional colours.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Vertices",
+        "nickname": "V",
+        "access": "list",
+        "description": "Vertices of mesh object"
+      },
+      {
+        "name": "Faces",
+        "nickname": "F",
+        "access": "list",
+        "description": "Faces of mesh object"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Optional vertex colours"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Constructed mesh"
+      }
+    ]
+  },
+  {
+    "category": "Mesh",
+    "subcategory": "Primitive",
+    "name": "Mesh Spray",
+    "nickname": "MSpray",
+    "guid": "edcf10e1-02a0-48a4-ae2d-70c50d903dc8",
+    "description": "Assign colours to a mesh based on spray points.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Base mesh"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Spray points"
+      },
+      {
+        "name": "Colours",
+        "nickname": "C",
+        "access": "list",
+        "description": "Colours of spray points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Sprayed mesh"
+      }
+    ]
+  }
+]

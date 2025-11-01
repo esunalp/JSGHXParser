@@ -1,0 +1,1628 @@
+[
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle",
+    "nickname": "Rectangle",
+    "guid": "0ca0a214-396c-44ea-b22f-d3a1757c32d6",
+    "description": "Create a rectangle on a plane",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "X Size",
+        "nickname": "X",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane X direction."
+      },
+      {
+        "name": "Y Size",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane y direction."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rec",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Fit Line",
+    "nickname": "FLine",
+    "guid": "1f798a28-9de6-47b5-8201-cac57256b777",
+    "description": "Fit a line to a collection of points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "InCircle",
+    "nickname": "InCircle",
+    "guid": "28b1c4d4-ab1c-4309-accd-1b7a954ed948",
+    "description": "Create the incircle of a triangle.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of triangle"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of triangle"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner of triangle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc 3Pt [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "32c57b97-b653-47dd-b78f-121e89fdd01c",
+    "description": "Create an arc through three points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on arc interior"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "End point of arc"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 3Pt",
+    "nickname": "Rec 3Pt",
+    "guid": "34493ef6-3dfb-47c0-b149-691d02a93588",
+    "description": "Create a rectangle from three points",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of rectangle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of rectangle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Point along rectangle edge opposite to AB"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rec",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Ellipse",
+    "nickname": "Ellipse",
+    "guid": "46b5564d-d3eb-4bf1-ae16-15ed132cfd88",
+    "description": "Create an ellipse defined by base plane and two radii.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of ellipse"
+      },
+      {
+        "name": "Radius 1",
+        "nickname": "R1",
+        "access": "item",
+        "description": "Radius in {x} direction"
+      },
+      {
+        "name": "Radius 2",
+        "nickname": "R2",
+        "access": "item",
+        "description": "Radius in {y} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Ellipse",
+        "nickname": "E",
+        "access": "item",
+        "description": "Resulting ellipse"
+      },
+      {
+        "name": "Focus 1",
+        "nickname": "F1",
+        "access": "item",
+        "description": "First focus point"
+      },
+      {
+        "name": "Focus 2",
+        "nickname": "F2",
+        "access": "item",
+        "description": "Second focus point"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle 3Pt",
+    "nickname": "Circle",
+    "guid": "47886835-e3ff-4516-a3ed-1b419f055464",
+    "description": "Create a circle defined by three points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First point on circle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second point on circle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third point on circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line",
+    "nickname": "Ln",
+    "guid": "4c4e56eb-2f04-43f9-95a3-cc46a14f495a",
+    "description": "Create a line between two points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start Point",
+        "nickname": "A",
+        "access": "item",
+        "description": "Line start point"
+      },
+      {
+        "name": "End Point",
+        "nickname": "B",
+        "access": "item",
+        "description": "Line end point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line SDL",
+    "nickname": "Line",
+    "guid": "4c619bc9-39fd-4717-82a6-1e07ea237bbe",
+    "description": "Create a line segment defined by start point, tangent and length.}",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Line start point"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Line tangent (direction)"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line length"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle TanTan",
+    "nickname": "CircleTT",
+    "guid": "50b204ef-d3de-41bb-a006-02fba2d3f709",
+    "description": "Create a circle tangent to two curves.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for tangency constraint"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for tangency constraint"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle center point guide"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line 2Plane",
+    "nickname": "Ln2Pl",
+    "guid": "510c4a63-b9bf-42e7-9d07-9d71290264da",
+    "description": "Create a line between two planes.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Guide line."
+      },
+      {
+        "name": "Plane A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First plane to intersect with the guide."
+      },
+      {
+        "name": "Plane B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second plane to intersect with the guide."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 2Pt",
+    "nickname": "Rec 2Pt",
+    "guid": "575660b1-8c79-4b8d-9222-7ab4a6ddb359",
+    "description": "Create a rectangle from a base plane and two points",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner point."
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner point."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle defined by P, A and B"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "InEllipse",
+    "nickname": "InEllipse",
+    "guid": "679a9c6a-ab97-4c20-b02c-680f9a9a1a44",
+    "description": "Create the inscribed ellipse (Steiner ellipse) of a triangle.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Corner A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of triangle"
+      },
+      {
+        "name": "Corner B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of triangle"
+      },
+      {
+        "name": "Corner C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third corner of triangle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Ellipse",
+        "nickname": "E",
+        "access": "item",
+        "description": "Resulting ellipse"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Ellipse plane"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "BiArc",
+    "nickname": "BiArc",
+    "guid": "75f4b0fd-9721-47b1-99e7-9c098b342e67",
+    "description": "Create a bi-arc based on endpoints and tangents.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start Point",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of bi-arc."
+      },
+      {
+        "name": "Start Tangent",
+        "nickname": "Ts",
+        "access": "item",
+        "description": "Tangent vector at start of bi-arc."
+      },
+      {
+        "name": "End Point",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of bi-arc."
+      },
+      {
+        "name": "End Tangent",
+        "nickname": "Te",
+        "access": "item",
+        "description": "Tangent vector at end of bi-arc."
+      },
+      {
+        "name": "Ratio",
+        "nickname": "R",
+        "access": "item",
+        "description": "Ratio of bi-arc segment weight"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "First arc",
+        "nickname": "A1",
+        "access": "item",
+        "description": "First segment of bi-arc curve"
+      },
+      {
+        "name": "Second arc",
+        "nickname": "A2",
+        "access": "item",
+        "description": "Second segment of bi-arc curve"
+      },
+      {
+        "name": "Bi-Arc",
+        "nickname": "B",
+        "access": "item",
+        "description": "Resulting bi-arc."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle",
+    "nickname": "Cir",
+    "guid": "807b86e3-be8d-4970-92b5-f8cdcb45b06b",
+    "description": "Create a circle defined by base plane and radius.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Polygon",
+    "nickname": "Polygon",
+    "guid": "845527a6-5cea-4ae9-a667-96ae1667a4e8",
+    "description": "Create a polygon with optional round edges.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon base plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of polygon (distance from center to tip)."
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of segments"
+      },
+      {
+        "name": "Fillet Radius",
+        "nickname": "Rf",
+        "access": "item",
+        "description": "Polygon corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of polygon curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle 3Pt",
+    "nickname": "Rec 3Pt",
+    "guid": "9bc98a1d-2ecc-407e-948a-09a09ed3e69d",
+    "description": "Create a rectangle from three points",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First corner of rectangle"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second corner of rectangle"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Point along rectangle edge opposite to AB"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle defined by A, B and C."
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc SED",
+    "nickname": "Arc",
+    "guid": "9d2583dd-6cf5-497c-8c40-c9a290598396",
+    "description": "Create an arc defined by start point, end point and a tangent vector.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of arc"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Direction (tangent) at start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Modified Arc",
+    "nickname": "ModArc",
+    "guid": "9d8dec9c-3fd1-481c-9c3d-75ea5e15eb1a",
+    "description": "Create an arc based on another arc.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Base arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Optional new radius"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Optional new angle domain"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Modified arc"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc 3Pt",
+    "nickname": "Arc",
+    "guid": "9fa1b081-b1c7-4a12-a163-0aa8da9ff6c4",
+    "description": "Create an arc through three points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Point on arc interior"
+      },
+      {
+        "name": "Point C",
+        "nickname": "C",
+        "access": "item",
+        "description": "End point of arc"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Line 4Pt",
+    "nickname": "Ln4Pt",
+    "guid": "b9fde5fa-d654-4306-8ee1-6b69e6757604",
+    "description": "Create a line from four points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Guide line."
+      },
+      {
+        "name": "Point A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First point to project onto the guide."
+      },
+      {
+        "name": "Point B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second point to project onto the guide."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Line",
+        "nickname": "L",
+        "access": "item",
+        "description": "Line segment between A and B"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc",
+    "nickname": "Arc",
+    "guid": "bb59bffc-f54c-4682-9778-f6c3fe74fce3",
+    "description": "Create an arc defined by base plane, radius and angle domain.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Arc length"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle Fit",
+    "nickname": "FCircle",
+    "guid": "be52336f-a2e1-43b1-b5f5-178ba489508a",
+    "description": "Fit a circle to a collection of points.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Points to fit"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Circle radius"
+      },
+      {
+        "name": "Deviation",
+        "nickname": "D",
+        "access": "item",
+        "description": "Maximum distance between circle and points"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "TwoByFourJam",
+    "nickname": "2x4 Jam",
+    "guid": "c21e7bd5-b1f2-4448-ac56-206f98f90aa7",
+    "description": "Jam a two-by-four into a crooked room",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Room",
+        "nickname": "R",
+        "access": "item",
+        "description": "Room polyline with 4 corners"
+      },
+      {
+        "name": "Width",
+        "nickname": "W",
+        "access": "item",
+        "description": "Width of fitting rectangle"
+      },
+      {
+        "name": "Samples",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of samples to take (more samples = better solution)"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Fitted rectangle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle CNR",
+    "nickname": "Circle",
+    "guid": "d114323a-e6ee-4164-946b-e4ca0ce15efa",
+    "description": "Create a circle defined by center, normal and radius.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center point"
+      },
+      {
+        "name": "Normal",
+        "nickname": "N",
+        "access": "item",
+        "description": "Normal vector of circle plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines (Ex)",
+    "nickname": "TanEx",
+    "guid": "d6d68c93-d00f-4cd5-ba89-903c7f6be64c",
+    "description": "Create external tangent lines between circles",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary exterior tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary exterior tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Rectangle",
+    "nickname": "Rectangle",
+    "guid": "d93100b6-d50b-40b2-831a-814659dc38e3",
+    "description": "Create a rectangle on a plane",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Rectangle base plane"
+      },
+      {
+        "name": "X Size",
+        "nickname": "X",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane X direction."
+      },
+      {
+        "name": "Y Size",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Dimensions of rectangle in plane Y direction."
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle corner fillet radius"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Rectangle",
+        "nickname": "R",
+        "access": "item",
+        "description": "Rectangle"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Length of rectangle curve"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Circle TanTanTan",
+    "nickname": "CircleTTT",
+    "guid": "dcaa922d-5491-4826-9a22-5adefa139f43",
+    "description": "Create a circle tangent to three curves.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First curve for tangency constraint"
+      },
+      {
+        "name": "Curve B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second curve for tangency constraint"
+      },
+      {
+        "name": "Curve C",
+        "nickname": "C",
+        "access": "item",
+        "description": "Third curve for tangency constraint"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Circle center point guide"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting circle"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines (In)",
+    "nickname": "TanIn",
+    "guid": "e0168047-c46a-48c6-8595-2fb3d8574f23",
+    "description": "Create internal tangent lines between circles",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary interior tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary interior tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Lines",
+    "nickname": "Tan",
+    "guid": "ea0f0996-af7a-481d-8099-09c041e6c2d5",
+    "description": "Create tangent lines between a point and a circle",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point for tangent lines"
+      },
+      {
+        "name": "Circle",
+        "nickname": "C",
+        "access": "item",
+        "description": "Base circle"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Tangent 1",
+        "nickname": "T1",
+        "access": "item",
+        "description": "Primary tangent"
+      },
+      {
+        "name": "Tangent 2",
+        "nickname": "T2",
+        "access": "item",
+        "description": "Secondary tangent"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc SED [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "f17c37ae-b44a-481a-bd65-b4398be55ec8",
+    "description": "Create an arc defined by start point, end point and a tangent vector.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Start",
+        "nickname": "S",
+        "access": "item",
+        "description": "Start point of arc"
+      },
+      {
+        "name": "End",
+        "nickname": "E",
+        "access": "item",
+        "description": "End point of arc"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Direction (tangent) at start"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Arc plane"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Arc radius"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Tangent Arcs",
+    "nickname": "TArc",
+    "guid": "f1c0783b-60e9-42a7-8081-925bc755494c",
+    "description": "Create tangent arcs between circles",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Circle A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First base circle"
+      },
+      {
+        "name": "Circle B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second base circle"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of tangent arcs"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First tangent arc solution"
+      },
+      {
+        "name": "Arc B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second tangent arc solution"
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Polygon Edge",
+    "nickname": "PolEdge",
+    "guid": "f4568ce6-aade-4511-8f32-f27d8a6bf9e9",
+    "description": "Create a polygon from a single edge.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Edge Start",
+        "nickname": "E0",
+        "access": "item",
+        "description": "Start point of polygon edge."
+      },
+      {
+        "name": "Edge End",
+        "nickname": "E1",
+        "access": "item",
+        "description": "End point of polygon edge."
+      },
+      {
+        "name": "Plane Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Point on polygon plane."
+      },
+      {
+        "name": "Segments",
+        "nickname": "S",
+        "access": "item",
+        "description": "Number of segments"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Polygon",
+        "nickname": "P",
+        "access": "item",
+        "description": "Polygon"
+      },
+      {
+        "name": "Centre",
+        "nickname": "C",
+        "access": "item",
+        "description": "Centre of polygon"
+      },
+      {
+        "name": "Corner Radius",
+        "nickname": "Rc",
+        "access": "item",
+        "description": "Distance from centre to polygon corner."
+      },
+      {
+        "name": "Edge Radius",
+        "nickname": "Rc",
+        "access": "item",
+        "description": "Distance from centre to edge mid-points."
+      }
+    ]
+  },
+  {
+    "category": "Curve",
+    "subcategory": "Primitive",
+    "name": "Arc [OBSOLETE]",
+    "nickname": "Arc",
+    "guid": "fd9fe288-a188-4e9b-a464-1148876d18ed",
+    "description": "Create an arc defined by base plane, radius and angle domain.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane of arc"
+      },
+      {
+        "name": "Radius",
+        "nickname": "R",
+        "access": "item",
+        "description": "Radius of arc"
+      },
+      {
+        "name": "Angle",
+        "nickname": "A",
+        "access": "item",
+        "description": "Angle domain in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Arc",
+        "nickname": "A",
+        "access": "item",
+        "description": "Resulting arc"
+      },
+      {
+        "name": "Length",
+        "nickname": "L",
+        "access": "item",
+        "description": "Arc length"
+      }
+    ]
+  }
+]

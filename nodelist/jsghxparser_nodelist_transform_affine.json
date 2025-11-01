@@ -1,0 +1,890 @@
+[
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Project Along",
+    "nickname": "ProjectA",
+    "guid": "06d7bc4a-ba3e-4445-8ab5-079613b52f28",
+    "description": "Project an object onto a plane along a direction.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to project"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      },
+      {
+        "name": "Direction",
+        "nickname": "D",
+        "access": "item",
+        "description": "Projection direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Projected geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Orient Direction",
+    "nickname": "Orient",
+    "guid": "1602b2cc-007c-4b79-8926-0067c6184e44",
+    "description": "Orient an object using directional constraints only.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Point A",
+        "nickname": "pA",
+        "access": "item",
+        "description": "Reference point"
+      },
+      {
+        "name": "Direction A",
+        "nickname": "dA",
+        "access": "item",
+        "description": "Reference direction"
+      },
+      {
+        "name": "Point B",
+        "nickname": "pB",
+        "access": "item",
+        "description": "Target point"
+      },
+      {
+        "name": "Direction B",
+        "nickname": "dB",
+        "access": "item",
+        "description": "Target direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reoriented geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Rectangle Mapping",
+    "nickname": "RecMap",
+    "guid": "17d40004-489e-42d9-ad10-857f7b436801",
+    "description": "Transform geometry from one rectangle into another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Rectangle to map from"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Rectangle to map into"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mapped geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Project",
+    "nickname": "Project",
+    "guid": "23285717-156c-468f-a691-b242488c06a6",
+    "description": "Project an object onto a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Geometry to project"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Projected geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Project",
+    "nickname": "Project",
+    "guid": "24e913c9-7530-436d-b81d-bc3aa27296a4",
+    "description": "Project an object onto a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Projected geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Scale NU",
+    "nickname": "Scale NU",
+    "guid": "290f418a-65ee-406a-a9d0-35699815b512",
+    "description": "Scale an object with non-uniform factors.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Scale X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Scaling factor in {x} direction"
+      },
+      {
+        "name": "Scale Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Scaling factor in {y} direction"
+      },
+      {
+        "name": "Scale Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Scaling factor in {z} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Scaled geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Shear",
+    "nickname": "Shear",
+    "guid": "3ae3a462-38fb-4d49-9f86-7558dfed7c3e",
+    "description": "Shear an object based on a shearing vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Grip",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reference point"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Sheared geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Orient Direction",
+    "nickname": "Orient",
+    "guid": "4041be93-6746-4cdb-aa95-929bff544fb0",
+    "description": "Orient an object using directional constraints only.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Point A",
+        "nickname": "pA",
+        "access": "item",
+        "description": "Reference point"
+      },
+      {
+        "name": "Direction A",
+        "nickname": "dA",
+        "access": "item",
+        "description": "Reference direction"
+      },
+      {
+        "name": "Point B",
+        "nickname": "pB",
+        "access": "item",
+        "description": "Target point"
+      },
+      {
+        "name": "Direction B",
+        "nickname": "dB",
+        "access": "item",
+        "description": "Target direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reoriented geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Camera Obscura",
+    "nickname": "CO",
+    "guid": "407e35c6-7c40-4652-bd80-fde1eb7ec034",
+    "description": "Camera Obscura (point mirror) transformation.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Point",
+        "nickname": "P",
+        "access": "item",
+        "description": "Mirror point"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Scaling factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mirrored geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Scale",
+    "nickname": "Scale",
+    "guid": "4d2a06bd-4b0f-4c65-9ee0-4220e4c01703",
+    "description": "Scale an object uniformly in all directions.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of scaling"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Scaling factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Scaled geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Scale",
+    "nickname": "Scale",
+    "guid": "4f0dfac8-6c61-40ef-ad41-aad84533f382",
+    "description": "Scale an object uniformly in all directions.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Center",
+        "nickname": "C",
+        "access": "item",
+        "description": "Center of scaling"
+      },
+      {
+        "name": "Factor",
+        "nickname": "F",
+        "access": "item",
+        "description": "Scaling factor"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Scaled geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Shear",
+    "nickname": "Shear",
+    "guid": "5a27203a-e05f-4eea-b80f-a5f29a00fdf2",
+    "description": "Shear an object based on a shearing vector.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Grip",
+        "nickname": "G",
+        "access": "item",
+        "description": "Reference point"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Target point"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Sheared geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformatio data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Triangle Mapping",
+    "nickname": "TriMap",
+    "guid": "61d81100-c4d3-462d-8b51-d951c0ae32db",
+    "description": "Transform geometry from one triangle into another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Triangle to map from"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Triangle to map into"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mapped geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Scale NU",
+    "nickname": "Scale NU",
+    "guid": "7753fb03-c1f1-4dbe-8557-f01e23aa3b20",
+    "description": "Scale an object with non-uniform factors.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "X",
+        "nickname": "X",
+        "access": "item",
+        "description": "Scaling factor in {x} direction"
+      },
+      {
+        "name": "Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Scaling factor in {y} direction"
+      },
+      {
+        "name": "Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Scaling factor in {z} direction"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Scaled geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Shear Angle",
+    "nickname": "Shear",
+    "guid": "77bfb6a1-0305-4645-b309-cd6dbf1205d7",
+    "description": "Shear an object based on tilt angles.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Angle X",
+        "nickname": "Ax",
+        "access": "item",
+        "description": "Rotation around {x} axis in radians"
+      },
+      {
+        "name": "Angle Y",
+        "nickname": "Ay",
+        "access": "item",
+        "description": "Rotation around {y} axis in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Sheared geometry"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Box Mapping",
+    "nickname": "BoxMap",
+    "guid": "8465bcce-9e0a-4cf4-bbda-1a7ce5681e10",
+    "description": "Transform geometry from one box into another.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Source",
+        "nickname": "S",
+        "access": "item",
+        "description": "Box to map from"
+      },
+      {
+        "name": "Target",
+        "nickname": "T",
+        "access": "item",
+        "description": "Box to map into"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Mapped geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Project",
+    "nickname": "Project",
+    "guid": "9025f4ca-159f-4c54-958b-0aad379dae77",
+    "description": "Project an object onto a plane.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Projection plane"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Projected geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  },
+  {
+    "category": "Transform",
+    "subcategory": "Affine",
+    "name": "Shear Angle",
+    "nickname": "Shear",
+    "guid": "f19ee36c-f21f-4e25-be4c-4ca4b30eda0d",
+    "description": "Shear an object based on tilt angles.",
+    "library": {
+      "name": "Transform Components",
+      "id": "ac1af2ec-b5e5-4188-92c2-7eccce783090",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Base geometry"
+      },
+      {
+        "name": "Base",
+        "nickname": "P",
+        "access": "item",
+        "description": "Base plane"
+      },
+      {
+        "name": "Angle X",
+        "nickname": "Ax",
+        "access": "item",
+        "description": "Rotation around {x} axis in radians"
+      },
+      {
+        "name": "Angle Y",
+        "nickname": "Ay",
+        "access": "item",
+        "description": "Rotation around {y} axis in radians"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Geometry",
+        "nickname": "G",
+        "access": "item",
+        "description": "Sheared geometry"
+      },
+      {
+        "name": "Transform",
+        "nickname": "X",
+        "access": "item",
+        "description": "Transformation data"
+      }
+    ]
+  }
+]

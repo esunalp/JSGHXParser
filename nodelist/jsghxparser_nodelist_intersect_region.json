@@ -1,0 +1,266 @@
+[
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Trim with Regions",
+    "nickname": "Trim",
+    "guid": "26949c81-9b50-43b7-ac49-3203deb6eec7",
+    "description": "Trim a curve with multiple regions.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Regions",
+        "nickname": "R",
+        "access": "list",
+        "description": "Regions to trim against"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional solution plane. If omitted the curve best-fit plane is used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "Ci",
+        "access": "list",
+        "description": "Split curves inside the regions"
+      },
+      {
+        "name": "Outside",
+        "nickname": "Co",
+        "access": "list",
+        "description": "Split curves outside the regions"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Trim with Region",
+    "nickname": "Trim",
+    "guid": "3092caf0-7cf9-4885-bcc0-e635d878832a",
+    "description": "Trim a curve with a region.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Region",
+        "nickname": "R",
+        "access": "item",
+        "description": "Region to trim against"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional solution plane. If omitted the curve best-fit plane is used."
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "Ci",
+        "access": "list",
+        "description": "Split curves inside the region"
+      },
+      {
+        "name": "Outside",
+        "nickname": "Co",
+        "access": "list",
+        "description": "Split curves outside the region"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Trim with Brep",
+    "nickname": "Trim",
+    "guid": "3eba04bc-00e8-416d-b58f-a3dc8b3e22e2",
+    "description": "Trim a curve with a Brep.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to trim against"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "Ci",
+        "access": "list",
+        "description": "Split curves inside the Brep"
+      },
+      {
+        "name": "Outside",
+        "nickname": "Co",
+        "access": "list",
+        "description": "Split curves outside the Brep"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Split with Brep",
+    "nickname": "Split",
+    "guid": "4bdc2eb0-24ed-4c90-a27b-a32db069eaef",
+    "description": "Split a curve with a Brep.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to split"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to split with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Split curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Split points"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Split with Breps",
+    "nickname": "Split",
+    "guid": "5b742537-9bcb-4f06-9613-866da5bf845e",
+    "description": "Split a curve with multiple Breps.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "list",
+        "description": "Brep to trim against"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "list",
+        "description": "Split curves"
+      },
+      {
+        "name": "Points",
+        "nickname": "P",
+        "access": "list",
+        "description": "Split points"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Region",
+    "name": "Trim with Breps",
+    "nickname": "Trim",
+    "guid": "916e7ebc-524c-47ce-8936-e50a09a7b43c",
+    "description": "Trim a curve with multiple Breps.",
+    "library": {
+      "name": "Curve Components",
+      "id": "a36f8c3f-a2da-46a5-85b4-d0f6caa50e89",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curve",
+        "nickname": "C",
+        "access": "item",
+        "description": "Curve to trim"
+      },
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "list",
+        "description": "Breps to trim against"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Inside",
+        "nickname": "Ci",
+        "access": "list",
+        "description": "Split curves on the inside of the trimming Breps"
+      },
+      {
+        "name": "Outside",
+        "nickname": "Co",
+        "access": "list",
+        "description": "Split curves on the outside of the trimming Breps"
+      }
+    ]
+  }
+]

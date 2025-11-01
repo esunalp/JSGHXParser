@@ -1,0 +1,566 @@
+[
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Split AHSL",
+    "nickname": "AHSL",
+    "guid": "0a1331c8-c58d-4b3f-a886-47051532e35e",
+    "description": "Split a colour into floating point {AHSL} channels",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Input colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel"
+      },
+      {
+        "name": "Hue",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hue"
+      },
+      {
+        "name": "Saturation",
+        "nickname": "S",
+        "access": "item",
+        "description": "Saturation"
+      },
+      {
+        "name": "Luminance",
+        "nickname": "L",
+        "access": "item",
+        "description": "Luminance"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour CMYK",
+    "nickname": "CMYK",
+    "guid": "17af01a5-a846-4769-9478-de1df65a0afa",
+    "description": "Create a colour from floating point {CMYK} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Cyan",
+        "nickname": "C",
+        "access": "item",
+        "description": "Cyan channel (cyan is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Magenta",
+        "nickname": "M",
+        "access": "item",
+        "description": "Magenta channel (magenta is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Yellow",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Yellow channel (yellow is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Key",
+        "nickname": "K",
+        "access": "item",
+        "description": "Key channel (key is defined in the range {0.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Split ARGB",
+    "nickname": "ARGB",
+    "guid": "350f7d03-a48f-4121-bcee-328cfe1ed9ef",
+    "description": "Split a colour into floating point {ARGB} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Input colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel"
+      },
+      {
+        "name": "Red",
+        "nickname": "R",
+        "access": "item",
+        "description": "Red channel"
+      },
+      {
+        "name": "Green",
+        "nickname": "G",
+        "access": "item",
+        "description": "Green channel"
+      },
+      {
+        "name": "Blue",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blue channel"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour RGB",
+    "nickname": "RGB",
+    "guid": "49d2e200-b34e-4e1c-82a3-07feb4cb9378",
+    "description": "Create a colour from {RGB} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (255 = opaque)"
+      },
+      {
+        "name": "Red",
+        "nickname": "R",
+        "access": "item",
+        "description": "Red channel"
+      },
+      {
+        "name": "Green",
+        "nickname": "G",
+        "access": "item",
+        "description": "Green channel"
+      },
+      {
+        "name": "Blue",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blue channel"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour HSV",
+    "nickname": "HSV",
+    "guid": "5958a658-20c2-4a2b-86ba-4d1b81bf5348",
+    "description": "Create a colour from floating point {HSV} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (alpha is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Hue",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hue channel (hue is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Saturation",
+        "nickname": "S",
+        "access": "item",
+        "description": "Saturation channel (saturation is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value channel (value/brightness is defined in the range {0.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Addition",
+    "nickname": "Add",
+    "guid": "60327ca4-c548-40e6-a11f-3c6759582f13",
+    "description": "Perform colour addition.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Colour A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First colour"
+      },
+      {
+        "name": "Colour B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Second colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour LCH",
+    "nickname": "LCH",
+    "guid": "75a07554-8a2c-4d87-81b9-d854f498509d",
+    "description": "Create a colour from floating point {CIE LCH} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (alpha is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Luminance",
+        "nickname": "L",
+        "access": "item",
+        "description": "Luminance channel (luminance is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Chroma",
+        "nickname": "C",
+        "access": "item",
+        "description": "Chromaticity channel (chroma is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Hue",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hue channel (hue is defined in the range {0.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour XYZ",
+    "nickname": "XYZ",
+    "guid": "77185dc2-2f18-469d-9686-00f5b6049195",
+    "description": "Create a colour from floating point {XYZ} channels (CIE 1931 spec).",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (alpha is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "X",
+        "nickname": "X",
+        "access": "item",
+        "description": "X stimulus (X is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Y",
+        "nickname": "Y",
+        "access": "item",
+        "description": "Y stimulus (y is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Z",
+        "nickname": "Z",
+        "access": "item",
+        "description": "Z stimulus (Z is defined in the range {0.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour HSL",
+    "nickname": "HSL",
+    "guid": "a45d68b3-c299-4b17-bdae-7975f216cec6",
+    "description": "Create a colour from floating point {HSL} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (alpha is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Hue",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hue channel (hue is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Saturation",
+        "nickname": "S",
+        "access": "item",
+        "description": "Saturation channel (saturation is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Luminance",
+        "nickname": "L",
+        "access": "item",
+        "description": "Luminance channel (luminance is defined in the range {0.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Split AHSV",
+    "nickname": "AHSV",
+    "guid": "d84d2c2a-2813-4667-afb4-46642581e5f9",
+    "description": "Split a colour into floating point {AHSV} channels",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Input colour"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel"
+      },
+      {
+        "name": "Hue",
+        "nickname": "H",
+        "access": "item",
+        "description": "Hue"
+      },
+      {
+        "name": "Saturation",
+        "nickname": "S",
+        "access": "item",
+        "description": "Saturation"
+      },
+      {
+        "name": "Value",
+        "nickname": "V",
+        "access": "item",
+        "description": "Value (Brightness)"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour RGB (f)",
+    "nickname": "fRGB",
+    "guid": "f35132c0-c298-4b9c-b446-42e960f52677",
+    "description": "Create a colour from floating point {RGB} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (1.0 = opaque)"
+      },
+      {
+        "name": "Red",
+        "nickname": "R",
+        "access": "item",
+        "description": "Red channel"
+      },
+      {
+        "name": "Green",
+        "nickname": "G",
+        "access": "item",
+        "description": "Green channel"
+      },
+      {
+        "name": "Blue",
+        "nickname": "B",
+        "access": "item",
+        "description": "Blue channel"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  },
+  {
+    "category": "Display",
+    "subcategory": "Colour",
+    "name": "Colour L*ab",
+    "nickname": "L*AB",
+    "guid": "f922ed44-6e4a-44a0-8b4b-4b4a46bdfe29",
+    "description": "Create a colour from floating point {CIE L*ab} channels.",
+    "library": {
+      "name": "Math Components",
+      "id": "886f2422-b93f-4134-99c4-8a87bbad5fc4",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Alpha",
+        "nickname": "A",
+        "access": "item",
+        "description": "Alpha channel (alpha is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "Luminance",
+        "nickname": "L",
+        "access": "item",
+        "description": "Luminance channel (luminance is defined in the range {0.0 to 1.0})"
+      },
+      {
+        "name": "A",
+        "nickname": "A",
+        "access": "item",
+        "description": "First colour channel (A is defined in the range {-1.0 to 1.0})"
+      },
+      {
+        "name": "B",
+        "nickname": "B",
+        "access": "item",
+        "description": "Opposing colour channel (B is defined in the range {-1.0 to 1.0})"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Colour",
+        "nickname": "C",
+        "access": "item",
+        "description": "Resulting colour"
+      }
+    ]
+  }
+]

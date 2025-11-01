@@ -1,0 +1,590 @@
+[
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Split Brep Multiple",
+    "nickname": "SplitMul",
+    "guid": "03f22640-ff80-484e-bb53-a4025c5faa07",
+    "description": "Split one brep with a bunch of others.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to split"
+      },
+      {
+        "name": "Cutters",
+        "nickname": "C",
+        "access": "list",
+        "description": "Cutting shapes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Brep fragments"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Region Slits",
+    "nickname": "RSlits",
+    "guid": "0feeeaca-8f1f-4d7c-a24a-8e7dd68604a2",
+    "description": "Add slits to a collection of intersecting planar regions",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Regions",
+        "nickname": "R",
+        "access": "list",
+        "description": "Planar regions to intersect"
+      },
+      {
+        "name": "Width",
+        "nickname": "W",
+        "access": "item",
+        "description": "Width of slits"
+      },
+      {
+        "name": "Gap",
+        "nickname": "G",
+        "access": "item",
+        "description": "Additional gap size at slit meeting points"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Regions",
+        "nickname": "R",
+        "access": "tree",
+        "description": "Regions with slits"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Slit topology"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Solid Union",
+    "nickname": "SUnion",
+    "guid": "10434a15-da85-4281-bb64-a2b3a995b9c6",
+    "description": "Perform a solid union on a set of Breps.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Breps",
+        "nickname": "B",
+        "access": "list",
+        "description": "Breps to union"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Union result"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Region Union",
+    "nickname": "RUnion",
+    "guid": "1222394f-0d33-4f31-9101-7281bde89fe5",
+    "description": "Union of a set of planar closed curves (regions)",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves",
+        "nickname": "C",
+        "access": "list",
+        "description": "Curves for boolean union operation"
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for boolean solution"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Result outlines of boolean union"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Box Slits",
+    "nickname": "Slits",
+    "guid": "2d3b6ef3-5c26-4e2f-bcb3-8ffb9fb0f7c3",
+    "description": "Add slits to a collection of intersecting boxes",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Boxes",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boxes to intersect"
+      },
+      {
+        "name": "Gap",
+        "nickname": "G",
+        "access": "item",
+        "description": "Additional gap width"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Breps",
+        "nickname": "B",
+        "access": "tree",
+        "description": "Boxes with slits"
+      },
+      {
+        "name": "Topology",
+        "nickname": "T",
+        "access": "tree",
+        "description": "Slit topology"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Region Intersection",
+    "nickname": "RInt",
+    "guid": "477c2e7b-c5e5-421e-b8b2-ba60cdf5398b",
+    "description": "Intersection between two sets of planar closed curves (regions)",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First set of regions."
+      },
+      {
+        "name": "Curves B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second set of regions."
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for boolean solution"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Result outlines of boolean intersection (A and B)"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Mesh Difference",
+    "nickname": "MDif",
+    "guid": "4f3147f4-9fcd-4a7e-be0e-b1841caa5f97",
+    "description": "Perform a solid difference on two sets of meshes",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Meshes A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First mesh set"
+      },
+      {
+        "name": "Meshes B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second mesh set"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Difference result of A-B"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Solid Intersection",
+    "nickname": "SInt",
+    "guid": "5723c845-cafc-442d-a667-8c76532845e6",
+    "description": "Perform a solid intersection on two Brep sets.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Breps A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First Brep set"
+      },
+      {
+        "name": "Breps B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second Brep set"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Intersection result"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Mesh Union",
+    "nickname": "MUnion",
+    "guid": "88060a82-0bf7-46bb-9af8-bdc860cf7e1d",
+    "description": "Perform a solid union on a set of meshes",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Meshes",
+        "nickname": "M",
+        "access": "list",
+        "description": "Meshes to union"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Mesh solid union result"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Mesh Intersection",
+    "nickname": "MInt",
+    "guid": "95aef4f6-66fc-477e-b8f8-32395a837831",
+    "description": "Perform a solid intersection on a set of meshes",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Meshes A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First mesh set"
+      },
+      {
+        "name": "Meshes B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second mesh set"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Intersection result of A&B"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Mesh Split",
+    "nickname": "MSplit",
+    "guid": "afbf2fe0-4965-48d2-8470-9e991540093b",
+    "description": "Mesh Mesh split",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Mesh to split"
+      },
+      {
+        "name": "Splitters",
+        "nickname": "S",
+        "access": "list",
+        "description": "Meshes to split with"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Result of mesh split"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Boundary Volume",
+    "nickname": "BVol",
+    "guid": "b57bf805-046a-4360-ad76-51aeddfe9720",
+    "description": "Create a closed polysurface from boundary surfaces",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Boundaries",
+        "nickname": "B",
+        "access": "list",
+        "description": "Boundary surfaces"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Solid",
+        "nickname": "S",
+        "access": "item",
+        "description": "Solid volume"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Split Brep",
+    "nickname": "Split",
+    "guid": "ef6b26f4-f820-48d6-b0c5-85898ef8888b",
+    "description": "Split one brep with another.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Brep",
+        "nickname": "B",
+        "access": "item",
+        "description": "Brep to split"
+      },
+      {
+        "name": "Cutter",
+        "nickname": "C",
+        "access": "item",
+        "description": "Cutting shape"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Brep fragments"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Trim Solid",
+    "nickname": "Trim",
+    "guid": "f0b70e8e-7337-4ce4-a7bb-317fc971f918",
+    "description": "Cut holes into a shape with a set of solid cutters.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Shape",
+        "nickname": "S",
+        "access": "item",
+        "description": "Shape to trim"
+      },
+      {
+        "name": "Cutters",
+        "nickname": "T",
+        "access": "list",
+        "description": "Trimming shapes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Shape with holes"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Region Difference",
+    "nickname": "RDiff",
+    "guid": "f72c480b-7ee6-42ef-9821-c371e9203b44",
+    "description": "Difference between two sets of planar closed curves (regions)",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Curves A",
+        "nickname": "A",
+        "access": "list",
+        "description": "Curves to subtract from."
+      },
+      {
+        "name": "Curves B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Curves to subtract."
+      },
+      {
+        "name": "Plane",
+        "nickname": "P",
+        "access": "item",
+        "description": "Optional plane for boolean solution"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Result outlines of boolean difference (A - B)"
+      }
+    ]
+  },
+  {
+    "category": "Intersect",
+    "subcategory": "Shape",
+    "name": "Solid Difference",
+    "nickname": "SDiff",
+    "guid": "fab11c30-2d9c-4d15-ab3c-2289f1ae5c21",
+    "description": "Perform a solid difference on two Brep sets.",
+    "library": {
+      "name": "Surface Components",
+      "id": "f1d28eeb-c3f6-47ce-a960-2db91135ff94",
+      "version": "1.0.0.0"
+    },
+    "instantiated": true,
+    "inputs": [
+      {
+        "name": "Breps A",
+        "nickname": "A",
+        "access": "list",
+        "description": "First Brep set"
+      },
+      {
+        "name": "Breps B",
+        "nickname": "B",
+        "access": "list",
+        "description": "Second Brep set"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "Result",
+        "nickname": "R",
+        "access": "list",
+        "description": "Difference result"
+      }
+    ]
+  }
+]
