@@ -12,6 +12,7 @@ pub mod curve_analysis;
 pub mod curve_division;
 pub mod curve_primitive;
 pub mod curve_spline;
+pub mod curve_util;
 pub mod extrude;
 pub mod line;
 pub mod maths_domain;
@@ -80,6 +81,7 @@ pub enum ComponentKind {
     CurveDivision(curve_division::ComponentKind),
     CurveAnalysis(curve_analysis::ComponentKind),
     CurveSpline(curve_spline::ComponentKind),
+    CurveUtil(curve_util::ComponentKind),
     MathsOperator(maths_operators::ComponentKind),
     MathsDomain(maths_domain::ComponentKind),
     MathsPolynomial(maths_polynomials::ComponentKind),
@@ -108,6 +110,7 @@ impl ComponentKind {
             Self::CurveDivision(component) => component.evaluate(inputs, meta),
             Self::CurveAnalysis(component) => component.evaluate(inputs, meta),
             Self::CurveSpline(component) => component.evaluate(inputs, meta),
+            Self::CurveUtil(component) => component.evaluate(inputs, meta),
             Self::MathsOperator(component) => component.evaluate(inputs, meta),
             Self::MathsDomain(component) => component.evaluate(inputs, meta),
             Self::MathsPolynomial(component) => component.evaluate(inputs, meta),
@@ -136,6 +139,7 @@ impl ComponentKind {
             Self::CurveDivision(component) => component.name(),
             Self::CurveAnalysis(component) => component.name(),
             Self::CurveSpline(component) => component.name(),
+            Self::CurveUtil(component) => component.name(),
             Self::MathsOperator(component) => component.name(),
             Self::MathsDomain(component) => component.name(),
             Self::MathsPolynomial(component) => component.name(),
@@ -211,6 +215,14 @@ impl Default for ComponentRegistry {
 
         for registration in curve_division::REGISTRATIONS {
             let kind = ComponentKind::CurveDivision(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in curve_util::REGISTRATIONS {
+            let kind = ComponentKind::CurveUtil(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
