@@ -325,6 +325,7 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
         Value::Text(_) => None,
         Value::DateTime(_) => None,
         Value::Complex(_) => None,
+        Value::Tag(_) => None,
     }
 }
 

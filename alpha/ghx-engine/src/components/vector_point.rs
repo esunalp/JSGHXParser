@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::Value;
+use crate::graph::value::{ColorValue, PlaneValue, TextTagValue, Value};
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -22,6 +22,7 @@ const PIN_OUTPUT_GROUPS: &str = "G";
 const PIN_OUTPUT_PHI: &str = "P";
 const PIN_OUTPUT_THETA: &str = "T";
 const PIN_OUTPUT_RADIUS: &str = "R";
+const PIN_OUTPUT_TAGS: &str = "Tag";
 
 const EPSILON: f64 = 1e-9;
 
@@ -29,6 +30,8 @@ const EPSILON: f64 = 1e-9;
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
     NumbersToPoints,
+    TextTag3D,
+    TextTag,
     PointsToNumbers,
     Distance,
     Deconstruct,
@@ -62,6 +65,19 @@ pub const REGISTRATIONS: &[Registration] = &[
         guids: &["{0ae07da9-951b-4b9b-98ca-d312c252374d}"],
         names: &["Numbers to Points", "Num2Pt"],
         kind: ComponentKind::NumbersToPoints,
+    },
+    Registration {
+        guids: &[
+            "{18564c36-5652-4c63-bb6f-f0e1273666dd}",
+            "{ebf4d987-09b9-4825-a735-cac3d4770c19}",
+        ],
+        names: &["Text Tag 3D", "Tag 3D", "Text Tag3D"],
+        kind: ComponentKind::TextTag3D,
+    },
+    Registration {
+        guids: &["{4b3d38d3-0620-42e5-9ae8-0d4d9ad914cd}"],
+        names: &["Text Tag", "Tag"],
+        kind: ComponentKind::TextTag,
     },
     Registration {
         guids: &["{d24169cc-9922-4923-92bc-b9222efc413f}"],
@@ -162,6 +178,8 @@ impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
             Self::NumbersToPoints => evaluate_numbers_to_points(inputs),
+            Self::TextTag3D => evaluate_text_tag_3d(inputs),
+            Self::TextTag => evaluate_text_tag(inputs),
             Self::PointsToNumbers => evaluate_points_to_numbers(inputs),
             Self::Distance => evaluate_distance(inputs),
             Self::Deconstruct => evaluate_deconstruct(inputs),
@@ -188,6 +206,8 @@ impl ComponentKind {
     pub fn name(&self) -> &'static str {
         match self {
             Self::NumbersToPoints => "Numbers to Points",
+            Self::TextTag3D => "Text Tag 3D",
+            Self::TextTag => "Text Tag",
             Self::PointsToNumbers => "Points to Numbers",
             Self::Distance => "Point Distance",
             Self::Deconstruct => "Deconstruct Point",
@@ -207,6 +227,37 @@ impl ComponentKind {
             Self::PullPoint => "Pull Point",
         }
     }
+}
+
+fn evaluate_text_tag_3d(inputs: &[Value]) -> ComponentResult {
+    let context = "Text Tag 3D";
+    let planes = collect_tag_planes(inputs.get(0), context)?;
+    let texts = collect_texts(inputs.get(1), context)?;
+    let mut sizes = collect_numbers(inputs.get(2), context)?;
+    if sizes.is_empty() {
+        sizes.push(1.0);
+    }
+    let colors = collect_colors(inputs.get(3));
+
+    let tags = build_tag_values(&planes, &texts, &sizes, &colors);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_TAGS.to_owned(), Value::List(tags));
+    Ok(outputs)
+}
+
+fn evaluate_text_tag(inputs: &[Value]) -> ComponentResult {
+    let context = "Text Tag";
+    let planes = collect_tag_planes(inputs.get(0), context)?;
+    let texts = collect_texts(inputs.get(1), context)?;
+    let sizes = vec![1.0];
+    let colors = vec![None];
+
+    let tags = build_tag_values(&planes, &texts, &sizes, &colors);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_TAGS.to_owned(), Value::List(tags));
+    Ok(outputs)
 }
 
 fn evaluate_numbers_to_points(inputs: &[Value]) -> ComponentResult {
@@ -1023,6 +1074,302 @@ fn collect_numbers_into(
     }
 }
 
+fn collect_tag_planes(value: Option<&Value>, context: &str) -> Result<Vec<Plane>, ComponentError> {
+    let mut planes = collect_planes(value, context)?;
+    if planes.is_empty() {
+        if let Some(value) = value {
+            planes.push(coerce_plane(value, context)?);
+        } else {
+            planes.push(Plane::default());
+        }
+    }
+    Ok(planes)
+}
+
+fn collect_texts(value: Option<&Value>, context: &str) -> Result<Vec<String>, ComponentError> {
+    let mut texts = Vec::new();
+    if let Some(value) = value {
+        collect_texts_into(value, context, &mut texts)?;
+    }
+    if texts.is_empty() {
+        texts.push(String::new());
+    }
+    Ok(texts)
+}
+
+fn collect_texts_into(
+    value: &Value,
+    context: &str,
+    output: &mut Vec<String>,
+) -> Result<(), ComponentError> {
+    match value {
+        Value::Text(text) => {
+            output.push(text.clone());
+            Ok(())
+        }
+        Value::Number(number) => {
+            output.push(number.to_string());
+            Ok(())
+        }
+        Value::Boolean(boolean) => {
+            output.push(boolean.to_string());
+            Ok(())
+        }
+        Value::List(values) => {
+            if values.is_empty() {
+                return Ok(());
+            }
+            if values.len() == 1 {
+                collect_texts_into(&values[0], context, output)
+            } else {
+                for entry in values {
+                    collect_texts_into(entry, context, output)?;
+                }
+                Ok(())
+            }
+        }
+        other => Err(ComponentError::new(format!(
+            "{} verwacht tekstuele waarden, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn collect_colors(value: Option<&Value>) -> Vec<Option<ColorValue>> {
+    let mut colors = Vec::new();
+    if let Some(value) = value {
+        collect_colors_into(value, &mut colors);
+    }
+    if colors.is_empty() {
+        colors.push(None);
+    }
+    colors
+}
+
+fn collect_colors_into(value: &Value, output: &mut Vec<Option<ColorValue>>) {
+    match value {
+        Value::List(values) => {
+            if let Some(color) = parse_color_value(value) {
+                output.push(Some(color));
+            } else {
+                for entry in values {
+                    collect_colors_into(entry, output);
+                }
+            }
+        }
+        other => output.push(parse_color_value(other)),
+    }
+}
+
+fn build_tag_values(
+    planes: &[Plane],
+    texts: &[String],
+    sizes: &[f64],
+    colors: &[Option<ColorValue>],
+) -> Vec<Value> {
+    let count = planes
+        .len()
+        .max(texts.len())
+        .max(sizes.len())
+        .max(colors.len())
+        .max(1);
+    let plane_fallback = planes.get(0).copied().unwrap_or_else(Plane::default);
+    let text_fallback = texts.get(0).cloned().unwrap_or_default();
+    let size_fallback = sizes.get(0).copied().unwrap_or(1.0);
+    let color_fallback = colors.get(0).cloned().unwrap_or(None);
+
+    let mut tags = Vec::with_capacity(count);
+    for index in 0..count {
+        let plane = planes.get(index).copied().unwrap_or(plane_fallback);
+        let text = texts
+            .get(index)
+            .cloned()
+            .unwrap_or_else(|| text_fallback.clone());
+        let size = sizes
+            .get(index)
+            .copied()
+            .unwrap_or(size_fallback)
+            .max(0.0);
+        let color = colors.get(index).cloned().unwrap_or(color_fallback);
+        let tag = TextTagValue::new(plane.to_value(), text, size, color);
+        tags.push(Value::Tag(tag));
+    }
+    tags
+}
+
+fn parse_color_value(value: &Value) -> Option<ColorValue> {
+    match value {
+        Value::Number(number) => parse_color_from_number(*number),
+        Value::Boolean(boolean) => Some(if *boolean {
+            ColorValue::new(1.0, 1.0, 1.0)
+        } else {
+            ColorValue::new(0.0, 0.0, 0.0)
+        }),
+        Value::Point(point) | Value::Vector(point) => {
+            Some(ColorValue::new(point[0], point[1], point[2]))
+        }
+        Value::List(values) => {
+            if values.is_empty() {
+                return None;
+            }
+            if values.len() >= 3 {
+                let mut components = Vec::new();
+                for entry in values.iter().take(3) {
+                    if let Some(number) = parse_color_number(entry) {
+                        components.push(number);
+                    } else {
+                        return None;
+                    }
+                }
+                if components.iter().any(|value| value.abs() > 1.0) {
+                    Some(ColorValue::from_rgb255(
+                        components[0],
+                        components[1],
+                        components[2],
+                    ))
+                } else {
+                    Some(ColorValue::new(
+                        components[0],
+                        components[1],
+                        components[2],
+                    ))
+                }
+            } else if values.len() == 1 {
+                parse_color_value(&values[0])
+            } else {
+                None
+            }
+        }
+        Value::Text(text) => parse_color_text(text),
+        Value::CurveLine { .. }
+        | Value::Surface { .. }
+        | Value::Domain(_)
+        | Value::Matrix(_)
+        | Value::DateTime(_)
+        | Value::Complex(_)
+        | Value::Tag(_) => None,
+    }
+}
+
+fn parse_color_number(value: &Value) -> Option<f64> {
+    match value {
+        Value::Number(number) => Some(*number),
+        Value::Boolean(boolean) => Some(if *boolean { 1.0 } else { 0.0 }),
+        Value::Text(text) => text.trim().parse::<f64>().ok(),
+        Value::List(values) if values.len() == 1 => parse_color_number(&values[0]),
+        _ => None,
+    }
+}
+
+fn parse_color_from_number(number: f64) -> Option<ColorValue> {
+    if !number.is_finite() {
+        return None;
+    }
+    if number.abs() <= 1.0 {
+        return Some(ColorValue::new(number, number, number));
+    }
+    if (0.0..=255.0).contains(&number) {
+        return Some(ColorValue::from_rgb255(number, number, number));
+    }
+
+    let mut encoded = number.round() as i64;
+    encoded &= 0x00FF_FFFF;
+    let r = ((encoded >> 16) & 0xFF) as f64;
+    let g = ((encoded >> 8) & 0xFF) as f64;
+    let b = (encoded & 0xFF) as f64;
+    Some(ColorValue::from_rgb255(r, g, b))
+}
+
+fn parse_color_text(text: &str) -> Option<ColorValue> {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(color) = parse_hex_color(trimmed) {
+        return Some(color);
+    }
+    if let Some(color) = parse_delimited_color(trimmed) {
+        return Some(color);
+    }
+    named_color(trimmed)
+}
+
+fn parse_hex_color(text: &str) -> Option<ColorValue> {
+    let digits = if let Some(stripped) = text.strip_prefix('#') {
+        stripped
+    } else if let Some(stripped) = text.strip_prefix("0x") {
+        stripped
+    } else {
+        return None;
+    };
+
+    let expanded = match digits.len() {
+        3 => {
+            let mut result = String::with_capacity(6);
+            for ch in digits.chars() {
+                result.push(ch);
+                result.push(ch);
+            }
+            result
+        }
+        6 => digits.to_owned(),
+        _ => return None,
+    };
+
+    u32::from_str_radix(&expanded, 16)
+        .ok()
+        .map(|value| {
+            let r = ((value >> 16) & 0xFF) as f64;
+            let g = ((value >> 8) & 0xFF) as f64;
+            let b = (value & 0xFF) as f64;
+            ColorValue::from_rgb255(r, g, b)
+        })
+}
+
+fn parse_delimited_color(text: &str) -> Option<ColorValue> {
+    let cleaned = text
+        .replace(['(', ')'], " ")
+        .replace(|c: char| c == ';', " ");
+    let tokens: Vec<&str> = cleaned
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|token| !token.is_empty())
+        .collect();
+    if tokens.len() < 3 {
+        return None;
+    }
+    let mut values = Vec::new();
+    for token in tokens.iter().take(3) {
+        if let Ok(number) = token.parse::<f64>() {
+            values.push(number);
+        } else {
+            return None;
+        }
+    }
+    if values.iter().any(|component| component.abs() > 1.0) {
+        Some(ColorValue::from_rgb255(values[0], values[1], values[2]))
+    } else {
+        Some(ColorValue::new(values[0], values[1], values[2]))
+    }
+}
+
+fn named_color(text: &str) -> Option<ColorValue> {
+    match text.to_ascii_lowercase().as_str() {
+        "white" => Some(ColorValue::new(1.0, 1.0, 1.0)),
+        "black" => Some(ColorValue::new(0.0, 0.0, 0.0)),
+        "red" => Some(ColorValue::new(1.0, 0.0, 0.0)),
+        "green" => Some(ColorValue::new(0.0, 1.0, 0.0)),
+        "blue" => Some(ColorValue::new(0.0, 0.0, 1.0)),
+        "yellow" => Some(ColorValue::new(1.0, 1.0, 0.0)),
+        "magenta" | "fuchsia" => Some(ColorValue::new(1.0, 0.0, 1.0)),
+        "cyan" | "aqua" => Some(ColorValue::new(0.0, 1.0, 1.0)),
+        "orange" => Some(ColorValue::from_rgb255(255.0, 165.0, 0.0)),
+        "purple" => Some(ColorValue::from_rgb255(128.0, 0.0, 128.0)),
+        "gray" | "grey" => Some(ColorValue::new(0.5, 0.5, 0.5)),
+        _ => None,
+    }
+}
+
 fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
         None => Err(ComponentError::new(format!(
@@ -1087,7 +1434,8 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
         | Value::Domain(_)
         | Value::Matrix(_)
         | Value::DateTime(_)
-        | Value::Complex(_) => {
+        | Value::Complex(_)
+        | Value::Tag(_) => {
             // Geen maskinformatie aanwezig.
         }
     }
@@ -1428,6 +1776,10 @@ impl Plane {
         let y_axis = normalize(cross(z_axis, x_axis));
         Self::normalize_axes(a, x_axis, y_axis, z_axis)
     }
+
+    fn to_value(self) -> PlaneValue {
+        PlaneValue::new(self.origin, self.x_axis, self.y_axis, self.z_axis)
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1447,8 +1799,8 @@ mod tests {
     use super::{
         Component, ComponentKind, PIN_OUTPUT_DISTANCE, PIN_OUTPUT_GROUPS, PIN_OUTPUT_INDEX,
         PIN_OUTPUT_INDICES, PIN_OUTPUT_NUMBERS, PIN_OUTPUT_PHI, PIN_OUTPUT_POINT,
-        PIN_OUTPUT_POINTS, PIN_OUTPUT_RADIUS, PIN_OUTPUT_THETA, PIN_OUTPUT_VALENCE, collect_mask,
-        collect_numbers, collect_points, compare_points,
+        PIN_OUTPUT_POINTS, PIN_OUTPUT_RADIUS, PIN_OUTPUT_TAGS, PIN_OUTPUT_THETA,
+        PIN_OUTPUT_VALENCE, collect_mask, collect_numbers, collect_points, compare_points,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1480,6 +1832,64 @@ mod tests {
         assert_eq!(points.len(), 2);
         assert!(matches!(points[0], Value::Point([0.0, 1.0, 2.0])));
         assert!(matches!(points[1], Value::Point([3.0, 4.0, 5.0])));
+    }
+
+    #[test]
+    fn text_tag_3d_combines_inputs() {
+        let component = ComponentKind::TextTag3D;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::List(vec![
+                        Value::Point([0.0, 0.0, 0.0]),
+                        Value::Point([1.0, 0.0, 0.0]),
+                    ]),
+                    Value::List(vec![
+                        Value::Text("First".into()),
+                        Value::Text("Second".into()),
+                    ]),
+                    Value::List(vec![Value::Number(2.0), Value::Number(3.0)]),
+                    Value::List(vec![Value::Text("#ff0000".into()), Value::Number(0.0)]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("text tag 3d succeeds");
+
+        let tags = outputs
+            .get(PIN_OUTPUT_TAGS)
+            .and_then(|value| value.expect_list().ok())
+            .expect("tags output present");
+        assert_eq!(tags.len(), 2);
+
+        let first = tags[0].expect_tag().expect("first tag");
+        assert_eq!(first.text, "First");
+        assert!((first.size - 2.0).abs() < 1e-9);
+        assert!(matches!(first.color, Some(color) if (color.r - 1.0).abs() < 1e-9 && color.g < 1e-9));
+
+        let second = tags[1].expect_tag().expect("second tag");
+        assert_eq!(second.text, "Second");
+        assert!((second.size - 3.0).abs() < 1e-9);
+        assert!(matches!(second.color, Some(color) if color.r < 1e-9 && color.g < 1e-9 && color.b < 1e-9));
+    }
+
+    #[test]
+    fn text_tag_defaults_when_inputs_missing() {
+        let component = ComponentKind::TextTag;
+        let outputs = component
+            .evaluate(&[Value::Point([2.0, 3.0, 4.0])], &MetaMap::new())
+            .expect("text tag defaults");
+
+        let tags = outputs
+            .get(PIN_OUTPUT_TAGS)
+            .and_then(|value| value.expect_list().ok())
+            .expect("tags output present");
+        assert_eq!(tags.len(), 1);
+
+        let tag = tags[0].expect_tag().expect("single tag");
+        assert_eq!(tag.text, "");
+        assert!((tag.size - 1.0).abs() < 1e-9);
+        assert!(tag.color.is_none());
+        assert_eq!(tag.plane.origin, [2.0, 3.0, 4.0]);
     }
 
     #[test]

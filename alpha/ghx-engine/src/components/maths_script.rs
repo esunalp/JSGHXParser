@@ -351,7 +351,8 @@ fn coerce_expression(value: &Value) -> Option<String> {
         | Value::CurveLine { .. }
         | Value::Surface { .. }
         | Value::DateTime(_)
-        | Value::Complex(_) => None,
+        | Value::Complex(_)
+        | Value::Tag(_) => None,
     }
 }
 
