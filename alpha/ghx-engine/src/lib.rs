@@ -321,6 +321,7 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
         }),
         Value::List(_) | Value::Number(_) | Value::Vector(_) | Value::Boolean(_) => None,
         Value::Domain(_) => None,
+        Value::Matrix(_) => None,
     }
 }
 
