@@ -251,9 +251,10 @@ mod tests {
             .iter()
             .find(|node| node.nickname.as_deref() == Some("Result Line"))
             .expect("line node present");
-        let has_curve_wire = graph.wires().iter().any(|wire| {
-            wire.to_node == line_node.id && wire.to_pin.0 == "A"
-        });
+        let has_curve_wire = graph
+            .wires()
+            .iter()
+            .any(|wire| wire.to_node == line_node.id && wire.to_pin.0 == "A");
         assert!(has_curve_wire, "line component should receive input wire");
     }
 
@@ -269,14 +270,19 @@ mod tests {
             .iter()
             .find(|node| node.nickname.as_deref() == Some("Extrude Surface"))
             .expect("extrude node present");
-        let has_curve_input = graph.wires().iter().any(|wire| {
-            wire.to_node == extrude_node.id && wire.to_pin.0 == "Curve"
-        });
-        let has_distance_input = graph.wires().iter().any(|wire| {
-            wire.to_node == extrude_node.id && wire.to_pin.0 == "Distance"
-        });
+        let has_curve_input = graph
+            .wires()
+            .iter()
+            .any(|wire| wire.to_node == extrude_node.id && wire.to_pin.0 == "Curve");
+        let has_distance_input = graph
+            .wires()
+            .iter()
+            .any(|wire| wire.to_node == extrude_node.id && wire.to_pin.0 == "Distance");
         assert!(has_curve_input, "extrude node should have curve input wire");
-        assert!(has_distance_input, "extrude node should have distance input wire");
+        assert!(
+            has_distance_input,
+            "extrude node should have distance input wire"
+        );
 
         let height_slider = graph
             .nodes()

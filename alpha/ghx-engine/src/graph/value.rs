@@ -8,6 +8,8 @@ use core::fmt;
 pub enum Value {
     /// Een enkele numerieke waarde.
     Number(f64),
+    /// Een booleaanse waarde.
+    Boolean(bool),
     /// Een 3D-punt.
     Point([f64; 3]),
     /// Een 3D-vector.
@@ -29,6 +31,7 @@ impl Value {
     pub fn kind(&self) -> ValueKind {
         match self {
             Self::Number(_) => ValueKind::Number,
+            Self::Boolean(_) => ValueKind::Boolean,
             Self::Point(_) => ValueKind::Point,
             Self::Vector(_) => ValueKind::Vector,
             Self::CurveLine { .. } => ValueKind::CurveLine,
@@ -42,6 +45,14 @@ impl Value {
         match self {
             Self::Number(value) => Ok(*value),
             _ => Err(ValueError::type_mismatch("Number", self.kind())),
+        }
+    }
+
+    /// Verwacht een `Boolean` en retourneert de waarde.
+    pub fn expect_boolean(&self) -> Result<bool, ValueError> {
+        match self {
+            Self::Boolean(value) => Ok(*value),
+            _ => Err(ValueError::type_mismatch("Boolean", self.kind())),
         }
     }
 
@@ -128,6 +139,7 @@ impl std::error::Error for ValueError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueKind {
     Number,
+    Boolean,
     Point,
     Vector,
     CurveLine,
@@ -139,6 +151,7 @@ impl fmt::Display for ValueKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::Number => "Number",
+            Self::Boolean => "Boolean",
             Self::Point => "Point",
             Self::Vector => "Vector",
             Self::CurveLine => "CurveLine",
@@ -165,6 +178,20 @@ mod tests {
         let err = value.expect_number().unwrap_err();
         assert_eq!(err.expected(), "Number");
         assert_eq!(err.found(), ValueKind::Point);
+    }
+
+    #[test]
+    fn expect_boolean_accepts_boolean() {
+        let value = Value::Boolean(true);
+        assert!(value.expect_boolean().unwrap());
+    }
+
+    #[test]
+    fn expect_boolean_rejects_other_types() {
+        let value = Value::Number(0.0);
+        let err = value.expect_boolean().unwrap_err();
+        assert_eq!(err.expected(), "Boolean");
+        assert_eq!(err.found(), ValueKind::Number);
     }
 
     #[test]

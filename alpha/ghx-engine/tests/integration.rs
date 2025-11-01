@@ -1,8 +1,8 @@
+use ghx_engine::Engine;
 use ghx_engine::components::ComponentRegistry;
 use ghx_engine::graph::evaluator::{self, EvaluationResult};
 use ghx_engine::graph::value::Value;
 use ghx_engine::parse::ghx_xml;
-use ghx_engine::Engine;
 
 #[test]
 fn engine_initializes() {
@@ -101,10 +101,7 @@ fn assert_point_close(actual: &[f64; 3], expected: [f64; 3]) {
 
 fn assert_value_close(actual: &Value, expected: &Value, tol: f64) {
     match (actual, expected) {
-        (
-            Value::CurveLine { p1: lp1, p2: lp2 },
-            Value::CurveLine { p1: rp1, p2: rp2 },
-        ) => {
+        (Value::CurveLine { p1: lp1, p2: lp2 }, Value::CurveLine { p1: rp1, p2: rp2 }) => {
             assert_point_close(lp1, *rp1);
             assert_point_close(lp2, *rp2);
         }
