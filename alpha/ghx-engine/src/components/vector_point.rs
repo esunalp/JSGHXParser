@@ -18,6 +18,12 @@ const PIN_OUTPUT_X: &str = "X";
 const PIN_OUTPUT_Y: &str = "Y";
 const PIN_OUTPUT_Z: &str = "Z";
 const PIN_OUTPUT_VALENCE: &str = "V";
+const PIN_OUTPUT_GROUPS: &str = "G";
+const PIN_OUTPUT_PHI: &str = "P";
+const PIN_OUTPUT_THETA: &str = "T";
+const PIN_OUTPUT_RADIUS: &str = "R";
+
+const EPSILON: f64 = 1e-9;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -31,6 +37,15 @@ pub enum ComponentKind {
     SortPoints,
     CullDuplicates,
     Barycentric,
+    ConstructPointOriented,
+    PointOriented,
+    PointCylindrical,
+    PointPolar,
+    ToPolar,
+    SortAlongCurve,
+    PointGroups,
+    ProjectPoint,
+    PullPoint,
 }
 
 /// Metadata voor registraties in de componentregistry.
@@ -64,6 +79,11 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::Deconstruct,
     },
     Registration {
+        guids: &["{670fcdba-da07-4eb4-b1c1-bfa0729d767d}"],
+        names: &["Deconstruct Point", "DePoint"],
+        kind: ComponentKind::Deconstruct,
+    },
+    Registration {
         guids: &["{571ca323-6e55-425a-bf9e-ee103c7ba4b9}"],
         names: &["Closest Point", "CP"],
         kind: ComponentKind::ClosestPoint,
@@ -88,6 +108,54 @@ pub const REGISTRATIONS: &[Registration] = &[
         names: &["Barycentric", "BCentric"],
         kind: ComponentKind::Barycentric,
     },
+    Registration {
+        guids: &["{8a5aae11-8775-4ee5-b4fc-db3a1bd89c2f}"],
+        names: &["Construct Point Oriented", "Pt Orient"],
+        kind: ComponentKind::ConstructPointOriented,
+    },
+    Registration {
+        guids: &["{aa333235-5922-424c-9002-1e0b866a854b}"],
+        names: &["Point Oriented", "Point UVW"],
+        kind: ComponentKind::PointOriented,
+    },
+    Registration {
+        guids: &["{23603075-be64-4d86-9294-c3c125a12104}"],
+        names: &["Point Cylindrical", "Point Cylinder"],
+        kind: ComponentKind::PointCylindrical,
+    },
+    Registration {
+        guids: &["{a435f5c8-28a2-43e8-a52a-0b6e73c2e300}"],
+        names: &["Point Polar", "Point Spherical"],
+        kind: ComponentKind::PointPolar,
+    },
+    Registration {
+        guids: &["{61647ba2-31eb-4921-9632-df81e3286f7d}"],
+        names: &["To Polar", "Point To Polar"],
+        kind: ComponentKind::ToPolar,
+    },
+    Registration {
+        guids: &["{59aaebf8-6654-46b7-8386-89223c773978}"],
+        names: &["Sort Along Curve", "AlongCrv"],
+        kind: ComponentKind::SortAlongCurve,
+    },
+    Registration {
+        guids: &["{81f6afc9-22d9-49f0-8579-1fd7e0df6fa6}"],
+        names: &["Point Groups", "PGroups"],
+        kind: ComponentKind::PointGroups,
+    },
+    Registration {
+        guids: &["{5184b8cb-b71e-4def-a590-cd2c9bc58906}"],
+        names: &["Project Point", "Project"],
+        kind: ComponentKind::ProjectPoint,
+    },
+    Registration {
+        guids: &[
+            "{902289da-28dc-454b-98d4-b8f8aa234516}",
+            "{cf3a0865-4882-46bd-91a1-d512acf95be4}",
+        ],
+        names: &["Pull Point", "Pull"],
+        kind: ComponentKind::PullPoint,
+    },
 ];
 
 impl Component for ComponentKind {
@@ -102,6 +170,15 @@ impl Component for ComponentKind {
             Self::SortPoints => evaluate_sort_points(inputs),
             Self::CullDuplicates => evaluate_cull_duplicates(inputs),
             Self::Barycentric => evaluate_barycentric(inputs),
+            Self::ConstructPointOriented => evaluate_construct_point_oriented(inputs),
+            Self::PointOriented => evaluate_point_oriented(inputs),
+            Self::PointCylindrical => evaluate_point_cylindrical(inputs),
+            Self::PointPolar => evaluate_point_polar(inputs),
+            Self::ToPolar => evaluate_to_polar(inputs),
+            Self::SortAlongCurve => evaluate_sort_along_curve(inputs),
+            Self::PointGroups => evaluate_point_groups(inputs),
+            Self::ProjectPoint => evaluate_project_point(inputs),
+            Self::PullPoint => evaluate_pull_point(inputs),
         }
     }
 }
@@ -119,6 +196,15 @@ impl ComponentKind {
             Self::SortPoints => "Sort Points",
             Self::CullDuplicates => "Cull Duplicates",
             Self::Barycentric => "Barycentric Point",
+            Self::ConstructPointOriented => "Construct Point Oriented",
+            Self::PointOriented => "Point Oriented",
+            Self::PointCylindrical => "Point Cylindrical",
+            Self::PointPolar => "Point Polar",
+            Self::ToPolar => "To Polar",
+            Self::SortAlongCurve => "Sort Along Curve",
+            Self::PointGroups => "Point Groups",
+            Self::ProjectPoint => "Project Point",
+            Self::PullPoint => "Pull Point",
         }
     }
 }
@@ -229,10 +315,16 @@ fn evaluate_deconstruct(inputs: &[Value]) -> ComponentResult {
     }
 
     let point = coerce_point(&inputs[0], "Deconstruct Point")?;
+    let coords = if let Some(system) = inputs.get(1) {
+        let plane = coerce_plane(system, "Deconstruct Point")?;
+        plane_coordinates(point, &plane)
+    } else {
+        point
+    };
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_X.to_owned(), Value::Number(point[0]));
-    outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(point[1]));
-    outputs.insert(PIN_OUTPUT_Z.to_owned(), Value::Number(point[2]));
+    outputs.insert(PIN_OUTPUT_X.to_owned(), Value::Number(coords[0]));
+    outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(coords[1]));
+    outputs.insert(PIN_OUTPUT_Z.to_owned(), Value::Number(coords[2]));
     Ok(outputs)
 }
 
@@ -438,6 +530,330 @@ fn evaluate_barycentric(inputs: &[Value]) -> ComponentResult {
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+    Ok(outputs)
+}
+
+fn evaluate_construct_point_oriented(inputs: &[Value]) -> ComponentResult {
+    let context = "Construct Point Oriented";
+    if inputs.len() < 4 {
+        return Err(ComponentError::new(format!(
+            "{} vereist drie coördinaten en een referentievlak",
+            context
+        )));
+    }
+
+    let x = coerce_number(Some(&inputs[0]), context)?;
+    let y = coerce_number(Some(&inputs[1]), context)?;
+    let z = coerce_number(Some(&inputs[2]), context)?;
+    let plane = coerce_plane(&inputs[3], context)?;
+    let point = apply_plane(&plane, x, y, z);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+    Ok(outputs)
+}
+
+fn evaluate_point_oriented(inputs: &[Value]) -> ComponentResult {
+    let context = "Point Oriented";
+    if inputs.len() < 3 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een vlak en minimaal twee coördinaten",
+            context
+        )));
+    }
+
+    let plane = coerce_plane(&inputs[0], context)?;
+    let u = coerce_number(inputs.get(1), context)?;
+    let v = coerce_number(inputs.get(2), context)?;
+    let w = coerce_number(inputs.get(3), context).unwrap_or(0.0);
+    let point = apply_plane(&plane, u, v, w);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+    Ok(outputs)
+}
+
+fn evaluate_point_cylindrical(inputs: &[Value]) -> ComponentResult {
+    let context = "Point Cylindrical";
+    if inputs.len() < 4 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een vlak, hoek, straal en elevatie",
+            context
+        )));
+    }
+
+    let plane = coerce_plane(&inputs[0], context)?;
+    let angle = coerce_number(Some(&inputs[1]), context)?;
+    let radius = coerce_number(Some(&inputs[2]), context)?;
+    let elevation = coerce_number(Some(&inputs[3]), context)?;
+    let x = angle.cos() * radius;
+    let y = angle.sin() * radius;
+    let point = apply_plane(&plane, x, y, elevation);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+    Ok(outputs)
+}
+
+fn evaluate_point_polar(inputs: &[Value]) -> ComponentResult {
+    let context = "Point Polar";
+    if inputs.len() < 4 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een vlak en drie hoek/distantiewaarden",
+            context
+        )));
+    }
+
+    let plane = coerce_plane(&inputs[0], context)?;
+    let phi = coerce_number(Some(&inputs[1]), context)?;
+    let theta = coerce_number(Some(&inputs[2]), context)?;
+    let distance = coerce_number(Some(&inputs[3]), context)?;
+    let horizontal = distance * theta.cos();
+    let x = phi.cos() * horizontal;
+    let y = phi.sin() * horizontal;
+    let z = theta.sin() * distance;
+    let point = apply_plane(&plane, x, y, z);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+    Ok(outputs)
+}
+
+fn evaluate_to_polar(inputs: &[Value]) -> ComponentResult {
+    let context = "Point To Polar";
+    if inputs.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{} vereist minimaal een punt",
+            context
+        )));
+    }
+
+    let point = coerce_point(&inputs[0], context)?;
+    let plane = if let Some(system) = inputs.get(1) {
+        coerce_plane(system, context)?
+    } else {
+        Plane::default()
+    };
+    let coords = plane_coordinates(point, &plane);
+    let horizontal = (coords[0] * coords[0] + coords[1] * coords[1]).sqrt();
+    let radius = (coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2]).sqrt();
+    let phi = coords[1].atan2(coords[0]);
+    let theta = coords[2].atan2(horizontal);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_PHI.to_owned(), Value::Number(phi));
+    outputs.insert(PIN_OUTPUT_THETA.to_owned(), Value::Number(theta));
+    outputs.insert(PIN_OUTPUT_RADIUS.to_owned(), Value::Number(radius));
+    Ok(outputs)
+}
+
+fn evaluate_sort_along_curve(inputs: &[Value]) -> ComponentResult {
+    let context = "Sort Along Curve";
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een puntenlijst en een curve",
+            context
+        )));
+    }
+
+    let points = collect_points(inputs.get(0), context)?;
+    if points.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(Vec::new()));
+        return Ok(outputs);
+    }
+
+    let curve = coerce_line(
+        inputs.get(1).ok_or_else(|| {
+            ComponentError::new(format!("{} vereist een curve als tweede invoer", context))
+        })?,
+        context,
+    )?;
+    let direction = curve.direction();
+    let length_sq = vector_length_squared(direction);
+
+    let mut entries: Vec<(f64, usize, [f64; 3])> = points
+        .into_iter()
+        .enumerate()
+        .map(|(index, point)| {
+            let relative = subtract(point, curve.start);
+            let parameter = if length_sq < EPSILON {
+                vector_length(relative)
+            } else {
+                dot(relative, direction) / length_sq
+            };
+            (parameter, index, point)
+        })
+        .collect();
+    entries.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
+
+    let mut sorted_points = Vec::with_capacity(entries.len());
+    let mut indices = Vec::with_capacity(entries.len());
+    for (_, original_index, point) in entries {
+        sorted_points.push(Value::Point(point));
+        indices.push(Value::Number(original_index as f64));
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(sorted_points));
+    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+    Ok(outputs)
+}
+
+fn evaluate_point_groups(inputs: &[Value]) -> ComponentResult {
+    let context = "Point Groups";
+    if inputs.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{} vereist minimaal een puntenlijst",
+            context
+        )));
+    }
+
+    let points = collect_points(inputs.get(0), context)?;
+    let distance = coerce_number(inputs.get(1), context)
+        .unwrap_or(0.1)
+        .max(0.0);
+    let mut outputs = BTreeMap::new();
+
+    if points.is_empty() {
+        outputs.insert(PIN_OUTPUT_GROUPS.to_owned(), Value::List(Vec::new()));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(Vec::new()));
+        return Ok(outputs);
+    }
+
+    let threshold_sq = distance * distance;
+    let mut parents: Vec<usize> = (0..points.len()).collect();
+    let mut ranks = vec![0u8; points.len()];
+
+    for i in 0..points.len() {
+        for j in (i + 1)..points.len() {
+            if distance_squared(points[i], points[j]) <= threshold_sq {
+                union_sets(&mut parents, &mut ranks, i, j);
+            }
+        }
+    }
+
+    let mut groups: BTreeMap<usize, (Vec<Value>, Vec<Value>)> = BTreeMap::new();
+    for (index, point) in points.iter().enumerate() {
+        let root = find_parent(&mut parents, index);
+        let entry = groups
+            .entry(root)
+            .or_insert_with(|| (Vec::new(), Vec::new()));
+        entry.0.push(Value::Point(*point));
+        entry.1.push(Value::Number(index as f64));
+    }
+
+    let group_values: Vec<Value> = groups
+        .values()
+        .map(|(pts, _)| Value::List(pts.clone()))
+        .collect();
+    let index_values: Vec<Value> = groups
+        .values()
+        .map(|(_, idx)| Value::List(idx.clone()))
+        .collect();
+
+    outputs.insert(PIN_OUTPUT_GROUPS.to_owned(), Value::List(group_values));
+    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(index_values));
+    Ok(outputs)
+}
+
+fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
+    let context = "Project Point";
+    if inputs.len() < 3 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een punt, richting en geometrie",
+            context
+        )));
+    }
+
+    let origin = coerce_point(&inputs[0], context)?;
+    let mut direction = coerce_vector(&inputs[1], context)?;
+    let length_sq = vector_length_squared(direction);
+    if length_sq < EPSILON {
+        return Err(ComponentError::new(
+            "Project Point vereist een geldige richtingsvector",
+        ));
+    }
+    direction = scale(direction, 1.0 / length_sq.sqrt());
+
+    let planes = collect_planes(inputs.get(2), context)?;
+    if planes.is_empty() {
+        return Err(ComponentError::new(
+            "Project Point ondersteunt momenteel alleen vlak-geometry",
+        ));
+    }
+
+    let mut best: Option<(f64, usize, [f64; 3])> = None;
+    for (index, plane) in planes.iter().enumerate() {
+        if let Some((intersection, distance)) = intersect_ray_plane(origin, direction, plane) {
+            if distance >= 0.0
+                && best
+                    .as_ref()
+                    .map(|(best_distance, _, _)| distance < *best_distance)
+                    .unwrap_or(true)
+            {
+                best = Some((distance, index, intersection));
+            }
+        }
+    }
+
+    let (_, index, intersection) = best.ok_or_else(|| {
+        ComponentError::new("Project Point vond geen snijpunt met de opgegeven geometrie")
+    })?;
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(intersection));
+    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(index as f64));
+    Ok(outputs)
+}
+
+fn evaluate_pull_point(inputs: &[Value]) -> ComponentResult {
+    let context = "Pull Point";
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een punt en geometrie",
+            context
+        )));
+    }
+
+    let point = coerce_point(&inputs[0], context)?;
+    let prefer_closest = if let Some(value) = inputs.get(2) {
+        coerce_boolean(Some(value), context)?
+    } else {
+        true
+    };
+    let planes = collect_planes(inputs.get(1), context)?;
+    let point_candidates = collect_points(inputs.get(1), context)?;
+
+    let mut candidates: Vec<([f64; 3], f64)> = Vec::new();
+    for plane in planes {
+        let coords = plane_coordinates(point, &plane);
+        let projection = apply_plane(&plane, coords[0], coords[1], 0.0);
+        candidates.push((projection, coords[2].abs()));
+    }
+    for candidate in point_candidates {
+        let distance = distance_squared(candidate, point).sqrt();
+        candidates.push((candidate, distance));
+    }
+
+    if candidates.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(point));
+        outputs.insert(PIN_OUTPUT_DISTANCE.to_owned(), Value::Number(0.0));
+        return Ok(outputs);
+    }
+
+    candidates.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+    let chosen = if prefer_closest {
+        candidates.first().unwrap()
+    } else {
+        candidates.last().unwrap()
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(chosen.0));
+    outputs.insert(PIN_OUTPUT_DISTANCE.to_owned(), Value::Number(chosen.1));
     Ok(outputs)
 }
 
@@ -677,11 +1093,361 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
     }
 }
 
+fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+    match value {
+        Value::Vector(vector) | Value::Point(vector) => Ok(*vector),
+        Value::List(values) if values.len() == 1 => coerce_vector(&values[0], context),
+        Value::List(values) if values.len() >= 3 => {
+            let x = coerce_number(Some(&values[0]), context)?;
+            let y = coerce_number(Some(&values[1]), context)?;
+            let z = coerce_number(Some(&values[2]), context)?;
+            Ok([x, y, z])
+        }
+        Value::List(values) if values.len() == 2 => {
+            let x = coerce_number(Some(&values[0]), context)?;
+            let y = coerce_number(Some(&values[1]), context)?;
+            Ok([x, y, 0.0])
+        }
+        Value::Number(number) => Ok([0.0, 0.0, *number]),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vector, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, ComponentError> {
+    match value {
+        None => Err(ComponentError::new(format!(
+            "{} vereist een booleaanse waarde",
+            context
+        ))),
+        Some(Value::Boolean(boolean)) => Ok(*boolean),
+        Some(Value::Number(number)) => Ok(*number != 0.0),
+        Some(Value::List(values)) if values.len() == 1 => coerce_boolean(values.get(0), context),
+        Some(other) => Err(ComponentError::new(format!(
+            "{} verwacht een booleaanse waarde, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn collect_planes(value: Option<&Value>, context: &str) -> Result<Vec<Plane>, ComponentError> {
+    let mut planes = Vec::new();
+    if let Some(value) = value {
+        collect_planes_into(value, context, &mut planes)?;
+    }
+    Ok(planes)
+}
+
+fn collect_planes_into(
+    value: &Value,
+    context: &str,
+    output: &mut Vec<Plane>,
+) -> Result<(), ComponentError> {
+    match value {
+        Value::List(values) => {
+            if let Ok(plane) = coerce_plane(value, context) {
+                output.push(plane);
+                Ok(())
+            } else {
+                for entry in values {
+                    collect_planes_into(entry, context, output)?;
+                }
+                Ok(())
+            }
+        }
+        Value::Point(_) | Value::Vector(_) => Ok(()),
+        _ => {
+            output.push(coerce_plane(value, context)?);
+            Ok(())
+        }
+    }
+}
+
+fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
+    match value {
+        Value::List(values) if values.len() >= 3 => {
+            let a = coerce_point(&values[0], context)?;
+            let b = coerce_point(&values[1], context)?;
+            let c = coerce_point(&values[2], context)?;
+            Ok(Plane::from_points(a, b, c))
+        }
+        Value::List(values) if values.len() == 2 => {
+            let origin = coerce_point(&values[0], context)?;
+            let direction = coerce_vector(&values[1], context)?;
+            if vector_length_squared(direction) < EPSILON {
+                Ok(Plane::default())
+            } else {
+                let x_axis = normalize(direction);
+                let z_axis = orthogonal_vector(x_axis);
+                let y_axis = normalize(cross(z_axis, x_axis));
+                Ok(Plane::normalize_axes(origin, x_axis, y_axis, z_axis))
+            }
+        }
+        Value::List(values) if values.len() == 1 => coerce_plane(&values[0], context),
+        Value::Point(point) => {
+            let mut plane = Plane::default();
+            plane.origin = *point;
+            Ok(plane)
+        }
+        Value::Vector(vector) => {
+            let normal = if vector_length_squared(*vector) < EPSILON {
+                [0.0, 0.0, 1.0]
+            } else {
+                normalize(*vector)
+            };
+            let x_axis = orthogonal_vector(normal);
+            let y_axis = normalize(cross(normal, x_axis));
+            Ok(Plane::normalize_axes(
+                [0.0, 0.0, 0.0],
+                x_axis,
+                y_axis,
+                normal,
+            ))
+        }
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vlak, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError> {
+    match value {
+        Value::CurveLine { p1, p2 } => Ok(Line {
+            start: *p1,
+            end: *p2,
+        }),
+        Value::List(values) if values.len() >= 2 => {
+            let start = coerce_point(&values[0], context)?;
+            let mut end = coerce_point(&values[1], context)?;
+            if vector_length_squared(subtract(end, start)) < EPSILON && values.len() > 2 {
+                end = add(start, coerce_vector(&values[2], context)?);
+            }
+            Ok(Line { start, end })
+        }
+        Value::List(values) if values.len() == 1 => coerce_line(&values[0], context),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een curve, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
+    let relative = subtract(point, plane.origin);
+    [
+        dot(relative, plane.x_axis),
+        dot(relative, plane.y_axis),
+        dot(relative, plane.z_axis),
+    ]
+}
+
+fn apply_plane(plane: &Plane, u: f64, v: f64, w: f64) -> [f64; 3] {
+    add(
+        add(
+            add(plane.origin, scale(plane.x_axis, u)),
+            scale(plane.y_axis, v),
+        ),
+        scale(plane.z_axis, w),
+    )
+}
+
+fn intersect_ray_plane(
+    origin: [f64; 3],
+    direction: [f64; 3],
+    plane: &Plane,
+) -> Option<([f64; 3], f64)> {
+    let normal = plane.z_axis;
+    let denom = dot(direction, normal);
+    if denom.abs() < EPSILON {
+        return None;
+    }
+    let relative = subtract(plane.origin, origin);
+    let distance = dot(relative, normal) / denom;
+    if !distance.is_finite() {
+        return None;
+    }
+    let point = add(origin, scale(direction, distance));
+    Some((point, distance))
+}
+
+fn vector_length_squared(vector: [f64; 3]) -> f64 {
+    dot(vector, vector)
+}
+
+fn vector_length(vector: [f64; 3]) -> f64 {
+    vector_length_squared(vector).sqrt()
+}
+
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
+
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+    [vector[0] * factor, vector[1] * factor, vector[2] * factor]
+}
+
+fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+    let length = vector_length(vector);
+    if length < EPSILON {
+        None
+    } else {
+        Some((scale(vector, 1.0 / length), length))
+    }
+}
+
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
+    safe_normalized(vector)
+        .map(|(unit, _)| unit)
+        .unwrap_or([0.0, 0.0, 0.0])
+}
+
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+    let abs_x = vector[0].abs();
+    let abs_y = vector[1].abs();
+    let abs_z = vector[2].abs();
+    if abs_x <= abs_y && abs_x <= abs_z {
+        normalize([0.0, -vector[2], vector[1]])
+    } else if abs_y <= abs_x && abs_y <= abs_z {
+        normalize([-vector[2], 0.0, vector[0]])
+    } else {
+        normalize([-vector[1], vector[0], 0.0])
+    }
+}
+
+fn find_parent(parents: &mut [usize], index: usize) -> usize {
+    if parents[index] != index {
+        let parent = parents[index];
+        let root = find_parent(parents, parent);
+        parents[index] = root;
+    }
+    parents[index]
+}
+
+fn union_sets(parents: &mut [usize], ranks: &mut [u8], a: usize, b: usize) {
+    let mut root_a = find_parent(parents, a);
+    let mut root_b = find_parent(parents, b);
+    if root_a == root_b {
+        return;
+    }
+    if ranks[root_a] < ranks[root_b] {
+        let temp = root_a;
+        root_a = root_b;
+        root_b = temp;
+    }
+    parents[root_b] = root_a;
+    if ranks[root_a] == ranks[root_b] {
+        ranks[root_a] = ranks[root_a].saturating_add(1);
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Plane {
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    z_axis: [f64; 3],
+}
+
+impl Default for Plane {
+    fn default() -> Self {
+        Self {
+            origin: [0.0, 0.0, 0.0],
+            x_axis: [1.0, 0.0, 0.0],
+            y_axis: [0.0, 1.0, 0.0],
+            z_axis: [0.0, 0.0, 1.0],
+        }
+    }
+}
+
+impl Plane {
+    fn normalize_axes(
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
+    ) -> Self {
+        let z = safe_normalized(z_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or([0.0, 0.0, 1.0]);
+
+        let mut x = safe_normalized(x_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or_else(|| orthogonal_vector(z));
+
+        let mut y = safe_normalized(y_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or_else(|| normalize(cross(z, x)));
+
+        x = normalize(cross(y, z));
+        y = normalize(cross(z, x));
+
+        Self {
+            origin,
+            x_axis: x,
+            y_axis: y,
+            z_axis: z,
+        }
+    }
+
+    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+        let ab = subtract(b, a);
+        let ac = subtract(c, a);
+        let normal = cross(ab, ac);
+        if vector_length_squared(normal) < EPSILON {
+            return Self::default();
+        }
+        let x_axis = if vector_length_squared(ab) < EPSILON {
+            orthogonal_vector(normal)
+        } else {
+            normalize(ab)
+        };
+        let z_axis = normalize(normal);
+        let y_axis = normalize(cross(z_axis, x_axis));
+        Self::normalize_axes(a, x_axis, y_axis, z_axis)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Line {
+    start: [f64; 3],
+    end: [f64; 3],
+}
+
+impl Line {
+    fn direction(self) -> [f64; 3] {
+        subtract(self.end, self.start)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_DISTANCE, PIN_OUTPUT_INDEX, PIN_OUTPUT_INDICES,
-        PIN_OUTPUT_NUMBERS, PIN_OUTPUT_POINT, PIN_OUTPUT_POINTS, PIN_OUTPUT_VALENCE, collect_mask,
+        Component, ComponentKind, PIN_OUTPUT_DISTANCE, PIN_OUTPUT_GROUPS, PIN_OUTPUT_INDEX,
+        PIN_OUTPUT_INDICES, PIN_OUTPUT_NUMBERS, PIN_OUTPUT_PHI, PIN_OUTPUT_POINT,
+        PIN_OUTPUT_POINTS, PIN_OUTPUT_RADIUS, PIN_OUTPUT_THETA, PIN_OUTPUT_VALENCE, collect_mask,
         collect_numbers, collect_points, compare_points,
     };
     use crate::graph::node::MetaMap;
@@ -951,5 +1717,246 @@ mod tests {
         let mut mask = Vec::new();
         collect_mask(&Value::Text("yz".into()), &mut mask);
         assert_eq!(mask, vec!['y', 'z']);
+    }
+
+    #[test]
+    fn construct_point_oriented_respects_plane() {
+        let component = ComponentKind::ConstructPointOriented;
+        let plane = Value::List(vec![
+            Value::Point([10.0, 0.0, 0.0]),
+            Value::Point([10.0, 1.0, 0.0]),
+            Value::Point([10.0, 0.0, 1.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Number(2.0),
+                    Value::Number(3.0),
+                    Value::Number(4.0),
+                    plane,
+                ],
+                &MetaMap::new(),
+            )
+            .expect("construct oriented succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .expect("point output present");
+        assert_eq!(point, [14.0, 2.0, 3.0]);
+    }
+
+    #[test]
+    fn point_oriented_uses_plane_coordinates() {
+        let component = ComponentKind::PointOriented;
+        let plane = Value::List(vec![
+            Value::Point([5.0, 5.0, 0.0]),
+            Value::Point([5.0, 6.0, 0.0]),
+            Value::Point([5.0, 5.0, 1.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[plane, Value::Number(1.0), Value::Number(2.0)],
+                &MetaMap::new(),
+            )
+            .expect("point oriented succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert_eq!(point, [5.0, 6.0, 2.0]);
+    }
+
+    #[test]
+    fn point_cylindrical_converts_coordinates() {
+        let component = ComponentKind::PointCylindrical;
+        let plane = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[
+                    plane,
+                    Value::Number(std::f64::consts::FRAC_PI_2),
+                    Value::Number(2.0),
+                    Value::Number(5.0),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("point cylindrical succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert!((point[0]).abs() < 1e-9);
+        assert!((point[1] - 2.0).abs() < 1e-9);
+        assert!((point[2] - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn point_polar_converts_coordinates() {
+        let component = ComponentKind::PointPolar;
+        let plane = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[
+                    plane,
+                    Value::Number(0.0),
+                    Value::Number(0.0),
+                    Value::Number(5.0),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("point polar succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert!((point[0] - 5.0).abs() < 1e-9);
+        assert!(point[1].abs() < 1e-9);
+        assert!(point[2].abs() < 1e-9);
+    }
+
+    #[test]
+    fn to_polar_returns_angles() {
+        let component = ComponentKind::ToPolar;
+        let outputs = component
+            .evaluate(&[Value::Point([0.0, 1.0, 1.0])], &MetaMap::new())
+            .expect("to polar succeeds");
+        let phi = outputs
+            .get(PIN_OUTPUT_PHI)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        let theta = outputs
+            .get(PIN_OUTPUT_THETA)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        let radius = outputs
+            .get(PIN_OUTPUT_RADIUS)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        assert!((phi - std::f64::consts::FRAC_PI_2).abs() < 1e-9);
+        assert!((theta - std::f64::consts::FRAC_PI_4).abs() < 1e-9);
+        assert!((radius - (2.0f64).sqrt()).abs() < 1e-9);
+    }
+
+    #[test]
+    fn sort_along_curve_orders_points() {
+        let component = ComponentKind::SortAlongCurve;
+        let curve = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [3.0, 0.0, 0.0],
+        };
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::List(vec![
+                        Value::Point([2.0, 0.0, 0.0]),
+                        Value::Point([1.0, 0.0, 0.0]),
+                        Value::Point([3.0, 0.0, 0.0]),
+                    ]),
+                    curve,
+                ],
+                &MetaMap::new(),
+            )
+            .expect("sort along curve succeeds");
+        let points = outputs
+            .get(PIN_OUTPUT_POINTS)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        let ordered: Vec<[f64; 3]> = points
+            .iter()
+            .map(|value| value.expect_point().unwrap())
+            .collect();
+        assert_eq!(
+            ordered,
+            vec![[1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [3.0, 0.0, 0.0]]
+        );
+    }
+
+    #[test]
+    fn point_groups_clusters_by_distance() {
+        let component = ComponentKind::PointGroups;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::List(vec![
+                        Value::Point([0.0, 0.0, 0.0]),
+                        Value::Point([0.05, 0.0, 0.0]),
+                        Value::Point([5.0, 0.0, 0.0]),
+                    ]),
+                    Value::Number(0.1),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("point groups succeeds");
+        let groups = outputs
+            .get(PIN_OUTPUT_GROUPS)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert_eq!(groups.len(), 2);
+        let indices = outputs
+            .get(PIN_OUTPUT_INDICES)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert_eq!(indices.len(), 2);
+    }
+
+    #[test]
+    fn project_point_intersects_plane() {
+        let component = ComponentKind::ProjectPoint;
+        let plane = Value::List(vec![
+            Value::Point([0.0, 0.0, 5.0]),
+            Value::Point([1.0, 0.0, 5.0]),
+            Value::Point([0.0, 1.0, 5.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Vector([0.0, 0.0, 1.0]),
+                    plane,
+                ],
+                &MetaMap::new(),
+            )
+            .expect("project point succeeds");
+        let intersection = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert_eq!(intersection, [0.0, 0.0, 5.0]);
+        let index = outputs
+            .get(PIN_OUTPUT_INDEX)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        assert_eq!(index, 0.0);
+    }
+
+    #[test]
+    fn pull_point_prefers_closest_projection() {
+        let component = ComponentKind::PullPoint;
+        let plane = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+        ]);
+        let outputs = component
+            .evaluate(&[Value::Point([0.0, 0.0, 5.0]), plane], &MetaMap::new())
+            .expect("pull point succeeds");
+        let pulled = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert_eq!(pulled, [0.0, 0.0, 0.0]);
+        let distance = outputs
+            .get(PIN_OUTPUT_DISTANCE)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        assert!((distance - 5.0).abs() < 1e-9);
     }
 }
