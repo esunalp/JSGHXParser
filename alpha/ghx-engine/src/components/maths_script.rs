@@ -349,7 +349,8 @@ fn coerce_expression(value: &Value) -> Option<String> {
         | Value::Point(_)
         | Value::Vector(_)
         | Value::CurveLine { .. }
-        | Value::Surface { .. } => None,
+        | Value::Surface { .. }
+        | Value::DateTime(_) => None,
     }
 }
 

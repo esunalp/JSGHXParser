@@ -136,7 +136,7 @@ Markeer de taak als deze gedaan is.
 [x] 3. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_polynomials.json staan beschreven.
 [x] 4. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_matrix.json staan beschreven.
 [x] 5. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_script.json staan beschreven.
-[ ] 6. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_time.json staan beschreven.
+[x] 6. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_time.json staan beschreven.
 [ ] 7. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_trig.json staan beschreven.
 [ ] 8. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_util.json staan beschreven.
 [ ] 9. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_vector.json staan beschreven.
