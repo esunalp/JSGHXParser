@@ -141,7 +141,7 @@ Markeer de taak als deze gedaan is.
 [x] 8. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_util.json staan beschreven.
 [x] 9. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_vector.json staan beschreven.
 [x] 10. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_point.json staan beschreven.
-[ ] 11. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_plane.json staan beschreven.
+[x] 11. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_plane.json staan beschreven.
 [ ] 12. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_grid.json staan beschreven.
 [ ] 13. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_field.json staan beschreven.
 [ ] 14. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_primitive.json staan beschreven.
