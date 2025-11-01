@@ -106,10 +106,13 @@ mod tests {
 2. **Gebruik hulpfuncties voor typeconversie**  
    Maak herbruikbare functies voor typecoercie (bijvoorbeeld `coerce_number`, `coerce_point`). Dat houdt de `evaluate`-methode leesbaar en zorgt voor consistente foutmeldingen.
 
-3. **Opbouw van outputs**  
+3. **Check de Proof-of-Concept build (/poc-ghx-three/registry-components-XXX.js)
+   Het kan zijn dat het te implementeren component al functioneel is in de Javascript versie van de GHX-engine. Dit kan helpen met het sneller bouwen van de componenten.
+
+4. **Opbouw van outputs**  
    Gebruik een `BTreeMap` voor de uitgangen. Vul iedere pinnaam (`String`) met het bijbehorende `Value`-object en retourneer `Ok(outputs)`.
 
-4. **Test dekking**  
+5. **Test dekking**  
    Schrijf unit-tests voor het succespad, typische validatiefouten en hulpfuncties. Zo blijft het componentgedrag stabiel wanneer het parsingsysteem of andere componenten veranderen.
 
 ## Hoe de GHX-engine componenten verwerkt
@@ -124,3 +127,35 @@ mod tests {
    Geometrische outputs worden gebundeld naar JSON-compatibele structuren en naar de Three.js-laag gestuurd. Daar worden ze omgezet in Three.js objecten voor visualisatie in de browser.
 
 Deze workflow sluit aan op het migratieplan in [`Migratieplan_Threejs_GHX_Parser_vereenvoudigd.md`](./Migratieplan_Threejs_GHX_Parser_vereenvoudigd.md) en zorgt ervoor dat nieuwe componenten naadloos in de vereenvoudigde GHX-engine passen.
+
+## TODO lijst implementaties componenten
+[ ] 1. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_operators.json staan beschreven.
+[ ] 2. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_domain.json staan beschreven.
+[ ] 3. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_polynomials.json staan beschreven.
+[ ] 4. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_matrix.json staan beschreven.
+[ ] 5. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_script.json staan beschreven.
+[ ] 6. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_time.json staan beschreven.
+[ ] 7. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_trig.json staan beschreven.
+[ ] 8. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_maths_util.json staan beschreven.
+[ ] 9. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_vector.json staan beschreven.
+[ ] 10. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_point.json staan beschreven.
+[ ] 11. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_plane.json staan beschreven.
+[ ] 12. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_grid.json staan beschreven.
+[ ] 13. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_vector_field.json staan beschreven.
+[ ] 14. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_primitive.json staan beschreven.
+[ ] 15. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_analysis.json staan beschreven.
+[ ] 16. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_division.json staan beschreven.
+[ ] 17. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_spline.json staan beschreven.
+[ ] 18. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_curve_util.json staan beschreven.
+[ ] 19. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_primitive.json staan beschreven.
+[ ] 20. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_freeform.json staan beschreven.
+[ ] 21. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_analysis.json staan beschreven.
+[ ] 22. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_util.json staan beschreven.
+[ ] 23. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_subd.json staan beschreven.
+[ ] 24. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_affine.json staan beschreven.
+[ ] 25. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_euclidean.json staan beschreven.
+[ ] 26. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_array.json staan beschreven.
+[ ] 27. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_util.json staan beschreven.
+[ ] 28. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_complex.json staan beschreven.
+[ ] 29. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_scalar.json staan beschreven.
+[ ] 30. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_display_preview.json staan beschreven.
