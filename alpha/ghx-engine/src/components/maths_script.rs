@@ -350,7 +350,8 @@ fn coerce_expression(value: &Value) -> Option<String> {
         | Value::Vector(_)
         | Value::CurveLine { .. }
         | Value::Surface { .. }
-        | Value::DateTime(_) => None,
+        | Value::DateTime(_)
+        | Value::Complex(_) => None,
     }
 }
 
@@ -366,6 +367,9 @@ fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
         Value::List(values) if values.len() == 1 => coerce_number(&values[0], context),
         Value::List(_) => Err(ComponentError::new(format!(
             "{context} verwacht een enkelvoudige waarde"
+        ))),
+        Value::Complex(_) => Err(ComponentError::new(format!(
+            "{context} ondersteunt geen complex getal"
         ))),
         other => Err(ComponentError::new(format!(
             "{context} verwacht een numerieke waarde, kreeg {}",
