@@ -3,6 +3,7 @@
 
 use core::fmt;
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 use num_complex::Complex;
 use time::PrimitiveDateTime;
@@ -50,6 +51,49 @@ pub enum Value {
     Material(MaterialValue),
     /// Een weergavesymbool.
     Symbol(SymbolValue),
+}
+
+impl Eq for Value {}
+
+impl Hash for Value {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            Value::Null => {}
+            Value::Number(n) => n.to_bits().hash(state),
+            Value::Boolean(b) => b.hash(state),
+            Value::Complex(c) => {
+                c.re.to_bits().hash(state);
+                c.im.to_bits().hash(state);
+            }
+            Value::Point(p) => {
+                p.iter().for_each(|x| x.to_bits().hash(state));
+            }
+            Value::Vector(v) => {
+                v.iter().for_each(|x| x.to_bits().hash(state));
+            }
+            Value::CurveLine { p1, p2 } => {
+                p1.iter().for_each(|x| x.to_bits().hash(state));
+                p2.iter().for_each(|x| x.to_bits().hash(state));
+            }
+            Value::List(l) => l.hash(state),
+            Value::Text(s) => s.hash(state),
+            Value::DateTime(dt) => dt.hash(state),
+            Value::Color(c) => {
+                c.r.to_bits().hash(state);
+                c.g.to_bits().hash(state);
+                c.b.to_bits().hash(state);
+            }
+            // Non-trivial hash impls below.
+            // For now, these are not hashed, which is not ideal but avoids complexity.
+            Value::Surface { .. } => {}
+            Value::Domain(_) => {}
+            Value::Matrix(_) => {}
+            Value::Tag(_) => {}
+            Value::Material(_) => {}
+            Value::Symbol(_) => {}
+        }
+    }
 }
 
 impl PartialOrd for Value {
@@ -405,7 +449,7 @@ impl TextTagValue {
 }
 
 /// Een tijdstip bestaande uit een datum en tijd zonder tijdzone.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DateTimeValue {
     datetime: PrimitiveDateTime,
 }
