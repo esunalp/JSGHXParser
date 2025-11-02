@@ -434,13 +434,17 @@ fn evaluate_edges_from_directions(inputs: &[Value]) -> ComponentResult {
         .to_radians()
         .abs();
 
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
+
     let mut selected = Vec::new();
     let mut indices = Vec::new();
     let mut mapping = Vec::new();
 
-    for (index, edge) in edges.iter().enumerate() {
-        if let Some((direction, _)) = normalize(edge_direction(edge)) {
+    for (index, edge) in brep.edges.iter().enumerate() {
+        if let Some((direction, _)) = normalize(edge.vector()) {
             let mut matched = None;
             for (dir_index, candidate) in directions.iter().enumerate() {
                 let (candidate, _) = normalize(*candidate).unwrap_or(([1.0, 0.0, 0.0], 1.0));
@@ -452,10 +456,7 @@ fn evaluate_edges_from_directions(inputs: &[Value]) -> ComponentResult {
                 }
             }
             if let Some(dir_index) = matched {
-                selected.push(Value::CurveLine {
-                    p1: edge.start,
-                    p2: edge.end,
-                });
+                selected.push(edge.to_value());
                 indices.push(Value::Number(index as f64));
                 mapping.push(Value::Number(dir_index as f64));
             }
@@ -495,36 +496,37 @@ fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
 fn evaluate_closed_edges(inputs: &[Value]) -> ComponentResult {
     let metrics = coerce_shape_metrics(inputs.get(0), "Closed Edges")?;
     let _tangency = coerce_boolean(inputs.get(1), true).unwrap_or(true);
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
 
-    let closed_edges: Vec<_> = edges
-        .iter()
-        .enumerate()
-        .map(|(index, edge)| {
-            (
-                Value::CurveLine {
-                    p1: edge.start,
-                    p2: edge.end,
-                },
-                Value::Number(index as f64),
-            )
-        })
-        .collect();
+    let mut closed_edges = Vec::new();
+    let mut closed_indices = Vec::new();
+    let mut open_edges = Vec::new();
+    let mut open_indices = Vec::new();
 
-    let closed_list = closed_edges.iter().map(|(edge, _)| edge.clone()).collect();
-    let closed_indices = closed_edges
-        .iter()
-        .map(|(_, index)| index.clone())
-        .collect();
+    for (index, edge) in brep.edges.iter().enumerate() {
+        if edge.face_count() >= 2 {
+            closed_edges.push(edge.to_value());
+            closed_indices.push(Value::Number(index as f64));
+        } else {
+            open_edges.push(edge.to_value());
+            open_indices.push(Value::Number(index as f64));
+        }
+    }
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed_list));
+    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed_edges));
     outputs.insert(
         PIN_OUTPUT_CLOSED_INDICES.to_owned(),
         Value::List(closed_indices),
     );
-    outputs.insert(PIN_OUTPUT_OPEN.to_owned(), Value::List(Vec::new()));
-    outputs.insert(PIN_OUTPUT_OPEN_INDICES.to_owned(), Value::List(Vec::new()));
+    outputs.insert(PIN_OUTPUT_OPEN.to_owned(), Value::List(open_edges));
+    outputs.insert(
+        PIN_OUTPUT_OPEN_INDICES.to_owned(),
+        Value::List(open_indices),
+    );
     Ok(outputs)
 }
 
@@ -538,20 +540,50 @@ fn evaluate_edges_from_faces(inputs: &[Value]) -> ComponentResult {
     let points = collect_point_list(inputs.get(1));
     let tolerance = 1e-3;
 
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
+
     let mut selected = Vec::new();
     let mut indices = Vec::new();
 
-    for (index, edge) in edges.iter().enumerate() {
-        let include = points.iter().any(|point| {
-            distance(&edge.start, point) <= tolerance || distance(&edge.end, point) <= tolerance
-        });
-        if include || points.is_empty() {
-            selected.push(Value::CurveLine {
-                p1: edge.start,
-                p2: edge.end,
-            });
-            indices.push(Value::Number(index as f64));
+    if !brep.faces.is_empty() {
+        let mut selected_faces = Vec::new();
+        if points.is_empty() {
+            selected_faces.extend(0..brep.faces.len());
+        } else {
+            for (face_index, face) in brep.faces.iter().enumerate() {
+                let centroid = face.centroid();
+                if points
+                    .iter()
+                    .any(|point| distance(&centroid, point) <= tolerance)
+                {
+                    selected_faces.push(face_index);
+                }
+            }
+        }
+
+        for (index, edge) in brep.edges.iter().enumerate() {
+            if edge
+                .faces
+                .iter()
+                .any(|face_index| selected_faces.contains(face_index))
+            {
+                selected.push(edge.to_value());
+                indices.push(Value::Number(index as f64));
+            }
+        }
+    } else {
+        for (index, edge) in brep.edges.iter().enumerate() {
+            let include = points.is_empty()
+                || points
+                    .iter()
+                    .any(|point| edge.touches_point(point, tolerance));
+            if include {
+                selected.push(edge.to_value());
+                indices.push(Value::Number(index as f64));
+            }
         }
     }
 
@@ -581,24 +613,24 @@ fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
         .transpose()?;
     let tolerance = tolerance.unwrap_or(0.25).abs();
 
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
+
     let mut selected = Vec::new();
     let mut indices = Vec::new();
     let mut mapping = vec![0usize; points.len()];
 
-    for (index, edge) in edges.iter().enumerate() {
+    for (index, edge) in brep.edges.iter().enumerate() {
         let mut matched_points = Vec::new();
         for (point_index, point) in points.iter().enumerate() {
-            if distance(&edge.start, point) <= tolerance || distance(&edge.end, point) <= tolerance
-            {
+            if edge.touches_point(point, tolerance) {
                 matched_points.push(point_index);
             }
         }
         if matched_points.len() >= valence {
-            selected.push(Value::CurveLine {
-                p1: edge.start,
-                p2: edge.end,
-            });
+            selected.push(edge.to_value());
             indices.push(Value::Number(index as f64));
             for point_index in matched_points {
                 mapping[point_index] += 1;
@@ -620,24 +652,21 @@ fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_convex_edges(inputs: &[Value]) -> ComponentResult {
     let metrics = coerce_shape_metrics(inputs.get(0), "Convex Edges")?;
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
 
     let mut convex = Vec::new();
     let mut concave = Vec::new();
     let mut mixed = Vec::new();
 
-    for edge in edges {
-        let direction = edge_direction(&edge);
-        let value = Value::CurveLine {
-            p1: edge.start,
-            p2: edge.end,
-        };
-        if direction[2] >= 0.0 {
-            convex.push(value);
-        } else if direction[2] <= 0.0 {
-            concave.push(value);
-        } else {
-            mixed.push(value);
+    for edge in brep.edges {
+        let value = edge.to_value();
+        match edge.face_count() {
+            0 => mixed.push(value),
+            1 => concave.push(value),
+            _ => convex.push(value),
         }
     }
 
@@ -754,17 +783,18 @@ fn evaluate_edges_by_length(inputs: &[Value], component: &str) -> ComponentResul
     let min_length = coerce_number(inputs.get(1), &(component.to_owned() + " minimum"))?.abs();
     let max_length = coerce_number(inputs.get(2), &(component.to_owned() + " maximum"))?.abs();
 
-    let edges = create_wireframe(&metrics);
+    let mut brep = collect_brep_data(inputs.get(0));
+    if brep.edges.is_empty() {
+        brep = BrepData::from_metrics(&metrics);
+    }
+
     let mut selected = Vec::new();
     let mut indices = Vec::new();
 
-    for (index, edge) in edges.iter().enumerate() {
-        let length = edge_length(edge);
+    for (index, edge) in brep.edges.iter().enumerate() {
+        let length = edge.length();
         if length >= min_length && length <= max_length.max(min_length) {
-            selected.push(Value::CurveLine {
-                p1: edge.start,
-                p2: edge.end,
-            });
+            selected.push(edge.to_value());
             indices.push(Value::Number(index as f64));
         }
     }
@@ -783,10 +813,113 @@ fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Edge {
+#[derive(Debug, Clone)]
+struct Face {
+    vertices: Vec<[f64; 3]>,
+}
+
+impl Face {
+    fn centroid(&self) -> [f64; 3] {
+        if self.vertices.is_empty() {
+            return [0.0, 0.0, 0.0];
+        }
+        let mut sum = [0.0, 0.0, 0.0];
+        for vertex in &self.vertices {
+            sum[0] += vertex[0];
+            sum[1] += vertex[1];
+            sum[2] += vertex[2];
+        }
+        let scale = 1.0 / self.vertices.len() as f64;
+        [sum[0] * scale, sum[1] * scale, sum[2] * scale]
+    }
+}
+
+#[derive(Debug, Clone)]
+struct EdgeData {
     start: [f64; 3],
     end: [f64; 3],
+    faces: Vec<usize>,
+}
+
+impl EdgeData {
+    fn new(start: [f64; 3], end: [f64; 3]) -> Self {
+        Self {
+            start,
+            end,
+            faces: Vec::new(),
+        }
+    }
+
+    fn to_value(&self) -> Value {
+        Value::CurveLine {
+            p1: self.start,
+            p2: self.end,
+        }
+    }
+
+    fn face_count(&self) -> usize {
+        self.faces.len()
+    }
+
+    fn add_face(&mut self, face: usize) {
+        if !self.faces.contains(&face) {
+            self.faces.push(face);
+        }
+    }
+
+    fn vector(&self) -> [f64; 3] {
+        [
+            self.end[0] - self.start[0],
+            self.end[1] - self.start[1],
+            self.end[2] - self.start[2],
+        ]
+    }
+
+    fn length(&self) -> f64 {
+        distance(&self.start, &self.end)
+    }
+
+    fn matches(&self, start: [f64; 3], end: [f64; 3]) -> bool {
+        (nearly_equal_points(&self.start, &start) && nearly_equal_points(&self.end, &end))
+            || (nearly_equal_points(&self.start, &end) && nearly_equal_points(&self.end, &start))
+    }
+
+    fn touches_point(&self, point: &[f64; 3], tolerance: f64) -> bool {
+        distance(&self.start, point) <= tolerance || distance(&self.end, point) <= tolerance
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct BrepData {
+    faces: Vec<Face>,
+    edges: Vec<EdgeData>,
+}
+
+impl BrepData {
+    fn add_edge(&mut self, start: [f64; 3], end: [f64; 3], face: Option<usize>) {
+        if nearly_equal_points(&start, &end) {
+            return;
+        }
+        if let Some(existing) = self.edges.iter_mut().find(|edge| edge.matches(start, end)) {
+            if let Some(face_index) = face {
+                existing.add_face(face_index);
+            }
+            return;
+        }
+
+        let mut edge = EdgeData::new(start, end);
+        if let Some(face_index) = face {
+            edge.add_face(face_index);
+        }
+        self.edges.push(edge);
+    }
+
+    fn from_metrics(metrics: &ShapeMetrics) -> Self {
+        Self {
+            faces: Vec::new(),
+            edges: create_box_edges(metrics),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -859,7 +992,7 @@ fn create_surface_from_bounds(min: [f64; 3], max: [f64; 3]) -> Value {
     Value::Surface { vertices, faces }
 }
 
-fn create_wireframe(metrics: &ShapeMetrics) -> Vec<Edge> {
+fn create_box_edges(metrics: &ShapeMetrics) -> Vec<EdgeData> {
     let corners = create_box_corners(metrics);
     let pairs = [
         (0, 1),
@@ -877,10 +1010,7 @@ fn create_wireframe(metrics: &ShapeMetrics) -> Vec<Edge> {
     ];
     pairs
         .iter()
-        .map(|(a, b)| Edge {
-            start: corners[*a],
-            end: corners[*b],
-        })
+        .map(|(a, b)| EdgeData::new(corners[*a], corners[*b]))
         .collect()
 }
 
@@ -894,6 +1024,48 @@ fn create_box_corners(metrics: &ShapeMetrics) -> Vec<[f64; 3]> {
         }
     }
     corners
+}
+
+fn collect_brep_data(value: Option<&Value>) -> BrepData {
+    let mut data = BrepData::default();
+    collect_brep_data_recursive(value, &mut data);
+    data
+}
+
+fn collect_brep_data_recursive(value: Option<&Value>, data: &mut BrepData) {
+    match value {
+        Some(Value::Surface { vertices, faces }) => {
+            for face_indices in faces {
+                let mut face_vertices = Vec::new();
+                for &index in face_indices {
+                    if let Some(vertex) = vertices.get(index as usize) {
+                        face_vertices.push(*vertex);
+                    }
+                }
+                if face_vertices.len() < 2 {
+                    continue;
+                }
+                let face_index = data.faces.len();
+                data.faces.push(Face {
+                    vertices: face_vertices.clone(),
+                });
+                for segment in 0..face_vertices.len() {
+                    let start = face_vertices[segment];
+                    let end = face_vertices[(segment + 1) % face_vertices.len()];
+                    data.add_edge(start, end, Some(face_index));
+                }
+            }
+        }
+        Some(Value::CurveLine { p1, p2 }) => {
+            data.add_edge(*p1, *p2, None);
+        }
+        Some(Value::List(values)) => {
+            for value in values {
+                collect_brep_data_recursive(Some(value), data);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
@@ -1048,18 +1220,6 @@ fn parse_directions(value: Option<&Value>) -> Vec<[f64; 3]> {
     }
 }
 
-fn edge_direction(edge: &Edge) -> [f64; 3] {
-    [
-        edge.end[0] - edge.start[0],
-        edge.end[1] - edge.start[1],
-        edge.end[2] - edge.start[2],
-    ]
-}
-
-fn edge_length(edge: &Edge) -> f64 {
-    distance(&edge.start, &edge.end)
-}
-
 fn normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
     if length < EPSILON {
@@ -1070,6 +1230,12 @@ fn normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
             length,
         ))
     }
+}
+
+fn nearly_equal_points(a: &[f64; 3], b: &[f64; 3]) -> bool {
+    (a[0] - b[0]).abs() <= EPSILON
+        && (a[1] - b[1]).abs() <= EPSILON
+        && (a[2] - b[2]).abs() <= EPSILON
 }
 
 fn distance(a: &[f64; 3], b: &[f64; 3]) -> f64 {
@@ -1177,6 +1343,103 @@ mod tests {
             .and_then(|value| value.expect_list().ok())
             .unwrap();
         assert_eq!(mapping.len(), edges.len());
+    }
+
+    #[test]
+    fn closed_edges_classifies_naked_edges() {
+        let component = ComponentKind::ClosedEdges;
+        let outputs = component
+            .evaluate(&[cube_brep(), Value::Boolean(true)], &MetaMap::new())
+            .expect("closed edges");
+        let closed = outputs
+            .get(super::PIN_OUTPUT_CLOSED)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        let open = outputs
+            .get(super::PIN_OUTPUT_OPEN)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert!(!open.is_empty());
+        assert!(closed.len() < open.len());
+        let closed_indices = outputs
+            .get(super::PIN_OUTPUT_CLOSED_INDICES)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert_eq!(closed.len(), closed_indices.len());
+    }
+
+    #[test]
+    fn edges_from_faces_uses_face_centroids() {
+        let component = ComponentKind::EdgesFromFaces;
+        let face_point = Value::Point([2.0 / 3.0, 1.0 / 3.0, 0.0]);
+        let outputs = component
+            .evaluate(
+                &[cube_brep(), Value::List(vec![face_point])],
+                &MetaMap::new(),
+            )
+            .expect("edges from faces");
+        let edges = outputs
+            .get(super::PIN_OUTPUT_BREPS)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert!(!edges.is_empty());
+        assert!(
+            edges
+                .iter()
+                .all(|edge| matches!(edge, Value::CurveLine { .. }))
+        );
+        let indices = outputs
+            .get(super::PIN_OUTPUT_INDICES)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert_eq!(edges.len(), indices.len());
+    }
+
+    #[test]
+    fn edges_from_points_counts_matches() {
+        let component = ComponentKind::EdgesFromPoints;
+        let point = Value::Point([0.0, 0.0, 0.0]);
+        let outputs = component
+            .evaluate(
+                &[cube_brep(), Value::List(vec![point]), Value::Number(1.0)],
+                &MetaMap::new(),
+            )
+            .expect("edges from points");
+        let mapping = outputs
+            .get(super::PIN_OUTPUT_MAP)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert_eq!(mapping.len(), 1);
+        let count = mapping[0]
+            .expect_number()
+            .expect("mapping count is numeric");
+        assert!(count >= 1.0);
+    }
+
+    #[test]
+    fn edges_from_length_filters_by_range() {
+        let component = ComponentKind::EdgesFromLength;
+        let outputs = component
+            .evaluate(
+                &[cube_brep(), Value::Number(1.0), Value::Number(1.1)],
+                &MetaMap::new(),
+            )
+            .expect("edges from length");
+        let edges = outputs
+            .get(super::PIN_OUTPUT_BREPS)
+            .and_then(|value| value.expect_list().ok())
+            .unwrap();
+        assert!(!edges.is_empty());
+        for edge in edges {
+            let Value::CurveLine { p1, p2 } = edge else {
+                panic!("expected curve line");
+            };
+            let length =
+                ((p1[0] - p2[0]).powi(2) + (p1[1] - p2[1]).powi(2) + (p1[2] - p2[2]).powi(2))
+                    .sqrt();
+            assert!(length >= 1.0 - 1e-9);
+            assert!(length <= 1.1 + 1e-9);
+        }
     }
 
     #[test]
