@@ -344,7 +344,8 @@ fn coerce_expression(value: &Value) -> Option<String> {
         Value::Number(number) => Some(number.to_string()),
         Value::Boolean(boolean) => Some(boolean.to_string()),
         Value::List(values) => values.iter().find_map(coerce_expression),
-        Value::Matrix(_)
+        Value::Null
+        | Value::Matrix(_)
         | Value::Domain(_)
         | Value::Point(_)
         | Value::Vector(_)
