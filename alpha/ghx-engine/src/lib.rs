@@ -326,6 +326,9 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
         Value::DateTime(_) => None,
         Value::Complex(_) => None,
         Value::Tag(_) => None,
+        Value::Color(_) => None,
+        Value::Material(_) => None,
+        Value::Symbol(_) => None,
     }
 }
 
