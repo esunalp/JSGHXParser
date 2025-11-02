@@ -157,7 +157,20 @@ Markeer de taak als deze gedaan is.
 [x] 24. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_affine.json staan beschreven.
 [x] 25. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_euclidean.json staan beschreven.
 [x] 26. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_array.json staan beschreven.
-[ ] 27. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_util.json staan beschreven.
+[x] 27. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_util.json staan beschreven.
 [x] 28. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_complex.json staan beschreven.
 [x] 29. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_scalar.json staan beschreven.
 [x] 30. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_display_preview.json staan beschreven.
+[ ] 31. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_list.json staan beschreven.
+[ ] 32. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_sequence.json staan beschreven.
+[ ] 33. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_sets.json staan beschreven.
+[ ] 34. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_text.json staan beschreven.
+[ ] 35. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_tree.json staan beschreven.
+[ ] 36. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_primitive.json staan beschreven.
+[ ] 37. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_analysis.json staan beschreven.
+[ ] 38. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_triangulation.json staan beschreven.
+[ ] 39. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_util.json staan beschreven.
+[ ] 40. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_params_geometry.json staan beschreven.
+[ ] 41. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_params_primitive.json staan beschreven.
+[ ] 42. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_params_input.json staan beschreven.
+[ ] 43. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_params_util.json staan beschreven.
