@@ -30,6 +30,7 @@ pub mod sets_list;
 pub mod sets_sequence;
 pub mod sets_sets;
 pub mod sets_text;
+pub mod sets_tree;
 pub mod surface_analysis;
 pub mod surface_freeform;
 pub mod surface_primitive;
@@ -127,6 +128,7 @@ pub enum ComponentKind {
     SetsSequence(sets_sequence::ComponentKind),
     SetsSets(sets_sets::ComponentKind),
     SetsText(sets_text::ComponentKind),
+    SetsTree(sets_tree::ComponentKind),
     DisplayPreview(display_preview::ComponentKind),
 }
 
@@ -172,6 +174,7 @@ impl ComponentKind {
             Self::SetsSequence(component) => component.evaluate(inputs, meta),
             Self::SetsSets(component) => component.evaluate(inputs, meta),
             Self::SetsText(component) => sets_text::ComponentKind::evaluate(component, inputs, meta),
+            Self::SetsTree(component) => sets_tree::ComponentKind::evaluate(*component, inputs, meta),
             Self::DisplayPreview(component) => component.evaluate(inputs, meta),
         }
     }
@@ -217,6 +220,7 @@ impl ComponentKind {
             Self::SetsSequence(component) => component.name(),
             Self::SetsSets(component) => component.name(),
             Self::SetsText(component) => sets_text::ComponentKind::name(component),
+            Self::SetsTree(component) => sets_tree::ComponentKind::name(*component),
             Self::DisplayPreview(component) => component.name(),
         }
     }
@@ -526,6 +530,14 @@ impl Default for ComponentRegistry {
 
         for registration in sets_text::REGISTRATIONS {
             let kind = ComponentKind::SetsText(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in sets_tree::REGISTRATIONS {
+            let kind = ComponentKind::SetsTree(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
