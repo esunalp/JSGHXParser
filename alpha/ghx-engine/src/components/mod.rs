@@ -40,6 +40,7 @@ pub mod vector_grid;
 pub mod vector_plane;
 pub mod vector_point;
 pub mod vector_vector;
+pub mod display_preview;
 
 /// Output-map van een component: pinnickname → waarde.
 pub type OutputMap = std::collections::BTreeMap<String, Value>;
@@ -117,6 +118,7 @@ pub enum ComponentKind {
     VectorField(vector_field::ComponentKind),
     Complex(complex::ComponentKind),
     Scalar(scalar::ComponentKind),
+    DisplayPreview(display_preview::ComponentKind),
 }
 
 impl ComponentKind {
@@ -157,6 +159,7 @@ impl ComponentKind {
             Self::VectorField(component) => component.evaluate(inputs, meta),
             Self::Complex(component) => component.evaluate(inputs, meta),
             Self::Scalar(component) => component.evaluate(inputs, meta),
+            Self::DisplayPreview(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -197,6 +200,7 @@ impl ComponentKind {
             Self::VectorField(component) => component.name(),
             Self::Complex(component) => component.name(),
             Self::Scalar(component) => component.name(),
+            Self::DisplayPreview(component) => component.name(),
         }
     }
 }
@@ -457,6 +461,14 @@ impl Default for ComponentRegistry {
 
         for registration in scalar::REGISTRATIONS {
             let kind = ComponentKind::Scalar(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in display_preview::REGISTRATIONS {
+            let kind = ComponentKind::DisplayPreview(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }

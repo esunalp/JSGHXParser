@@ -352,6 +352,9 @@ fn coerce_expression(value: &Value) -> Option<String> {
         | Value::Surface { .. }
         | Value::DateTime(_)
         | Value::Complex(_)
+        | Value::Color(_)
+        | Value::Material(_)
+        | Value::Symbol(_)
         | Value::Tag(_) => None,
     }
 }

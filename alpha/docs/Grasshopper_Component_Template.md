@@ -160,4 +160,4 @@ Markeer de taak als deze gedaan is.
 [ ] 27. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_util.json staan beschreven.
 [x] 28. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_complex.json staan beschreven.
 [x] 29. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_scalar.json staan beschreven.
-[ ] 30. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_display_preview.json staan beschreven.
+[x] 30. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_display_preview.json staan beschreven.

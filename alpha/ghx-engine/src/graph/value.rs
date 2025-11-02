@@ -41,6 +41,12 @@ pub enum Value {
     Text(String),
     /// Een tekstlabel met oriëntatie en optionele kleur.
     Tag(TextTagValue),
+    /// Een RGB-kleurwaarde.
+    Color(ColorValue),
+    /// Een weergavemateriaal.
+    Material(MaterialValue),
+    /// Een weergavesymbool.
+    Symbol(SymbolValue),
 }
 
 impl Value {
@@ -61,6 +67,9 @@ impl Value {
             Self::List(_) => ValueKind::List,
             Self::Text(_) => ValueKind::Text,
             Self::Tag(_) => ValueKind::Tag,
+            Self::Color(_) => ValueKind::Color,
+            Self::Material(_) => ValueKind::Material,
+            Self::Symbol(_) => ValueKind::Symbol,
         }
     }
 
@@ -215,6 +224,9 @@ pub enum ValueKind {
     DateTime,
     Text,
     Tag,
+    Color,
+    Material,
+    Symbol,
 }
 
 impl fmt::Display for ValueKind {
@@ -233,9 +245,35 @@ impl fmt::Display for ValueKind {
             Self::List => "List",
             Self::Text => "Text",
             Self::Tag => "Tag",
+            Self::Color => "Color",
+            Self::Material => "Material",
+            Self::Symbol => "Symbol",
         };
         f.write_str(name)
     }
+}
+
+/// Beschrijving van een weergavemateriaal.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MaterialValue {
+    pub diffuse: ColorValue,
+    pub specular: ColorValue,
+    pub emission: ColorValue,
+    pub transparency: f64,
+    pub shine: f64,
+}
+
+/// Beschrijving van een weergavesymbool.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SymbolValue {
+    pub style: String,
+    pub size_primary: f64,
+    pub size_secondary: Option<f64>,
+    pub rotation: f64,
+    pub fill: ColorValue,
+    pub edge: Option<ColorValue>,
+    pub width: f64,
+    pub adjust: bool,
 }
 
 /// Beschrijving van een vlak in de ruimte.

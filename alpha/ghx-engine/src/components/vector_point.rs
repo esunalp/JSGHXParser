@@ -1240,6 +1240,9 @@ fn parse_color_value(value: &Value) -> Option<ColorValue> {
         | Value::Matrix(_)
         | Value::DateTime(_)
         | Value::Complex(_)
+        | Value::Color(_)
+        | Value::Material(_)
+        | Value::Symbol(_)
         | Value::Tag(_) => None,
     }
 }
@@ -1425,6 +1428,9 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
         | Value::Matrix(_)
         | Value::DateTime(_)
         | Value::Complex(_)
+        | Value::Color(_)
+        | Value::Material(_)
+        | Value::Symbol(_)
         | Value::Tag(_) => {
             // Geen maskinformatie aanwezig.
         }
