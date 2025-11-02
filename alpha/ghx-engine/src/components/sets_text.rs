@@ -340,6 +340,16 @@ impl Component for FormatComponent {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+struct TextOnSurfaceComponent;
+impl Component for TextOnSurfaceComponent {
+    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        Err(ComponentError::new(
+            "Component 'Text On Surface' is not yet implemented.",
+        ))
+    }
+}
+
 // --- Registration ---
 
 #[derive(Debug, Clone, Copy)]
@@ -357,6 +367,7 @@ pub enum ComponentKind {
     SortText,
     MatchText,
     Format,
+    TextOnSurface,
 }
 
 impl Component for ComponentKind {
@@ -375,6 +386,7 @@ impl Component for ComponentKind {
             Self::SortText => SortTextComponent.evaluate(inputs, meta),
             Self::MatchText => MatchTextComponent.evaluate(inputs, meta),
             Self::Format => FormatComponent.evaluate(inputs, meta),
+            Self::TextOnSurface => TextOnSurfaceComponent.evaluate(inputs, meta),
         }
     }
 }
@@ -395,6 +407,7 @@ impl ComponentKind {
             Self::SortText => "Sort Text",
             Self::MatchText => "Match Text",
             Self::Format => "Format",
+            Self::TextOnSurface => "Text On Surface",
         }
     }
 }
@@ -407,7 +420,10 @@ pub struct Registration {
 
 pub const REGISTRATIONS: &[Registration] = &[
     Registration {
-        guids: &["01cbd6e3-ccbe-4c24-baeb-46e10553e18b"],
+        guids: &[
+            "01cbd6e3-ccbe-4c24-baeb-46e10553e18b",
+            "2013e425-8713-42e2-a661-b57e78840337",
+        ],
         names: &["Concatenate", "Concat"],
         kind: ComponentKind::Concatenate,
     },
@@ -437,7 +453,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::Characters,
     },
     Registration {
-        guids: &["b1991128-8bf1-4dea-8497-4b7188a64e9d"],
+        guids: &[
+            "b1991128-8bf1-4dea-8497-4b7188a64e9d",
+            "bdd2a14a-1302-4152-a484-7198716d1a11",
+        ],
         names: &["Text Case", "Case"],
         kind: ComponentKind::TextCase,
     },
@@ -457,7 +476,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::TextDistance,
     },
     Registration {
-        guids: &["1ff80a00-1b1d-4fb3-926a-0c246261fc55"],
+        guids: &[
+            "1ff80a00-1b1d-4fb3-926a-0c246261fc55",
+            "cec16c67-7b8b-41f7-a5a5-f675177e524b",
+        ],
         names: &["Sort Text", "TSort"],
         kind: ComponentKind::SortText,
     },
@@ -467,9 +489,17 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::MatchText,
     },
     Registration {
-        guids: &["758d91a0-4aec-47f8-9671-16739a8a2c5d"],
+        guids: &[
+            "758d91a0-4aec-47f8-9671-16739a8a2c5d",
+            "c8203c3c-6bcd-4f8c-a906-befd92ebf0cb",
+        ],
         names: &["Format"],
         kind: ComponentKind::Format,
+    },
+    Registration {
+        guids: &["28504f1f-a8d9-40c8-b8aa-529413456258"],
+        names: &["Text On Surface", "TextSrf"],
+        kind: ComponentKind::TextOnSurface,
     },
 ];
 
