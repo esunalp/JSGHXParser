@@ -512,6 +512,14 @@ impl Default for ComponentRegistry {
             registry.register_names(registration.names, kind);
         }
 
+        for registration in sets_sets::REGISTRATIONS {
+            let kind = ComponentKind::SetsSets(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
         registry
     }
 }
