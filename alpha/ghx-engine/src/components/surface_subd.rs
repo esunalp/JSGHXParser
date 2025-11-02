@@ -334,6 +334,7 @@ fn evaluate_from_mesh(inputs: &[Value]) -> ComponentResult {
     let mut subd = coerce_mesh_as_subd(inputs.get(0), "SubD from Mesh")?;
     let crease = coerce_boolean(inputs.get(1), false, "SubD from Mesh creases")?;
     let corners = coerce_boolean(inputs.get(2), false, "SubD from Mesh corners")?;
+    let interpolate = coerce_boolean(inputs.get(3), false, "SubD from Mesh interpolatie")?;
     if crease {
         let ids: Vec<_> = subd
             .edges
@@ -346,6 +347,9 @@ fn evaluate_from_mesh(inputs: &[Value]) -> ComponentResult {
     if corners {
         let ids: Vec<_> = subd.boundary_vertices();
         subd.apply_vertex_tag(&ids, VertexTag::new("corner"));
+    }
+    if interpolate {
+        subd.smooth(1);
     }
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_SUBD.to_owned(), subd.to_value());
@@ -374,8 +378,13 @@ fn evaluate_vertex_tags(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_mesh_from_subd(inputs: &[Value]) -> ComponentResult {
     let subd = coerce_subd(inputs.get(0), "Mesh from SubD")?;
+    let density = coerce_number(inputs.get(1), "Mesh from SubD dichtheid")?.max(1.0);
+    let steps = density.round().clamp(1.0, 5.0) as usize;
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_MESH.to_owned(), subd.to_surface());
+    outputs.insert(
+        PIN_OUTPUT_MESH.to_owned(),
+        subd.to_surface_with_density(steps),
+    );
     Ok(outputs)
 }
 
@@ -675,6 +684,53 @@ impl Subd {
             .filter(|face| face.vertices.len() >= 3)
             .map(|face| face.vertices.iter().map(|index| *index as u32).collect())
             .collect();
+        Value::Surface { vertices, faces }
+    }
+
+    fn to_surface_with_density(&self, density: usize) -> Value {
+        if density <= 1 {
+            return self.to_surface();
+        }
+        let mut clone = self.clone();
+        let steps = density.saturating_sub(1);
+        if steps > 0 {
+            clone.smooth(steps);
+        }
+        clone.rebuild_topology();
+        let mut vertices: Vec<[f64; 3]> =
+            clone.vertices.iter().map(|vertex| vertex.point).collect();
+        let mut faces: Vec<Vec<u32>> = Vec::new();
+        for face in &clone.faces {
+            if face.vertices.len() < 3 {
+                continue;
+            }
+            let mut centroid = [0.0, 0.0, 0.0];
+            let mut count = 0usize;
+            for id in &face.vertices {
+                if let Some(vertex) = clone.vertex(*id) {
+                    centroid[0] += vertex.point[0];
+                    centroid[1] += vertex.point[1];
+                    centroid[2] += vertex.point[2];
+                    count += 1;
+                }
+            }
+            if count < 3 {
+                continue;
+            }
+            centroid[0] /= count as f64;
+            centroid[1] /= count as f64;
+            centroid[2] /= count as f64;
+            let centroid_index = vertices.len();
+            vertices.push(centroid);
+            for index in 0..face.vertices.len() {
+                let a = face.vertices[index] as u32;
+                let b = face.vertices[(index + 1) % face.vertices.len()] as u32;
+                faces.push(vec![a, b, centroid_index as u32]);
+            }
+        }
+        if faces.is_empty() {
+            return clone.to_surface();
+        }
         Value::Surface { vertices, faces }
     }
 
@@ -1217,8 +1273,10 @@ fn list_to_point(values: &[Value]) -> Option<[f64; 3]> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, ComponentKind, PIN_OUTPUT_FACE_COUNTS, PIN_OUTPUT_SUBD};
-    use super::{PIN_OUTPUT_VERTEX_TAGS, Subd};
+    use super::{
+        Component, ComponentKind, Subd, PIN_OUTPUT_FACE_COUNTS, PIN_OUTPUT_MESH, PIN_OUTPUT_SUBD,
+        PIN_OUTPUT_VERTEX_TAGS,
+    };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
@@ -1261,12 +1319,10 @@ mod tests {
             )
             .unwrap();
         let updated = Subd::from_value(outputs.get(PIN_OUTPUT_SUBD).unwrap()).unwrap();
-        assert!(
-            updated
-                .edges
-                .iter()
-                .any(|edge| edge.id == 0 && edge.tag.to_string() == "crease")
-        );
+        assert!(updated
+            .edges
+            .iter()
+            .any(|edge| edge.id == 0 && edge.tag.to_string() == "crease"));
     }
 
     #[test]
@@ -1290,11 +1346,9 @@ mod tests {
         let Value::List(entries) = counts else {
             panic!("verwachte lijst");
         };
-        assert!(
-            entries.iter().all(
-                |value| matches!(value, Value::Number(number) if (*number - 4.0).abs() < 1e-6)
-            )
-        );
+        assert!(entries
+            .iter()
+            .all(|value| matches!(value, Value::Number(number) if (*number - 4.0).abs() < 1e-6)));
     }
 
     #[test]
@@ -1319,5 +1373,78 @@ mod tests {
             panic!("verwachte taglijst");
         };
         assert_eq!(entries.len(), 8);
+    }
+
+    #[test]
+    fn mesh_from_subd_respecteert_dichtheid() {
+        let base = ComponentKind::Box
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([1.0, 1.0, 1.0]),
+                ])],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        let subd_value = base.get(PIN_OUTPUT_SUBD).unwrap().clone();
+        let density_one = ComponentKind::MeshFromSubd
+            .evaluate(&[subd_value.clone(), Value::Number(1.0)], &MetaMap::new())
+            .unwrap();
+        let density_two = ComponentKind::MeshFromSubd
+            .evaluate(&[subd_value, Value::Number(2.0)], &MetaMap::new())
+            .unwrap();
+        let Value::Surface {
+            faces: faces_one, ..
+        } = density_one.get(PIN_OUTPUT_MESH).unwrap()
+        else {
+            panic!("verwachte mesh");
+        };
+        let Value::Surface {
+            faces: faces_two, ..
+        } = density_two.get(PIN_OUTPUT_MESH).unwrap()
+        else {
+            panic!("verwachte mesh");
+        };
+        assert_eq!(faces_one.len(), 6);
+        assert!(faces_two.len() > faces_one.len());
+    }
+
+    #[test]
+    fn from_mesh_interpolate_voegt_smoothing_toe() {
+        let mesh = Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [2.0, 2.0, 0.0],
+                [0.0, 2.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]],
+        };
+        let zonder_interpolatie = ComponentKind::FromMesh
+            .evaluate(
+                &[
+                    mesh.clone(),
+                    Value::Boolean(false),
+                    Value::Boolean(false),
+                    Value::Boolean(false),
+                ],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        let met_interpolatie = ComponentKind::FromMesh
+            .evaluate(
+                &[
+                    mesh,
+                    Value::Boolean(false),
+                    Value::Boolean(false),
+                    Value::Boolean(true),
+                ],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        let subd_zonder =
+            Subd::from_value(zonder_interpolatie.get(PIN_OUTPUT_SUBD).unwrap()).unwrap();
+        let subd_met = Subd::from_value(met_interpolatie.get(PIN_OUTPUT_SUBD).unwrap()).unwrap();
+        assert_ne!(subd_zonder.vertices[0].point, subd_met.vertices[0].point);
     }
 }
