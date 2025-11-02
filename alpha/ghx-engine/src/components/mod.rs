@@ -25,6 +25,7 @@ pub mod maths_time;
 pub mod maths_trig;
 pub mod maths_util;
 pub mod number_slider;
+pub mod scalar;
 pub mod surface_analysis;
 pub mod surface_freeform;
 pub mod surface_primitive;
@@ -115,6 +116,7 @@ pub enum ComponentKind {
     VectorGrid(vector_grid::ComponentKind),
     VectorField(vector_field::ComponentKind),
     Complex(complex::ComponentKind),
+    Scalar(scalar::ComponentKind),
 }
 
 impl ComponentKind {
@@ -154,6 +156,7 @@ impl ComponentKind {
             Self::VectorGrid(component) => component.evaluate(inputs, meta),
             Self::VectorField(component) => component.evaluate(inputs, meta),
             Self::Complex(component) => component.evaluate(inputs, meta),
+            Self::Scalar(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -193,6 +196,7 @@ impl ComponentKind {
             Self::VectorGrid(component) => component.name(),
             Self::VectorField(component) => component.name(),
             Self::Complex(component) => component.name(),
+            Self::Scalar(component) => component.name(),
         }
     }
 }
@@ -445,6 +449,14 @@ impl Default for ComponentRegistry {
 
         for registration in complex::REGISTRATIONS {
             let kind = ComponentKind::Complex(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in scalar::REGISTRATIONS {
+            let kind = ComponentKind::Scalar(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
