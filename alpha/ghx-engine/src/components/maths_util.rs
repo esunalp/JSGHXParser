@@ -411,10 +411,10 @@ fn evaluate_complex_components(inputs: &[Value]) -> ComponentResult {
     ensure_input_count(inputs, 1, "Complex Components")?;
     let complex = coerce_complex(&inputs[0], "Complex Components")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_REAL.to_owned(), Value::Number(complex.real()));
+    outputs.insert(PIN_OUTPUT_REAL.to_owned(), Value::Number(complex.re));
     outputs.insert(
         PIN_OUTPUT_IMAGINARY.to_owned(),
-        Value::Number(complex.imaginary()),
+        Value::Number(complex.im),
     );
     Ok(outputs)
 }
@@ -425,7 +425,7 @@ fn evaluate_complex_conjugate(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_COMPLEX.to_owned(),
-        Value::Complex(complex.conjugate()),
+        Value::Complex(complex.conj()),
     );
     Ok(outputs)
 }
@@ -436,7 +436,7 @@ fn evaluate_complex_modulus(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_MODULUS.to_owned(),
-        Value::Number(complex.modulus()),
+        Value::Number(complex.norm()),
     );
     Ok(outputs)
 }
@@ -447,7 +447,7 @@ fn evaluate_complex_argument(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_ARGUMENT.to_owned(),
-        Value::Number(complex.argument()),
+        Value::Number(complex.arg()),
     );
     Ok(outputs)
 }

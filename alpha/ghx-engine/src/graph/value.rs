@@ -3,7 +3,11 @@
 
 use core::fmt;
 
+use num_complex::Complex;
 use time::PrimitiveDateTime;
+
+/// Een complex getal, aliased van `num_complex::Complex`.
+pub type ComplexValue = Complex<f64>;
 
 /// Beschikbare waardetypes binnen de evaluator.
 #[derive(Debug, Clone, PartialEq)]
@@ -154,51 +158,6 @@ impl Value {
             Self::Tag(tag) => Ok(tag),
             _ => Err(ValueError::type_mismatch("Tag", self.kind())),
         }
-    }
-}
-
-/// Een complex getal bestaande uit een reëel en imaginair deel.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ComplexValue {
-    real: f64,
-    imag: f64,
-}
-
-impl ComplexValue {
-    /// Maakt een nieuw complex getal aan.
-    #[must_use]
-    pub fn new(real: f64, imag: f64) -> Self {
-        Self { real, imag }
-    }
-
-    /// Geeft het reële deel terug.
-    #[must_use]
-    pub fn real(self) -> f64 {
-        self.real
-    }
-
-    /// Geeft het imaginaire deel terug.
-    #[must_use]
-    pub fn imaginary(self) -> f64 {
-        self.imag
-    }
-
-    /// Berekent het complex-conjugaat.
-    #[must_use]
-    pub fn conjugate(self) -> Self {
-        Self::new(self.real, -self.imag)
-    }
-
-    /// Geeft de modulus (lengte) van het complex getal terug.
-    #[must_use]
-    pub fn modulus(self) -> f64 {
-        self.real.hypot(self.imag)
-    }
-
-    /// Geeft het argument (hoek) van het complex getal terug.
-    #[must_use]
-    pub fn argument(self) -> f64 {
-        self.imag.atan2(self.real)
     }
 }
 
@@ -460,6 +419,7 @@ pub enum Domain {
 #[cfg(test)]
 mod tests {
     use super::{ComplexValue, DateTimeValue, Value, ValueError, ValueKind};
+    use num_complex::Complex;
     use time::macros::datetime;
 
     #[test]
@@ -493,18 +453,15 @@ mod tests {
     #[test]
     fn expect_complex_accepts_complex() {
         let value = Value::Complex(ComplexValue::new(2.0, -3.5));
-        assert_eq!(
-            value.expect_complex().unwrap(),
-            ComplexValue::new(2.0, -3.5)
-        );
+        assert_eq!(value.expect_complex().unwrap(), Complex::new(2.0, -3.5));
     }
 
     #[test]
     fn complex_helpers_compute_properties() {
         let complex = ComplexValue::new(3.0, 4.0);
-        assert_eq!(complex.modulus(), 5.0);
-        assert_eq!(complex.conjugate(), ComplexValue::new(3.0, -4.0));
-        assert!((complex.argument() - (4.0f64).atan2(3.0)).abs() < 1e-12);
+        assert_eq!(complex.norm(), 5.0);
+        assert_eq!(complex.conj(), Complex::new(3.0, -4.0));
+        assert!((complex.arg() - (4.0f64).atan2(3.0)).abs() < 1e-12);
     }
 
     #[test]

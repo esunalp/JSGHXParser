@@ -7,6 +7,7 @@ use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
 pub mod add;
+pub mod complex;
 pub mod construct_point;
 pub mod curve_analysis;
 pub mod curve_division;
@@ -113,6 +114,7 @@ pub enum ComponentKind {
     VectorPlane(vector_plane::ComponentKind),
     VectorGrid(vector_grid::ComponentKind),
     VectorField(vector_field::ComponentKind),
+    Complex(complex::ComponentKind),
 }
 
 impl ComponentKind {
@@ -151,6 +153,7 @@ impl ComponentKind {
             Self::VectorPlane(component) => component.evaluate(inputs, meta),
             Self::VectorGrid(component) => component.evaluate(inputs, meta),
             Self::VectorField(component) => component.evaluate(inputs, meta),
+            Self::Complex(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -189,6 +192,7 @@ impl ComponentKind {
             Self::VectorPlane(component) => component.name(),
             Self::VectorGrid(component) => component.name(),
             Self::VectorField(component) => component.name(),
+            Self::Complex(component) => component.name(),
         }
     }
 }
@@ -211,7 +215,7 @@ impl Default for ComponentRegistry {
         let add = ComponentKind::Add(add::ComponentImpl);
         registry.register_guid("{a0d62394-a118-422d-abb3-6af115c75b25}", add);
         registry.register_guid("{d18db32b-7099-4eea-85c4-8ba675ee8ec3}", add);
-        registry.register_names(&["Addition", "Add", "A+B"], add);
+        registry.register_names(&["Add", "A+B"], add);
 
         let construct_point = ComponentKind::ConstructPoint(construct_point::ComponentImpl);
         registry.register_guid("{3581f42a-9592-4549-bd6b-1c0fc39d067b}", construct_point);
@@ -439,6 +443,14 @@ impl Default for ComponentRegistry {
             registry.register_names(registration.names, kind);
         }
 
+        for registration in complex::REGISTRATIONS {
+            let kind = ComponentKind::Complex(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
         registry
     }
 }
@@ -517,7 +529,7 @@ mod tests {
             .unwrap();
         assert!(matches!(component, ComponentKind::NumberSlider(_)));
 
-        let by_name = registry.resolve(None, Some("addition"), None).unwrap();
+        let by_name = registry.resolve(None, Some("Add"), None).unwrap();
         assert!(matches!(by_name, ComponentKind::Add(_)));
 
         let by_nickname = registry.resolve(None, None, Some("extr")).unwrap();
