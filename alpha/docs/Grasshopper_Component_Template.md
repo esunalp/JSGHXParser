@@ -156,7 +156,7 @@ Markeer de taak als deze gedaan is.
 [x] 23. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_surface_subd.json staan beschreven.
 [x] 24. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_affine.json staan beschreven.
 [x] 25. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_euclidean.json staan beschreven.
-[ ] 26. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_array.json staan beschreven.
+[x] 26. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_array.json staan beschreven.
 [ ] 27. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_transform_util.json staan beschreven.
 [ ] 28. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_complex.json staan beschreven.
 [ ] 29. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_scalar.json staan beschreven.
