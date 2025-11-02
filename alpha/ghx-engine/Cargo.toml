@@ -12,6 +12,9 @@ console_error_panic_hook = ["dep:console_error_panic_hook"]
 debug_logs = []
 
 [dependencies]
+wildmatch = "2.2.1"
+regex = "1.10.5"
+levenshtein = "1.0"
 wasm-bindgen = "0.2"
 cfg-if = "1.0"
 console_error_panic_hook = { version = "0.1", optional = true }
