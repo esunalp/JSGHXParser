@@ -32,6 +32,7 @@ pub mod surface_util;
 pub mod transform_affine;
 pub mod transform_array;
 pub mod transform_euclidean;
+pub mod transform_util;
 pub mod vector_field;
 pub mod vector_grid;
 pub mod vector_plane;
@@ -106,6 +107,7 @@ pub enum ComponentKind {
     TransformAffine(transform_affine::ComponentKind),
     TransformArray(transform_array::ComponentKind),
     TransformEuclidean(transform_euclidean::ComponentKind),
+    TransformUtil(transform_util::ComponentKind),
     VectorVector(vector_vector::ComponentKind),
     VectorPoint(vector_point::ComponentKind),
     VectorPlane(vector_plane::ComponentKind),
@@ -143,6 +145,7 @@ impl ComponentKind {
             Self::TransformAffine(component) => component.evaluate(inputs, meta),
             Self::TransformArray(component) => component.evaluate(inputs, meta),
             Self::TransformEuclidean(component) => component.evaluate(inputs, meta),
+            Self::TransformUtil(component) => component.evaluate(inputs, meta),
             Self::VectorVector(component) => component.evaluate(inputs, meta),
             Self::VectorPoint(component) => component.evaluate(inputs, meta),
             Self::VectorPlane(component) => component.evaluate(inputs, meta),
@@ -180,6 +183,7 @@ impl ComponentKind {
             Self::TransformAffine(component) => component.name(),
             Self::TransformArray(component) => component.name(),
             Self::TransformEuclidean(component) => component.name(),
+            Self::TransformUtil(component) => component.name(),
             Self::VectorVector(component) => component.name(),
             Self::VectorPoint(component) => component.name(),
             Self::VectorPlane(component) => component.name(),
@@ -381,6 +385,14 @@ impl Default for ComponentRegistry {
 
         for registration in transform_euclidean::REGISTRATIONS {
             let kind = ComponentKind::TransformEuclidean(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in transform_util::REGISTRATIONS {
+            let kind = ComponentKind::TransformUtil(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
