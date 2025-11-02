@@ -28,6 +28,7 @@ pub mod number_slider;
 pub mod scalar;
 pub mod sets_list;
 pub mod sets_sequence;
+pub mod sets_sets;
 pub mod surface_analysis;
 pub mod surface_freeform;
 pub mod surface_primitive;
@@ -123,6 +124,7 @@ pub enum ComponentKind {
     Scalar(scalar::ComponentKind),
     SetsList(sets_list::ComponentKind),
     SetsSequence(sets_sequence::ComponentKind),
+    SetsSets(sets_sets::ComponentKind),
     DisplayPreview(display_preview::ComponentKind),
 }
 
@@ -166,6 +168,7 @@ impl ComponentKind {
             Self::Scalar(component) => component.evaluate(inputs, meta),
             Self::SetsList(component) => component.evaluate(inputs, meta),
             Self::SetsSequence(component) => component.evaluate(inputs, meta),
+            Self::SetsSets(component) => component.evaluate(inputs, meta),
             Self::DisplayPreview(component) => component.evaluate(inputs, meta),
         }
     }
@@ -209,6 +212,7 @@ impl ComponentKind {
             Self::Scalar(component) => component.name(),
             Self::SetsList(component) => component.name(),
             Self::SetsSequence(component) => component.name(),
+            Self::SetsSets(component) => component.name(),
             Self::DisplayPreview(component) => component.name(),
         }
     }
@@ -498,6 +502,14 @@ impl Default for ComponentRegistry {
                 registry.register_guid(guid, kind);
             }
             registry.register_names(registration.names(), kind);
+        }
+
+        for registration in sets_sets::REGISTRATIONS {
+            let kind = ComponentKind::SetsSets(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
         }
 
         registry
