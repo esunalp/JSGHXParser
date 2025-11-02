@@ -28,6 +28,7 @@ pub mod surface_analysis;
 pub mod surface_freeform;
 pub mod surface_primitive;
 pub mod surface_util;
+pub mod transform_affine;
 pub mod vector_field;
 pub mod vector_grid;
 pub mod vector_plane;
@@ -98,6 +99,7 @@ pub enum ComponentKind {
     SurfaceFreeform(surface_freeform::ComponentKind),
     SurfaceAnalysis(surface_analysis::ComponentKind),
     SurfaceUtil(surface_util::ComponentKind),
+    TransformAffine(transform_affine::ComponentKind),
     VectorVector(vector_vector::ComponentKind),
     VectorPoint(vector_point::ComponentKind),
     VectorPlane(vector_plane::ComponentKind),
@@ -131,6 +133,7 @@ impl ComponentKind {
             Self::SurfaceFreeform(component) => component.evaluate(inputs, meta),
             Self::SurfaceAnalysis(component) => component.evaluate(inputs, meta),
             Self::SurfaceUtil(component) => component.evaluate(inputs, meta),
+            Self::TransformAffine(component) => component.evaluate(inputs, meta),
             Self::VectorVector(component) => component.evaluate(inputs, meta),
             Self::VectorPoint(component) => component.evaluate(inputs, meta),
             Self::VectorPlane(component) => component.evaluate(inputs, meta),
@@ -164,6 +167,7 @@ impl ComponentKind {
             Self::SurfaceFreeform(component) => component.name(),
             Self::SurfaceAnalysis(component) => component.name(),
             Self::SurfaceUtil(component) => component.name(),
+            Self::TransformAffine(component) => component.name(),
             Self::VectorVector(component) => component.name(),
             Self::VectorPoint(component) => component.name(),
             Self::VectorPlane(component) => component.name(),
@@ -334,6 +338,14 @@ impl Default for ComponentRegistry {
         }
         for registration in surface_util::REGISTRATIONS {
             let kind = ComponentKind::SurfaceUtil(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in transform_affine::REGISTRATIONS {
+            let kind = ComponentKind::TransformAffine(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
