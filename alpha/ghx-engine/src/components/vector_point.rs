@@ -1234,7 +1234,8 @@ fn parse_color_value(value: &Value) -> Option<ColorValue> {
             }
         }
         Value::Text(text) => parse_color_text(text),
-        Value::CurveLine { .. }
+        Value::Null
+        | Value::CurveLine { .. }
         | Value::Surface { .. }
         | Value::Domain(_)
         | Value::Matrix(_)
@@ -1418,7 +1419,8 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
                 }
             }
         }
-        Value::Number(_)
+        Value::Null
+        | Value::Number(_)
         | Value::Boolean(_)
         | Value::Point(_)
         | Value::Vector(_)

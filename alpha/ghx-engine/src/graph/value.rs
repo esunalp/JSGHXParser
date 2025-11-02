@@ -2,6 +2,7 @@
 //! opgeslagen.
 
 use core::fmt;
+use std::cmp::Ordering;
 
 use num_complex::Complex;
 use time::PrimitiveDateTime;
@@ -12,6 +13,8 @@ pub type ComplexValue = Complex<f64>;
 /// Beschikbare waardetypes binnen de evaluator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// Een null-waarde, vergelijkbaar met `null` in andere talen.
+    Null,
     /// Een enkele numerieke waarde.
     Number(f64),
     /// Een booleaanse waarde.
@@ -49,11 +52,25 @@ pub enum Value {
     Symbol(SymbolValue),
 }
 
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Value::Number(a), Value::Number(b)) => a.partial_cmp(b),
+            (Value::Boolean(a), Value::Boolean(b)) => a.partial_cmp(b),
+            (Value::DateTime(a), Value::DateTime(b)) => a.primitive().partial_cmp(&b.primitive()),
+            (Value::Text(a), Value::Text(b)) => a.partial_cmp(b),
+            (Value::Null, Value::Null) => Some(Ordering::Equal),
+            _ => None,
+        }
+    }
+}
+
 impl Value {
     /// Geeft de variantnaam terug. Wordt gebruikt in foutmeldingen.
     #[must_use]
     pub fn kind(&self) -> ValueKind {
         match self {
+            Self::Null => ValueKind::Null,
             Self::Number(_) => ValueKind::Number,
             Self::Boolean(_) => ValueKind::Boolean,
             Self::Complex(_) => ValueKind::Complex,
@@ -211,6 +228,7 @@ impl std::error::Error for ValueError {}
 /// Beschrijft het soort `Value`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ValueKind {
+    Null,
     Number,
     Boolean,
     Point,
@@ -232,6 +250,7 @@ pub enum ValueKind {
 impl fmt::Display for ValueKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
+            Self::Null => "Null",
             Self::Number => "Number",
             Self::Boolean => "Boolean",
             Self::Point => "Point",
