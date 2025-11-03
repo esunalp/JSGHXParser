@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
-use crate::components::coerce::{coerce_to_i64, coerce_to_string, coerce_to_boolean};
+use crate::components::coerce::{coerce_integer, coerce_text, coerce_boolean};
 use wildmatch::WildMatch;
 
 use super::{Component, ComponentError, ComponentResult};
@@ -133,8 +133,8 @@ impl Tree {
     ) -> Result<Self, ComponentError> {
         let mut new_branches = self.branches.clone();
         for (search, replace) in search_masks.iter().zip(replace_paths.iter()) {
-            let search_mask = coerce_to_string(search)?;
-            let replace_path_str = coerce_to_string(replace)?;
+            let search_mask = coerce_text(search)?;
+            let replace_path_str = coerce_text(replace)?;
 
             let search_mask = search_mask.trim_matches(|c| c == '{' || c == '}');
             let replace_path = parse_path(&replace_path_str)?;
@@ -612,9 +612,9 @@ impl Component for CleanTreeComponent {
             ));
         }
 
-        let remove_nulls = coerce_to_boolean(&inputs[0]).unwrap_or(true);
-        let remove_invalid = coerce_to_boolean(&inputs[1]).unwrap_or(true);
-        let remove_empty = coerce_to_boolean(&inputs[2]).unwrap_or(true);
+        let remove_nulls = coerce_boolean(&inputs[0]).unwrap_or(true);
+        let remove_invalid = coerce_boolean(&inputs[1]).unwrap_or(true);
+        let remove_empty = coerce_boolean(&inputs[2]).unwrap_or(true);
         let tree = &inputs[3];
 
         let cleaned_tree = clean_tree(tree, remove_nulls, remove_invalid, remove_empty);
@@ -710,7 +710,7 @@ impl Component for TrimTreeComponent {
             return Err(ComponentError::new("Trim Tree component requires two inputs."));
         }
         let tree = Tree::from(&inputs[0]);
-        let depth = coerce_to_i64(&inputs[1])? as usize;
+        let depth = coerce_integer(&inputs[1])? as usize;
 
         let mut new_branches = BTreeMap::new();
         for (path, values) in tree.branches {
@@ -736,8 +736,8 @@ impl Component for PathCompareComponent {
         if inputs.len() < 2 {
             return Err(ComponentError::new("Path Compare component requires two inputs."));
         }
-        let path_str = coerce_to_string(&inputs[0])?;
-        let mask = coerce_to_string(&inputs[1])?;
+        let path_str = coerce_text(&inputs[0])?;
+        let mask = coerce_text(&inputs[1])?;
 
         let path_str = path_str.trim_matches(|c| c == '{' || c == '}');
         let mask = mask.trim_matches(|c| c == '{' || c == '}');
@@ -761,8 +761,8 @@ impl Component for RelativeItemsComponent {
         }
         let tree_a = Tree::from(&inputs[0]);
         let tree_b = if inputs.len() > 3 { Tree::from(&inputs[1]) } else { tree_a.clone_tree() };
-        let offset = coerce_to_i64(if inputs.len() > 3 { &inputs[2] } else { &inputs[1] })?;
-        let wrap = if inputs.len() > 3 { coerce_to_boolean(&inputs[3])? } else { false };
+        let offset = coerce_integer(if inputs.len() > 3 { &inputs[2] } else { &inputs[1] })?;
+        let wrap = if inputs.len() > 3 { coerce_boolean(&inputs[3])? } else { false };
         let mut outputs = BTreeMap::new();
         let mut result_a = BTreeMap::new();
         let mut result_b = BTreeMap::new();
@@ -814,7 +814,7 @@ impl Component for ShiftPathsComponent {
             return Err(ComponentError::new("Shift Paths component requires two inputs."));
         }
         let tree = Tree::from(&inputs[0]);
-        let offset = coerce_to_i64(&inputs[1])? as isize;
+        let offset = coerce_integer(&inputs[1])? as isize;
 
         let shifted_tree = tree.shift_paths(offset);
 
@@ -833,7 +833,7 @@ impl Component for TreeBranchComponent {
             return Err(ComponentError::new("Tree Branch component requires two inputs."));
         }
         let tree = Tree::from(&inputs[0]);
-        let path_str = coerce_to_string(&inputs[1])?;
+        let path_str = coerce_text(&inputs[1])?;
         let path = parse_path(&path_str)?;
 
         let mut outputs = BTreeMap::new();
@@ -854,7 +854,7 @@ impl Component for StreamFilterComponent {
         if inputs.len() < 2 {
             return Err(ComponentError::new("Stream Filter component requires at least two inputs."));
         }
-        let gate = coerce_to_i64(&inputs[0])? as usize;
+        let gate = coerce_integer(&inputs[0])? as usize;
         if gate < inputs.len() - 1 {
             let mut outputs = BTreeMap::new();
             outputs.insert("S".to_string(), inputs[gate + 1].clone());
@@ -909,7 +909,7 @@ impl Component for StreamGateComponent {
         if inputs.len() < 2 {
             return Err(ComponentError::new("Stream Gate component requires at least two inputs."));
         }
-        let gate = coerce_to_i64(&inputs[0])? as usize;
+        let gate = coerce_integer(&inputs[0])? as usize;
         let mut outputs = BTreeMap::new();
 
         for i in 1..inputs.len() {
@@ -967,7 +967,7 @@ impl Component for ConstructPathComponent {
 
         let path = indices
             .iter()
-            .map(|v| coerce_to_i64(v).map(|i| i.to_string()))
+            .map(|v| coerce_integer(v).map(|i| i.to_string()))
             .collect::<Result<Vec<_>, _>>()?
             .join(";");
 
@@ -1122,11 +1122,11 @@ impl Component for TreeItemComponent {
         }
 
         let tree = Tree::from(&inputs[0]);
-        let path_str = coerce_to_string(&inputs[1])?;
+        let path_str = coerce_text(&inputs[1])?;
         let path = parse_path(&path_str)?;
-        let index = coerce_to_i64(&inputs[2])?;
+        let index = coerce_integer(&inputs[2])?;
         let wrap = if inputs.len() > 3 {
-            coerce_to_boolean(&inputs[3])?
+            coerce_boolean(&inputs[3])?
         } else {
             false
         };
@@ -1180,7 +1180,7 @@ impl Component for SplitTreeComponent {
         }
 
         let tree = Tree::from(&inputs[0]);
-        let mask = coerce_to_string(&inputs[1])?;
+        let mask = coerce_text(&inputs[1])?;
 
         let (matching_tree, non_matching_tree) = tree.split_tree(&mask);
 
@@ -1202,7 +1202,7 @@ impl Component for DeconstructPathComponent {
             ));
         }
 
-        let path_str = coerce_to_string(&inputs[0])?;
+        let path_str = coerce_text(&inputs[0])?;
         let path = parse_path(&path_str)?;
 
         let segments: Vec<Value> = path
@@ -1266,7 +1266,7 @@ impl Component for PruneTreeComponent {
         }
 
         let tree = Tree::from(&inputs[0]);
-        let n = coerce_to_i64(&inputs[1])?;
+        let n = coerce_integer(&inputs[1])?;
 
         let pruned_tree = tree.prune(n);
         let result_value = pruned_tree.to_value();

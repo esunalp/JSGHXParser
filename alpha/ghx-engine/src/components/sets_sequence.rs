@@ -6,8 +6,7 @@ use crate::graph::value::{Domain, Value};
 use rand::seq::SliceRandom;
 use rand::Rng;
 
-use super::coerce::{coerce_to_boolean, coerce_to_f64, coerce_to_i64};
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce::{coerce_boolean, coerce_number, coerce_integer}, Component, ComponentError, ComponentResult};
 
 pub const REGISTRATIONS: &[Registration] = &[
     Registration {
@@ -179,7 +178,7 @@ impl Component for Range {
             Value::Domain(Domain::One(domain)) => domain,
             _ => return Err(ComponentError::new("Expected a 1D domain")),
         };
-        let steps = coerce_to_i64(&inputs[1])? as usize;
+        let steps = coerce_integer(&inputs[1])? as usize;
         let mut numbers = Vec::with_capacity(steps + 1);
         let step_size = (domain.end - domain.start) / steps as f64;
         for i in 0..=steps {
@@ -198,9 +197,9 @@ impl Component for Series {
         if inputs.len() < 3 {
             return Err(ComponentError::new("Expected 3 inputs"));
         }
-        let start = coerce_to_f64(&inputs[0])?;
-        let step = coerce_to_f64(&inputs[1])?;
-        let count = coerce_to_i64(&inputs[2])? as usize;
+        let start = coerce_number(&inputs[0])?;
+        let step = coerce_number(&inputs[1])?;
+        let count = coerce_integer(&inputs[2])? as usize;
         let mut numbers = Vec::with_capacity(count);
         for i in 0..count {
             numbers.push(Value::Number(start + i as f64 * step));
@@ -218,9 +217,9 @@ impl Component for Fibonacci {
         if inputs.len() < 3 {
             return Err(ComponentError::new("Expected 3 inputs"));
         }
-        let a = coerce_to_f64(&inputs[0])?;
-        let b = coerce_to_f64(&inputs[1])?;
-        let n = coerce_to_i64(&inputs[2])? as usize;
+        let a = coerce_number(&inputs[0])?;
+        let b = coerce_number(&inputs[1])?;
+        let n = coerce_integer(&inputs[2])? as usize;
 
         let mut sequence = Vec::with_capacity(n);
         if n >= 1 {
@@ -265,7 +264,7 @@ impl Component for CullPattern {
             return Err(ComponentError::new("Pattern cannot be empty"));
         }
 
-        let bool_pattern: Vec<bool> = pattern.iter().map(coerce_to_boolean).collect::<Result<_, _>>()?;
+        let bool_pattern: Vec<bool> = pattern.iter().map(coerce_boolean).collect::<Result<_, _>>()?;
 
         let culled_list: Vec<Value> = list
             .iter()
@@ -291,7 +290,7 @@ impl Component for CullIndex {
                     _ => return Err(ComponentError::new("Input L must be a list.")),
                 };
                 let indices = match &inputs[1] {
-                    Value::List(i) => i.iter().map(coerce_to_i64).collect::<Result<Vec<_>, _>>()?,
+                    Value::List(i) => i.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
                     _ => return Err(ComponentError::new("Input I must be a list.")),
                 };
                 (list, indices, false)
@@ -302,10 +301,10 @@ impl Component for CullIndex {
                     _ => return Err(ComponentError::new("Input L must be a list.")),
                 };
                 let indices = match &inputs[1] {
-                    Value::List(i) => i.iter().map(coerce_to_i64).collect::<Result<Vec<_>, _>>()?,
+                    Value::List(i) => i.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
                     _ => return Err(ComponentError::new("Input I must be a list.")),
                 };
-                let wrap = coerce_to_boolean(&inputs[2])?;
+                let wrap = coerce_boolean(&inputs[2])?;
                 (list, indices, wrap)
             }
             _ => return Err(ComponentError::new("Expected 2 or 3 inputs.")),
@@ -357,7 +356,7 @@ impl Component for CullNth {
             _ => return Err(ComponentError::new("Input L must be a list.")),
         };
 
-        let n = coerce_to_i64(&inputs[1])? as usize;
+        let n = coerce_integer(&inputs[1])? as usize;
 
         if n == 0 {
             return Err(ComponentError::new("N cannot be zero."));
@@ -390,8 +389,8 @@ impl Component for Random {
                     Value::Domain(Domain::One(d)) => d,
                     _ => return Err(ComponentError::new("Input R must be a 1D domain.")),
                 };
-                let number = coerce_to_i64(&inputs[1])? as usize;
-                let seed = coerce_to_i64(&inputs[2])?;
+                let number = coerce_integer(&inputs[1])? as usize;
+                let seed = coerce_integer(&inputs[2])?;
                 (range.clone(), number, seed, false)
             }
             4 => {
@@ -399,9 +398,9 @@ impl Component for Random {
                     Value::Domain(Domain::One(d)) => d,
                     _ => return Err(ComponentError::new("Input R must be a 1D domain.")),
                 };
-                let number = coerce_to_i64(&inputs[1])? as usize;
-                let seed = coerce_to_i64(&inputs[2])?;
-                let integers = coerce_to_boolean(&inputs[3])?;
+                let number = coerce_integer(&inputs[1])? as usize;
+                let seed = coerce_integer(&inputs[2])?;
+                let integers = coerce_boolean(&inputs[3])?;
                 (range.clone(), number, seed, integers)
             }
             _ => return Err(ComponentError::new("Expected 3 or 4 inputs.")),
@@ -438,8 +437,8 @@ impl Component for RandomReduce {
             Value::List(l) => l,
             _ => return Err(ComponentError::new("Input L must be a list.")),
         };
-        let reduction = coerce_to_i64(&inputs[1])? as usize;
-        let seed = coerce_to_i64(&inputs[2])?;
+        let reduction = coerce_integer(&inputs[1])? as usize;
+        let seed = coerce_integer(&inputs[2])?;
 
         if reduction >= list.len() {
             let mut outputs = BTreeMap::new();
@@ -478,7 +477,7 @@ impl Component for StackData {
             _ => return Err(ComponentError::new("Input D must be a list.")),
         };
         let stack = match &inputs[1] {
-            Value::List(s) => s.iter().map(coerce_to_i64).collect::<Result<Vec<_>, _>>()?,
+            Value::List(s) => s.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
             _ => return Err(ComponentError::new("Input S must be a list.")),
         };
 
@@ -506,7 +505,7 @@ impl Component for RepeatData {
             Value::List(d) => d,
             _ => return Err(ComponentError::new("Input D must be a list.")),
         };
-        let length = coerce_to_i64(&inputs[1])? as usize;
+        let length = coerce_integer(&inputs[1])? as usize;
 
         if data.is_empty() {
             let mut outputs = BTreeMap::new();
@@ -533,9 +532,9 @@ impl Component for DuplicateData {
             Value::List(d) => d,
             _ => return Err(ComponentError::new("Input D must be a list.")),
         };
-        let number = coerce_to_i64(&inputs[1])? as usize;
+        let number = coerce_integer(&inputs[1])? as usize;
         let order = if inputs.len() > 2 {
-            coerce_to_boolean(&inputs[2])?
+            coerce_boolean(&inputs[2])?
         } else {
             false
         };
@@ -570,8 +569,8 @@ impl Component for Jitter {
             Value::List(l) => l,
             _ => return Err(ComponentError::new("Input L must be a list.")),
         };
-        let jitter = coerce_to_f64(&inputs[1])?;
-        let seed = coerce_to_i64(&inputs[2])?;
+        let jitter = coerce_number(&inputs[1])?;
+        let seed = coerce_integer(&inputs[2])?;
 
         let mut rng: rand::prelude::StdRng = rand::SeedableRng::seed_from_u64(seed as u64);
         let mut shuffled_list = list.clone();
