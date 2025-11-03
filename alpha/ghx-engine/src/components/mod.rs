@@ -19,6 +19,7 @@ pub mod line;
 pub mod maths_domain;
 pub mod maths_matrix;
 pub mod maths_operators;
+pub mod mesh_analysis;
 pub mod mesh_primitive;
 pub mod maths_polynomials;
 pub mod maths_script;
@@ -132,6 +133,7 @@ pub enum ComponentKind {
     SetsTree(sets_tree::ComponentKind),
     DisplayPreview(display_preview::ComponentKind),
     MeshPrimitive(mesh_primitive::ComponentKind),
+    MeshAnalysis(mesh_analysis::ComponentKind),
 }
 
 impl ComponentKind {
@@ -179,6 +181,7 @@ impl ComponentKind {
             Self::SetsTree(component) => sets_tree::ComponentKind::evaluate(*component, inputs, meta),
             Self::DisplayPreview(component) => component.evaluate(inputs, meta),
             Self::MeshPrimitive(component) => component.evaluate(inputs, meta),
+            Self::MeshAnalysis(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -226,6 +229,7 @@ impl ComponentKind {
             Self::SetsTree(component) => sets_tree::ComponentKind::name(*component),
             Self::DisplayPreview(component) => component.name(),
             Self::MeshPrimitive(component) => component.name(),
+            Self::MeshAnalysis(component) => component.name(),
         }
     }
 }
@@ -550,6 +554,14 @@ impl Default for ComponentRegistry {
 
         for registration in mesh_primitive::REGISTRATIONS {
             let kind = ComponentKind::MeshPrimitive(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in mesh_analysis::REGISTRATIONS {
+            let kind = ComponentKind::MeshAnalysis(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }

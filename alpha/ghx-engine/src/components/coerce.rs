@@ -4,6 +4,11 @@ use crate::graph::value::Value;
 
 use super::ComponentError;
 
+pub struct Surface<'a> {
+    pub vertices: &'a Vec<[f64; 3]>,
+    pub faces: &'a Vec<Vec<u32>>,
+}
+
 pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
     match value {
         Value::Number(n) => Ok(*n),
@@ -59,6 +64,17 @@ pub fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
         Value::List(l) if l.len() == 1 => coerce_point(&l[0]),
         other => Err(ComponentError::new(format!(
             "Verwachtte een punt, kreeg {}",
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_surface<'a>(value: &'a Value) -> Result<Surface<'a>, ComponentError> {
+    match value {
+        Value::Surface { vertices, faces } => Ok(Surface { vertices, faces }),
+        Value::List(l) if l.len() == 1 => coerce_surface(&l[0]),
+        other => Err(ComponentError::new(format!(
+            "Verwachtte een surface, kreeg {}",
             other.kind()
         ))),
     }
