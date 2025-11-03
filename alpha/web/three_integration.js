@@ -30,6 +30,13 @@ const DEFAULT_CAMERA_TARGET = new THREE.Vector3(0, 0, 0);
 const TEMP_BOX = new THREE.Box3();
 const TEMP_SPHERE = new THREE.Sphere();
 
+const ENABLE_DOUBLE_SIDED_MESHES = false;
+const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.FrontSide;
+
+const AXES_LENGTH_MM = 5000;
+const MAX_DRAW_DISTANCE_MM = 100000;
+
+
 function isWebGPUAvailable() {
   if (typeof navigator === 'undefined') {
     return false;
