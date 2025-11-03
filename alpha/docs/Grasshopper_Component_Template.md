@@ -167,6 +167,7 @@ Markeer de taak als deze gedaan is.
 [x] 34. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_text.json staan beschreven.
 [x] 35. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_sets_tree.json staan beschreven.
 [ ] 36. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_primitive.json staan beschreven.
+    *Note: `Mesh Colours` en `Mesh Spray` zijn geblokkeerd totdat `Value::Surface` kleurgegevens kan opslaan.*
 [ ] 37. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_analysis.json staan beschreven.
 [ ] 38. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_triangulation.json staan beschreven.
 [ ] 39. Implementeer volledig de GHX-engine componenten die in /nodelist/jsghxparser_nodelist_mesh_util.json staan beschreven.

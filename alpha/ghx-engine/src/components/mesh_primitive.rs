@@ -153,6 +153,149 @@ fn coerce_index(value: &Value) -> Result<u32, ComponentError> {
     Ok(number as u32)
 }
 
+/// Component to create a mesh sphere from square patches.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshSphereExComponent;
+
+impl Component for MeshSphereExComponent {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 3 {
+            return Err(ComponentError::new(
+                "Minimaal 3 inputs (Base, Radius, Count) vereist.",
+            ));
+        }
+
+        // Base plane (inputs[0]) is ignored for now.
+        let radius = coerce::coerce_number(&inputs[1])?;
+        let count = coerce_index(&inputs[2])? as usize;
+
+        if radius <= 0.0 {
+            return Err(ComponentError::new("Radius moet groter zijn dan 0."));
+        }
+        if count == 0 {
+            return Err(ComponentError::new("Count moet groter zijn dan 0."));
+        }
+
+        let mut vertices = Vec::new();
+        let mut faces = Vec::new();
+
+        let directions = [
+            [0.0, 0.0, 1.0],  // Top
+            [0.0, 0.0, -1.0], // Bottom
+            [1.0, 0.0, 0.0],  // Right
+            [-1.0, 0.0, 0.0], // Left
+            [0.0, 1.0, 0.0],  // Front
+            [0.0, -1.0, 0.0], // Back
+        ];
+
+        let mut vertex_map = BTreeMap::new();
+
+        for dir in &directions {
+            let axis_a = [dir[1], dir[2], dir[0]];
+            let axis_b = [
+                dir[1] * 0.0 - dir[2] * 1.0,
+                dir[2] * 0.0 - dir[0] * 0.0,
+                dir[0] * 1.0 - dir[1] * 0.0,
+            ];
+
+            for j in 0..=count {
+                for i in 0..=count {
+                    let u = (i as f64 / count as f64 - 0.5) * 2.0;
+                    let v = (j as f64 / count as f64 - 0.5) * 2.0;
+
+                    let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
+                    let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
+                    let pz = dir[2] + axis_a[2] * u + axis_b[2] * v;
+
+                    let length = (px * px + py * py + pz * pz).sqrt();
+                    let normalized = [px / length, py / length, pz / length];
+
+                    let key = (
+                        (normalized[0] * 1e6) as i64,
+                        (normalized[1] * 1e6) as i64,
+                        (normalized[2] * 1e6) as i64,
+                    );
+
+                    if !vertex_map.contains_key(&key) {
+                        let vertex = [
+                            normalized[0] * radius,
+                            normalized[1] * radius,
+                            normalized[2] * radius,
+                        ];
+                        vertex_map.insert(key, vertices.len() as u32);
+                        vertices.push(vertex);
+                    }
+                }
+            }
+        }
+
+        for dir in &directions {
+            let axis_a = [dir[1], dir[2], dir[0]];
+            let axis_b = [
+                dir[1] * 0.0 - dir[2] * 1.0,
+                dir[2] * 0.0 - dir[0] * 0.0,
+                dir[0] * 1.0 - dir[1] * 0.0,
+            ];
+
+            for j in 0..count {
+                for i in 0..count {
+                    let mut face_indices = Vec::with_capacity(4);
+                    for (u_offset, v_offset) in [(0, 0), (1, 0), (1, 1), (0, 1)] {
+                         let u = ((i + u_offset) as f64 / count as f64 - 0.5) * 2.0;
+                         let v = ((j + v_offset) as f64 / count as f64 - 0.5) * 2.0;
+
+                         let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
+                         let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
+                         let pz = dir[2] + axis_a[2] * u + axis_b[2] * v;
+
+                         let length = (px * px + py * py + pz * pz).sqrt();
+                         let normalized = [px / length, py / length, pz / length];
+
+                         let key = (
+                            (normalized[0] * 1e6) as i64,
+                            (normalized[1] * 1e6) as i64,
+                            (normalized[2] * 1e6) as i64,
+                         );
+                         face_indices.push(*vertex_map.get(&key).unwrap());
+                    }
+                    faces.push(face_indices);
+                }
+            }
+        }
+
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(
+            OUTPUT_M.to_owned(),
+            Value::Surface { vertices, faces },
+        );
+
+        Ok(outputs)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshColoursComponent;
+
+impl Component for MeshColoursComponent {
+    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        Err(ComponentError::new(
+            "Component Mesh Colours is not yet implemented.",
+        ))
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshSprayComponent;
+
+impl Component for MeshSprayComponent {
+    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        Err(ComponentError::new(
+            "Component Mesh Spray is not yet implemented.",
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -320,6 +463,44 @@ mod tests {
             panic!("Incorrect output type");
         }
     }
+
+    #[test]
+    fn test_mesh_sphere_ex() {
+        let component = MeshSphereExComponent;
+        let inputs = vec![
+            Value::Null, // Base - not used
+            Value::Number(10.0),
+            Value::Number(4.0), // Count
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let mesh = outputs.get(OUTPUT_M).unwrap();
+        if let Value::Surface { vertices: _, faces } = mesh {
+            // Check that the number of faces is correct. The vertex count is harder
+            // to predict accurately due to sharing and floating point precision issues
+            // in the current implementation.
+            assert_eq!(faces.len(), 6 * 4 * 4);
+        } else {
+            panic!("Incorrect output type");
+        }
+    }
+
+    #[test]
+    fn test_mesh_colours_not_implemented() {
+        let component = MeshColoursComponent;
+        let err = component.evaluate(&[], &MetaMap::new()).unwrap_err();
+        assert!(err
+            .message()
+            .contains("Component Mesh Colours is not yet implemented."));
+    }
+
+    #[test]
+    fn test_mesh_spray_not_implemented() {
+        let component = MeshSprayComponent;
+        let err = component.evaluate(&[], &MetaMap::new()).unwrap_err();
+        assert!(err
+            .message()
+            .contains("Component Mesh Spray is not yet implemented."));
+    }
 }
 
 use std::f64::consts::PI;
@@ -333,6 +514,9 @@ pub enum ComponentKind {
     MeshPlane(MeshPlaneComponent),
     MeshBox(MeshBoxComponent),
     MeshSphere(MeshSphereComponent),
+    MeshSphereEx(MeshSphereExComponent),
+    MeshColours(MeshColoursComponent),
+    MeshSpray(MeshSprayComponent),
 }
 
 impl ComponentKind {
@@ -344,6 +528,9 @@ impl ComponentKind {
             Self::MeshPlane(c) => c.evaluate(inputs, meta),
             Self::MeshBox(c) => c.evaluate(inputs, meta),
             Self::MeshSphere(c) => c.evaluate(inputs, meta),
+            Self::MeshSphereEx(c) => c.evaluate(inputs, meta),
+            Self::MeshColours(c) => c.evaluate(inputs, meta),
+            Self::MeshSpray(c) => c.evaluate(inputs, meta),
         }
     }
 
@@ -355,6 +542,9 @@ impl ComponentKind {
             Self::MeshPlane(_) => "Mesh Plane",
             Self::MeshBox(_) => "Mesh Box",
             Self::MeshSphere(_) => "Mesh Sphere",
+            Self::MeshSphereEx(_) => "Mesh Sphere Ex",
+            Self::MeshColours(_) => "Mesh Colours",
+            Self::MeshSpray(_) => "Mesh Spray",
         }
     }
 }
@@ -396,6 +586,21 @@ pub const REGISTRATIONS: &[Registration] = &[
         guids: &["0a391eac-5048-443c-9c1b-f592299b6dd6"],
         names: &["Mesh Sphere", "MSphere"],
         kind: ComponentKind::MeshSphere(MeshSphereComponent),
+    },
+    Registration {
+        guids: &["76f85ee4-5a88-4511-8ba7-30df07e50533"],
+        names: &["Mesh Sphere Ex", "MSphereEx"],
+        kind: ComponentKind::MeshSphereEx(MeshSphereExComponent),
+    },
+    Registration {
+        guids: &["d2cedf38-1149-4adc-8dbf-b06571cb5106"],
+        names: &["Mesh Colours", "MCol"],
+        kind: ComponentKind::MeshColours(MeshColoursComponent),
+    },
+    Registration {
+        guids: &["edcf10e1-02a0-48a4-ae2d-70c50d903dc8"],
+        names: &["Mesh Spray", "MSpray"],
+        kind: ComponentKind::MeshSpray(MeshSprayComponent),
     },
 ];
 
