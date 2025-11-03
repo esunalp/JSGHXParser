@@ -217,7 +217,7 @@ export function createThreeApp(canvas) {
     grid.material.transparent = true;
     grid.material.opacity = 0.35;
   }
-  grid.rotation.x = Math.PI / 2;
+  // grid.rotation.x = Math.PI / 2;
   scene.add(grid);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100000);
