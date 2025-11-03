@@ -80,7 +80,7 @@ enum GeometryItem {
         coordinates: [f64; 3],
     },
     CurveLine {
-        points: [[f64; 3]; 2],
+        points: Vec<[f64; 3]>,
     },
     Surface {
         vertices: Vec<[f64; 3]>,
@@ -314,12 +314,29 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
         Value::Point(point) => Some(GeometryItem::Point {
             coordinates: *point,
         }),
-        Value::CurveLine { p1, p2 } => Some(GeometryItem::CurveLine { points: [*p1, *p2] }),
+        Value::CurveLine { p1, p2 } => Some(GeometryItem::CurveLine {
+            points: vec![*p1, *p2],
+        }),
         Value::Surface { vertices, faces } => Some(GeometryItem::Surface {
             vertices: vertices.clone(),
             faces: faces.clone(),
         }),
-        Value::Null | Value::List(_) | Value::Number(_) | Value::Vector(_) | Value::Boolean(_) => None,
+        Value::List(values) => {
+            let points: Vec<[f64; 3]> = values
+                .iter()
+                .filter_map(|v| match v {
+                    Value::Point(p) => Some(*p),
+                    _ => None,
+                })
+                .collect();
+
+            if points.len() > 1 && points.len() == values.len() {
+                Some(GeometryItem::CurveLine { points })
+            } else {
+                None
+            }
+        }
+        Value::Null | Value::Number(_) | Value::Vector(_) | Value::Boolean(_) => None,
         Value::Domain(_) => None,
         Value::Matrix(_) => None,
         Value::Text(_) => None,
