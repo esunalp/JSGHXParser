@@ -50,6 +50,7 @@ pub mod vector_point;
 pub mod vector_vector;
 pub mod display_preview;
 pub mod params_geometry;
+pub mod params_primitive;
 pub mod coerce;
 
 /// Output-map van een component: pinnickname → waarde.
@@ -145,6 +146,7 @@ pub enum ComponentKind {
     MeshAnalysis(mesh_analysis::ComponentKind),
     MeshTriangulation(mesh_triangulation::ComponentKind),
     ParamsGeometry(params_geometry::ComponentKind),
+    ParamsPrimitive(params_primitive::ComponentKind),
 }
 
 impl ComponentKind {
@@ -195,6 +197,7 @@ impl ComponentKind {
             Self::MeshAnalysis(component) => component.evaluate(inputs, meta),
             Self::MeshTriangulation(component) => component.evaluate(inputs, meta),
             Self::ParamsGeometry(component) => component.evaluate(inputs, meta),
+            Self::ParamsPrimitive(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -245,6 +248,7 @@ impl ComponentKind {
             Self::MeshAnalysis(component) => component.name(),
             Self::MeshTriangulation(component) => component.name(),
             Self::ParamsGeometry(component) => component.name(),
+            Self::ParamsPrimitive(component) => component.name(),
         }
     }
 }
@@ -593,6 +597,14 @@ impl Default for ComponentRegistry {
 
         for registration in mesh_triangulation::REGISTRATIONS {
             let kind = ComponentKind::MeshTriangulation(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in params_primitive::REGISTRATIONS {
+            let kind = ComponentKind::ParamsPrimitive(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
