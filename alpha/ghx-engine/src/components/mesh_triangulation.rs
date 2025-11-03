@@ -203,7 +203,72 @@ placeholder_component!(Proximity2D, "Proximity 2D");
 placeholder_component!(VoronoiCell, "Voronoi Cell");
 placeholder_component!(QuadTree, "QuadTree");
 placeholder_component!(TriRemesh, "TriRemesh");
-placeholder_component!(ConvexHull, "Convex Hull");
+
+const OUTPUT_HULL: &str = "H";
+const OUTPUT_HULL_Z: &str = "Hz";
+const OUTPUT_INDICES: &str = "I";
+
+/// Component for creating a convex hull from a set of points.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ConvexHull;
+
+impl Component for ConvexHull {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let points_value = &inputs[0];
+        let points_list = match points_value {
+            Value::List(list) => list,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+
+        let mut vertices = Vec::with_capacity(points_list.len());
+        let mut delaunator_points = Vec::with_capacity(points_list.len());
+
+        for value in points_list {
+            let point = coerce::coerce_point(value)?;
+            vertices.push(point);
+            delaunator_points.push(delaunator::Point {
+                x: point[0],
+                y: point[1],
+            });
+        }
+
+        if vertices.len() < 3 {
+            return Err(ComponentError::new(
+                "Not enough points for triangulation",
+            ));
+        }
+
+        let triangulation = delaunator::triangulate(&delaunator_points);
+        let hull_indices: Vec<Value> = triangulation
+            .hull
+            .iter()
+            .map(|&i| Value::Number(i as f64))
+            .collect();
+
+        let mut hull_lines = Vec::new();
+        if triangulation.hull.len() > 1 {
+            for i in 0..triangulation.hull.len() {
+                let p1_idx = triangulation.hull[i];
+                let p2_idx = triangulation.hull[(i + 1) % triangulation.hull.len()];
+                hull_lines.push(Value::CurveLine {
+                    p1: vertices[p1_idx],
+                    p2: vertices[p2_idx],
+                });
+            }
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(OUTPUT_HULL.to_owned(), Value::List(hull_lines.clone()));
+        outputs.insert(OUTPUT_HULL_Z.to_owned(), Value::List(hull_lines));
+        outputs.insert(OUTPUT_INDICES.to_owned(), Value::List(hull_indices));
+
+        Ok(outputs)
+    }
+}
 placeholder_component!(VoronoiGroups, "Voronoi Groups");
 placeholder_component!(Voronoi, "Voronoi");
 placeholder_component!(OcTree, "OcTree");
@@ -351,8 +416,9 @@ impl Component for DelaunayMesh {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, DelaunayEdges, DelaunayMesh, FacetDome, QuadRemesh, OUTPUT_CONNECTIVITY,
-        OUTPUT_EDGES, OUTPUT_MESH,
+        Component, ConvexHull, DelaunayEdges, DelaunayMesh, FacetDome, QuadRemesh,
+        OUTPUT_CONNECTIVITY, OUTPUT_EDGES, OUTPUT_HULL, OUTPUT_HULL_Z, OUTPUT_INDICES,
+        OUTPUT_MESH,
     };
     use crate::graph::{node::MetaMap, value::Value};
 
@@ -482,5 +548,66 @@ mod tests {
         } else {
             panic!("Expected a List for Connectivity output");
         }
+    }
+
+    #[test]
+    fn test_convex_hull() {
+        let component = ConvexHull;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+            Value::Point([0.5, 0.5, 0.0]), // Interior point
+        ];
+        let inputs = vec![Value::List(points)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        // Check Hull lines
+        let hull = outputs.get(OUTPUT_HULL).unwrap();
+        if let Value::List(hull_lines) = hull {
+            assert_eq!(hull_lines.len(), 4);
+        } else {
+            panic!("Expected a List for Hull output");
+        }
+
+        // Check Hull(z) lines (should be identical)
+        let hull_z = outputs.get(OUTPUT_HULL_Z).unwrap();
+        if let Value::List(hull_z_lines) = hull_z {
+            assert_eq!(hull_z_lines.len(), 4);
+        } else {
+            panic!("Expected a List for Hull(z) output");
+        }
+
+        // Check Indices
+        let indices = outputs.get(OUTPUT_INDICES).unwrap();
+        if let Value::List(index_list) = indices {
+            assert_eq!(index_list.len(), 4);
+            let mut actual_indices: Vec<usize> = index_list
+                .iter()
+                .map(|v| match v {
+                    Value::Number(n) => *n as usize,
+                    _ => panic!("Expected a number in the index list"),
+                })
+                .collect();
+            actual_indices.sort_unstable();
+            assert_eq!(actual_indices, vec![0, 1, 2, 3]);
+        } else {
+            panic!("Expected a List for Indices output");
+        }
+    }
+
+    #[test]
+    fn test_convex_hull_not_enough_points() {
+        let component = ConvexHull;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+        ];
+        let inputs = vec![Value::List(points)];
+
+        let err = component.evaluate(&inputs, &MetaMap::new()).unwrap_err();
+        assert!(err.message().contains("Not enough points"));
     }
 }
