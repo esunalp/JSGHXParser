@@ -397,7 +397,7 @@ export function createThreeApp(canvas) {
     const safeHalfHorizontal = halfHorizontalFov > 1e-4 ? halfHorizontalFov : 1e-4;
 
     const verticalDistance = radius / Math.tan(safeHalfVertical);
-    const horizontalDistance = radius / Math.tan(safeHorizontalFov);
+    const horizontalDistance = radius / Math.tan(safeHalfHorizontal);
     const distance = Math.max(verticalDistance, horizontalDistance, radius * 1.5, 1);
 
     const newPosition = center.clone().add(direction.multiplyScalar(distance));
