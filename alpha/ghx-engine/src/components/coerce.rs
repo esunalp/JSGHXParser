@@ -16,6 +16,19 @@ pub fn coerce_to_f64(value: &Value) -> Result<f64, ComponentError> {
     }
 }
 
+pub fn coerce_to_string(value: &Value) -> Result<String, ComponentError> {
+    match value {
+        Value::Text(s) => Ok(s.clone()),
+        Value::Number(n) => Ok(n.to_string()),
+        Value::Boolean(b) => Ok(b.to_string()),
+        Value::List(l) if l.len() == 1 => coerce_to_string(&l[0]),
+        other => Err(ComponentError::new(format!(
+            "Verwachtte een tekst, kreeg {}",
+            other.kind()
+        ))),
+    }
+}
+
 pub fn coerce_to_i64(value: &Value) -> Result<i64, ComponentError> {
     match value {
         Value::Number(n) => Ok(n.round() as i64),

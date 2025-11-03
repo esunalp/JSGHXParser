@@ -4,8 +4,305 @@ use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
+use crate::components::coerce::{coerce_to_i64, coerce_to_string, coerce_to_boolean};
+use wildmatch::WildMatch;
 
 use super::{Component, ComponentError, ComponentResult};
+
+#[derive(Debug)]
+struct Tree {
+    branches: BTreeMap<Vec<usize>, Vec<Value>>,
+}
+
+impl From<&Value> for Tree {
+    fn from(value: &Value) -> Self {
+        let mut branches = BTreeMap::new();
+        collect_branches_recursive(value, vec![], &mut branches, true);
+        Self { branches }
+    }
+}
+
+impl Tree {
+    fn to_value(&self) -> Value {
+        build_tree_from_branches(&self.branches)
+    }
+
+    fn shift_paths(self, offset: isize) -> Self {
+        let branches = self
+            .branches
+            .into_iter()
+            .map(|(path, values)| {
+                let new_path = path
+                    .into_iter()
+                    .map(|i| (i as isize + offset).max(0) as usize)
+                    .collect();
+                (new_path, values)
+            })
+            .collect();
+        Self { branches }
+    }
+
+    fn flattened_items(&self) -> Vec<Value> {
+        self.branches.values().flatten().cloned().collect()
+    }
+
+    fn flip_matrix(self) -> Self {
+        let mut new_branches: BTreeMap<Vec<usize>, Vec<Value>> = BTreeMap::new();
+        let mut max_len = 0;
+        let paths: Vec<_> = self.branches.keys().cloned().collect();
+        for (_, branch) in &self.branches {
+            max_len = max_len.max(branch.len());
+        }
+
+        for i in 0..max_len {
+            let mut new_branch = vec![];
+            for path in &paths {
+                new_branch.push(
+                    self.branches
+                        .get(path)
+                        .and_then(|b| b.get(i))
+                        .cloned()
+                        .unwrap_or(Value::Null),
+                );
+            }
+            new_branches.insert(vec![i], new_branch);
+        }
+
+        Self {
+            branches: new_branches,
+        }
+    }
+
+    fn unflatten_with(guide_tree: &Tree, items: &[Value]) -> Self {
+        let mut new_branches = BTreeMap::new();
+        let mut item_index = 0;
+        for (path, guide_branch) in &guide_tree.branches {
+            let mut new_branch = Vec::new();
+            for _ in 0..guide_branch.len() {
+                if item_index < items.len() {
+                    new_branch.push(items[item_index].clone());
+                    item_index += 1;
+                } else {
+                    break;
+                }
+            }
+            if !new_branch.is_empty() {
+                new_branches.insert(path.clone(), new_branch);
+            }
+        }
+        Self {
+            branches: new_branches,
+        }
+    }
+
+    fn replace_paths(
+        &self,
+        search_masks: &[Value],
+        replace_paths: &[Value],
+    ) -> Result<Self, ComponentError> {
+        let mut new_branches = self.branches.clone();
+        for (search, replace) in search_masks.iter().zip(replace_paths.iter()) {
+            let search_mask = coerce_to_string(search)?;
+            let replace_path_str = coerce_to_string(replace)?;
+
+            let search_mask = search_mask.trim_matches(|c| c == '{' || c == '}');
+            let replace_path = parse_path(&replace_path_str)?;
+
+            let wm = WildMatch::new(search_mask);
+            let mut branches_to_replace = vec![];
+
+            for (path, _) in &new_branches {
+                let path_str = path
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(";");
+                if wm.matches(&path_str) {
+                    branches_to_replace.push(path.clone());
+                }
+            }
+
+            for path in branches_to_replace {
+                if let Some(branch) = new_branches.remove(&path) {
+                    new_branches.insert(replace_path.clone(), branch);
+                }
+            }
+        }
+        Ok(Self {
+            branches: new_branches,
+        })
+    }
+
+    fn entwine(inputs: &[Value]) -> Self {
+        let mut new_branches = BTreeMap::new();
+        for (i, input) in inputs.iter().enumerate() {
+            if let Value::List(items) = input {
+                if items.iter().all(|item| !matches!(item, Value::List(_))) {
+                    new_branches.insert(vec![i], items.clone());
+                } else {
+                    let tree = Tree::from(input);
+                    for (path, branch) in tree.branches {
+                        let mut new_path = vec![i];
+                        new_path.extend(path);
+                        new_branches.insert(new_path, branch);
+                    }
+                }
+            } else {
+                new_branches.insert(vec![i], vec![input.clone()]);
+            }
+        }
+        Self {
+            branches: new_branches,
+        }
+    }
+
+    fn split_tree(&self, search_mask: &str) -> (Self, Self) {
+        let mut matching_branches = BTreeMap::new();
+        let mut non_matching_branches = BTreeMap::new();
+
+        let search_mask = search_mask.trim_matches(|c| c == '{' || c == '}');
+        let wm = WildMatch::new(search_mask);
+
+        for (path, branch) in &self.branches {
+            let path_str = path
+                .iter()
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join(";");
+
+            if wm.matches(&path_str) {
+                matching_branches.insert(path.clone(), branch.clone());
+            } else {
+                non_matching_branches.insert(path.clone(), branch.clone());
+            }
+        }
+
+        (
+            Self {
+                branches: matching_branches,
+            },
+            Self {
+                branches: non_matching_branches,
+            },
+        )
+    }
+
+    fn prune(&self, n: i64) -> Self {
+        let branches = self
+            .branches
+            .iter()
+            .filter(|(_, branch)| {
+                let len = branch.len();
+                if n >= 0 {
+                    len <= n as usize
+                } else {
+                    len >= n.abs() as usize
+                }
+            })
+            .map(|(path, branch)| (path.clone(), branch.clone()))
+            .collect();
+        Self { branches }
+    }
+}
+
+fn collect_branches_recursive(
+    value: &Value,
+    path: Vec<usize>,
+    branches: &mut BTreeMap<Vec<usize>, Vec<Value>>,
+    is_root: bool,
+) {
+    if let Value::List(items) = value {
+        if is_root {
+            for (i, item) in items.iter().enumerate() {
+                collect_branches_recursive(item, vec![i], branches, false);
+            }
+        } else if items.iter().all(|item| !matches!(item, Value::List(_))) {
+            branches.insert(path, items.clone());
+        } else {
+            for (i, item) in items.iter().enumerate() {
+                let mut new_path = path.clone();
+                new_path.push(i);
+                collect_branches_recursive(item, new_path, branches, false);
+            }
+        }
+    } else {
+        branches.insert(path, vec![value.clone()]);
+    }
+}
+
+#[derive(Debug)]
+enum TempNode {
+    Branch(Vec<Value>),
+    SubTree(BTreeMap<usize, TempNode>),
+}
+
+fn build_tree_from_branches(branches: &BTreeMap<Vec<usize>, Vec<Value>>) -> Value {
+    if branches.is_empty() {
+        return Value::List(vec![]);
+    }
+
+    let mut root = TempNode::SubTree(BTreeMap::new());
+    for (path, values) in branches {
+        insert_branch(&mut root, path, values.clone());
+    }
+    temp_node_to_value(&root)
+}
+
+fn insert_branch(node: &mut TempNode, path: &[usize], values: Vec<Value>) {
+    if path.is_empty() {
+        *node = TempNode::Branch(values);
+        return;
+    }
+
+    let index = path[0];
+    let rest_of_path = &path[1..];
+
+    if let TempNode::SubTree(map) = node {
+        let child = map.entry(index).or_insert_with(|| {
+            if rest_of_path.is_empty() {
+                TempNode::Branch(vec![])
+            } else {
+                TempNode::SubTree(BTreeMap::new())
+            }
+        });
+        insert_branch(child, rest_of_path, values);
+    }
+}
+
+fn temp_node_to_value(node: &TempNode) -> Value {
+    match node {
+        TempNode::Branch(items) => Value::List(items.clone()),
+        TempNode::SubTree(map) => {
+            if map.is_empty() {
+                return Value::List(vec![]);
+            }
+            let max_index = *map.keys().max().unwrap_or(&0);
+            let mut list = Vec::with_capacity(max_index + 1);
+            for i in 0..=max_index {
+                let value = map
+                    .get(&i)
+                    .map(temp_node_to_value)
+                    .unwrap_or_else(|| Value::List(vec![]));
+                list.push(value);
+            }
+            Value::List(list)
+        }
+    }
+}
+
+fn parse_path(path_str: &str) -> Result<Vec<usize>, ComponentError> {
+    let trimmed = path_str.trim_matches(|c| c == '{' || c == '}');
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    trimmed
+        .split(';')
+        .map(|s| {
+            s.parse::<usize>()
+                .map_err(|_| ComponentError::new(format!("Invalid path segment: {}", s)))
+        })
+        .collect()
+}
 
 pub const REGISTRATIONS: &[Registration] = &[
     Registration::new(
@@ -264,8 +561,6 @@ impl Component for SimplifyTreeComponent {
     }
 }
 
-use super::coerce::{coerce_to_boolean};
-
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CleanTreeComponent;
 
@@ -460,8 +755,31 @@ impl Component for ExplodeTreeComponent {
 pub struct ConstructPathComponent;
 
 impl Component for ConstructPathComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Construct Path component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new(
+                "Construct Path component requires one input.",
+            ));
+        }
+
+        let indices = match &inputs[0] {
+            Value::List(l) => l,
+            _ => {
+                return Err(ComponentError::new(
+                    "Construct Path component requires a list of integers.",
+                ))
+            }
+        };
+
+        let path = indices
+            .iter()
+            .map(|v| coerce_to_i64(v).map(|i| i.to_string()))
+            .collect::<Result<Vec<_>, _>>()?
+            .join(";");
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("B".to_string(), Value::Text(format!("{{{}}}", path)));
+        Ok(outputs)
     }
 }
 
@@ -469,8 +787,41 @@ impl Component for ConstructPathComponent {
 pub struct TreeStatisticsComponent;
 
 impl Component for TreeStatisticsComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Tree Statistics component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new(
+                "Tree Statistics component requires one input.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+
+        let paths: Vec<Value> = tree
+            .branches
+            .keys()
+            .map(|path| {
+                let path_str = path
+                    .iter()
+                    .map(|i| i.to_string())
+                    .collect::<Vec<_>>()
+                    .join(";");
+                Value::Text(format!("{{{}}}", path_str))
+            })
+            .collect();
+
+        let lengths: Vec<Value> = tree
+            .branches
+            .values()
+            .map(|branch| Value::Number(branch.len() as f64))
+            .collect();
+
+        let count = Value::Number(tree.branches.len() as f64);
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("P".to_string(), Value::List(paths));
+        outputs.insert("L".to_string(), Value::List(lengths));
+        outputs.insert("C".to_string(), count);
+        Ok(outputs)
     }
 }
 
@@ -508,8 +859,22 @@ fn flatten_recursive(value: &Value, flattened: &mut Vec<Value>) {
 pub struct UnflattenTreeComponent;
 
 impl Component for UnflattenTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Unflatten Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new(
+                "Unflatten Tree component requires two inputs.",
+            ));
+        }
+
+        let items_to_unflatten = Tree::from(&inputs[0]).flattened_items();
+        let guide_tree = Tree::from(&inputs[1]);
+
+        let result_tree = Tree::unflatten_with(&guide_tree, &items_to_unflatten);
+        let result_value = result_tree.to_value();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), result_value);
+        Ok(outputs)
     }
 }
 
@@ -517,8 +882,37 @@ impl Component for UnflattenTreeComponent {
 pub struct ReplacePathsComponent;
 
 impl Component for ReplacePathsComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Replace Paths component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 3 {
+            return Err(ComponentError::new(
+                "Replace Paths component requires three inputs.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+        let search_masks = match &inputs[1] {
+            Value::List(l) => l,
+            _ => {
+                return Err(ComponentError::new(
+                    "Replace Paths component requires a list of search masks.",
+                ))
+            }
+        };
+        let replace_paths = match &inputs[2] {
+            Value::List(l) => l,
+            _ => {
+                return Err(ComponentError::new(
+                    "Replace Paths component requires a list of replace paths.",
+                ))
+            }
+        };
+
+        let result_tree = tree.replace_paths(search_masks, replace_paths)?;
+        let result_value = result_tree.to_value();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("D".to_string(), result_value);
+        Ok(outputs)
     }
 }
 
@@ -526,8 +920,43 @@ impl Component for ReplacePathsComponent {
 pub struct TreeItemComponent;
 
 impl Component for TreeItemComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Tree Item component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 3 {
+            return Err(ComponentError::new(
+                "Tree Item component requires three inputs.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+        let path_str = coerce_to_string(&inputs[1])?;
+        let path = parse_path(&path_str)?;
+        let index = coerce_to_i64(&inputs[2])?;
+        let wrap = if inputs.len() > 3 {
+            coerce_to_boolean(&inputs[3])?
+        } else {
+            false
+        };
+
+        let mut outputs = BTreeMap::new();
+        if let Some(branch) = tree.branches.get(&path) {
+            if branch.is_empty() {
+                outputs.insert("E".to_string(), Value::Null);
+            } else {
+                let item = if wrap {
+                    let wrapped_index = index.rem_euclid(branch.len() as i64) as usize;
+                    branch[wrapped_index].clone()
+                } else if index >= 0 && (index as usize) < branch.len() {
+                    branch[index as usize].clone()
+                } else {
+                    Value::Null
+                };
+                outputs.insert("E".to_string(), item);
+            }
+        } else {
+            outputs.insert("E".to_string(), Value::Null);
+        }
+
+        Ok(outputs)
     }
 }
 
@@ -535,8 +964,13 @@ impl Component for TreeItemComponent {
 pub struct EntwineComponent;
 
 impl Component for EntwineComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Entwine component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        let result_tree = Tree::entwine(inputs);
+        let result_value = result_tree.to_value();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), result_value);
+        Ok(outputs)
     }
 }
 
@@ -544,8 +978,22 @@ impl Component for EntwineComponent {
 pub struct SplitTreeComponent;
 
 impl Component for SplitTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Split Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new(
+                "Split Tree component requires two inputs.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+        let mask = coerce_to_string(&inputs[1])?;
+
+        let (matching_tree, non_matching_tree) = tree.split_tree(&mask);
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("C".to_string(), matching_tree.to_value());
+        outputs.insert("D".to_string(), non_matching_tree.to_value());
+        Ok(outputs)
     }
 }
 
@@ -553,8 +1001,24 @@ impl Component for SplitTreeComponent {
 pub struct DeconstructPathComponent;
 
 impl Component for DeconstructPathComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Deconstruct Path component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new(
+                "Deconstruct Path component requires one input.",
+            ));
+        }
+
+        let path_str = coerce_to_string(&inputs[0])?;
+        let path = parse_path(&path_str)?;
+
+        let segments: Vec<Value> = path
+            .into_iter()
+            .map(|segment| Value::Number(segment as f64))
+            .collect();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("B".to_string(), Value::List(segments));
+        Ok(outputs)
     }
 }
 
@@ -562,8 +1026,37 @@ impl Component for DeconstructPathComponent {
 pub struct NullCheckComponent;
 
 impl Component for NullCheckComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Null Check component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new(
+                "Null Check component requires one input.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+        let items = tree.flattened_items();
+
+        let mut null_items = Vec::new();
+        let mut valid_items = Vec::new();
+        let mut null_indices = Vec::new();
+        let mut valid_indices = Vec::new();
+
+        for (i, item) in items.into_iter().enumerate() {
+            if matches!(item, Value::Null) {
+                null_items.push(item);
+                null_indices.push(Value::Number(i as f64));
+            } else {
+                valid_items.push(item);
+                valid_indices.push(Value::Number(i as f64));
+            }
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("N".to_string(), Value::List(null_items));
+        outputs.insert("V".to_string(), Value::List(valid_items));
+        outputs.insert("In".to_string(), Value::List(null_indices));
+        outputs.insert("Iv".to_string(), Value::List(valid_indices));
+        Ok(outputs)
     }
 }
 
@@ -571,8 +1064,22 @@ impl Component for NullCheckComponent {
 pub struct PruneTreeComponent;
 
 impl Component for PruneTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Prune Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new(
+                "Prune Tree component requires two inputs.",
+            ));
+        }
+
+        let tree = Tree::from(&inputs[0]);
+        let n = coerce_to_i64(&inputs[1])?;
+
+        let pruned_tree = tree.prune(n);
+        let result_value = pruned_tree.to_value();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), result_value);
+        Ok(outputs)
     }
 }
 
@@ -623,6 +1130,94 @@ mod tests {
     }
 
     #[test]
+    fn test_tree_item() {
+        let component = TreeItemComponent;
+        let inputs = vec![
+            Value::List(vec![
+                Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+                Value::List(vec![Value::Number(3.0)]),
+            ]),
+            Value::Text("{0}".to_string()),
+            Value::Number(2.0),
+            Value::Boolean(true),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::Number(1.0);
+        assert_eq!(outputs.get("E"), Some(&expected));
+    }
+
+    #[test]
+    fn test_replace_paths() {
+        let component = ReplacePathsComponent;
+        let inputs = vec![
+            Value::List(vec![
+                Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+                Value::List(vec![Value::Number(3.0)]),
+            ]),
+            Value::List(vec![Value::Text("{0}".to_string())]),
+            Value::List(vec![Value::Text("{1}".to_string())]),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![
+            Value::List(vec![]),
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+        ]);
+        assert_eq!(outputs.get("D"), Some(&expected));
+    }
+
+    #[test]
+    fn test_unflatten_tree() {
+        let component = UnflattenTreeComponent;
+        let inputs = vec![
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
+            Value::List(vec![
+                Value::List(vec![Value::Null, Value::Null]),
+                Value::List(vec![Value::Null]),
+            ]),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::List(vec![Value::Number(3.0)]),
+        ]);
+        assert_eq!(outputs.get("T"), Some(&expected));
+    }
+
+    #[test]
+    fn test_tree_statistics() {
+        let component = TreeStatisticsComponent;
+        let inputs = vec![Value::List(vec![
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::List(vec![Value::Number(3.0)]),
+        ])];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let expected_paths = Value::List(vec![
+            Value::Text("{0}".to_string()),
+            Value::Text("{1}".to_string()),
+        ]);
+        let expected_lengths = Value::List(vec![Value::Number(2.0), Value::Number(1.0)]);
+        let expected_count = Value::Number(2.0);
+
+        assert_eq!(outputs.get("P"), Some(&expected_paths));
+        assert_eq!(outputs.get("L"), Some(&expected_lengths));
+        assert_eq!(outputs.get("C"), Some(&expected_count));
+    }
+
+    #[test]
+    fn test_construct_path() {
+        let component = ConstructPathComponent;
+        let inputs = vec![Value::List(vec![
+            Value::Number(0.0),
+            Value::Number(1.0),
+            Value::Number(2.0),
+        ])];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::Text("{0;1;2}".to_string());
+        assert_eq!(outputs.get("B"), Some(&expected));
+    }
+
+    #[test]
     fn test_clean_tree() {
         let component = CleanTreeComponent;
         let inputs = vec![
@@ -638,6 +1233,116 @@ mod tests {
         ];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
         let expected = Value::List(vec![Value::Number(1.0), Value::Number(2.0)]);
+        assert_eq!(outputs.get("T"), Some(&expected));
+    }
+
+    #[test]
+    fn test_entwine() {
+        let component = EntwineComponent;
+        let inputs = vec![
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::List(vec![Value::Number(3.0), Value::Number(4.0)]),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::List(vec![Value::Number(3.0), Value::Number(4.0)]),
+        ]);
+        assert_eq!(outputs.get("T"), Some(&expected));
+    }
+
+    #[test]
+    fn test_split_tree() {
+        let component = SplitTreeComponent;
+        let inputs = vec![
+            Value::List(vec![
+                Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+                Value::List(vec![Value::Number(3.0)]),
+            ]),
+            Value::Text("{0}".to_string()),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected_matching = Value::List(vec![Value::List(vec![
+            Value::Number(1.0),
+            Value::Number(2.0),
+        ])]);
+        let expected_non_matching =
+            Value::List(vec![Value::List(vec![]), Value::List(vec![Value::Number(3.0)])]);
+        assert_eq!(outputs.get("C"), Some(&expected_matching));
+        assert_eq!(outputs.get("D"), Some(&expected_non_matching));
+    }
+
+    #[test]
+    fn test_deconstruct_path() {
+        let component = DeconstructPathComponent;
+        let inputs = vec![Value::Text("{0;1;2}".to_string())];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![
+            Value::Number(0.0),
+            Value::Number(1.0),
+            Value::Number(2.0),
+        ]);
+        assert_eq!(outputs.get("B"), Some(&expected));
+    }
+
+    #[test]
+    fn test_null_check() {
+        let component = NullCheckComponent;
+        let inputs = vec![Value::List(vec![
+            Value::Number(1.0),
+            Value::Null,
+            Value::Text("hello".to_string()),
+            Value::Null,
+        ])];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let expected_null_items = Value::List(vec![Value::Null, Value::Null]);
+        let expected_valid_items = Value::List(vec![
+            Value::Number(1.0),
+            Value::Text("hello".to_string()),
+        ]);
+        let expected_null_indices = Value::List(vec![Value::Number(1.0), Value::Number(3.0)]);
+        let expected_valid_indices = Value::List(vec![Value::Number(0.0), Value::Number(2.0)]);
+
+        assert_eq!(outputs.get("N"), Some(&expected_null_items));
+        assert_eq!(outputs.get("V"), Some(&expected_valid_items));
+        assert_eq!(outputs.get("In"), Some(&expected_null_indices));
+        assert_eq!(outputs.get("Iv"), Some(&expected_valid_indices));
+    }
+
+    #[test]
+    fn test_prune_tree_positive() {
+        let component = PruneTreeComponent;
+        let inputs = vec![
+            Value::List(vec![
+                Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+                Value::List(vec![Value::Number(3.0)]),
+            ]),
+            Value::Number(1.0),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![
+            Value::List(vec![]),
+            Value::List(vec![Value::Number(3.0)]),
+        ]);
+        assert_eq!(outputs.get("T"), Some(&expected));
+    }
+
+    #[test]
+    fn test_prune_tree_negative() {
+        let component = PruneTreeComponent;
+        let inputs = vec![
+            Value::List(vec![
+                Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+                Value::List(vec![Value::Number(3.0)]),
+            ]),
+            Value::Number(-2.0),
+        ];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let expected = Value::List(vec![Value::List(vec![
+            Value::Number(1.0),
+            Value::Number(2.0),
+        ])]);
         assert_eq!(outputs.get("T"), Some(&expected));
     }
 }
