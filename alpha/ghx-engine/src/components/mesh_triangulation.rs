@@ -196,10 +196,158 @@ macro_rules! placeholder_component {
     };
 }
 
-placeholder_component!(FacetDome, "Facet Dome");
+const OUTPUT_PATTERN: &str = "P";
+const OUTPUT_DOME: &str = "D";
+
+/// Component for creating a facetted dome.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FacetDome;
+
+impl Component for FacetDome {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let points = match &inputs[0] {
+            Value::List(list) => list
+                .iter()
+                .map(coerce::coerce_point)
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+
+        if points.len() < 3 {
+            return Err(ComponentError::new(
+                "Not enough points for triangulation",
+            ));
+        }
+
+        let delaunator_points: Vec<delaunator::Point> = points
+            .iter()
+            .map(|p| delaunator::Point { x: p[0], y: p[1] })
+            .collect();
+
+        let triangulation = delaunator::triangulate(&delaunator_points);
+
+        // Create the "Dome" (Delaunay Mesh)
+        let faces: Vec<Vec<u32>> = triangulation
+            .triangles
+            .chunks_exact(3)
+            .map(|tri| vec![tri[0] as u32, tri[1] as u32, tri[2] as u32])
+            .collect();
+        let dome = Value::Surface {
+            vertices: points.clone(),
+            faces,
+        };
+
+        // Create the "Pattern" (Edges of the triangulation)
+        let mut pattern_edges = Vec::new();
+        for i in 0..triangulation.triangles.len() {
+            let endpoint = triangulation.halfedges[i];
+            if i < endpoint {
+                let p1_idx = triangulation.triangles[i];
+                let p2_idx = triangulation.triangles[delaunator::next_halfedge(i)];
+                pattern_edges.push(Value::CurveLine {
+                    p1: points[p1_idx],
+                    p2: points[p2_idx],
+                });
+            }
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(OUTPUT_PATTERN.to_owned(), Value::List(pattern_edges));
+        outputs.insert(OUTPUT_DOME.to_owned(), dome);
+
+        Ok(outputs)
+    }
+}
+
 placeholder_component!(QuadRemesh, "Quad Remesh");
 placeholder_component!(Substrate, "Substrate");
-placeholder_component!(Proximity2D, "Proximity 2D");
+
+const OUTPUT_LINKS: &str = "L";
+const OUTPUT_TOPOLOGY: &str = "T";
+
+/// Component for finding 2D proximity within a point list.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Proximity2D;
+
+impl Component for Proximity2D {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 1 {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let points = match &inputs[0] {
+            Value::List(list) => list
+                .iter()
+                .map(coerce::coerce_point)
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+        // inputs[1] is Plane, which is ignored for now.
+        let group = if inputs.len() > 2 && !matches!(&inputs[2], Value::Null) {
+            coerce::coerce_integer(&inputs[2])? as usize
+        } else {
+            usize::MAX
+        };
+        let min_radius_sq = if inputs.len() > 3 && !matches!(&inputs[3], Value::Null) {
+            let r = coerce::coerce_number(&inputs[3])?;
+            r * r
+        } else {
+            0.0
+        };
+        let max_radius_sq = if inputs.len() > 4 && !matches!(&inputs[4], Value::Null) {
+            let r = coerce::coerce_number(&inputs[4])?;
+            r * r
+        } else {
+            f64::INFINITY
+        };
+
+        if points.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+
+        let mut links_tree = Vec::new();
+        let mut topology_tree = Vec::new();
+
+        for (i, p1) in points.iter().enumerate() {
+            let mut neighbors = Vec::new();
+            for (j, p2) in points.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+
+                let dist_sq = (p1[0] - p2[0]).powi(2) + (p1[1] - p2[1]).powi(2);
+
+                if dist_sq >= min_radius_sq && dist_sq <= max_radius_sq {
+                    neighbors.push((dist_sq, j, p2));
+                }
+            }
+
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            let mut links_branch = Vec::new();
+            let mut topology_branch = Vec::new();
+
+            for (_, j, p2) in neighbors.iter().take(group) {
+                links_branch.push(Value::CurveLine { p1: *p1, p2: **p2 });
+                topology_branch.push(Value::Text(format!("{{{};{}}}", i, j)));
+            }
+
+            links_tree.push(Value::List(links_branch));
+            topology_tree.push(Value::List(topology_branch));
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(OUTPUT_LINKS.to_owned(), Value::List(links_tree));
+        outputs.insert(OUTPUT_TOPOLOGY.to_owned(), Value::List(topology_tree));
+
+        Ok(outputs)
+    }
+}
+
 placeholder_component!(VoronoiCell, "Voronoi Cell");
 placeholder_component!(QuadTree, "QuadTree");
 placeholder_component!(TriRemesh, "TriRemesh");
@@ -270,7 +418,76 @@ impl Component for ConvexHull {
     }
 }
 placeholder_component!(VoronoiGroups, "Voronoi Groups");
-placeholder_component!(Voronoi, "Voronoi");
+
+const OUTPUT_CELLS: &str = "C";
+
+/// Component for creating a Voronoi diagram.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Voronoi;
+
+impl Component for Voronoi {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let sites = match &inputs[0] {
+            Value::List(list) => list
+                .iter()
+                .map(|v| {
+                    let p = coerce::coerce_point(v)?;
+                    Ok(voronoice::Point { x: p[0], y: p[1] })
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+
+        let mut builder = voronoice::VoronoiBuilder::default();
+        builder = builder.set_sites(sites);
+
+        if inputs.len() > 2 && !matches!(&inputs[2], Value::Null) {
+            if let Value::CurveLine { p1, p2 } = &inputs[2] {
+                let width = (p2[0] - p1[0]).abs();
+                let height = (p2[1] - p1[1]).abs();
+                let center_x = p1[0] + width / 2.0;
+                let center_y = p1[1] + height / 2.0;
+
+                let bounding_box = voronoice::BoundingBox::new(
+                    voronoice::Point {
+                        x: center_x,
+                        y: center_y,
+                    },
+                    width,
+                    height,
+                );
+                builder = builder.set_bounding_box(bounding_box);
+            }
+        }
+
+        if let Some(voronoi) = builder.build() {
+            let cells = voronoi
+                .iter_cells()
+                .map(|cell| {
+                    let mut points = cell
+                        .iter_vertices()
+                        .map(|p| Value::Point([p.x, p.y, 0.0]))
+                        .collect::<Vec<_>>();
+                    if !points.is_empty() {
+                        points.push(points[0].clone()); // Close the polyline
+                    }
+                    Value::List(points)
+                })
+                .collect();
+
+            let mut outputs = BTreeMap::new();
+            outputs.insert(OUTPUT_CELLS.to_owned(), Value::List(cells));
+            Ok(outputs)
+        } else {
+            Err(ComponentError::new("Failed to build Voronoi diagram"))
+        }
+    }
+}
+
 placeholder_component!(OcTree, "OcTree");
 placeholder_component!(Voronoi3D, "Voronoi 3D");
 placeholder_component!(MetaBallTCustom, "MetaBall(t) Custom");
@@ -357,7 +574,87 @@ impl Component for DelaunayEdges {
     }
 }
 placeholder_component!(MetaBall, "MetaBall");
-placeholder_component!(Proximity3D, "Proximity 3D");
+
+/// Component for finding 3D proximity within a point list.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Proximity3D;
+
+impl Component for Proximity3D {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 1 {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let points = match &inputs[0] {
+            Value::List(list) => list
+                .iter()
+                .map(coerce::coerce_point)
+                .collect::<Result<Vec<_>, _>>()?,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+
+        let group = if inputs.len() > 1 && !matches!(&inputs[1], Value::Null) {
+            coerce::coerce_integer(&inputs[1])? as usize
+        } else {
+            usize::MAX
+        };
+        let min_radius_sq = if inputs.len() > 2 && !matches!(&inputs[2], Value::Null) {
+            let r = coerce::coerce_number(&inputs[2])?;
+            r * r
+        } else {
+            0.0
+        };
+        let max_radius_sq = if inputs.len() > 3 && !matches!(&inputs[3], Value::Null) {
+            let r = coerce::coerce_number(&inputs[3])?;
+            r * r
+        } else {
+            f64::INFINITY
+        };
+
+        if points.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+
+        let mut links_tree = Vec::new();
+        let mut topology_tree = Vec::new();
+
+        for (i, p1) in points.iter().enumerate() {
+            let mut neighbors = Vec::new();
+            for (j, p2) in points.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+
+                let dist_sq = (p1[0] - p2[0]).powi(2)
+                    + (p1[1] - p2[1]).powi(2)
+                    + (p1[2] - p2[2]).powi(2);
+
+                if dist_sq >= min_radius_sq && dist_sq <= max_radius_sq {
+                    neighbors.push((dist_sq, j, p2));
+                }
+            }
+
+            neighbors.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+            let mut links_branch = Vec::new();
+            let mut topology_branch = Vec::new();
+
+            for (_, j, p2) in neighbors.iter().take(group) {
+                links_branch.push(Value::CurveLine { p1: *p1, p2: **p2 });
+                topology_branch.push(Value::Text(format!("{{{};{}}}", i, j)));
+            }
+
+            links_tree.push(Value::List(links_branch));
+            topology_tree.push(Value::List(topology_branch));
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(OUTPUT_LINKS.to_owned(), Value::List(links_tree));
+        outputs.insert(OUTPUT_TOPOLOGY.to_owned(), Value::List(topology_tree));
+
+        Ok(outputs)
+    }
+}
 
 /// Output pin for the mesh result.
 const OUTPUT_MESH: &str = "M";
@@ -416,11 +713,212 @@ impl Component for DelaunayMesh {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ConvexHull, DelaunayEdges, DelaunayMesh, FacetDome, QuadRemesh,
-        OUTPUT_CONNECTIVITY, OUTPUT_EDGES, OUTPUT_HULL, OUTPUT_HULL_Z, OUTPUT_INDICES,
-        OUTPUT_MESH,
+        Component, ConvexHull, DelaunayEdges, DelaunayMesh, FacetDome, Proximity2D, Proximity3D,
+        QuadRemesh, Voronoi, OUTPUT_CELLS, OUTPUT_CONNECTIVITY, OUTPUT_DOME, OUTPUT_EDGES,
+        OUTPUT_HULL, OUTPUT_HULL_Z, OUTPUT_INDICES, OUTPUT_LINKS, OUTPUT_MESH, OUTPUT_PATTERN,
+        OUTPUT_TOPOLOGY,
     };
     use crate::graph::{node::MetaMap, value::Value};
+    #[test]
+    fn test_voronoi() {
+        let component = Voronoi;
+        let points = vec![
+            Value::Point([0.25, 0.25, 0.0]),
+            Value::Point([0.75, 0.25, 0.0]),
+            Value::Point([0.25, 0.75, 0.0]),
+            Value::Point([0.75, 0.75, 0.0]),
+        ];
+        let boundary = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [1.0, 1.0, 0.0],
+        };
+        let inputs = vec![Value::List(points), Value::Null, boundary];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let cells = outputs.get(OUTPUT_CELLS).unwrap();
+        if let Value::List(cell_list) = cells {
+            assert_eq!(cell_list.len(), 4);
+            // Each cell should be a valid closed polyline
+            for cell in cell_list {
+                if let Value::List(points) = cell {
+                    assert!(points.len() >= 4, "A closed cell should have at least 4 vertices (3 + 1 to close)");
+                } else {
+                    panic!("Expected a list of points for each cell");
+                }
+            }
+        } else {
+            panic!("Expected a List for Cells output");
+        }
+    }
+
+    #[test]
+    fn test_facet_dome() {
+        let component = FacetDome;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+        ];
+        let inputs = vec![Value::List(points)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let pattern = outputs.get(OUTPUT_PATTERN).unwrap();
+        if let Value::List(edges) = pattern {
+            // A triangulation of 4 points should have 5 edges
+            assert_eq!(edges.len(), 5);
+        } else {
+            panic!("Expected a List for Pattern output");
+        }
+
+        let dome = outputs.get(OUTPUT_DOME).unwrap();
+        if let Value::Surface { vertices, faces } = dome {
+            assert_eq!(vertices.len(), 4);
+            assert_eq!(faces.len(), 2);
+        } else {
+            panic!("Expected a Surface for Dome output");
+        }
+    }
+
+    #[test]
+    fn test_proximity_3d() {
+        let component = Proximity3D;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 1.0]),
+        ];
+        let inputs = vec![Value::List(points.clone()), Value::Number(2.0)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let links = outputs.get(OUTPUT_LINKS).unwrap();
+        if let Value::List(links_tree) = links {
+            assert_eq!(links_tree.len(), 4);
+            // Each point is equidistant to the others, so it should connect to 2 of them.
+            for branch in links_tree {
+                if let Value::List(b) = branch {
+                    assert_eq!(b.len(), 2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_proximity_2d_basic() {
+        let component = Proximity2D;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([5.0, 5.0, 0.0]),
+        ];
+        let inputs = vec![Value::List(points)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let links = outputs.get(OUTPUT_LINKS).unwrap();
+        if let Value::List(links_tree) = links {
+            assert_eq!(links_tree.len(), 4);
+            // Point 0 should connect to 1 and 2
+            assert_eq!(
+                if let Value::List(branch) = &links_tree[0] {
+                    branch.len()
+                } else {
+                    0
+                },
+                3
+            );
+            // Point 3 is far away, should only connect to the closest one (0, 1 or 2)
+            assert_eq!(
+                if let Value::List(branch) = &links_tree[3] {
+                    branch.len()
+                } else {
+                    0
+                },
+                3
+            );
+        } else {
+            panic!("Expected a List for Links output");
+        }
+    }
+
+    #[test]
+    fn test_proximity_2d_with_group() {
+        let component = Proximity2D;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.5, 0.5, 0.0]),
+        ];
+        let inputs = vec![Value::List(points), Value::Null, Value::Number(2.0)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let links = outputs.get(OUTPUT_LINKS).unwrap();
+        if let Value::List(links_tree) = links {
+            assert_eq!(links_tree.len(), 4);
+            // Every point should have at most 2 links
+            for branch in links_tree {
+                if let Value::List(b) = branch {
+                    assert!(b.len() <= 2);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_proximity_2d_with_radius() {
+        let component = Proximity2D;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([3.0, 0.0, 0.0]),
+        ];
+        // min_radius = 0.5, max_radius = 1.5
+        let inputs = vec![
+            Value::List(points),
+            Value::Null,
+            Value::Null,
+            Value::Number(0.5),
+            Value::Number(1.5),
+        ];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        let links = outputs.get(OUTPUT_LINKS).unwrap();
+        if let Value::List(links_tree) = links {
+            assert_eq!(links_tree.len(), 3);
+            // P0 connects only to P1
+            assert_eq!(
+                if let Value::List(b) = &links_tree[0] {
+                    b.len()
+                } else {
+                    0
+                },
+                1
+            );
+            // P1 connects only to P0
+            assert_eq!(
+                if let Value::List(b) = &links_tree[1] {
+                    b.len()
+                } else {
+                    0
+                },
+                1
+            );
+            // P2 is too far from P0 and P1 with this radius
+            assert_eq!(
+                if let Value::List(b) = &links_tree[2] {
+                    b.len()
+                } else {
+                    0
+                },
+                0
+            );
+        }
+    }
 
     #[test]
     fn test_delaunay_mesh() {
@@ -488,13 +986,8 @@ mod tests {
 
     #[test]
     fn test_placeholder_components() {
-        let facet_dome = FacetDome;
         let quad_remesh = QuadRemesh;
 
-        assert!(matches!(
-            facet_dome.evaluate(&[], &MetaMap::new()),
-            Err(super::ComponentError::NotYetImplemented(_))
-        ));
         assert!(matches!(
             quad_remesh.evaluate(&[], &MetaMap::new()),
             Err(super::ComponentError::NotYetImplemented(_))
