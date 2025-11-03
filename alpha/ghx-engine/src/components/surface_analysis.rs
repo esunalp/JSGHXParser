@@ -1421,6 +1421,6 @@ mod tests {
         let err = component
             .evaluate(&[Value::List(Vec::new())], &MetaMap::new())
             .unwrap_err();
-        assert!(matches!(err, ComponentError { .. }));
+        assert!(matches!(err, ComponentError::Message(_)));
     }
 }

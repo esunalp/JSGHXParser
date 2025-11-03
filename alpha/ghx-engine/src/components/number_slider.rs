@@ -158,6 +158,6 @@ mod tests {
         let err = component
             .evaluate(&[Value::Number(1.0)], &meta)
             .unwrap_err();
-        assert!(matches!(err, ComponentError { .. }));
+        assert!(matches!(err, ComponentError::Message(_)));
     }
 }

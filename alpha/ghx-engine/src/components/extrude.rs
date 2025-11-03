@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn collect_curves_errors_on_non_curves() {
         let err = collect_curves(&Value::Number(1.0)).unwrap_err();
-        assert!(matches!(err, ComponentError { .. }));
+        assert!(matches!(err, ComponentError::Message(_)));
     }
 
     #[test]
