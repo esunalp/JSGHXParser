@@ -336,6 +336,11 @@ export function createThreeApp(canvas) {
           }
       });
       if (group.children.length > 0) {
+          group.traverse(child => {
+              if (child.geometry) {
+                  ensureGeometryHasVertexNormals(child.geometry, { compute: false });
+              }
+          });
           currentOverlayGroup = group;
           scene.add(currentOverlayGroup);
       }
