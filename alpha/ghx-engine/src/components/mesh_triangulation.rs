@@ -210,7 +210,87 @@ placeholder_component!(OcTree, "OcTree");
 placeholder_component!(Voronoi3D, "Voronoi 3D");
 placeholder_component!(MetaBallTCustom, "MetaBall(t) Custom");
 placeholder_component!(MetaBallT, "MetaBall(t)");
-placeholder_component!(DelaunayEdges, "Delaunay Edges");
+const OUTPUT_CONNECTIVITY: &str = "C";
+const OUTPUT_EDGES: &str = "E";
+
+/// Component for creating Delaunay edges from a set of points.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DelaunayEdges;
+
+impl Component for DelaunayEdges {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Input `P` is missing"));
+        }
+
+        let points_value = &inputs[0];
+        let points_list = match points_value {
+            Value::List(list) => list,
+            _ => return Err(ComponentError::new("Input `P` is not a list")),
+        };
+
+        let mut vertices = Vec::with_capacity(points_list.len());
+        let mut delaunator_points = Vec::with_capacity(points_list.len());
+
+        for value in points_list {
+            let point = coerce::coerce_point(value)?;
+            vertices.push(point);
+            delaunator_points.push(delaunator::Point {
+                x: point[0],
+                y: point[1],
+            });
+        }
+
+        if vertices.len() < 3 {
+            return Err(ComponentError::new(
+                "Not enough points for triangulation",
+            ));
+        }
+
+        let triangulation = delaunator::triangulate(&delaunator_points);
+        let mut edges = Vec::new();
+        let mut connectivity: BTreeMap<usize, Vec<Value>> = BTreeMap::new();
+
+        for i in 0..triangulation.triangles.len() {
+            let endpoint = triangulation.halfedges[i];
+            if i < endpoint {
+                let p1_idx = triangulation.triangles[i];
+                let p2_idx = triangulation.triangles[delaunator::next_halfedge(i)];
+
+                let p1 = vertices[p1_idx];
+                let p2 = vertices[p2_idx];
+                edges.push(Value::CurveLine { p1, p2 });
+
+                connectivity
+                    .entry(p1_idx)
+                    .or_default()
+                    .push(Value::Number(p2_idx as f64));
+                connectivity
+                    .entry(p2_idx)
+                    .or_default()
+                    .push(Value::Number(p1_idx as f64));
+            }
+        }
+
+        let connectivity_tree = Value::List(
+            (0..vertices.len())
+                .map(|i| {
+                    Value::List(
+                        connectivity
+                            .remove(&i)
+                            .unwrap_or_default(),
+                    )
+                })
+                .collect(),
+        );
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(OUTPUT_CONNECTIVITY.to_owned(), connectivity_tree);
+        outputs.insert(OUTPUT_EDGES.to_owned(), Value::List(edges));
+
+        Ok(outputs)
+    }
+}
 placeholder_component!(MetaBall, "MetaBall");
 placeholder_component!(Proximity3D, "Proximity 3D");
 
@@ -270,7 +350,10 @@ impl Component for DelaunayMesh {
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, DelaunayMesh, OUTPUT_MESH, FacetDome, QuadRemesh};
+    use super::{
+        Component, DelaunayEdges, DelaunayMesh, FacetDome, QuadRemesh, OUTPUT_CONNECTIVITY,
+        OUTPUT_EDGES, OUTPUT_MESH,
+    };
     use crate::graph::{node::MetaMap, value::Value};
 
     #[test]
@@ -350,5 +433,54 @@ mod tests {
             quad_remesh.evaluate(&[], &MetaMap::new()),
             Err(super::ComponentError::NotYetImplemented(_))
         ));
+    }
+
+    #[test]
+    fn test_delaunay_edges() {
+        let component = DelaunayEdges;
+        let points = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+        ];
+        let inputs = vec![Value::List(points)];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+
+        let edges = outputs.get(OUTPUT_EDGES).unwrap();
+        if let Value::List(edge_list) = edges {
+            assert_eq!(edge_list.len(), 5);
+        } else {
+            panic!("Expected a List for Edges output");
+        }
+
+        let connectivity = outputs.get(OUTPUT_CONNECTIVITY).unwrap();
+        if let Value::List(connectivity_list) = connectivity {
+            assert_eq!(connectivity_list.len(), 4);
+            let counts: Vec<usize> = connectivity_list
+                .iter()
+                .map(|v| match v {
+                    Value::List(l) => l.len(),
+                    _ => 0,
+                })
+                .collect();
+            // In a triangulation of 4 points, there will be 2 nodes with 3 edges
+            // and 2 nodes with 2 edges, or all nodes have 3 edges (if the diagonal connects both ways)
+            // The delaunator implementation gives 2x3 and 2x2.
+            let mut three_count = 0;
+            let mut two_count = 0;
+            for c in counts {
+                if c == 3 {
+                    three_count += 1;
+                } else if c == 2 {
+                    two_count += 1;
+                }
+            }
+            assert_eq!(three_count, 2, "Expected 2 points with 3 connections");
+            assert_eq!(two_count, 2, "Expected 2 points with 2 connections");
+        } else {
+            panic!("Expected a List for Connectivity output");
+        }
     }
 }
