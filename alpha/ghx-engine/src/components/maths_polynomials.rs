@@ -316,6 +316,6 @@ mod tests {
             "Square",
         )
         .unwrap_err();
-        assert!(matches!(err, ComponentError { .. }));
+        assert!(matches!(err, ComponentError::Message(_)));
     }
 }

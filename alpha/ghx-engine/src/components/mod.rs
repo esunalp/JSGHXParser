@@ -21,6 +21,7 @@ pub mod maths_matrix;
 pub mod maths_operators;
 pub mod mesh_analysis;
 pub mod mesh_primitive;
+pub mod mesh_triangulation;
 pub mod maths_polynomials;
 pub mod maths_script;
 pub mod maths_time;
@@ -55,27 +56,34 @@ pub type OutputMap = std::collections::BTreeMap<String, Value>;
 
 /// Fouttype voor component-evaluaties.
 #[derive(Debug, Clone)]
-pub struct ComponentError {
-    message: String,
+pub enum ComponentError {
+    /// Een generieke fout met een bericht.
+    Message(String),
+    /// Geeft aan dat een component nog niet geïmplementeerd is.
+    NotYetImplemented(String),
 }
 
 impl ComponentError {
     #[must_use]
     pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
+        Self::Message(message.into())
     }
 
     #[must_use]
     pub fn message(&self) -> &str {
-        &self.message
+        match self {
+            Self::Message(s) => s,
+            Self::NotYetImplemented(s) => s,
+        }
     }
 }
 
 impl fmt::Display for ComponentError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.message)
+        match self {
+            Self::Message(s) => f.write_str(s),
+            Self::NotYetImplemented(s) => write!(f, "Component not yet implemented: {}", s),
+        }
     }
 }
 
@@ -134,6 +142,7 @@ pub enum ComponentKind {
     DisplayPreview(display_preview::ComponentKind),
     MeshPrimitive(mesh_primitive::ComponentKind),
     MeshAnalysis(mesh_analysis::ComponentKind),
+    MeshTriangulation(mesh_triangulation::ComponentKind),
 }
 
 impl ComponentKind {
@@ -182,6 +191,7 @@ impl ComponentKind {
             Self::DisplayPreview(component) => component.evaluate(inputs, meta),
             Self::MeshPrimitive(component) => component.evaluate(inputs, meta),
             Self::MeshAnalysis(component) => component.evaluate(inputs, meta),
+            Self::MeshTriangulation(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -230,6 +240,7 @@ impl ComponentKind {
             Self::DisplayPreview(component) => component.name(),
             Self::MeshPrimitive(component) => component.name(),
             Self::MeshAnalysis(component) => component.name(),
+            Self::MeshTriangulation(component) => component.name(),
         }
     }
 }
@@ -562,6 +573,14 @@ impl Default for ComponentRegistry {
 
         for registration in mesh_analysis::REGISTRATIONS {
             let kind = ComponentKind::MeshAnalysis(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in mesh_triangulation::REGISTRATIONS {
+            let kind = ComponentKind::MeshTriangulation(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }

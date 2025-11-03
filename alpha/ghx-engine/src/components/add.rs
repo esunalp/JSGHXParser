@@ -106,6 +106,6 @@ mod tests {
     fn rejects_multiple_values_in_list() {
         let err =
             coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)])).unwrap_err();
-        assert!(matches!(err, ComponentError { .. }));
+        assert!(matches!(err, ComponentError::Message(_)));
     }
 }
