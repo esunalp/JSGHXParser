@@ -96,6 +96,43 @@ impl Hash for Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Null => write!(f, "Null"),
+            Self::Number(n) => write!(f, "{}", n),
+            Self::Boolean(b) => write!(f, "{}", b),
+            Self::Complex(c) => write!(f, "{}", c),
+            Self::Point(p) => write!(f, "{},{},{}", p[0], p[1], p[2]),
+            Self::Vector(v) => write!(f, "{},{},{}", v[0], v[1], v[2]),
+            Self::CurveLine { p1, p2 } => write!(
+                f,
+                "Line [{},{},{}] to [{},{},{}]",
+                p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]
+            ),
+            Self::Surface { vertices, faces } => {
+                write!(f, "Surface [{} vertices, {} faces]", vertices.len(), faces.len())
+            }
+            Self::Domain(d) => match d {
+                Domain::One(d1) => write!(f, "Domain {} to {}", d1.start, d1.end),
+                Domain::Two(d2) => write!(
+                    f,
+                    "Domain U({} to {}), V({} to {})",
+                    d2.u.start, d2.u.end, d2.v.start, d2.v.end
+                ),
+            },
+            Self::Matrix(m) => write!(f, "Matrix [{}x{}]", m.rows, m.columns),
+            Self::DateTime(dt) => write!(f, "{}", dt.primitive()),
+            Self::List(l) => write!(f, "List [{} items]", l.len()),
+            Self::Text(s) => write!(f, "{}", s),
+            Self::Tag(t) => write!(f, "Tag: {}", t.text),
+            Self::Color(c) => write!(f, "Color [R={}, G={}, B={}]", c.r, c.g, c.b),
+            Self::Material(_) => write!(f, "Material"),
+            Self::Symbol(_) => write!(f, "Symbol"),
+        }
+    }
+}
+
 impl PartialOrd for Value {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
