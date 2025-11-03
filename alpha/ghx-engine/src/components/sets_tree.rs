@@ -23,6 +23,37 @@ impl From<&Value> for Tree {
 }
 
 impl Tree {
+    fn simplify(self) -> Self {
+        if self.branches.len() <= 1 {
+            return self;
+        }
+
+        let paths: Vec<_> = self.branches.keys().collect();
+        let mut common_prefix_len = paths[0].len();
+        for path in paths.iter().skip(1) {
+            common_prefix_len = common_prefix_len
+                .min(path.len())
+                .min(
+                    paths[0]
+                        .iter()
+                        .zip(path.iter())
+                        .take_while(|(a, b)| a == b)
+                        .count(),
+                );
+        }
+
+        if common_prefix_len == 0 {
+            return self;
+        }
+
+        let branches = self
+            .branches
+            .into_iter()
+            .map(|(path, values)| (path[common_prefix_len..].to_vec(), values))
+            .collect();
+        Self { branches }
+    }
+
     fn to_value(&self) -> Value {
         build_tree_from_branches(&self.branches)
     }
@@ -556,8 +587,17 @@ impl ComponentKind {
 pub struct SimplifyTreeComponent;
 
 impl Component for SimplifyTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Simplify Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new(
+                "Simplify Tree component requires at least one input.",
+            ));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let simplified_tree = tree.simplify();
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), simplified_tree.to_value());
+        Ok(outputs)
     }
 }
 
@@ -665,8 +705,26 @@ impl Component for GraftTreeComponent {
 pub struct TrimTreeComponent;
 
 impl Component for TrimTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Trim Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Trim Tree component requires two inputs."));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let depth = coerce_to_i64(&inputs[1])? as usize;
+
+        let mut new_branches = BTreeMap::new();
+        for (path, values) in tree.branches {
+            let new_path = if path.len() > depth {
+                path[..path.len() - depth].to_vec()
+            } else {
+                vec![]
+            };
+            new_branches.entry(new_path).or_insert_with(Vec::new).extend(values);
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), Tree { branches: new_branches }.to_value());
+        Ok(outputs)
     }
 }
 
@@ -674,8 +732,22 @@ impl Component for TrimTreeComponent {
 pub struct PathCompareComponent;
 
 impl Component for PathCompareComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Path Compare component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Path Compare component requires two inputs."));
+        }
+        let path_str = coerce_to_string(&inputs[0])?;
+        let mask = coerce_to_string(&inputs[1])?;
+
+        let path_str = path_str.trim_matches(|c| c == '{' || c == '}');
+        let mask = mask.trim_matches(|c| c == '{' || c == '}');
+
+        let wm = WildMatch::new(mask);
+        let result = wm.matches(path_str);
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("C".to_string(), Value::Boolean(result));
+        Ok(outputs)
     }
 }
 
@@ -683,17 +755,72 @@ impl Component for PathCompareComponent {
 pub struct RelativeItemsComponent;
 
 impl Component for RelativeItemsComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Relative Items component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 3 {
+            return Err(ComponentError::new("Relative Items component requires at least three inputs."));
+        }
+        let tree_a = Tree::from(&inputs[0]);
+        let tree_b = if inputs.len() > 3 { Tree::from(&inputs[1]) } else { tree_a.clone_tree() };
+        let offset = coerce_to_i64(if inputs.len() > 3 { &inputs[2] } else { &inputs[1] })?;
+        let wrap = if inputs.len() > 3 { coerce_to_boolean(&inputs[3])? } else { false };
+        let mut outputs = BTreeMap::new();
+        let mut result_a = BTreeMap::new();
+        let mut result_b = BTreeMap::new();
+
+        for (path, branch_a) in &tree_a.branches {
+            if let Some(branch_b) = tree_b.branches.get(path) {
+                let mut new_branch_a = vec![];
+                let mut new_branch_b = vec![];
+
+                for (i, item_a) in branch_a.iter().enumerate() {
+                    let new_index = i as i64 + offset;
+                    let item_b = if wrap {
+                        branch_b.get((new_index.rem_euclid(branch_b.len() as i64)) as usize)
+                    } else {
+                        branch_b.get(new_index as usize)
+                    };
+
+                    if let Some(item_b) = item_b {
+                        new_branch_a.push(item_a.clone());
+                        new_branch_b.push(item_b.clone());
+                    }
+                }
+                result_a.insert(path.clone(), new_branch_a);
+                result_b.insert(path.clone(), new_branch_b);
+            }
+        }
+
+        outputs.insert("A".to_string(), Tree { branches: result_a }.to_value());
+        outputs.insert("B".to_string(), Tree { branches: result_b }.to_value());
+        Ok(outputs)
     }
 }
+
+impl Tree {
+    fn clone_tree(&self) -> Self {
+        Tree {
+            branches: self.branches.clone(),
+        }
+    }
+}
+
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ShiftPathsComponent;
 
 impl Component for ShiftPathsComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Shift Paths component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Shift Paths component requires two inputs."));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let offset = coerce_to_i64(&inputs[1])? as isize;
+
+        let shifted_tree = tree.shift_paths(offset);
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("D".to_string(), shifted_tree.to_value());
+        Ok(outputs)
     }
 }
 
@@ -701,8 +828,21 @@ impl Component for ShiftPathsComponent {
 pub struct TreeBranchComponent;
 
 impl Component for TreeBranchComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Tree Branch component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Tree Branch component requires two inputs."));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let path_str = coerce_to_string(&inputs[1])?;
+        let path = parse_path(&path_str)?;
+
+        let mut outputs = BTreeMap::new();
+        if let Some(branch) = tree.branches.get(&path) {
+            outputs.insert("B".to_string(), Value::List(branch.clone()));
+        } else {
+            outputs.insert("B".to_string(), Value::List(vec![]));
+        }
+        Ok(outputs)
     }
 }
 
@@ -710,8 +850,18 @@ impl Component for TreeBranchComponent {
 pub struct StreamFilterComponent;
 
 impl Component for StreamFilterComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Stream Filter component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Stream Filter component requires at least two inputs."));
+        }
+        let gate = coerce_to_i64(&inputs[0])? as usize;
+        if gate < inputs.len() - 1 {
+            let mut outputs = BTreeMap::new();
+            outputs.insert("S".to_string(), inputs[gate + 1].clone());
+            Ok(outputs)
+        } else {
+            Err(ComponentError::new("Gate index out of bounds."))
+        }
     }
 }
 
@@ -719,8 +869,15 @@ impl Component for StreamFilterComponent {
 pub struct FlipMatrixComponent;
 
 impl Component for FlipMatrixComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Flip Matrix component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Flip Matrix component requires one input."));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let flipped_tree = tree.flip_matrix();
+        let mut outputs = BTreeMap::new();
+        outputs.insert("D".to_string(), flipped_tree.to_value());
+        Ok(outputs)
     }
 }
 
@@ -728,8 +885,19 @@ impl Component for FlipMatrixComponent {
 pub struct MatchTreeComponent;
 
 impl Component for MatchTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Match Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Match Tree component requires two inputs."));
+        }
+        let tree_to_modify = Tree::from(&inputs[0]);
+        let guide_tree = Tree::from(&inputs[1]);
+
+        let items = tree_to_modify.flattened_items();
+        let new_tree = Tree::unflatten_with(&guide_tree, &items);
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("T".to_string(), new_tree.to_value());
+        Ok(outputs)
     }
 }
 
@@ -737,8 +905,22 @@ impl Component for MatchTreeComponent {
 pub struct StreamGateComponent;
 
 impl Component for StreamGateComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Stream Gate component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.len() < 2 {
+            return Err(ComponentError::new("Stream Gate component requires at least two inputs."));
+        }
+        let gate = coerce_to_i64(&inputs[0])? as usize;
+        let mut outputs = BTreeMap::new();
+
+        for i in 1..inputs.len() {
+            let output_name = (i - 1).to_string();
+            if i - 1 == gate {
+                outputs.insert(output_name, inputs[i].clone());
+            } else {
+                outputs.insert(output_name, Value::Null);
+            }
+        }
+        Ok(outputs)
     }
 }
 
@@ -746,8 +928,20 @@ impl Component for StreamGateComponent {
 pub struct ExplodeTreeComponent;
 
 impl Component for ExplodeTreeComponent {
-    fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        Err(ComponentError::new("Explode Tree component is not yet implemented."))
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            return Err(ComponentError::new("Explode Tree component requires one input."));
+        }
+        let tree = Tree::from(&inputs[0]);
+        let mut outputs = BTreeMap::new();
+
+        for (i, (path, branch)) in tree.branches.iter().enumerate() {
+            let mut branch_tree = BTreeMap::new();
+            branch_tree.insert(path.clone(), branch.clone());
+            outputs.insert(format!("Branch {}", i), Tree{ branches: branch_tree }.to_value());
+        }
+
+        Ok(outputs)
     }
 }
 
@@ -969,7 +1163,7 @@ impl Component for EntwineComponent {
         let result_value = result_tree.to_value();
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("T".to_string(), result_value);
+        outputs.insert("R".to_string(), result_value);
         Ok(outputs)
     }
 }
@@ -991,8 +1185,8 @@ impl Component for SplitTreeComponent {
         let (matching_tree, non_matching_tree) = tree.split_tree(&mask);
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("C".to_string(), matching_tree.to_value());
-        outputs.insert("D".to_string(), non_matching_tree.to_value());
+        outputs.insert("P".to_string(), matching_tree.to_value());
+        outputs.insert("N".to_string(), non_matching_tree.to_value());
         Ok(outputs)
     }
 }
@@ -1017,7 +1211,7 @@ impl Component for DeconstructPathComponent {
             .collect();
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("B".to_string(), Value::List(segments));
+        outputs.insert("I".to_string(), Value::List(segments));
         Ok(outputs)
     }
 }
@@ -1248,7 +1442,7 @@ mod tests {
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
             Value::List(vec![Value::Number(3.0), Value::Number(4.0)]),
         ]);
-        assert_eq!(outputs.get("T"), Some(&expected));
+        assert_eq!(outputs.get("R"), Some(&expected));
     }
 
     #[test]
@@ -1268,8 +1462,8 @@ mod tests {
         ])]);
         let expected_non_matching =
             Value::List(vec![Value::List(vec![]), Value::List(vec![Value::Number(3.0)])]);
-        assert_eq!(outputs.get("C"), Some(&expected_matching));
-        assert_eq!(outputs.get("D"), Some(&expected_non_matching));
+        assert_eq!(outputs.get("P"), Some(&expected_matching));
+        assert_eq!(outputs.get("N"), Some(&expected_non_matching));
     }
 
     #[test]
@@ -1282,7 +1476,7 @@ mod tests {
             Value::Number(1.0),
             Value::Number(2.0),
         ]);
-        assert_eq!(outputs.get("B"), Some(&expected));
+        assert_eq!(outputs.get("I"), Some(&expected));
     }
 
     #[test]
