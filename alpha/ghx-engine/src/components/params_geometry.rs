@@ -61,8 +61,27 @@ impl ComponentKind {
             Self::Line => LineComponent.evaluate(inputs, meta),
             Self::Mesh => MeshComponent.evaluate(inputs, meta),
             Self::Surface => SurfaceComponent.evaluate(inputs, meta),
+            Self::Curve => CurveComponent.evaluate(inputs, meta),
+            Self::MeshFace => MeshFaceComponent.evaluate(inputs, meta),
             // Placeholders
-            _ => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::CircularArc => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Transform => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Field => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Plane => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::TwistedBox => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Location => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::SubD => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Brep => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Atom => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Rectangle => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Geometry => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Group => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::GeometryPipeline => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::MesherSettings => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Box => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::Circle => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::GeometryCache => Err(ComponentError::NotYetImplemented(self.name().to_string())),
+            Self::MeshPoint => Err(ComponentError::NotYetImplemented(self.name().to_string())),
         }
     }
 
@@ -145,14 +164,41 @@ define_param_component!(VectorComponent, "Vec", ValueKind::Vector);
 define_param_component!(LineComponent, "Line", ValueKind::CurveLine);
 define_param_component!(MeshComponent, "Mesh", ValueKind::Surface);
 define_param_component!(SurfaceComponent, "Srf", ValueKind::Surface);
+define_param_component!(CurveComponent, "Crv", ValueKind::CurveLine);
+define_param_component!(MeshFaceComponent, "Face", ValueKind::Text);
+
+// --- Placeholder Components ---
+// define_param_component!(CircularArcComponent, "Arc", ValueKind::CircularArc);
+// define_param_component!(TransformComponent, "Transform", ValueKind::Transform);
+// define_param_component!(FieldComponent, "Field", ValueKind::Field);
+// define_param_component!(PlaneComponent, "Pln", ValueKind::Plane);
+// define_param_component!(TwistedBoxComponent, "TBox", ValueKind::TwistedBox);
+// define_param_component!(LocationComponent, "Loc", ValueKind::Location);
+// define_param_component!(SubDComponent, "SubD", ValueKind::SubD);
+// define_param_component!(BrepComponent, "Brep", ValueKind::Brep);
+// define_param_component!(AtomComponent, "Atom", ValueKind::Atom);
+// define_param_component!(RectangleComponent, "Rec", ValueKind::Rectangle);
+// define_param_component!(GeometryComponent, "Geo", ValueKind::Geometry);
+// define_param_component!(GroupComponent, "Grp", ValueKind::Group);
+// define_param_component!(GeometryPipelineComponent, "Pipeline", ValueKind::GeometryPipeline);
+// define_param_component!(MesherSettingsComponent, "Mesh", ValueKind::MesherSettings);
+// define_param_component!(BoxComponent, "Box", ValueKind::Box);
+// define_param_component!(CircleComponent, "Circle", ValueKind::Circle);
+// define_param_component!(GeometryCacheComponent, "Geometry Cache", ValueKind::GeometryCache);
+// define_param_component!(MeshPointComponent, "MPoint", ValueKind::MeshPoint);
 
 // --- Registrations ---
 pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
+    // Implemented
     Registration::new(ComponentKind::Point, &["fbac3e32-f100-4292-8692-77240a42fd1a"], &["Point", "Pt"]),
     Registration::new(ComponentKind::Vector, &["16ef3e75-e315-4899-b531-d3166b42dac9"], &["Vector", "Vec"]),
     Registration::new(ComponentKind::Line, &["8529dbdf-9b6f-42e9-8e1f-c7a2bde56a70"], &["Line"]),
     Registration::new(ComponentKind::Mesh, &["1e936df3-0eea-4246-8549-514cb8862b7a"], &["Mesh"]),
     Registration::new(ComponentKind::Surface, &["deaf8653-5528-4286-807c-3de8b8dad781"], &["Surface", "Srf"]),
+    Registration::new(ComponentKind::Curve, &["d5967b9f-e8ee-436b-a8ad-29fdcecf32d5"], &["Curve", "Crv"]),
+    Registration::new(ComponentKind::MeshFace, &["e02b3da5-543a-46ac-a867-0ba6b0a524de"], &["Mesh Face", "Face"]),
+
+    // Placeholders
     Registration::new(ComponentKind::CircularArc, &["04d3eace-deaa-475e-9e69-8f804d687998"], &["Circular Arc", "Arc"]),
     Registration::new(ComponentKind::Transform, &["28f40e48-e739-4211-91bd-f4aefa5965f8"], &["Transform"]),
     Registration::new(ComponentKind::Field, &["3175e3eb-1ae0-4d0b-9395-53fd3e8f8a28"], &["Field"]),
@@ -169,8 +215,6 @@ pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
     Registration::new(ComponentKind::MesherSettings, &["c3407fda-b505-4686-9165-38fe7a9274cf"], &["Mesher Settings"]),
     Registration::new(ComponentKind::Box, &["c9482db6-bea9-448d-98ff-fed6d69a8efc"], &["Box"]),
     Registration::new(ComponentKind::Circle, &["d1028c72-ff86-4057-9eb0-36c687a4d98c"], &["Circle"]),
-    Registration::new(ComponentKind::Curve, &["d5967b9f-e8ee-436b-a8ad-29fdcecf32d5"], &["Curve", "Crv"]),
-    Registration::new(ComponentKind::MeshFace, &["e02b3da5-543a-46ac-a867-0ba6b0a524de"], &["Mesh Face", "Face"]),
     Registration::new(ComponentKind::GeometryCache, &["f91778ca-2700-42fc-8ee6-74049a2292b5"], &["Geometry Cache"]),
     Registration::new(ComponentKind::MeshPoint, &["fa20fe95-5775-417b-92ff-b77c13cbf40c"], &["Mesh Point", "MPoint"]),
 ];
@@ -242,8 +286,30 @@ mod tests {
     }
 
     #[test]
+    fn test_curve_param_component_pass_through() {
+        let component = CurveComponent;
+        let curve = Value::CurveLine { p1: [0.0; 3], p2: [1.0; 3] };
+        let inputs = vec![curve.clone()];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        assert_eq!(outputs.get("Crv"), Some(&curve));
+    }
+
+    #[test]
+    fn test_mesh_face_param_component_pass_through() {
+        let component = MeshFaceComponent;
+        let face = Value::Text("3;0;1;2".to_string());
+        let inputs = vec![face.clone()];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        assert_eq!(outputs.get("Face"), Some(&face));
+    }
+
+    #[test]
     fn test_placeholder_components() {
         let kind = ComponentKind::Circle;
+        let err = kind.evaluate(&[], &MetaMap::new()).unwrap_err();
+        assert!(matches!(err, ComponentError::NotYetImplemented(_)));
+
+        let kind = ComponentKind::Transform;
         let err = kind.evaluate(&[], &MetaMap::new()).unwrap_err();
         assert!(matches!(err, ComponentError::NotYetImplemented(_)));
     }
