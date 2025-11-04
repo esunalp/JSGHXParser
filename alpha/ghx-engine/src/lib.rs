@@ -11,6 +11,7 @@ use components::{ComponentKind, ComponentRegistry};
 use graph::Graph;
 use graph::evaluator::{self, EvaluationResult};
 use graph::node::{MetaMap, MetaValue, NodeId};
+use graph::topo::Topology;
 use graph::value::Value;
 use serde::Serialize;
 use wasm_bindgen::JsError;
@@ -256,6 +257,26 @@ impl Engine {
 
         serde_wasm_bindgen::to_value(&GeometryResponse { items })
             .map_err(|err| JsError::new(&err.to_string()).into())
+    }
+
+    /// Haalt een tekstuele weergave op van de topologisch gesorteerde graaf.
+    #[wasm_bindgen]
+    pub fn get_topology_map(&self) -> Result<JsValue, JsValue> {
+        let graph = self
+            .graph
+            .as_ref()
+            .ok_or_else(|| js_error("er is geen GHX-bestand geladen"))?;
+
+        let topology = Topology::sort(graph).map_err(to_js_error)?;
+
+        let map = topology
+            .order
+            .iter()
+            .map(|id| id.0.to_string())
+            .collect::<Vec<_>>()
+            .join(" -> ");
+
+        Ok(JsValue::from_str(&map))
     }
 }
 
