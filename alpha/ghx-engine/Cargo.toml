@@ -9,9 +9,11 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["console_error_panic_hook"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
-debug_logs = []
+debug_logs = ["dep:wasm-bindgen-console-logger"]
 
 [dependencies]
+log = "0.4"
+wasm-bindgen-console-logger = { version = "0.1", optional = true }
 wildmatch = "2.2.1"
 regex = "1.10.5"
 levenshtein = "1.0"
