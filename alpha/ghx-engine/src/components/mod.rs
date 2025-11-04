@@ -270,6 +270,7 @@ impl Default for ComponentRegistry {
 
         let number_slider = ComponentKind::NumberSlider(number_slider::ComponentImpl);
         registry.register_guid("{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}", number_slider);
+        registry.register_guid("{57da07bd-ecab-415d-9d86-af36d7073abc}", number_slider);
         registry.register_names(&["Number Slider", "Slider"], number_slider);
 
         let add = ComponentKind::Add(add::ComponentImpl);
