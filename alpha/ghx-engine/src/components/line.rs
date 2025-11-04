@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{Component, ComponentResult};
 
 /// Grasshopper levert lijnen doorgaans op pin "L".
 const OUTPUT_PIN: &str = "L";
@@ -16,42 +16,31 @@ pub struct ComponentImpl;
 
 impl Component for ComponentImpl {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        if inputs.len() < 2 {
-            return Err(ComponentError::new("Line component vereist twee punten"));
-        }
+        let start = inputs.get(0).and_then(coerce_point);
+        let end = inputs.get(1).and_then(coerce_point);
 
-        let start = coerce_point(&inputs[0])?;
-        let end = coerce_point(&inputs[1])?;
-
-        if start == end {
-            return Err(ComponentError::new(
-                "Line component ontving identieke punten",
-            ));
-        }
+        let output = match (start, end) {
+            (Some(start), Some(end)) if start != end => Value::CurveLine { p1: start, p2: end },
+            _ => Value::Null,
+        };
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_PIN.to_owned(),
-            Value::CurveLine { p1: start, p2: end },
-        );
+        outputs.insert(OUTPUT_PIN.to_owned(), output);
         Ok(outputs)
     }
 }
 
-fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value) -> Option<[f64; 3]> {
     match value {
-        Value::Point(point) => Ok(*point),
+        Value::Point(point) => Some(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0]),
-        other => Err(ComponentError::new(format!(
-            "Line component verwacht punten, kreeg {}",
-            other.kind()
-        ))),
+        _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, ComponentImpl, OUTPUT_PIN, coerce_point};
+    use super::{coerce_point, Component, ComponentImpl, OUTPUT_PIN};
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
@@ -87,20 +76,36 @@ mod tests {
     }
 
     #[test]
-    fn rejects_identical_points() {
+    fn returns_null_for_identical_points() {
         let component = ComponentImpl;
-        let err = component
+        let outputs = component
             .evaluate(
                 &[Value::Point([0.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 0.0])],
                 &MetaMap::new(),
             )
-            .unwrap_err();
-        assert!(err.message().contains("identieke"));
+            .unwrap();
+        assert!(matches!(outputs.get(OUTPUT_PIN), Some(Value::Null)));
     }
 
     #[test]
-    fn coerce_rejects_non_points() {
-        let err = coerce_point(&Value::Number(1.0)).unwrap_err();
-        assert!(err.message().contains("punten"));
+    fn returns_null_for_null_input() {
+        let component = ComponentImpl;
+        let outputs = component
+            .evaluate(
+                &[Value::Null, Value::Point([0.0, 0.0, 0.0])],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        assert!(matches!(outputs.get(OUTPUT_PIN), Some(Value::Null)));
+    }
+
+    #[test]
+    fn coerce_returns_none_for_non_points() {
+        assert!(coerce_point(&Value::Number(1.0)).is_none());
+    }
+
+    #[test]
+    fn coerce_returns_none_for_null() {
+        assert!(coerce_point(&Value::Null).is_none());
     }
 }
