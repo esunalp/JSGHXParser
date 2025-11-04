@@ -305,13 +305,29 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let p1 = coerce_point(inputs.get(0).unwrap(), "Arc 3Pt")?;
-    let p2 = coerce_point(inputs.get(1).unwrap(), "Arc 3Pt")?;
-    let p3 = coerce_point(inputs.get(2).unwrap(), "Arc 3Pt")?;
+    let p1_res = coerce_point(inputs.get(0).unwrap(), "Arc 3Pt");
+    let p2_res = coerce_point(inputs.get(1).unwrap(), "Arc 3Pt");
+    let p3_res = coerce_point(inputs.get(2).unwrap(), "Arc 3Pt");
+
+    if p1_res.is_err() || p2_res.is_err() || p3_res.is_err() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::Null);
+        outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Null);
+        return Ok(outputs);
+    }
+
+    let p1 = p1_res.unwrap();
+    let p2 = p2_res.unwrap();
+    let p3 = p3_res.unwrap();
 
     let (center, radius, normal) = match circle_from_three_points(p1, p2, p3) {
         Some(circle) => circle,
-        None => return Err(ComponentError::new("De punten zijn collineair")),
+        None => {
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::Null);
+            outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Null);
+            return Ok(outputs);
+        }
     };
 
     let plane = Plane::from_origin_and_normal(center, normal);
@@ -778,6 +794,10 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
     match value {
         Value::Point(point) => Ok(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
+        Value::Null => Err(ComponentError::new(format!(
+            "{} verwacht punten, kreeg Null",
+            context
+        ))),
         other => Err(ComponentError::new(format!(
             "{} verwacht punten, kreeg {}",
             context,
