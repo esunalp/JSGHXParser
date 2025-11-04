@@ -678,10 +678,7 @@ impl ComponentRegistry {
 }
 
 fn normalize_guid(guid: &str) -> String {
-    guid.chars()
-        .filter(|c| *c != '{' && *c != '}')
-        .flat_map(|c| c.to_lowercase())
-        .collect()
+    guid.trim_matches(|c| c == '{' || c == '}').to_lowercase()
 }
 
 fn normalize_name(name: &str) -> String {
