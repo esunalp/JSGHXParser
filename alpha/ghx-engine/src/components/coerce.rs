@@ -13,6 +13,9 @@ pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
     match value {
         Value::Number(n) => Ok(*n),
         Value::Boolean(b) => Ok(if *b { 1.0 } else { 0.0 }),
+        Value::Text(s) => s.parse().map_err(|_| {
+            ComponentError::new(format!("Kon tekst '{}' niet naar een getal converteren", s))
+        }),
         Value::List(l) if l.len() == 1 => coerce_number(&l[0]),
         other => Err(ComponentError::new(format!(
             "Verwachtte een getal, kreeg {}",
