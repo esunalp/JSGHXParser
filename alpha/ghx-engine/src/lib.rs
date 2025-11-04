@@ -34,8 +34,10 @@ cfg_if::cfg_if! {
 
 #[cfg(feature = "debug_logs")]
 fn init_logger() {
-    use log::Level;
-    wasm_bindgen_console_logger::init_with_level(Level::Debug).expect("error initializing logger");
+    use log::LevelFilter;
+    use wasm_bindgen_console_logger::DEFAULT_LOGGER;
+    log::set_logger(&DEFAULT_LOGGER).expect("error initializing logger");
+    log::set_max_level(LevelFilter::Debug);
 }
 
 #[cfg(not(feature = "debug_logs"))]
