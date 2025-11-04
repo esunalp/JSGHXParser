@@ -410,6 +410,18 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
         .unwrap_or_default()
         .to_ascii_lowercase();
 
+    if type_name.contains("point") {
+        if let Some(point) = parse_point_value(text) {
+            return Some(Value::Point(point));
+        }
+    }
+
+    if type_name.contains("vector") {
+        if let Some(vector) = parse_point_value(text) {
+            return Some(Value::Vector(vector));
+        }
+    }
+
     if type_name.contains("double")
         || type_name.contains("single")
         || type_name.contains("int")
@@ -428,6 +440,17 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
     }
 
     Some(Value::Text(text.to_owned()))
+}
+
+fn parse_point_value(text: &str) -> Option<[f64; 3]> {
+    let parts: Vec<Option<f64>> = text.split(',').map(parse_f64).collect();
+    if parts.len() != 3 {
+        return None;
+    }
+    let x = parts[0]?;
+    let y = parts[1]?;
+    let z = parts[2]?;
+    Some([x, y, z])
 }
 
 fn parse_f64(value: &str) -> Option<f64> {
@@ -710,6 +733,24 @@ impl RawChunk {
 mod tests {
     use super::parse_str;
     use crate::graph::node::MetaValue;
+    use crate::graph::value::Value;
+
+    #[test]
+    fn parses_point_with_default_value() {
+        let xml = include_str!("../../../../tools/ghx-samples/point_default.ghx");
+        let graph = parse_str(xml).expect("graph with default point parsed");
+        assert_eq!(graph.node_count(), 1);
+        let point_node = graph.nodes().first().unwrap();
+        let input_value = point_node.inputs.get("P").unwrap();
+        match input_value {
+            Value::Point(p) => {
+                assert!((p[0] - 10.5).abs() < f64::EPSILON);
+                assert!((p[1] - 20.0).abs() < f64::EPSILON);
+                assert!((p[2] - -5.2).abs() < f64::EPSILON);
+            }
+            _ => panic!("Expected a Point value, got {:?}", input_value),
+        }
+    }
 
     #[test]
     fn parses_minimal_line_graph_with_slider_meta() {
