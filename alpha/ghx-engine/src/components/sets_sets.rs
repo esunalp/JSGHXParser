@@ -305,7 +305,7 @@ impl Component for CartesianProductComponent {
         let set_a = list(&inputs[0])?;
         let set_b = list(&inputs[1])?;
         let mut product = Vec::new();
-        for a in set_a {
+        for _a in set_a {
             let mut row = Vec::new();
             for b in set_b {
                 row.push(b.clone());
