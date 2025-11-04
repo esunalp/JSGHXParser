@@ -40,12 +40,20 @@ impl From<GraphError> for ParseError {
 
 /// Leest een GHX-document en converteert het naar een [`Graph`].
 pub fn parse_str(input: &str) -> ParseResult<Graph> {
+    log::debug!("Start parsing GHX document");
     let document: GhxDocument = from_str(input)?;
     let mut graph = Graph::new();
     let mut nodes_by_id: BTreeMap<usize, NodeId> = BTreeMap::new();
 
+    log::debug!("Found {} objects", document.objects.objects.len());
     for object in document.objects.objects {
         let node_id = NodeId::new(object.id);
+        log::debug!(
+            "Processing object ID: {}, GUID: {:?}, Name: {:?}",
+            object.id,
+            object.guid,
+            object.name
+        );
         let mut node = Node::new(node_id);
         node.guid = object.guid;
         node.name = object.name;

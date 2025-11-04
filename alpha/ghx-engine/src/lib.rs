@@ -21,13 +21,26 @@ cfg_if::cfg_if! {
         #[wasm_bindgen(start)]
         pub fn initialize() {
             console_error_panic_hook::set_once();
+            init_logger();
         }
     } else {
         #[wasm_bindgen(start)]
         pub fn initialize() {
             // no-op fallback when panic hook is disabled
+            init_logger();
         }
     }
+}
+
+#[cfg(feature = "debug_logs")]
+fn init_logger() {
+    use log::Level;
+    wasm_bindgen_console_logger::init_with_level(Level::Debug).expect("error initializing logger");
+}
+
+#[cfg(not(feature = "debug_logs"))]
+fn init_logger() {
+    // no-op fallback when debug logs are disabled
 }
 
 #[macro_export]

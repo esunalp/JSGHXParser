@@ -86,6 +86,7 @@ dependencies = [
  "delaunator",
  "getrandom",
  "levenshtein",
+ "log",
  "meval",
  "num-complex",
  "quick-xml",
@@ -97,6 +98,7 @@ dependencies = [
  "time",
  "voronoice",
  "wasm-bindgen",
+ "wasm-bindgen-console-logger",
  "web-sys",
  "wildmatch",
 ]
@@ -122,6 +124,12 @@ name = "libc"
 version = "0.2.177"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
+
+[[package]]
+name = "log"
+version = "0.4.28"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 
 [[package]]
 name = "memchr"
@@ -431,6 +439,16 @@ dependencies = [
  "rustversion",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
+]
+
+[[package]]
+name = "wasm-bindgen-console-logger"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7530a275e7faf7b5b83aabdf78244fb8d9a68a2ec4b26935a05ecc0c9b0185ed"
+dependencies = [
+ "log",
+ "wasm-bindgen",
 ]
 
 [[package]]
