@@ -1,10 +1,9 @@
 //! Grasshopper Input Parameter Components
 
 use crate::graph::node::{MetaMap, MetaValue};
-use crate::graph::value::{Value, ValueKind};
+use crate::graph::value::Value;
 use super::{coerce, Component, ComponentError, ComponentResult};
 use std::collections::BTreeMap;
-use std::fmt;
 
 /// Defines a component's registration information.
 pub struct Registration<T> {
