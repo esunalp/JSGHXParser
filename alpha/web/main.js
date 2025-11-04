@@ -35,6 +35,14 @@ function normalizeSliders(value) {
     }));
 }
 
+function normalizeNodeInfo(value) {
+    if (!value || typeof value !== 'object') {
+        return [];
+    }
+    const nodes = value.nodes;
+    return Array.isArray(nodes) ? nodes : [];
+}
+
 async function init() {
   const ui = setupUi();
   ui.setStatus('Initialiseren van WebAssembly en Three.js…');
@@ -152,8 +160,11 @@ async function init() {
       try {
         const topologyMap = engine.get_topology_map();
         ui.renderTopologyMap(topologyMap);
+        const nodeInfo = engine.get_node_info();
+        ui.renderNodeList(normalizeNodeInfo(nodeInfo));
       } catch (error) {
         ui.renderTopologyMap(`Fout: ${error.message}`);
+        ui.renderNodeList([]);
       }
     } catch (error) {
       console.error('Fout bij het laden van GHX:', error);
@@ -161,6 +172,7 @@ async function init() {
       three.updateGeometry([]);
       ui.setStatus('Fout bij het laden van het GHX-bestand: ' + (error?.message ?? String(error)));
       ui.renderTopologyMap('');
+      ui.renderNodeList([]);
     } finally {
       syncSliders();
       ui.showLoading(false);

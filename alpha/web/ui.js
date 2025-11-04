@@ -150,6 +150,7 @@ export function setupUi() {
   const fileInput = document.getElementById('ghx-input');
   const statusOutput = document.getElementById('status');
   const topologyMapOutput = document.getElementById('topology-map');
+  const nodeListContainer = document.getElementById('node-list');
   const sliderContainer = document.getElementById('slider-container');
   const overlayToggle = document.getElementById('overlay-toggle');
   const overlayState = document.getElementById('overlay-state');
@@ -262,6 +263,24 @@ export function setupUi() {
     }
   };
 
+  const renderNodeList = (nodes) => {
+    if (!nodeListContainer) {
+      return;
+    }
+    nodeListContainer.innerHTML = '';
+    for (const node of nodes) {
+      const nodeEl = document.createElement('div');
+      nodeEl.innerHTML = `
+        <strong>${node.name} (${node.id})</strong>
+        <ul>
+          ${Object.entries(node.outputs).map(([key, value]) => `<li>${key}: ${value}</li>`).join('')}
+        </ul>
+        <p>Connected to: ${node.connected_to.join(', ')}</p>
+      `;
+      nodeListContainer.appendChild(nodeEl);
+    }
+  };
+
   return {
     canvas,
     setHandlers,
@@ -271,6 +290,7 @@ export function setupUi() {
     showLoading,
     setOverlayState,
     renderTopologyMap,
+    renderNodeList,
   };
 }
 

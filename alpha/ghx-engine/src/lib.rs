@@ -5,6 +5,7 @@ pub mod components;
 pub mod graph;
 pub mod parse;
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use components::{ComponentKind, ComponentRegistry};
@@ -87,6 +88,19 @@ struct SliderExport {
 #[derive(Debug, Serialize)]
 struct GeometryResponse {
     items: Vec<GeometryItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct NodeInfo {
+    id: usize,
+    name: String,
+    outputs: BTreeMap<String, String>,
+    connected_to: Vec<usize>,
+}
+
+#[derive(Debug, Serialize)]
+struct NodeInfoResponse {
+    nodes: Vec<NodeInfo>,
 }
 
 #[derive(Debug, Serialize)]
@@ -277,6 +291,47 @@ impl Engine {
             .join(" -> ");
 
         Ok(JsValue::from_str(&map))
+    }
+
+    #[wasm_bindgen]
+    pub fn get_node_info(&self) -> Result<JsValue, JsValue> {
+        let graph = self
+            .graph
+            .as_ref()
+            .ok_or_else(|| js_error("er is geen GHX-bestand geladen"))?;
+
+        let result = self.last_result.as_ref();
+
+        let mut nodes_info = Vec::new();
+
+        for node in graph.nodes() {
+            let outputs = result
+                .and_then(|r| r.node_outputs.get(&node.id))
+                .map(|outputs| {
+                    outputs
+                        .iter()
+                        .map(|(k, v)| (k.clone(), v.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let connected_to = graph
+                .wires()
+                .iter()
+                .filter(|w| w.from_node == node.id)
+                .map(|w| w.to_node.0)
+                .collect();
+
+            nodes_info.push(NodeInfo {
+                id: node.id.0,
+                name: node.nickname.clone().or(node.name.clone()).unwrap_or_default(),
+                outputs,
+                connected_to,
+            });
+        }
+
+        serde_wasm_bindgen::to_value(&NodeInfoResponse { nodes: nodes_info })
+            .map_err(|err| JsError::new(&err.to_string()).into())
     }
 }
 
