@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 /// Standaard Grasshopper-uitgang voor punten is "P".
 const OUTPUT_PIN: &str = "P";
@@ -22,9 +22,9 @@ impl Component for ComponentImpl {
             ));
         }
 
-        let x = coerce_number(&inputs[0])?;
-        let y = coerce_number(&inputs[1])?;
-        let z = coerce_number(&inputs[2])?;
+        let x = coerce::coerce_number(&inputs[0])?;
+        let y = coerce::coerce_number(&inputs[1])?;
+        let z = coerce::coerce_number(&inputs[2])?;
 
         let mut outputs = BTreeMap::new();
         outputs.insert(OUTPUT_PIN.to_owned(), Value::Point([x, y, z]));
@@ -32,20 +32,10 @@ impl Component for ComponentImpl {
     }
 }
 
-fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
-    match value {
-        Value::Number(number) => Ok(*number),
-        Value::List(values) if values.len() == 1 => coerce_number(&values[0]),
-        other => Err(ComponentError::new(format!(
-            "Construct Point verwacht een numerieke waarde, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Component, ComponentImpl, OUTPUT_PIN, coerce_number};
+    use super::{Component, ComponentImpl, OUTPUT_PIN};
+    use crate::components::coerce;
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
@@ -94,13 +84,28 @@ mod tests {
                 &MetaMap::new(),
             )
             .unwrap_err();
-        assert!(err.message().contains("numerieke"));
+        assert!(err.message().contains("Verwachtte"));
     }
 
     #[test]
     fn coerce_rejects_multi_values() {
         let err =
-            coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)])).unwrap_err();
-        assert!(err.message().contains("numerieke"));
+            coerce::coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)])).unwrap_err();
+        assert!(err.message().contains("Verwachtte"));
+    }
+
+    #[test]
+    fn builds_point_from_text() {
+        let component = ComponentImpl;
+        let outputs = component
+            .evaluate(
+                &[Value::Text("1.0".to_string()), Value::Text("2.0".to_string()), Value::Text("3.0".to_string())],
+                &MetaMap::new(),
+            )
+            .expect("construct from text succeeded");
+        assert!(matches!(
+            outputs.get(OUTPUT_PIN),
+            Some(Value::Point(coords)) if *coords == [1.0, 2.0, 3.0]
+        ));
     }
 }
