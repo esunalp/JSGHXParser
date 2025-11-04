@@ -1,6 +1,6 @@
 //! Parser voor GHX XML-bestanden.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::{ParseFloatError, ParseIntError};
 
 use crate::graph::node::{Node, NodeId};
@@ -40,8 +40,33 @@ impl From<GraphError> for ParseError {
 
 /// Leest een GHX-document en converteert het naar een [`Graph`].
 pub fn parse_str(input: &str) -> ParseResult<Graph> {
-    log::debug!("Start parsing GHX document");
-    let document: GhxDocument = from_str(input)?;
+    let trimmed = strip_xml_preamble(input);
+    let prefix = trimmed.chars().take(16).collect::<String>().to_lowercase();
+
+    if prefix.starts_with("<ghx") {
+        parse_simple_document(input)
+    } else if prefix.starts_with("<archive") {
+        parse_archive_document(input)
+    } else {
+        Err(ParseError::Graph(
+            "onbekend GHX-formaat: geen <ghx> of <Archive> root gevonden".to_owned(),
+        ))
+    }
+}
+
+fn strip_xml_preamble(input: &str) -> &str {
+    let trimmed = input.trim_start_matches(|c: char| c == '\u{feff}' || c.is_whitespace());
+    if let Some(rest) = trimmed.strip_prefix("<?xml") {
+        if let Some(idx) = rest.find("?>") {
+            return rest[idx + 2..].trim_start();
+        }
+    }
+    trimmed
+}
+
+fn parse_simple_document(input: &str) -> ParseResult<Graph> {
+    log::debug!("Start parsing vereenvoudigd GHX document");
+    let document: SimpleGhxDocument = from_str(input)?;
     let mut graph = Graph::new();
     let mut nodes_by_id: BTreeMap<usize, NodeId> = BTreeMap::new();
 
@@ -97,6 +122,333 @@ pub fn parse_str(input: &str) -> ParseResult<Graph> {
     Ok(graph)
 }
 
+fn parse_archive_document(input: &str) -> ParseResult<Graph> {
+    log::debug!("Start parsing Archive-structuur GHX document");
+    let document: ArchiveDocument = from_str(input)?;
+
+    let definition = document
+        .chunks
+        .find_case_insensitive("Definition")
+        .ok_or_else(|| ParseError::Graph("Definition chunk ontbreekt".to_owned()))?;
+    let definition_objects = definition
+        .find_case_insensitive("DefinitionObjects")
+        .ok_or_else(|| ParseError::Graph("DefinitionObjects chunk ontbreekt".to_owned()))?;
+
+    let object_chunks: Vec<&RawChunk> = definition_objects
+        .children()
+        .filter(|chunk| chunk.name.eq_ignore_ascii_case("Object"))
+        .collect();
+
+    let mut graph = Graph::new();
+    let mut output_lookup: HashMap<String, (NodeId, String)> = HashMap::new();
+    let mut pending_wires: Vec<PendingWire> = Vec::new();
+
+    for (idx, chunk) in object_chunks.into_iter().enumerate() {
+        let parsed = parse_archive_object(chunk, idx)?;
+        let node_id = graph.add_node(parsed.node)?;
+
+        if let Some(instance_guid) = parsed.instance_guid.as_ref() {
+            if let Some(pin) = parsed.default_output_pin.as_ref() {
+                output_lookup.insert(instance_guid.clone(), (node_id, pin.clone()));
+            }
+        }
+
+        for (guid, pin) in parsed
+            .output_guids
+            .into_iter()
+            .zip(parsed.output_pins.into_iter())
+        {
+            output_lookup.insert(guid, (node_id, pin));
+        }
+
+        for pending in parsed.pending_inputs {
+            pending_wires.push(PendingWire {
+                target_node: node_id,
+                target_pin: pending.pin,
+                sources: pending.sources,
+            });
+        }
+    }
+
+    for pending in pending_wires {
+        for source in pending.sources {
+            let (from_node, from_pin) = output_lookup
+                .get(&source)
+                .cloned()
+                .ok_or_else(|| ParseError::Graph(format!("onbekende bronreferentie: {source}")))?;
+            graph.add_wire(Wire::new(
+                from_node,
+                from_pin,
+                pending.target_node,
+                pending.target_pin.clone(),
+            ))?;
+        }
+    }
+
+    Ok(graph)
+}
+
+fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveObjectParseResult> {
+    let mut node = Node::new(NodeId::new(index));
+
+    let component_guid_norm = chunk.item_value("GUID").and_then(normalize_guid_str);
+    if let Some(norm) = component_guid_norm.as_ref() {
+        node.guid = Some(format!("{{{norm}}}"));
+    }
+
+    let container = chunk
+        .find_case_insensitive("Container")
+        .ok_or_else(|| ParseError::Graph("Object mist Container chunk".to_owned()))?;
+
+    let instance_guid_norm = container
+        .item_value("InstanceGuid")
+        .and_then(normalize_guid_str);
+
+    let name = container
+        .item_value("Name")
+        .or_else(|| chunk.item_value("Name"))
+        .map(str::to_owned);
+    node.name = name;
+
+    let nickname = container.item_value("NickName").and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_owned())
+        }
+    });
+    node.nickname = nickname;
+
+    let is_slider = component_guid_norm.as_deref().map_or(false, |guid| {
+        guid == "57da07bd-ecab-415d-9d86-af36d7073abc"
+            || guid == "5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b"
+    });
+    let is_panel = component_guid_norm
+        .as_deref()
+        .map_or(false, |guid| guid == "59e0b89a-e487-49f8-bab8-b5bab16be14c");
+
+    if is_slider {
+        apply_slider_meta(container, &mut node);
+    }
+
+    if is_panel {
+        if let Some(user_text) = container.item_value("UserText").map(str::to_owned) {
+            node.insert_meta("userText", user_text.clone());
+            node.set_output("Output", Value::Text(user_text));
+        } else {
+            node.set_output("Output", Value::Null);
+        }
+    }
+
+    let mut output_guids = Vec::new();
+    let mut output_pins = Vec::new();
+
+    for (output_index, output_chunk) in container
+        .children()
+        .filter(|child| child.name.eq_ignore_ascii_case("param_output"))
+        .enumerate()
+    {
+        let info = parse_param_chunk(output_chunk, "out", output_index);
+        let pin_name = info.pin_name.clone();
+        node.set_output(pin_name.clone(), Value::Null);
+        if let Some(guid) = info.instance_guid {
+            output_guids.push(guid);
+        }
+        output_pins.push(pin_name);
+    }
+
+    let mut pending_inputs = Vec::new();
+    for (input_index, input_chunk) in container
+        .children()
+        .filter(|child| child.name.eq_ignore_ascii_case("param_input"))
+        .enumerate()
+    {
+        let info = parse_param_chunk(input_chunk, "in", input_index);
+        if let Some(default_value) = info.default_value.clone() {
+            node.set_input(info.pin_name.clone(), default_value);
+        }
+        if !info.sources.is_empty() {
+            pending_inputs.push(PendingInput {
+                pin: info.pin_name,
+                sources: info.sources,
+            });
+        }
+    }
+
+    let default_output_pin = if !output_pins.is_empty() {
+        output_pins.first().cloned()
+    } else if is_slider {
+        if !node.outputs.contains_key("OUT") {
+            node.set_output("OUT", Value::Null);
+        }
+        Some("OUT".to_owned())
+    } else if is_panel {
+        Some("Output".to_owned())
+    } else {
+        None
+    };
+
+    Ok(ArchiveObjectParseResult {
+        node,
+        instance_guid: instance_guid_norm,
+        output_guids,
+        output_pins,
+        default_output_pin,
+        pending_inputs,
+    })
+}
+
+fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
+    let mut value = None;
+    let mut min = None;
+    let mut max = None;
+    let mut step = None;
+
+    for slider_chunk in container
+        .children()
+        .filter(|child| child.name.to_lowercase().contains("slider"))
+    {
+        if let Some(raw_value) = slider_chunk.item_value("Value") {
+            if value.is_none() {
+                value = parse_f64(raw_value);
+            }
+        }
+        if let Some(raw_min) = slider_chunk.item_value("Min") {
+            if min.is_none() {
+                min = parse_f64(raw_min);
+            }
+        }
+        if let Some(raw_max) = slider_chunk.item_value("Max") {
+            if max.is_none() {
+                max = parse_f64(raw_max);
+            }
+        }
+        if let Some(raw_step) = slider_chunk
+            .item_value("Step")
+            .or_else(|| slider_chunk.item_value("Increment"))
+            .or_else(|| slider_chunk.item_value("Interval"))
+        {
+            if step.is_none() {
+                step = parse_f64(raw_step);
+            }
+        }
+    }
+
+    let value = value.unwrap_or(0.0);
+    if let Some(min) = min {
+        node.insert_meta("min", min);
+    }
+    if let Some(max) = max {
+        node.insert_meta("max", max);
+    }
+
+    let mut final_step = step.unwrap_or_else(|| {
+        if let (Some(min), Some(max)) = (min, max) {
+            let range = max - min;
+            if range > 0.0 { range / 100.0 } else { 0.1 }
+        } else {
+            0.1
+        }
+    });
+
+    if final_step <= 0.0 || !final_step.is_finite() {
+        final_step = 0.1;
+    }
+
+    node.insert_meta("value", value);
+    node.insert_meta("step", final_step);
+    node.set_output("OUT", Value::Number(value));
+}
+
+fn parse_param_chunk(chunk: &RawChunk, fallback_prefix: &str, fallback_index: usize) -> ParamInfo {
+    let index = chunk.index.unwrap_or(fallback_index);
+
+    let pin_name = chunk
+        .item_value("NickName")
+        .or_else(|| chunk.item_value("Name"))
+        .or_else(|| chunk.item_value("Description"))
+        .map(str::to_owned)
+        .unwrap_or_else(|| format!("{fallback_prefix}{index}"));
+
+    let sources = chunk
+        .item_values("Source")
+        .into_iter()
+        .filter_map(normalize_guid_str)
+        .collect();
+
+    let default_value = parse_persistent_value(chunk);
+    let instance_guid = chunk
+        .item_value("InstanceGuid")
+        .and_then(normalize_guid_str);
+
+    ParamInfo {
+        pin_name,
+        instance_guid,
+        sources,
+        default_value,
+    }
+}
+
+fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
+    let persistent = chunk.find_case_insensitive("PersistentData")?;
+    let branch = persistent
+        .children()
+        .find(|child| child.name.eq_ignore_ascii_case("Branch"))?;
+    let item_chunk = branch
+        .children()
+        .find(|child| child.name.eq_ignore_ascii_case("Item"))?;
+    let value_item = item_chunk.items.items.first()?;
+    let text = value_item.text.as_deref()?.trim();
+    if text.is_empty() {
+        return None;
+    }
+
+    let type_name = value_item
+        .type_name
+        .as_deref()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    if type_name.contains("double")
+        || type_name.contains("single")
+        || type_name.contains("int")
+        || type_name.contains("number")
+    {
+        if let Some(number) = parse_f64(text) {
+            return Some(Value::Number(number));
+        }
+    }
+
+    if type_name.contains("bool") {
+        let normalized = text.to_ascii_lowercase();
+        return Some(Value::Boolean(
+            normalized == "true" || normalized == "1" || normalized == "yes",
+        ));
+    }
+
+    Some(Value::Text(text.to_owned()))
+}
+
+fn parse_f64(value: &str) -> Option<f64> {
+    let normalized = value.trim().replace(',', ".");
+    normalized.parse::<f64>().ok()
+}
+
+fn normalize_guid_str(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let without_braces = trimmed.trim_matches(|c| c == '{' || c == '}');
+    let lowered = without_braces.to_ascii_lowercase();
+    if lowered.is_empty() {
+        None
+    } else {
+        Some(lowered)
+    }
+}
+
 fn parse_endpoint(
     reference: &str,
     nodes_by_id: &BTreeMap<usize, NodeId>,
@@ -112,7 +464,7 @@ fn parse_endpoint(
 }
 
 #[derive(Debug, Deserialize)]
-struct GhxDocument {
+struct SimpleGhxDocument {
     #[serde(default)]
     objects: GhxObjects,
     #[serde(default)]
@@ -234,6 +586,126 @@ impl GhxSlider {
     }
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct ArchiveDocument {
+    #[serde(default)]
+    items: RawItems,
+    #[serde(default)]
+    chunks: RawChunks,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawChunks {
+    #[serde(default, rename = "chunk")]
+    chunks: Vec<RawChunk>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawItems {
+    #[serde(default, rename = "item")]
+    items: Vec<RawItem>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct RawChunk {
+    #[serde(rename = "@name")]
+    name: String,
+    #[serde(rename = "@index")]
+    index: Option<usize>,
+    #[serde(default)]
+    items: RawItems,
+    #[serde(default)]
+    chunks: RawChunks,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawItem {
+    #[serde(rename = "@name")]
+    name: String,
+    #[serde(rename = "@index")]
+    index: Option<usize>,
+    #[serde(rename = "@type_name")]
+    type_name: Option<String>,
+    #[serde(rename = "@type_code")]
+    type_code: Option<String>,
+    #[serde(rename = "$text")]
+    text: Option<String>,
+}
+
+#[derive(Debug)]
+struct ArchiveObjectParseResult {
+    node: Node,
+    instance_guid: Option<String>,
+    output_guids: Vec<String>,
+    output_pins: Vec<String>,
+    default_output_pin: Option<String>,
+    pending_inputs: Vec<PendingInput>,
+}
+
+#[derive(Debug)]
+struct PendingWire {
+    target_node: NodeId,
+    target_pin: String,
+    sources: Vec<String>,
+}
+
+#[derive(Debug)]
+struct PendingInput {
+    pin: String,
+    sources: Vec<String>,
+}
+
+#[derive(Debug)]
+struct ParamInfo {
+    pin_name: String,
+    instance_guid: Option<String>,
+    sources: Vec<String>,
+    default_value: Option<Value>,
+}
+
+impl RawChunks {
+    fn find_case_insensitive(&self, name: &str) -> Option<&RawChunk> {
+        self.chunks
+            .iter()
+            .find(|chunk| chunk.name.eq_ignore_ascii_case(name))
+    }
+
+    fn children(&self) -> impl Iterator<Item = &RawChunk> {
+        self.chunks.iter()
+    }
+}
+
+impl RawChunk {
+    fn find_case_insensitive(&self, name: &str) -> Option<&RawChunk> {
+        self.chunks.find_case_insensitive(name)
+    }
+
+    fn children(&self) -> impl Iterator<Item = &RawChunk> {
+        self.chunks.children()
+    }
+
+    fn item_value(&self, name: &str) -> Option<&str> {
+        self.items
+            .items
+            .iter()
+            .find(|item| item.name.eq_ignore_ascii_case(name))
+            .and_then(|item| item.text.as_deref())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    }
+
+    fn item_values(&self, name: &str) -> Vec<&str> {
+        self.items
+            .items
+            .iter()
+            .filter(|item| item.name.eq_ignore_ascii_case(name))
+            .filter_map(|item| item.text.as_deref())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::parse_str;
@@ -311,5 +783,35 @@ mod tests {
             other => panic!("unexpected slider value meta: {other:?}"),
         };
         assert!((height_value - 2.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn parses_archive_style_graph() {
+        let xml = include_str!("../../../web/lijntest.ghx");
+        let graph = parse_str(xml).expect("archive graph parsed");
+        assert!(graph.node_count() >= 13);
+        assert!(graph.wire_count() > 0);
+
+        let slider = graph
+            .nodes()
+            .iter()
+            .find(|node| node.guid.as_deref() == Some("{57da07bd-ecab-415d-9d86-af36d7073abc}"))
+            .expect("slider node present");
+        let value = match slider.meta("value") {
+            Some(MetaValue::Number(number)) => *number,
+            _ => panic!("slider meta value missing"),
+        };
+        assert!(value > 0.0);
+
+        let panel = graph
+            .nodes()
+            .iter()
+            .find(|node| node.guid.as_deref() == Some("{59e0b89a-e487-49f8-bab8-b5bab16be14c}"))
+            .expect("panel node present");
+        let panel_text = match panel.meta("userText") {
+            Some(MetaValue::Text(text)) => text.clone(),
+            _ => panic!("panel user text missing"),
+        };
+        assert!(!panel_text.is_empty());
     }
 }
