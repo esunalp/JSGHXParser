@@ -149,11 +149,18 @@ async function init() {
       engine.load_ghx(contents);
       syncSliders({ replace: true });
       evaluateAndRender({ announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.' });
+      try {
+        const topologyMap = engine.get_topology_map();
+        ui.renderTopologyMap(topologyMap);
+      } catch (error) {
+        ui.renderTopologyMap(`Fout: ${error.message}`);
+      }
     } catch (error) {
       console.error('Fout bij het laden van GHX:', error);
       ui.renderSliders([]);
       three.updateGeometry([]);
       ui.setStatus('Fout bij het laden van het GHX-bestand: ' + (error?.message ?? String(error)));
+      ui.renderTopologyMap('');
     } finally {
       syncSliders();
       ui.showLoading(false);

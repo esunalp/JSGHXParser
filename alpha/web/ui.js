@@ -149,6 +149,7 @@ export function setupUi() {
   const canvas = document.getElementById('viewport');
   const fileInput = document.getElementById('ghx-input');
   const statusOutput = document.getElementById('status');
+  const topologyMapOutput = document.getElementById('topology-map');
   const sliderContainer = document.getElementById('slider-container');
   const overlayToggle = document.getElementById('overlay-toggle');
   const overlayState = document.getElementById('overlay-state');
@@ -255,6 +256,12 @@ export function setupUi() {
     });
   }
 
+  const renderTopologyMap = (text) => {
+    if (topologyMapOutput) {
+      topologyMapOutput.textContent = text;
+    }
+  };
+
   return {
     canvas,
     setHandlers,
@@ -263,6 +270,7 @@ export function setupUi() {
     setStatus,
     showLoading,
     setOverlayState,
+    renderTopologyMap,
   };
 }
 
