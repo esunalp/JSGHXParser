@@ -1,6 +1,18 @@
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
 
+function formatOutputValue(value) {
+  if (value === null) return 'Null';
+  if (typeof value !== 'object') return String(value);
+
+  if ('Text' in value) return `Text: "${value.Text}"`;
+  if ('Number' in value) return `Number: ${value.Number}`;
+  if ('Point' in value) return `Point: (${value.Point.join(', ')})`;
+  if ('List' in value) return `List (${value.List.length} items)`;
+
+  return JSON.stringify(value);
+}
+
 function formatValue(value, step) {
   if (!Number.isFinite(value)) {
     return '';
@@ -270,13 +282,23 @@ export function setupUi() {
     nodeListContainer.innerHTML = '';
     for (const node of nodes) {
       const nodeEl = document.createElement('div');
-      nodeEl.innerHTML = `
-        <strong>${node.name} (${node.id})</strong>
-        <ul>
-          ${Object.entries(node.outputs).map(([key, value]) => `<li>${key}: ${value}</li>`).join('')}
-        </ul>
-        <p>Connected to: ${node.connected_to.join(', ')}</p>
-      `;
+
+      const strong = document.createElement('strong');
+      strong.textContent = `${node.name} (${node.id})`;
+      nodeEl.appendChild(strong);
+
+      const ul = document.createElement('ul');
+      for (const [key, value] of Object.entries(node.outputs)) {
+        const li = document.createElement('li');
+        li.textContent = `${key}: ${formatOutputValue(value)}`;
+        ul.appendChild(li);
+      }
+      nodeEl.appendChild(ul);
+
+      const p = document.createElement('p');
+      p.textContent = `Connected to: ${node.connected_to.join(', ')}`;
+      nodeEl.appendChild(p);
+
       nodeListContainer.appendChild(nodeEl);
     }
   };
