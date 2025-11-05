@@ -64,6 +64,29 @@ impl From<&str> for MetaValue {
 /// Alias voor een verzameling meta-informatie.
 pub type MetaMap = BTreeMap<String, MetaValue>;
 
+/// Hulpfuncties voor case-insensitieve meta-opzoekingen.
+pub trait MetaLookupExt {
+    /// Zoek een meta-item op zonder hoofdlettergevoeligheid.
+    fn get_normalized(&self, key: &str) -> Option<&MetaValue>;
+}
+
+impl MetaLookupExt for MetaMap {
+    fn get_normalized(&self, key: &str) -> Option<&MetaValue> {
+        if let Some(value) = self.get(key) {
+            return Some(value);
+        }
+
+        let lower = key.to_ascii_lowercase();
+        if lower != key {
+            if let Some(value) = self.get(&lower) {
+                return Some(value);
+            }
+        }
+
+        None
+    }
+}
+
 /// Node representatie binnen de graph.
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -129,12 +152,22 @@ impl Node {
 
     /// Bewaar meta-informatie bij de node.
     pub fn insert_meta<S: Into<String>, V: Into<MetaValue>>(&mut self, key: S, value: V) {
-        self.meta.insert(key.into(), value.into());
+        let key_string = key.into();
+        let value = value.into();
+
+        self.meta.insert(key_string.clone(), value.clone());
+
+        let lower = key_string.to_ascii_lowercase();
+        if lower != key_string {
+            self.meta.insert(lower, value);
+        }
     }
 
     /// Haal een meta-item op.
     pub fn meta(&self, key: &str) -> Option<&MetaValue> {
-        self.meta.get(key)
+        self.meta
+            .get(key)
+            .or_else(|| self.meta.get(&key.to_ascii_lowercase()))
     }
 }
 

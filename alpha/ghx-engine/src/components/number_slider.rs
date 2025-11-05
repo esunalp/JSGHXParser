@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::graph::node::{MetaMap, MetaValue};
+use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
@@ -70,7 +70,7 @@ fn required_meta_number(meta: &MetaMap, key: &str) -> Result<f64, ComponentError
 }
 
 fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f64>, ComponentError> {
-    match meta.get(key) {
+    match meta.get_normalized(key) {
         Some(MetaValue::Number(value)) => Ok(Some(*value)),
         Some(MetaValue::Integer(value)) => Ok(Some(*value as f64)),
         Some(MetaValue::List(list)) if list.len() == 1 => match &list[0] {

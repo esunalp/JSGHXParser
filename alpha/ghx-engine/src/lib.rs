@@ -11,7 +11,7 @@ use std::fmt;
 use components::{ComponentKind, ComponentRegistry};
 use graph::Graph;
 use graph::evaluator::{self, EvaluationResult};
-use graph::node::{MetaMap, MetaValue, NodeId};
+use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
 use graph::topo::Topology;
 use graph::value::Value;
 use serde::Serialize;
@@ -233,8 +233,7 @@ impl Engine {
             );
         }
 
-        node.meta
-            .insert("value".to_string(), MetaValue::Number(clamped));
+        node.insert_meta("value", clamped);
         node.set_output(binding.output_pin, Value::Number(clamped));
 
         self.last_result = None;
@@ -441,7 +440,7 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
 }
 
 fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f64>, String> {
-    match meta.get(key) {
+    match meta.get_normalized(key) {
         Some(MetaValue::Number(value)) => Ok(Some(*value)),
         Some(MetaValue::Integer(value)) => Ok(Some(*value as f64)),
         Some(MetaValue::List(list)) if list.len() == 1 => match &list[0] {

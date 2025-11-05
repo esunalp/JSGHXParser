@@ -737,7 +737,10 @@ mod tests {
 
     #[test]
     fn parses_point_with_default_value() {
-        let xml = include_str!("../../../../tools/ghx-samples/point_default.ghx");
+        let xml = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/tools/ghx-samples/point_default.ghx"
+        ));
         let graph = parse_str(xml).expect("graph with default point parsed");
         assert_eq!(graph.node_count(), 1);
         let point_node = graph.nodes().first().unwrap();
@@ -754,7 +757,10 @@ mod tests {
 
     #[test]
     fn parses_minimal_line_graph_with_slider_meta() {
-        let xml = include_str!("../../../tools/ghx-samples/minimal_line.ghx");
+        let xml = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/ghx-samples/minimal_line.ghx"
+        ));
         let graph = parse_str(xml).expect("graph parsed");
         assert_eq!(graph.node_count(), 4);
         assert_eq!(graph.wire_count(), 3);
@@ -790,7 +796,10 @@ mod tests {
 
     #[test]
     fn parses_minimal_extrude_graph() {
-        let xml = include_str!("../../../tools/ghx-samples/minimal_extrude.ghx");
+        let xml = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/ghx-samples/minimal_extrude.ghx"
+        ));
         let graph = parse_str(xml).expect("graph parsed");
         assert_eq!(graph.node_count(), 5);
         assert_eq!(graph.wire_count(), 4);

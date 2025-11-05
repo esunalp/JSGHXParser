@@ -1,6 +1,6 @@
 //! Grasshopper Input Parameter Components
 
-use crate::graph::node::{MetaMap, MetaValue};
+use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
 use super::{coerce, Component, ComponentError, ComponentResult};
 use std::collections::BTreeMap;
@@ -151,7 +151,7 @@ pub struct BooleanToggleComponent;
 
 impl Component for BooleanToggleComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value").and_then(|v| match v {
+        let val = meta.get_normalized("Value").and_then(|v| match v {
             MetaValue::Boolean(b) => Some(*b),
             _ => None
         }).unwrap_or(false);
@@ -166,7 +166,7 @@ pub struct NumberSliderComponent;
 
 impl Component for NumberSliderComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value").and_then(|v| match v {
+        let val = meta.get_normalized("Value").and_then(|v| match v {
             MetaValue::Number(n) => Some(*n),
             MetaValue::Integer(i) => Some(*i as f64),
             _ => None
@@ -190,9 +190,9 @@ impl Component for PanelComponent {
                 .collect::<Vec<String>>()
                 .join("\n")
         } else {
-            meta.get("userText")
-                .or_else(|| meta.get("Value"))
-                .or_else(|| meta.get("text"))
+            meta.get_normalized("userText")
+                .or_else(|| meta.get_normalized("Value"))
+                .or_else(|| meta.get_normalized("text"))
                 .and_then(|v| match v {
                     MetaValue::Text(t) => Some(t.clone()),
                     _ => None
@@ -211,7 +211,10 @@ pub struct ValueListComponent;
 
 impl Component for ValueListComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let list_items = match meta.get("ListItems").or_else(|| meta.get("Values")) {
+        let list_items = match meta
+            .get_normalized("ListItems")
+            .or_else(|| meta.get_normalized("Values"))
+        {
             Some(MetaValue::List(items)) => items.iter().filter_map(|mv| mv.as_value()).collect::<Vec<Value>>(),
             _ => {
                 let mut outputs = BTreeMap::new();
@@ -220,8 +223,9 @@ impl Component for ValueListComponent {
             }
         };
 
-        let selected_index = meta.get("SelectedIndex")
-            .or_else(|| meta.get("Value"))
+        let selected_index = meta
+            .get_normalized("SelectedIndex")
+            .or_else(|| meta.get_normalized("Value"))
             .and_then(|v| match v {
                 MetaValue::Number(n) => Some(*n as usize),
                 MetaValue::Integer(i) => Some(*i as usize),
@@ -245,7 +249,7 @@ pub struct MDSliderComponent;
 
 impl Component for MDSliderComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value")
+        let val = meta.get_normalized("Value")
             .and_then(|v| v.as_value())
             .unwrap_or(Value::List(vec![Value::Number(0.0), Value::Number(0.0)]));
         let mut outputs = BTreeMap::new();
@@ -259,7 +263,7 @@ pub struct ColourPickerComponent;
 
 impl Component for ColourPickerComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value")
+        let val = meta.get_normalized("Value")
             .and_then(|v| match v {
                 MetaValue::Text(t) => Some(t.clone()),
                 _ => None
@@ -276,7 +280,7 @@ pub struct DigitScrollerComponent;
 
 impl Component for DigitScrollerComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value").and_then(|v| match v {
+        let val = meta.get_normalized("Value").and_then(|v| match v {
             MetaValue::Number(n) => Some(*n),
             MetaValue::Integer(i) => Some(*i as f64),
             _ => None
@@ -292,7 +296,7 @@ pub struct ColourSwatchComponent;
 
 impl Component for ColourSwatchComponent {
      fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get("Value")
+        let val = meta.get_normalized("Value")
             .and_then(|v| match v {
                 MetaValue::Text(t) => Some(t.clone()),
                 _ => None
@@ -309,7 +313,7 @@ pub struct ButtonComponent;
 
 impl Component for ButtonComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let pressed = meta.get("Pressed").and_then(|v| match v {
+        let pressed = meta.get_normalized("Pressed").and_then(|v| match v {
             MetaValue::Boolean(b) => Some(*b),
             _ => None
         }).unwrap_or(false);

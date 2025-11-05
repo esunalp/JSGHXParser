@@ -12,7 +12,10 @@ fn engine_initializes() {
 
 #[test]
 fn slider_updates_require_existing_identifier() {
-    let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
+    let xml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/ghx-samples/minimal_line.ghx"
+    ));
     let mut engine = Engine::new();
     engine.load_ghx(xml).expect("load ghx");
 
@@ -24,7 +27,10 @@ fn slider_updates_require_existing_identifier() {
 
 #[test]
 fn geometry_requires_evaluation_first() {
-    let xml = include_str!("../../tools/ghx-samples/minimal_line.ghx");
+    let xml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/ghx-samples/minimal_line.ghx"
+    ));
     let mut engine = Engine::new();
     engine.load_ghx(xml).expect("load ghx");
 
@@ -33,7 +39,10 @@ fn geometry_requires_evaluation_first() {
 
 #[test]
 fn line_sample_produces_curve_line() {
-    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_line.ghx"));
+    let result = evaluate_sample(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/ghx-samples/minimal_line.ghx"
+    )));
     let curve_count = result
         .geometry
         .iter()
@@ -56,7 +65,10 @@ fn line_sample_produces_curve_line() {
 
 #[test]
 fn extrude_sample_produces_surface_with_faces() {
-    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_extrude.ghx"));
+    let result = evaluate_sample(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/ghx-samples/minimal_extrude.ghx"
+    )));
     let surface = result
         .geometry
         .iter()
@@ -72,7 +84,10 @@ fn extrude_sample_produces_surface_with_faces() {
 
 #[test]
 fn line_sample_matches_expected_snapshot() {
-    let result = evaluate_sample(include_str!("../../tools/ghx-samples/minimal_line.ghx"));
+    let result = evaluate_sample(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../tools/ghx-samples/minimal_line.ghx"
+    )));
     let curve = result
         .geometry
         .iter()
