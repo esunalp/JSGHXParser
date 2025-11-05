@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use meval::{Context, ContextProvider, Expr};
 use rand::{Rng, rng};
 
-use crate::graph::node::{MetaMap, MetaValue};
+use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
@@ -316,7 +316,7 @@ fn expression_from_meta(meta: &MetaMap) -> Option<String> {
     ];
 
     for key in CANDIDATES {
-        if let Some(value) = meta.get(*key) {
+        if let Some(value) = meta.get_normalized(*key) {
             if let Some(text) = meta_text(value) {
                 if !text.trim().is_empty() {
                     return Some(text);
