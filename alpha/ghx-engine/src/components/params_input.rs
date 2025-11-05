@@ -195,7 +195,10 @@ impl Component for PanelComponent {
                 .or_else(|| meta.get_normalized("text"))
                 .and_then(|v| match v {
                     MetaValue::Text(t) => Some(t.clone()),
-                    _ => None
+                    MetaValue::Number(n) => Some(n.to_string()),
+                    MetaValue::Integer(i) => Some(i.to_string()),
+                    MetaValue::Boolean(b) => Some(b.to_string()),
+                    _ => None,
                 })
                 .unwrap_or_default()
         };

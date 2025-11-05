@@ -8,7 +8,7 @@ use time::{Date, Month, PrimitiveDateTime, Time};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const EPSILON: f64 = 1e-9;
 
@@ -635,30 +635,12 @@ fn single_output(pin: &str, value: Value) -> BTreeMap<String, Value> {
     outputs
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
-    match value {
-        Value::Number(number) => Ok(*number),
-        Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-        Value::List(values) if values.len() == 1 => coerce_number(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een numerieke waarde, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
+fn coerce_number(value: &Value, _context: &str) -> Result<f64, ComponentError> {
+    coerce::coerce_number(value)
 }
 
-fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> {
-    match value {
-        Value::Boolean(boolean) => Ok(*boolean),
-        Value::Number(number) => Ok(*number != 0.0),
-        Value::List(values) if values.len() == 1 => coerce_boolean(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een booleaanse waarde, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
+fn coerce_boolean(value: &Value, _context: &str) -> Result<bool, ComponentError> {
+    coerce::coerce_boolean(value)
 }
 
 fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
