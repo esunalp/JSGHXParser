@@ -14,7 +14,6 @@ pub mod curve_primitive;
 pub mod curve_spline;
 pub mod curve_util;
 pub mod extrude;
-pub mod line;
 pub mod maths_domain;
 pub mod maths_matrix;
 pub mod maths_operators;
@@ -102,7 +101,6 @@ pub trait Component {
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
     Add(add::ComponentImpl),
-    Line(line::ComponentImpl),
     Extrude(extrude::ComponentImpl),
     CurvePrimitive(curve_primitive::ComponentKind),
     CurveDivision(curve_division::ComponentKind),
@@ -152,7 +150,6 @@ impl ComponentKind {
     pub fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         match self {
             Self::Add(component) => component.evaluate(inputs, meta),
-            Self::Line(component) => component.evaluate(inputs, meta),
             Self::Extrude(component) => component.evaluate(inputs, meta),
             Self::CurvePrimitive(component) => component.evaluate(inputs, meta),
             Self::CurveDivision(component) => component.evaluate(inputs, meta),
@@ -202,7 +199,6 @@ impl ComponentKind {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Add(_) => "Addition",
-            Self::Line(_) => "Line",
             Self::Extrude(_) => "Extrude",
             Self::CurvePrimitive(component) => component.name(),
             Self::CurveDivision(component) => component.name(),
@@ -264,10 +260,6 @@ impl Default for ComponentRegistry {
         registry.register_guid("{a0d62394-a118-422d-abb3-6af115c75b25}", add);
         registry.register_guid("{d18db32b-7099-4eea-85c4-8ba675ee8ec3}", add);
         registry.register_names(&["Add", "A+B"], add);
-
-        let line = ComponentKind::Line(line::ComponentImpl);
-        registry.register_guid("{4c4e56eb-2f04-43f9-95a3-cc46a14f495a}", line);
-        registry.register_names(&["Line", "Ln"], line);
 
         let extrude = ComponentKind::Extrude(extrude::ComponentImpl);
         registry.register_guid("{962034e9-cc27-4394-afc4-5c16e3447cf9}", extrude);

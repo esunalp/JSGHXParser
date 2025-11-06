@@ -432,20 +432,24 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_line(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Line component vereist twee punten",
-        ));
+    fn coerce_point_for_line(value: &Value) -> Option<[f64; 3]> {
+        match value {
+            Value::Point(point) => Some(*point),
+            Value::List(values) if values.len() == 1 => coerce_point_for_line(&values[0]),
+            _ => None,
+        }
     }
 
-    let p1 = coerce_point(inputs.get(0).unwrap(), "Line")?;
-    let p2 = coerce_point(inputs.get(1).unwrap(), "Line")?;
+    let start = inputs.get(0).and_then(coerce_point_for_line);
+    let end = inputs.get(1).and_then(coerce_point_for_line);
+
+    let output = match (start, end) {
+        (Some(start), Some(end)) if start != end => Value::CurveLine { p1: start, p2: end },
+        _ => Value::Null,
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_LINE.to_owned(),
-        Value::CurveLine { p1, p2 },
-    );
+    outputs.insert(PIN_OUTPUT_LINE.to_owned(), output);
     Ok(outputs)
 }
 
@@ -1236,5 +1240,60 @@ mod tests {
             panic!("expected list of points");
         };
         assert!(points.len() > 1);
+    }
+
+    #[test]
+    fn line_creates_curve_line_from_points() {
+        let component = ComponentKind::Line;
+        let outputs = component
+            .evaluate(
+                &[Value::Point([0.0, 0.0, 0.0]), Value::Point([1.0, 0.0, 0.0])],
+                &MetaMap::new(),
+            )
+            .expect("line created");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_LINE),
+            Some(Value::CurveLine { p1, p2 }) if *p1 == [0.0, 0.0, 0.0] && *p2 == [1.0, 0.0, 0.0]
+        ));
+    }
+
+    #[test]
+    fn line_collapses_single_item_lists() {
+        let component = ComponentKind::Line;
+        let inputs = [
+            Value::List(vec![Value::Point([0.0, 0.0, 0.0])]),
+            Value::List(vec![Value::Point([0.0, 1.0, 0.0])]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("list inputs handled");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_LINE),
+            Some(Value::CurveLine { p2, .. }) if *p2 == [0.0, 1.0, 0.0]
+        ));
+    }
+
+    #[test]
+    fn line_returns_null_for_identical_points() {
+        let component = ComponentKind::Line;
+        let outputs = component
+            .evaluate(
+                &[Value::Point([0.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 0.0])],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        assert!(matches!(outputs.get(PIN_OUTPUT_LINE), Some(Value::Null)));
+    }
+
+    #[test]
+    fn line_returns_null_for_null_input() {
+        let component = ComponentKind::Line;
+        let outputs = component
+            .evaluate(
+                &[Value::Null, Value::Point([0.0, 0.0, 0.0])],
+                &MetaMap::new(),
+            )
+            .unwrap();
+        assert!(matches!(outputs.get(PIN_OUTPUT_LINE), Some(Value::Null)));
     }
 }
