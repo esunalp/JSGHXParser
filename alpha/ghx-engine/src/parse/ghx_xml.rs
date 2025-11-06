@@ -343,21 +343,16 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
         node.insert_meta("max", max);
     }
 
-    let mut final_step = step.unwrap_or_else(|| {
-        if let (Some(min), Some(max)) = (min, max) {
-            let range = max - min;
-            if range > 0.0 { range / 100.0 } else { 0.1 }
-        } else {
-            0.1
-        }
-    });
-
-    if final_step <= 0.0 || !final_step.is_finite() {
-        final_step = 0.1;
-    }
-
     node.insert_meta("value", value);
-    node.insert_meta("step", final_step);
+    if let Some(step) = step.and_then(|step| {
+        if step.is_finite() && step > 0.0 {
+            Some(step)
+        } else {
+            None
+        }
+    }) {
+        node.insert_meta("step", step);
+    }
     node.set_output("OUT", Value::Number(value));
 }
 
