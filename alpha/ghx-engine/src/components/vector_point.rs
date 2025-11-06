@@ -29,6 +29,7 @@ const EPSILON: f64 = 1e-9;
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
+    ConstructPoint,
     NumbersToPoints,
     TextTag3D,
     TextTag,
@@ -61,6 +62,11 @@ pub struct Registration {
 
 /// Volledige lijst van componentregistraties voor de vector-point componenten.
 pub const REGISTRATIONS: &[Registration] = &[
+    Registration {
+        guids: &["{3581f42a-9592-4549-bd6b-1c0fc39d067b}"],
+        names: &["Construct Point", "Pt"],
+        kind: ComponentKind::ConstructPoint,
+    },
     Registration {
         guids: &["{0ae07da9-951b-4b9b-98ca-d312c252374d}"],
         names: &["Numbers to Points", "Num2Pt"],
@@ -177,6 +183,7 @@ pub const REGISTRATIONS: &[Registration] = &[
 impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
+            Self::ConstructPoint => evaluate_construct_point(inputs),
             Self::NumbersToPoints => evaluate_numbers_to_points(inputs),
             Self::TextTag3D => evaluate_text_tag_3d(inputs),
             Self::TextTag => evaluate_text_tag(inputs),
@@ -205,6 +212,7 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
+            Self::ConstructPoint => "Construct Point",
             Self::NumbersToPoints => "Numbers to Points",
             Self::TextTag3D => "Text Tag 3D",
             Self::TextTag => "Text Tag",
@@ -856,6 +864,24 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(intersection));
     outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(index as f64));
+    Ok(outputs)
+}
+
+fn evaluate_construct_point(inputs: &[Value]) -> ComponentResult {
+    let context = "Construct Point";
+    if inputs.len() < 3 {
+        return Err(ComponentError::new(format!(
+            "{} requires three inputs (X, Y, Z)",
+            context
+        )));
+    }
+
+    let x = coerce_number(inputs.get(0), context)?;
+    let y = coerce_number(inputs.get(1), context)?;
+    let z = coerce_number(inputs.get(2), context)?;
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point([x, y, z]));
     Ok(outputs)
 }
 
@@ -1794,7 +1820,7 @@ impl Line {
 
 #[cfg(test)]
 mod tests {
-    use super::{
+use super::{
         Component, ComponentKind, PIN_OUTPUT_DISTANCE, PIN_OUTPUT_GROUPS, PIN_OUTPUT_INDEX,
         PIN_OUTPUT_INDICES, PIN_OUTPUT_NUMBERS, PIN_OUTPUT_PHI, PIN_OUTPUT_POINT,
         PIN_OUTPUT_POINTS, PIN_OUTPUT_RADIUS, PIN_OUTPUT_TAGS, PIN_OUTPUT_THETA,
@@ -2370,5 +2396,72 @@ mod tests {
             .and_then(|value| value.expect_number().ok())
             .unwrap();
         assert!((distance - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn construct_point_builds_point_from_numbers() {
+        let component = ComponentKind::ConstructPoint;
+        let outputs = component
+            .evaluate(
+                &[Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)],
+                &MetaMap::new(),
+            )
+            .expect("construct succeeded");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT),
+            Some(Value::Point(coords)) if *coords == [1.0, 2.0, 3.0]
+        ));
+    }
+
+    #[test]
+    fn construct_point_collapses_single_item_lists() {
+        let component = ComponentKind::ConstructPoint;
+        let inputs = [
+            Value::List(vec![Value::Number(0.5)]),
+            Value::List(vec![Value::Number(1.5)]),
+            Value::List(vec![Value::Number(2.5)]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("list inputs collapse");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT),
+            Some(Value::Point(coords)) if *coords == [0.5, 1.5, 2.5]
+        ));
+    }
+
+    #[test]
+    fn construct_point_builds_point_from_text() {
+        let component = ComponentKind::ConstructPoint;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Text("1.0".to_string()),
+                    Value::Text("2.0".to_string()),
+                    Value::Text("3.0".to_string()),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("construct from text succeeded");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT),
+            Some(Value::Point(coords)) if *coords == [1.0, 2.0, 3.0]
+        ));
+    }
+
+    #[test]
+    fn construct_point_rejects_non_numeric_inputs() {
+        let component = ComponentKind::ConstructPoint;
+        let err = component
+            .evaluate(
+                &[
+                    Value::Number(1.0),
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Number(2.0),
+                ],
+                &MetaMap::new(),
+            )
+            .unwrap_err();
+        assert!(err.message().contains("verwacht een getal"));
     }
 }
