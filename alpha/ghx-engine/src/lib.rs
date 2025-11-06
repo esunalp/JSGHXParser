@@ -344,7 +344,9 @@ fn collect_slider_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<S
                 node.name.as_deref(),
                 node.nickname.as_deref()
             ),
-            Some(ComponentKind::NumberSlider(_))
+            Some(ComponentKind::ParamsInput(
+                components::params_input::ComponentKind::NumberSlider,
+            ))
         ) {
             let output_pin = node
                 .outputs

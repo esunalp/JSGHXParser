@@ -27,7 +27,6 @@ pub mod maths_script;
 pub mod maths_time;
 pub mod maths_trig;
 pub mod maths_util;
-pub mod number_slider;
 pub mod scalar;
 pub mod sets_list;
 pub mod sets_sequence;
@@ -103,7 +102,6 @@ pub trait Component {
 /// Beschikbare componenttypen binnen de registry.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
-    NumberSlider(number_slider::ComponentImpl),
     Add(add::ComponentImpl),
     ConstructPoint(construct_point::ComponentImpl),
     Line(line::ComponentImpl),
@@ -155,7 +153,6 @@ impl ComponentKind {
     #[must_use]
     pub fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         match self {
-            Self::NumberSlider(component) => component.evaluate(inputs, meta),
             Self::Add(component) => component.evaluate(inputs, meta),
             Self::ConstructPoint(component) => component.evaluate(inputs, meta),
             Self::Line(component) => component.evaluate(inputs, meta),
@@ -207,7 +204,6 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
-            Self::NumberSlider(_) => "Number Slider",
             Self::Add(_) => "Addition",
             Self::ConstructPoint(_) => "Construct Point",
             Self::Line(_) => "Line",
@@ -267,11 +263,6 @@ pub struct ComponentRegistry {
 impl Default for ComponentRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-
-        let number_slider = ComponentKind::NumberSlider(number_slider::ComponentImpl);
-        registry.register_guid("{5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b}", number_slider);
-        registry.register_guid("{57da07bd-ecab-415d-9d86-af36d7073abc}", number_slider);
-        registry.register_names(&["Number Slider", "Slider"], number_slider);
 
         let add = ComponentKind::Add(add::ComponentImpl);
         registry.register_guid("{a0d62394-a118-422d-abb3-6af115c75b25}", add);
@@ -688,16 +679,18 @@ fn normalize_name(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ComponentKind, ComponentRegistry};
+    use super::{params_input, ComponentKind, ComponentRegistry};
 
     #[test]
     fn lookup_by_guid_and_name() {
         let registry = ComponentRegistry::default();
 
         let component = registry
-            .resolve(Some("{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}"), None, None)
+            .resolve(Some("{57da07bd-ecab-415d-9d86-af36d7073abc}"), None, None)
             .unwrap();
-        assert!(matches!(component, ComponentKind::NumberSlider(_)));
+        assert!(
+            matches!(component, ComponentKind::ParamsInput(params_input::ComponentKind::NumberSlider))
+        );
 
         let by_name = registry.resolve(None, Some("Add"), None).unwrap();
         assert!(matches!(by_name, ComponentKind::Add(_)));
