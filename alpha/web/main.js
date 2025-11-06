@@ -118,6 +118,16 @@ async function init() {
     return sliders;
   }
 
+  function syncNodeInfo() {
+    try {
+      const nodeInfo = engine.get_node_info();
+      ui.renderNodeList(normalizeNodeInfo(nodeInfo));
+    } catch (error) {
+      console.warn('Kon node-informatie niet ophalen:', error);
+      ui.renderNodeList([]);
+    }
+  }
+
   function evaluateAndRender({ announce } = {}) {
     try {
       engine.evaluate();
@@ -140,6 +150,7 @@ async function init() {
 
     const items = normalizeGeometryItems(geometry);
     three.updateGeometry(items);
+    syncNodeInfo();
 
     if (announce) {
       ui.setStatus(announce);
@@ -160,11 +171,8 @@ async function init() {
       try {
         const topologyMap = engine.get_topology_map();
         ui.renderTopologyMap(topologyMap);
-        const nodeInfo = engine.get_node_info();
-        ui.renderNodeList(normalizeNodeInfo(nodeInfo));
       } catch (error) {
         ui.renderTopologyMap(`Fout: ${error.message}`);
-        ui.renderNodeList([]);
       }
     } catch (error) {
       console.error('Fout bij het laden van GHX:', error);

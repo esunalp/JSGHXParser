@@ -304,15 +304,15 @@ impl Engine {
         let mut nodes_info = Vec::new();
 
         for node in graph.nodes() {
-            let outputs = result
+            let resolved_outputs = result
                 .and_then(|r| r.node_outputs.get(&node.id))
-                .map(|outputs| {
-                    outputs
-                        .iter()
-                        .map(|(k, v)| (k.clone(), v.to_string()))
-                        .collect()
-                })
-                .unwrap_or_default();
+                .cloned()
+                .unwrap_or_else(|| node.outputs.clone());
+
+            let outputs = resolved_outputs
+                .into_iter()
+                .map(|(k, v)| (k, v.to_string()))
+                .collect();
 
             let connected_to = graph
                 .wires()
