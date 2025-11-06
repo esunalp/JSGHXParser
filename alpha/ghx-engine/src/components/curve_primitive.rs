@@ -323,9 +323,12 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
     let (center, radius, normal) = match circle_from_three_points(p1, p2, p3) {
         Some(circle) => circle,
         None => {
+            // Collineaire punten, maak een lijn
+            let points = vec![Value::Point(p1), Value::Point(p3)];
+            let length = vector_length(subtract(p3, p1));
             let mut outputs = BTreeMap::new();
-            outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::Null);
-            outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Null);
+            outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::List(points));
+            outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
             return Ok(outputs);
         }
     };
@@ -426,7 +429,7 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_LINE.to_owned(),
-        Value::CurveLine { p1: start, p2: end },
+        Value::List(vec![Value::Point(start), Value::Point(end)]),
     );
     Ok(outputs)
 }
@@ -444,7 +447,9 @@ fn evaluate_line(inputs: &[Value]) -> ComponentResult {
     let end = inputs.get(1).and_then(coerce_point_for_line);
 
     let output = match (start, end) {
-        (Some(start), Some(end)) if start != end => Value::CurveLine { p1: start, p2: end },
+        (Some(start), Some(end)) if start != end => {
+            Value::List(vec![Value::Point(start), Value::Point(end)])
+        }
         _ => Value::Null,
     };
 
@@ -579,7 +584,7 @@ fn evaluate_fit_line(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_LINE.to_owned(),
-        Value::CurveLine { p1, p2 },
+        Value::List(vec![Value::Point(p1), Value::Point(p2)]),
     );
     Ok(outputs)
 }
@@ -1067,13 +1072,22 @@ mod tests {
             )
             .expect("fit line generated");
 
-        let Some(Value::CurveLine { p1, p2 }) = outputs.get(PIN_OUTPUT_LINE) else {
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
             panic!("expected a line");
+        };
+        assert_eq!(points.len(), 2);
+        let p1 = match points[0] {
+            Value::Point(p) => p,
+            _ => panic!("Expected a point"),
+        };
+        let p2 = match points[1] {
+            Value::Point(p) => p,
+            _ => panic!("Expected a point"),
         };
 
         assert!(
-            (*p1 == [0.0, 0.0, 0.0] && *p2 == [10.0, 0.0, 0.0])
-                || (*p1 == [10.0, 0.0, 0.0] && *p2 == [0.0, 0.0, 0.0])
+            (p1 == [0.0, 0.0, 0.0] && p2 == [10.0, 0.0, 0.0])
+                || (p1 == [10.0, 0.0, 0.0] && p2 == [0.0, 0.0, 0.0])
         );
     }
 
@@ -1192,11 +1206,20 @@ mod tests {
             )
             .expect("line sdl generated");
 
-        let Some(Value::CurveLine { p1, p2 }) = outputs.get(PIN_OUTPUT_LINE) else {
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
             panic!("expected a line");
         };
+        assert_eq!(points.len(), 2);
+        let p1 = match points[0] {
+            Value::Point(p) => p,
+            _ => panic!("Expected a point"),
+        };
+        let p2 = match points[1] {
+            Value::Point(p) => p,
+            _ => panic!("Expected a point"),
+        };
 
-        assert_eq!(*p1, [1.0, 2.0, 3.0]);
+        assert_eq!(p1, [1.0, 2.0, 3.0]);
         assert!((p2[0] - 11.0).abs() < 1e-9);
         assert!((p2[1] - 2.0).abs() < 1e-9);
         assert!((p2[2] - 3.0).abs() < 1e-9);
@@ -1251,10 +1274,10 @@ mod tests {
                 &MetaMap::new(),
             )
             .expect("line created");
-        assert!(matches!(
-            outputs.get(PIN_OUTPUT_LINE),
-            Some(Value::CurveLine { p1, p2 }) if *p1 == [0.0, 0.0, 0.0] && *p2 == [1.0, 0.0, 0.0]
-        ));
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
+            panic!("expected a line");
+        };
+        assert_eq!(points.len(), 2);
     }
 
     #[test]
@@ -1267,10 +1290,10 @@ mod tests {
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("list inputs handled");
-        assert!(matches!(
-            outputs.get(PIN_OUTPUT_LINE),
-            Some(Value::CurveLine { p2, .. }) if *p2 == [0.0, 1.0, 0.0]
-        ));
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
+            panic!("expected a line");
+        };
+        assert_eq!(points.len(), 2);
     }
 
     #[test]

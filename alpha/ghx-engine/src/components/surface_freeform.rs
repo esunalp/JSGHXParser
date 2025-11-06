@@ -819,8 +819,18 @@ fn collect_curve_segments(
         Value::CurveLine { p1, p2 } => Ok(vec![(*p1, *p2)]),
         Value::List(values) => {
             let mut segments = Vec::new();
+            let mut last_point: Option<[f64; 3]> = None;
+
             for entry in values {
-                segments.extend(collect_curve_segments(entry, component)?);
+                if let Value::Point(p) = entry {
+                    if let Some(last) = last_point {
+                        segments.push((last, *p));
+                    }
+                    last_point = Some(*p);
+                } else {
+                    segments.extend(collect_curve_segments(entry, component)?);
+                    last_point = None; // Reset after a nested curve
+                }
             }
             Ok(segments)
         }
