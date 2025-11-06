@@ -869,16 +869,17 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_construct_point(inputs: &[Value]) -> ComponentResult {
     let context = "Construct Point";
-    if inputs.len() < 3 {
-        return Err(ComponentError::new(format!(
-            "{} requires three inputs (X, Y, Z)",
-            context
-        )));
-    }
 
-    let x = coerce_number(inputs.get(0), context)?;
-    let y = coerce_number(inputs.get(1), context)?;
-    let z = coerce_number(inputs.get(2), context)?;
+    let get_coord = |index: usize| -> f64 {
+        match inputs.get(index) {
+            Some(&Value::Null) | None => 0.0,
+            Some(value) => coerce_number(Some(value), context).unwrap_or(0.0),
+        }
+    };
+
+    let x = get_coord(0);
+    let y = get_coord(1);
+    let z = get_coord(2);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point([x, y, z]));
@@ -2450,9 +2451,9 @@ use super::{
     }
 
     #[test]
-    fn construct_point_rejects_non_numeric_inputs() {
+    fn construct_point_handles_non_numeric_inputs() {
         let component = ComponentKind::ConstructPoint;
-        let err = component
+        let outputs = component
             .evaluate(
                 &[
                     Value::Number(1.0),
@@ -2461,7 +2462,11 @@ use super::{
                 ],
                 &MetaMap::new(),
             )
-            .unwrap_err();
-        assert!(err.message().contains("verwacht een getal"));
+            .expect("should handle non-numeric input by coercing");
+
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT),
+            Some(Value::Point(coords)) if *coords == [1.0, 0.0, 2.0]
+        ));
     }
 }
