@@ -267,8 +267,18 @@ impl Component for PanelComponent {
                 .unwrap_or_default()
         };
 
+        let trimmed = output_value.trim();
+        let output_value = if !trimmed.is_empty() {
+            match trimmed.parse::<f64>() {
+                Ok(number) => Value::Number(number),
+                Err(_) => Value::Text(output_value),
+            }
+        } else {
+            Value::Text(output_value)
+        };
+
         let mut outputs = BTreeMap::new();
-        outputs.insert("Output".to_string(), Value::Text(output_value));
+        outputs.insert("Output".to_string(), output_value);
         Ok(outputs)
     }
 }
@@ -624,6 +634,23 @@ mod tests {
         let inputs = vec![Value::Text("world".to_string())];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
         assert_eq!(outputs.get("Output"), Some(&Value::Text("world".to_string())));
+    }
+
+    #[test]
+    fn test_panel_component_numeric_meta() {
+        let component = PanelComponent;
+        let mut meta = MetaMap::new();
+        meta.insert("Value".to_string(), MetaValue::Number(42.5));
+        let outputs = component.evaluate(&[], &meta).unwrap();
+        assert_eq!(outputs.get("Output"), Some(&Value::Number(42.5)));
+    }
+
+    #[test]
+    fn test_panel_component_numeric_text_input() {
+        let component = PanelComponent;
+        let inputs = vec![Value::Text("3.14".to_string())];
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
+        assert_eq!(outputs.get("Output"), Some(&Value::Number(3.14)));
     }
 
     #[test]
