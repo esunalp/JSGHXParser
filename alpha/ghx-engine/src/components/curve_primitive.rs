@@ -429,7 +429,7 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_LINE.to_owned(),
-        Value::List(vec![Value::Point(start), Value::Point(end)]),
+        Value::CurveLine { p1: start, p2: end },
     );
     Ok(outputs)
 }
@@ -447,9 +447,7 @@ fn evaluate_line(inputs: &[Value]) -> ComponentResult {
     let end = inputs.get(1).and_then(coerce_point_for_line);
 
     let output = match (start, end) {
-        (Some(start), Some(end)) if start != end => {
-            Value::CurveLine { p1: start, p2: end }
-        }
+        (Some(start), Some(end)) if start != end => Value::CurveLine { p1: start, p2: end },
         _ => Value::Null,
     };
 
@@ -584,7 +582,7 @@ fn evaluate_fit_line(inputs: &[Value]) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_LINE.to_owned(),
-        Value::List(vec![Value::Point(p1), Value::Point(p2)]),
+        Value::CurveLine { p1, p2 },
     );
     Ok(outputs)
 }
@@ -1072,22 +1070,13 @@ mod tests {
             )
             .expect("fit line generated");
 
-        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
+        let Some(Value::CurveLine { p1, p2 }) = outputs.get(PIN_OUTPUT_LINE) else {
             panic!("expected a line");
-        };
-        assert_eq!(points.len(), 2);
-        let p1 = match points[0] {
-            Value::Point(p) => p,
-            _ => panic!("Expected a point"),
-        };
-        let p2 = match points[1] {
-            Value::Point(p) => p,
-            _ => panic!("Expected a point"),
         };
 
         assert!(
-            (p1 == [0.0, 0.0, 0.0] && p2 == [10.0, 0.0, 0.0])
-                || (p1 == [10.0, 0.0, 0.0] && p2 == [0.0, 0.0, 0.0])
+            (*p1 == [0.0, 0.0, 0.0] && *p2 == [10.0, 0.0, 0.0])
+                || (*p1 == [10.0, 0.0, 0.0] && *p2 == [0.0, 0.0, 0.0])
         );
     }
 
@@ -1206,20 +1195,11 @@ mod tests {
             )
             .expect("line sdl generated");
 
-        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
+        let Some(Value::CurveLine { p1, p2 }) = outputs.get(PIN_OUTPUT_LINE) else {
             panic!("expected a line");
         };
-        assert_eq!(points.len(), 2);
-        let p1 = match points[0] {
-            Value::Point(p) => p,
-            _ => panic!("Expected a point"),
-        };
-        let p2 = match points[1] {
-            Value::Point(p) => p,
-            _ => panic!("Expected a point"),
-        };
 
-        assert_eq!(p1, [1.0, 2.0, 3.0]);
+        assert_eq!(*p1, [1.0, 2.0, 3.0]);
         assert!((p2[0] - 11.0).abs() < 1e-9);
         assert!((p2[1] - 2.0).abs() < 1e-9);
         assert!((p2[2] - 3.0).abs() < 1e-9);

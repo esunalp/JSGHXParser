@@ -414,6 +414,7 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
             faces: faces.clone(),
         }),
         Value::List(values) => {
+            // Probeer eerst de lijst als een polyline te interpreteren.
             let points: Vec<[f64; 3]> = values
                 .iter()
                 .filter_map(|v| match v {
@@ -423,10 +424,12 @@ fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
                 .collect();
 
             if points.len() > 1 && points.len() == values.len() {
-                Some(GeometryItem::CurveLine { points })
-            } else {
-                None
+                return Some(GeometryItem::CurveLine { points });
             }
+
+            // Als dat niet lukt, zoek dan naar het eerste renderbare item in de lijst.
+            // Dit lost het probleem op waarbij een `CurveLine` in een `List` is verpakt.
+            values.iter().find_map(geometry_item_from_value)
         }
         Value::Null | Value::Number(_) | Value::Vector(_) | Value::Boolean(_) => None,
         Value::Domain(_) => None,
