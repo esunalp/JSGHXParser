@@ -158,6 +158,7 @@ function createSegmentsObject(points) {
         return null;
     }
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    ensureGeometryHasVertexNormals(geometry, { compute: false });
     const material = new THREE.LineBasicMaterial({
         color: OVERLAY_LINE_COLOR,
         transparent: true,
