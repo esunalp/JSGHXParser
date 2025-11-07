@@ -448,7 +448,7 @@ fn evaluate_line(inputs: &[Value]) -> ComponentResult {
 
     let output = match (start, end) {
         (Some(start), Some(end)) if start != end => {
-            Value::List(vec![Value::Point(start), Value::Point(end)])
+            Value::CurveLine { p1: start, p2: end }
         }
         _ => Value::Null,
     };
@@ -1274,10 +1274,10 @@ mod tests {
                 &MetaMap::new(),
             )
             .expect("line created");
-        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
-            panic!("expected a line");
-        };
-        assert_eq!(points.len(), 2);
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_LINE),
+            Some(Value::CurveLine { .. })
+        ));
     }
 
     #[test]
@@ -1290,10 +1290,10 @@ mod tests {
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("list inputs handled");
-        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_LINE) else {
-            panic!("expected a line");
-        };
-        assert_eq!(points.len(), 2);
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_LINE),
+            Some(Value::CurveLine { .. })
+        ));
     }
 
     #[test]

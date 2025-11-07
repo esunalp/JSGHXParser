@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Value};
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const PIN_OUTPUT_SURFACE: &str = "S";
 const PIN_OUTPUT_EXTRUSION: &str = "E";
@@ -236,7 +236,7 @@ impl ComponentKind {
 
 fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let segments = collect_curve_segments(curves_value, component)?;
+    let segments = coerce::coerce_curve_segments(curves_value)?;
     if segments.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} vereist minimaal twee sectiecurves"
@@ -263,7 +263,7 @@ fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     for value in inputs.iter().take(4) {
-        let segments = collect_curve_segments(value, component)?;
+        let segments = coerce::coerce_curve_segments(value)?;
         for (start, end) in segments {
             points.push(start);
             points.push(end);
@@ -287,13 +287,13 @@ fn evaluate_extrude_along(inputs: &[Value]) -> ComponentResult {
             "Extrude Along vereist een basis en een railcurve",
         ));
     }
-    let base_segments = collect_curve_segments(&inputs[0], component)?;
+    let base_segments = coerce::coerce_curve_segments(&inputs[0])?;
     if base_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Along kon geen basiscurve herkennen",
         ));
     }
-    let rail_segments = collect_curve_segments(&inputs[1], component)?;
+    let rail_segments = coerce::coerce_curve_segments(&inputs[1])?;
     let Some((rail_start, rail_end)) = rail_segments.first() else {
         return Err(ComponentError::new(
             "Extrude Along kon geen railcurve herkennen",
@@ -368,7 +368,7 @@ fn evaluate_patch(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -406,12 +406,12 @@ fn evaluate_sum_surface(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[1], component)?
+        coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -433,8 +433,8 @@ fn evaluate_ruled_surface(inputs: &[Value]) -> ComponentResult {
             "Ruled Surface vereist twee invoercurves",
         ));
     }
-    let curve_a = collect_curve_segments(&inputs[0], component)?;
-    let curve_b = collect_curve_segments(&inputs[1], component)?;
+    let curve_a = coerce::coerce_curve_segments(&inputs[0])?;
+    let curve_b = coerce::coerce_curve_segments(&inputs[1])?;
     if curve_a.is_empty() || curve_b.is_empty() {
         return Err(ComponentError::new(
             "Ruled Surface kon geen volledige curves interpreteren",
@@ -463,12 +463,12 @@ fn evaluate_network_surface(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[1], component)?
+        coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -497,17 +497,17 @@ fn evaluate_sweep_two(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[1], component)?
+        coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[2], component)?
+        coerce::coerce_curve_segments(&inputs[2])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -527,7 +527,7 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
             "Pipe Variable vereist een curve, parameters en radii",
         ));
     }
-    let segments = collect_curve_segments(&inputs[0], component)?;
+    let segments = coerce::coerce_curve_segments(&inputs[0])?;
     if segments.is_empty() {
         return Err(ComponentError::new(
             "Pipe Variable kon de railcurve niet lezen",
@@ -565,7 +565,7 @@ fn evaluate_extrude_linear(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let profile_segments = collect_curve_segments(&inputs[0], component)?;
+    let profile_segments = coerce::coerce_curve_segments(&inputs[0])?;
     if profile_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Linear kon geen profielcurve herkennen",
@@ -630,12 +630,12 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[1], component)?
+        coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -656,7 +656,7 @@ fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let base_segments = collect_curve_segments(&inputs[0], component)?;
+    let base_segments = coerce::coerce_curve_segments(&inputs[0])?;
     if base_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Point kon de basiscurve niet lezen",
@@ -682,7 +682,7 @@ fn evaluate_pipe(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let segments = collect_curve_segments(&inputs[0], component)?;
+    let segments = coerce::coerce_curve_segments(&inputs[0])?;
     if segments.is_empty() {
         return Err(ComponentError::new(
             "Pipe kon de railcurve niet lezen",
@@ -742,8 +742,8 @@ fn evaluate_revolution(inputs: &[Value]) -> ComponentResult {
             "Revolution vereist profiel, as en domein",
         ));
     }
-    let profile_segments = collect_curve_segments(&inputs[0], component)?;
-    let axis_segments = collect_curve_segments(&inputs[1], component)?;
+    let profile_segments = coerce::coerce_curve_segments(&inputs[0])?;
+    let axis_segments = coerce::coerce_curve_segments(&inputs[1])?;
     if profile_segments.is_empty() || axis_segments.is_empty() {
         return Err(ComponentError::new(
             "Revolution kon profiel of as niet lezen",
@@ -764,7 +764,7 @@ fn evaluate_revolution(inputs: &[Value]) -> ComponentResult {
 fn evaluate_boundary_surfaces(inputs: &[Value]) -> ComponentResult {
     let component = "Boundary Surfaces";
     let edges = expect_input(inputs, 0, component, "edges")?;
-    let segments = collect_curve_segments(edges, component)?;
+    let segments = coerce::coerce_curve_segments(edges)?;
     if segments.is_empty() {
         return Err(ComponentError::new(
             "Boundary Surfaces vereist minstens één gesloten rand",
@@ -791,17 +791,17 @@ fn evaluate_rail_revolution(inputs: &[Value]) -> ComponentResult {
 
     let mut points = Vec::new();
     points.extend(
-        collect_curve_segments(&inputs[0], component)?
+        coerce::coerce_curve_segments(&inputs[0])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[1], component)?
+        coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
     points.extend(
-        collect_curve_segments(&inputs[2], component)?
+        coerce::coerce_curve_segments(&inputs[2])?
             .into_iter()
             .flat_map(|(a, b)| [a, b]),
     );
@@ -809,48 +809,6 @@ fn evaluate_rail_revolution(inputs: &[Value]) -> ComponentResult {
 
     let surface = create_surface_from_points_with_padding(&points, scale, component)?;
     into_output(PIN_OUTPUT_SURFACE, surface)
-}
-
-fn collect_curve_segments(
-    value: &Value,
-    component: &str,
-) -> Result<Vec<([f64; 3], [f64; 3])>, ComponentError> {
-    match value {
-        Value::CurveLine { p1, p2 } => Ok(vec![(*p1, *p2)]),
-        Value::List(values) => {
-            let mut segments = Vec::new();
-            let mut last_point: Option<[f64; 3]> = None;
-
-            for entry in values {
-                if let Value::Point(p) = entry {
-                    if let Some(last) = last_point {
-                        segments.push((last, *p));
-                    }
-                    last_point = Some(*p);
-                } else {
-                    segments.extend(collect_curve_segments(entry, component)?);
-                    last_point = None; // Reset after a nested curve
-                }
-            }
-            Ok(segments)
-        }
-        Value::Surface { vertices, .. } => {
-            if vertices.len() < 2 {
-                return Err(ComponentError::new(format!(
-                    "{component} verwachtte ten minste twee punten in het oppervlak"
-                )));
-            }
-            let mut segments = Vec::new();
-            for pair in vertices.windows(2) {
-                segments.push((pair[0], pair[1]));
-            }
-            Ok(segments)
-        }
-        other => Err(ComponentError::new(format!(
-            "{component} verwacht een curve-achtige invoer, kreeg {}",
-            other.kind()
-        ))),
-    }
 }
 
 fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
