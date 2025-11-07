@@ -98,8 +98,18 @@ pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>,
                     }
                     last_point = Some(*p);
                 } else {
-                    segments.extend(coerce_curve_segments(entry)?);
-                    last_point = None;
+                    let sub_segments = coerce_curve_segments(entry)?;
+                    if !sub_segments.is_empty() {
+                        // Als we een polyline aan het bouwen waren, is de keten nu onderbroken.
+                        // We voegen de segmenten van de sub-item toe.
+                        segments.extend(sub_segments.clone());
+                        // Het "laatste punt" is nu het einde van het laatste segment van de sub-item.
+                        last_point = sub_segments.last().map(|s| s.1);
+                    } else {
+                        // De entry leverde geen segmenten op (bijv. Value::Null),
+                        // dus de keten wordt onderbroken.
+                        last_point = None;
+                    }
                 }
             }
             Ok(segments)
