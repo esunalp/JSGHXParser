@@ -125,7 +125,6 @@ async function init() {
       console.error('Evaluatiefout:', error);
       three.updateGeometry([]);
       ui.setStatus('Evaluatie mislukt: ' + (error?.message ?? String(error)));
-      syncNodeInfo();
       return;
     }
 
@@ -136,13 +135,11 @@ async function init() {
       console.error('Kon geometrie niet ophalen:', error);
       three.updateGeometry([]);
       ui.setStatus('Geometrie ophalen mislukt: ' + (error?.message ?? String(error)));
-      syncNodeInfo();
       return;
     }
 
     const items = normalizeGeometryItems(geometry);
     three.updateGeometry(items);
-    syncNodeInfo();
 
     if (announce) {
       ui.setStatus(announce);
@@ -158,7 +155,6 @@ async function init() {
     ui.showLoading(true);
     try {
       engine.load_ghx(contents);
-      syncNodeInfo();
       syncSliders({ replace: true });
       evaluateAndRender({ announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.' });
     } catch (error) {
