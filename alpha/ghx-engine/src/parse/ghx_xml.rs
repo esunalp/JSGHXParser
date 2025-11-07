@@ -249,7 +249,13 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         .filter(|child| child.name.eq_ignore_ascii_case("param_output"))
         .enumerate()
     {
-        let info = parse_param_chunk(output_chunk, "out", output_index);
+        let info = parse_param_chunk(
+            output_chunk,
+            "out",
+            output_index,
+            component_guid_norm.as_deref(),
+            true,
+        );
         let pin_name = info.pin_name.clone();
         node.set_output(pin_name.clone(), Value::Null);
         if let Some(guid) = info.instance_guid {
@@ -264,7 +270,13 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         .filter(|child| child.name.eq_ignore_ascii_case("param_input"))
         .enumerate()
     {
-        let info = parse_param_chunk(input_chunk, "in", input_index);
+        let info = parse_param_chunk(
+            input_chunk,
+            "in",
+            input_index,
+            component_guid_norm.as_deref(),
+            false,
+        );
         if let Some(default_value) = info.default_value.clone() {
             node.set_input(info.pin_name.clone(), default_value);
         }
@@ -356,15 +368,23 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
     node.set_output("OUT", Value::Number(value));
 }
 
-fn parse_param_chunk(chunk: &RawChunk, fallback_prefix: &str, fallback_index: usize) -> ParamInfo {
+fn parse_param_chunk(
+    chunk: &RawChunk,
+    fallback_prefix: &str,
+    fallback_index: usize,
+    component_guid: Option<&str>,
+    is_output: bool,
+) -> ParamInfo {
     let index = chunk.index.unwrap_or(fallback_index);
 
-    let pin_name = chunk
+    let pin_name_raw = chunk
         .item_value("NickName")
         .or_else(|| chunk.item_value("Name"))
         .or_else(|| chunk.item_value("Description"))
         .map(str::to_owned)
         .unwrap_or_else(|| format!("{fallback_prefix}{index}"));
+
+    let pin_name = normalize_pin_name(pin_name_raw, component_guid, is_output);
 
     let sources = chunk
         .item_values("Source")
@@ -383,6 +403,22 @@ fn parse_param_chunk(chunk: &RawChunk, fallback_prefix: &str, fallback_index: us
         sources,
         default_value,
     }
+}
+
+fn normalize_pin_name(pin_name: String, component_guid: Option<&str>, is_output: bool) -> String {
+    if !is_output {
+        return pin_name;
+    }
+
+    let Some(guid) = component_guid else {
+        return pin_name;
+    };
+
+    if guid == "3581f42a-9592-4549-bd6b-1c0fc39d067b" && pin_name.eq_ignore_ascii_case("pt") {
+        return "P".to_owned();
+    }
+
+    pin_name
 }
 
 fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {

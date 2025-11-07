@@ -26,6 +26,26 @@ fn slider_updates_require_existing_identifier() {
 }
 
 #[test]
+fn lijntest2_line_outputs_expected_points() {
+    let result = evaluate_sample(include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../web/lijntest2.ghx"
+    )));
+
+    let line = result
+        .geometry
+        .iter()
+        .find_map(|value| match value {
+            Value::CurveLine { p1, p2 } => Some((p1, p2)),
+            _ => None,
+        })
+        .expect("line geometry present");
+
+    assert_point_close(line.0, [0.0, 0.0, 0.0]);
+    assert_point_close(line.1, [1000.0, 0.0, 0.0]);
+}
+
+#[test]
 fn geometry_requires_evaluation_first() {
     let xml = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
