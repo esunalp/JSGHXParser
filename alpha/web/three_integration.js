@@ -545,13 +545,28 @@ export function createThreeApp(canvas) {
       geometryGroup.name = 'ghx-geometry';
 
       const safeItems = Array.isArray(items) ? items : [];
-      const surfaceItems = safeItems.filter(item => item && item.type === 'Surface');
       lastOverlayItems = safeItems.filter(item => item && (item.type === 'CurveLine' || item.type === 'Point'));
 
-      surfaceItems.forEach(item => {
-          const mesh = createSurfaceMesh(item);
-          if (mesh) {
-              geometryGroup.add(mesh);
+      safeItems.forEach(item => {
+          if (!item) return;
+
+          if (item.type === 'Surface') {
+              const mesh = createSurfaceMesh(item);
+              if (mesh) {
+                  geometryGroup.add(mesh);
+              }
+          } else if (item.type === 'CurveLine') {
+              const points = item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+              const segmentObject = createSegmentsObject(points);
+              if (segmentObject) {
+                  geometryGroup.add(segmentObject.object);
+              }
+          } else if (item.type === 'Point') {
+              const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
+              const pointObject = createPointsObject([point]);
+              if (pointObject) {
+                  geometryGroup.add(pointObject.object);
+              }
           }
       });
 
