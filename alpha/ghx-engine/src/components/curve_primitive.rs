@@ -435,20 +435,19 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_line(inputs: &[Value]) -> ComponentResult {
-    fn coerce_point_for_line(value: &Value) -> Option<[f64; 3]> {
-        match value {
-            Value::Point(point) => Some(*point),
-            Value::List(values) if values.len() == 1 => coerce_point_for_line(&values[0]),
-            _ => None,
-        }
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Line component vereist twee punten",
+        ));
     }
 
-    let start = inputs.get(0).and_then(coerce_point_for_line);
-    let end = inputs.get(1).and_then(coerce_point_for_line);
+    let start = coerce_point(inputs.get(0).unwrap(), "Line")?;
+    let end = coerce_point(inputs.get(1).unwrap(), "Line")?;
 
-    let output = match (start, end) {
-        (Some(start), Some(end)) if start != end => Value::CurveLine { p1: start, p2: end },
-        _ => Value::Null,
+    let output = if start != end {
+        Value::CurveLine { p1: start, p2: end }
+    } else {
+        Value::Null
     };
 
     let mut outputs = BTreeMap::new();
@@ -762,17 +761,27 @@ fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64
 }
 
 fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
-    let value = value.ok_or_else(|| {
-        ComponentError::new(format!("{} vereist minimaal één numerieke invoer", context))
-    })?;
     match value {
-        Value::Number(number) => Ok(*number),
-        Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een numerieke waarde, kreeg {}",
-            context,
-            other.kind()
+        None => Err(ComponentError::new(format!(
+            "{} vereist een numerieke waarde",
+            context
         ))),
+        Some(value) => match value {
+            Value::Number(number) => Ok(*number),
+            Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
+            Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
+            Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
+                ComponentError::new(format!(
+                    "{} kon tekst '{}' niet als getal interpreteren",
+                    context, text
+                ))
+            }),
+            other => Err(ComponentError::new(format!(
+                "{} verwacht een getal, kreeg {}",
+                context,
+                other.kind()
+            ))),
+        },
     }
 }
 
@@ -799,14 +808,16 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
 
 fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
-        Value::Point(point) => Ok(*point),
+        Value::Point(point) | Value::Vector(point) => Ok(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
-        Value::Null => Err(ComponentError::new(format!(
-            "{} verwacht punten, kreeg Null",
-            context
-        ))),
+        Value::List(values) if values.len() >= 3 => {
+            let x = coerce_number(Some(&values[0]), context)?;
+            let y = coerce_number(Some(&values[1]), context)?;
+            let z = coerce_number(Some(&values[2]), context)?;
+            Ok([x, y, z])
+        }
         other => Err(ComponentError::new(format!(
-            "{} verwacht punten, kreeg {}",
+            "{} verwacht een punt, kreeg {}",
             context,
             other.kind()
         ))),
@@ -1291,12 +1302,12 @@ mod tests {
     #[test]
     fn line_returns_null_for_null_input() {
         let component = ComponentKind::Line;
-        let outputs = component
+        let err = component
             .evaluate(
                 &[Value::Null, Value::Point([0.0, 0.0, 0.0])],
                 &MetaMap::new(),
             )
-            .unwrap();
-        assert!(matches!(outputs.get(PIN_OUTPUT_LINE), Some(Value::Null)));
+            .unwrap_err();
+        assert!(err.message().contains("kreeg Null"));
     }
 }
