@@ -11,6 +11,7 @@ pub mod complex;
 pub mod curve_analysis;
 pub mod curve_division;
 pub mod curve_primitive;
+pub mod curve_sampler;
 pub mod curve_spline;
 pub mod curve_util;
 pub mod extrude;
