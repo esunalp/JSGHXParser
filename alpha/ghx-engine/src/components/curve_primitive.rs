@@ -333,19 +333,43 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
         }
     };
 
-    let plane = Plane::from_origin_and_normal(center, normal);
+    let x_axis = match safe_normalized(subtract(p1, center)) {
+        Some((axis, _)) => axis,
+        None => {
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::Null);
+            outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Null);
+            return Ok(outputs);
+        }
+    };
+    let y_axis = cross(normal, x_axis);
+    if vector_length_squared(y_axis) < EPSILON {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_ARC.to_owned(), Value::Null);
+        outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Null);
+        return Ok(outputs);
+    }
 
-    let v1 = subtract(p1, center);
-    let v3 = subtract(p3, center);
+    let plane = Plane::from_axes(center, x_axis, y_axis, normal);
 
-    let angle1 = v1[1].atan2(v1[0]);
-    let mut angle3 = v3[1].atan2(v3[0]);
+    let (u1, v1) = plane.project(p1);
+    let (u2, v2) = plane.project(p2);
+    let (u3, v3) = plane.project(p3);
 
-    if angle3 < angle1 {
+    let mut angle1 = v1.atan2(u1);
+    let mut angle2 = unwrap_angle(v2.atan2(u2), angle1);
+    if angle2 < angle1 {
+        angle2 += TAU;
+    }
+
+    let mut angle3 = unwrap_angle(v3.atan2(u3), angle2);
+    if angle3 < angle2 {
         angle3 += TAU;
     }
 
-    let (points, length) = create_arc_points(&plane, radius, angle3 - angle1);
+    angle1 = unwrap_angle(angle1, 0.0);
+
+    let (points, length) = create_arc_points_from_angles(&plane, radius, angle1, angle3);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -356,30 +380,32 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn circle_from_three_points(p1: [f64; 3], p2: [f64; 3], p3: [f64; 3]) -> Option<([f64; 3], f64, [f64; 3])> {
-    let v12 = subtract(p2, p1);
-    let v13 = subtract(p3, p1);
+fn circle_from_three_points(
+    p1: [f64; 3],
+    p2: [f64; 3],
+    p3: [f64; 3],
+) -> Option<([f64; 3], f64, [f64; 3])> {
+    let v21 = subtract(p2, p1);
+    let v31 = subtract(p3, p1);
 
-    let normal = cross(v12, v13);
+    let normal = cross(v21, v31);
     if vector_length_squared(normal) < EPSILON * EPSILON {
         return None; // collineaire punten
     }
     let normal = normalize(normal);
 
-    let p12 = scale(add(p1, p2), 0.5);
-    let p13 = scale(add(p1, p3), 0.5);
+    let row1 = scale(v21, 2.0);
+    let row2 = scale(v31, 2.0);
+    let row3 = normal;
 
-    let dir1 = cross(v12, normal);
-    let dir2 = cross(v13, normal);
+    let matrix = [row1, row2, row3];
+    let rhs = [
+        dot(p2, p2) - dot(p1, p1),
+        dot(p3, p3) - dot(p1, p1),
+        dot(normal, p1),
+    ];
 
-    let num = dot(subtract(p13, p12), dir2);
-    let den = dot(dir1, dir2);
-    if den.abs() < EPSILON {
-        return None;
-    }
-    let t = num / den;
-
-    let center = add(p12, scale(dir1, t));
+    let center = solve_linear_3x3(matrix, rhs)?;
     let radius = vector_length(subtract(p1, center));
 
     Some((center, radius, normal))
@@ -485,19 +511,27 @@ fn evaluate_arc(inputs: &[Value]) -> ComponentResult {
 }
 
 fn create_arc_points(plane: &Plane, radius: f64, angle: f64) -> (Vec<[f64; 3]>, f64) {
+    create_arc_points_from_angles(plane, radius, 0.0, angle)
+}
+
+fn create_arc_points_from_angles(
+    plane: &Plane,
+    radius: f64,
+    start_angle: f64,
+    end_angle: f64,
+) -> (Vec<[f64; 3]>, f64) {
+    let total_angle = end_angle - start_angle;
     let mut points = Vec::new();
-    let segments = (angle.abs() * 32.0 / TAU).ceil() as usize;
-    let angle_step = angle / segments as f64;
+    let segments = (total_angle.abs() * 32.0 / TAU).ceil() as usize;
+    let segments = segments.max(1);
+    let angle_step = total_angle / segments as f64;
 
     for i in 0..=segments {
-        let current_angle = i as f64 * angle_step;
-        points.push(plane.apply(
-            radius * current_angle.cos(),
-            radius * current_angle.sin(),
-        ));
+        let current_angle = start_angle + i as f64 * angle_step;
+        points.push(plane.apply(radius * current_angle.cos(), radius * current_angle.sin()));
     }
 
-    let length = radius * angle.abs();
+    let length = radius * total_angle.abs();
     (points, length)
 }
 
@@ -524,8 +558,7 @@ fn evaluate_polygon(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let (points, length) =
-        create_polygon_points(&plane, radius, segments, fillet_radius);
+    let (points, length) = create_polygon_points(&plane, radius, segments, fillet_radius);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -560,7 +593,6 @@ fn create_polygon_points(
     (points, length)
 }
 
-
 fn evaluate_fit_line(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new(
@@ -579,23 +611,16 @@ fn evaluate_fit_line(inputs: &[Value]) -> ComponentResult {
     let (p1, p2) = find_farthest_points(&points);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_LINE.to_owned(),
-        Value::CurveLine { p1, p2 },
-    );
+    outputs.insert(PIN_OUTPUT_LINE.to_owned(), Value::CurveLine { p1, p2 });
     Ok(outputs)
 }
 
 fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
-    let value = value.ok_or_else(|| {
-        ComponentError::new(format!("{} vereist een lijst van punten", context))
-    })?;
+    let value = value
+        .ok_or_else(|| ComponentError::new(format!("{} vereist een lijst van punten", context)))?;
 
     match value {
-        Value::List(values) => values
-            .iter()
-            .map(|v| coerce_point(v, context))
-            .collect(),
+        Value::List(values) => values.iter().map(|v| coerce_point(v, context)).collect(),
         Value::Point(p) => Ok(vec![*p]),
         other => Err(ComponentError::new(format!(
             "{} verwacht een lijst van punten, kreeg {}",
@@ -665,7 +690,11 @@ fn create_rectangle_points(
     let half_y = y_size / 2.0;
 
     let max_radius = half_x.min(half_y);
-    let radius = if radius > max_radius { max_radius } else { radius };
+    let radius = if radius > max_radius {
+        max_radius
+    } else {
+        radius
+    };
     let radius = if radius < 0.0 { 0.0 } else { radius };
 
     let length;
@@ -688,25 +717,37 @@ fn create_rectangle_points(
         // Arc for top-right corner (from 0 to PI/2)
         for i in 0..=segments_per_corner {
             let angle = 0.0 + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
-            points.push(plane.apply(c_tr_uv.0 + radius * angle.cos(), c_tr_uv.1 + radius * angle.sin()));
+            points.push(plane.apply(
+                c_tr_uv.0 + radius * angle.cos(),
+                c_tr_uv.1 + radius * angle.sin(),
+            ));
         }
 
         // Arc for top-left corner (from PI/2 to PI)
         for i in 1..=segments_per_corner {
             let angle = (TAU / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
-            points.push(plane.apply(c_tl_uv.0 + radius * angle.cos(), c_tl_uv.1 + radius * angle.sin()));
+            points.push(plane.apply(
+                c_tl_uv.0 + radius * angle.cos(),
+                c_tl_uv.1 + radius * angle.sin(),
+            ));
         }
 
         // Arc for bottom-left corner (from PI to 3*PI/2)
         for i in 1..=segments_per_corner {
             let angle = (TAU / 2.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
-            points.push(plane.apply(c_bl_uv.0 + radius * angle.cos(), c_bl_uv.1 + radius * angle.sin()));
+            points.push(plane.apply(
+                c_bl_uv.0 + radius * angle.cos(),
+                c_bl_uv.1 + radius * angle.sin(),
+            ));
         }
 
         // Arc for bottom-right corner (from 3*PI/2 to 2*PI)
         for i in 1..=segments_per_corner {
             let angle = (TAU * 3.0 / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
-            points.push(plane.apply(c_br_uv.0 + radius * angle.cos(), c_br_uv.1 + radius * angle.sin()));
+            points.push(plane.apply(
+                c_br_uv.0 + radius * angle.cos(),
+                c_br_uv.1 + radius * angle.sin(),
+            ));
         }
 
         length = 2.0 * (x_size - 2.0 * radius) + 2.0 * (y_size - 2.0 * radius) + TAU * radius;
@@ -718,7 +759,6 @@ fn create_rectangle_points(
 
     (points, length)
 }
-
 
 fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
@@ -864,6 +904,10 @@ impl Plane {
         Self::normalize_axes(origin, x_axis, y_axis, z_axis)
     }
 
+    fn from_axes(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Self {
+        Self::normalize_axes(origin, x_axis, y_axis, z_axis)
+    }
+
     fn normalize_axes(
         origin: [f64; 3],
         x_axis: [f64; 3],
@@ -910,9 +954,70 @@ impl Plane {
             add(scale(self.x_axis, u), scale(self.y_axis, v)),
         )
     }
+
+    fn project(&self, point: [f64; 3]) -> (f64, f64) {
+        let delta = subtract(point, self.origin);
+        (dot(delta, self.x_axis), dot(delta, self.y_axis))
+    }
 }
 
 const EPSILON: f64 = 1e-9;
+
+fn unwrap_angle(angle: f64, reference: f64) -> f64 {
+    let mut result = angle;
+    while result < reference - std::f64::consts::PI {
+        result += TAU;
+    }
+    while result > reference + std::f64::consts::PI {
+        result -= TAU;
+    }
+    result
+}
+
+fn solve_linear_3x3(mut a: [[f64; 3]; 3], mut b: [f64; 3]) -> Option<[f64; 3]> {
+    for i in 0..3 {
+        let mut pivot_row = i;
+        let mut pivot_value = a[i][i].abs();
+        for row in (i + 1)..3 {
+            let value = a[row][i].abs();
+            if value > pivot_value {
+                pivot_value = value;
+                pivot_row = row;
+            }
+        }
+
+        if pivot_value < EPSILON {
+            return None;
+        }
+
+        if pivot_row != i {
+            a.swap(i, pivot_row);
+            b.swap(i, pivot_row);
+        }
+
+        let pivot = a[i][i];
+        for col in 0..3 {
+            a[i][col] /= pivot;
+        }
+        b[i] /= pivot;
+
+        for row in 0..3 {
+            if row == i {
+                continue;
+            }
+            let factor = a[row][i];
+            if factor.abs() < EPSILON {
+                continue;
+            }
+            for col in 0..3 {
+                a[row][col] -= factor * a[i][col];
+            }
+            b[row] -= factor * b[i];
+        }
+    }
+
+    Some(b)
+}
 
 fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
@@ -1036,9 +1141,11 @@ mod tests {
         let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
             panic!("expected length");
         };
-        assert!((length - (2.0 * (10.0 - 4.0) + 2.0 * (20.0 - 4.0) + std::f64::consts::TAU * 2.0))
-            .abs()
-            < 1e-9);
+        assert!(
+            (length - (2.0 * (10.0 - 4.0) + 2.0 * (20.0 - 4.0) + std::f64::consts::TAU * 2.0))
+                .abs()
+                < 1e-9
+        );
     }
 
     #[test]
@@ -1254,6 +1361,51 @@ mod tests {
             panic!("expected list of points");
         };
         assert!(points.len() > 1);
+
+        let Value::Point(first) = points.first().expect("at least one point") else {
+            panic!("expected first arc point");
+        };
+        let Value::Point(last) = points.last().expect("at least one point") else {
+            panic!("expected last arc point");
+        };
+
+        assert!((first[0] - 0.0).abs() < 1e-9);
+        assert!((first[1] - 0.0).abs() < 1e-9);
+        assert!((last[0] - 20.0).abs() < 1e-9);
+        assert!((last[1] - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn arc_3pt_respects_orientation_in_space() {
+        let component = ComponentKind::Arc3Pt;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([1.0, 0.0, 0.0]),
+                    Value::Point([0.0, 1.0, 1.0]),
+                    Value::Point([-1.0, 0.0, 0.0]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("arc 3pt generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_ARC) else {
+            panic!("expected list of points");
+        };
+
+        let Value::Point(first) = points.first().expect("at least one point") else {
+            panic!("expected first arc point");
+        };
+        let Value::Point(last) = points.last().expect("at least one point") else {
+            panic!("expected last arc point");
+        };
+
+        assert!((first[0] - 1.0).abs() < 1e-9);
+        assert!((first[1] - 0.0).abs() < 1e-9);
+        assert!((first[2] - 0.0).abs() < 1e-9);
+        assert!((last[0] + 1.0).abs() < 1e-9);
+        assert!((last[1] - 0.0).abs() < 1e-9);
+        assert!((last[2] - 0.0).abs() < 1e-9);
     }
 
     #[test]
