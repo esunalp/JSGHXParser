@@ -269,40 +269,6 @@ export function setupUi() {
     });
   }
 
-  const renderTopologyMap = (text) => {
-    if (topologyMapOutput) {
-      topologyMapOutput.textContent = text;
-    }
-  };
-
-  const renderNodeList = (nodes) => {
-    if (!nodeListContainer) {
-      return;
-    }
-    nodeListContainer.innerHTML = '';
-    for (const node of nodes) {
-      const nodeEl = document.createElement('div');
-
-      const strong = document.createElement('strong');
-      strong.textContent = `${node.name} (${node.id})`;
-      nodeEl.appendChild(strong);
-
-      const ul = document.createElement('ul');
-      for (const [key, value] of Object.entries(node.outputs)) {
-        const li = document.createElement('li');
-        li.textContent = `${key}: ${formatOutputValue(value)}`;
-        ul.appendChild(li);
-      }
-      nodeEl.appendChild(ul);
-
-      const p = document.createElement('p');
-      p.textContent = `Connected to: ${node.connected_to.join(', ')}`;
-      nodeEl.appendChild(p);
-
-      nodeListContainer.appendChild(nodeEl);
-    }
-  };
-
   return {
     canvas,
     setHandlers,
@@ -311,8 +277,6 @@ export function setupUi() {
     setStatus,
     showLoading,
     setOverlayState,
-    renderTopologyMap,
-    renderNodeList,
   };
 }
 
