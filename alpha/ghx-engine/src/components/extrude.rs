@@ -54,20 +54,7 @@ impl Component for ComponentImpl {
 }
 
 fn collect_curves(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>, ComponentError> {
-    match value {
-        Value::CurveLine { p1, p2 } => Ok(vec![(*p1, *p2)]),
-        Value::List(values) => {
-            let mut curves = Vec::new();
-            for entry in values {
-                curves.extend(collect_curves(entry)?);
-            }
-            Ok(curves)
-        }
-        other => Err(ComponentError::new(format!(
-            "Extrude component verwacht een lijncurve, kreeg {}",
-            other.kind()
-        ))),
-    }
+    super::coerce::coerce_curve_segments(value)
 }
 
 fn coerce_direction(value: &Value) -> Result<[f64; 3], ComponentError> {

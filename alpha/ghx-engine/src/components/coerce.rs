@@ -82,3 +82,41 @@ pub fn coerce_surface<'a>(value: &'a Value) -> Result<Surface<'a>, ComponentErro
         ))),
     }
 }
+
+pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>, ComponentError> {
+    match value {
+        Value::Null => Ok(Vec::new()),
+        Value::CurveLine { p1, p2 } => Ok(vec![(*p1, *p2)]),
+        Value::List(values) => {
+            let mut segments = Vec::new();
+            let mut last_point: Option<[f64; 3]> = None;
+
+            for entry in values {
+                if let Value::Point(p) = entry {
+                    if let Some(last) = last_point {
+                        segments.push((last, *p));
+                    }
+                    last_point = Some(*p);
+                } else {
+                    segments.extend(coerce_curve_segments(entry)?);
+                    last_point = None;
+                }
+            }
+            Ok(segments)
+        }
+        Value::Surface { vertices, .. } => {
+            if vertices.len() < 2 {
+                return Ok(Vec::new());
+            }
+            let mut segments = Vec::new();
+            for pair in vertices.windows(2) {
+                segments.push((pair[0], pair[1]));
+            }
+            Ok(segments)
+        }
+        _ => Err(ComponentError::new(format!(
+            "Verwachtte een curve-achtige invoer, kreeg {}",
+            value.kind()
+        ))),
+    }
+}
