@@ -426,6 +426,18 @@ fn evaluate_sum_surface(inputs: &[Value]) -> ComponentResult {
     into_output(PIN_OUTPUT_SURFACE, surface)
 }
 
+fn polyline_from_segments(segments: &Vec<([f64; 3], [f64; 3])>) -> Vec<[f64; 3]> {
+    if segments.is_empty() {
+        return Vec::new();
+    }
+    let mut points = Vec::with_capacity(segments.len() + 1);
+    points.push(segments[0].0);
+    for segment in segments {
+        points.push(segment.1);
+    }
+    points
+}
+
 fn evaluate_ruled_surface(inputs: &[Value]) -> ComponentResult {
     let component = "Ruled Surface";
     if inputs.len() < 2 {
@@ -433,23 +445,42 @@ fn evaluate_ruled_surface(inputs: &[Value]) -> ComponentResult {
             "Ruled Surface vereist twee invoercurves",
         ));
     }
-    let curve_a = coerce::coerce_curve_segments(&inputs[0])?;
-    let curve_b = coerce::coerce_curve_segments(&inputs[1])?;
-    if curve_a.is_empty() || curve_b.is_empty() {
+    let segments_a = coerce::coerce_curve_segments(&inputs[0])?;
+    let segments_b = coerce::coerce_curve_segments(&inputs[1])?;
+
+    if segments_a.is_empty() || segments_b.is_empty() {
         return Err(ComponentError::new(
             "Ruled Surface kon geen volledige curves interpreteren",
         ));
     }
 
-    let mut points = Vec::new();
-    for (a, b) in curve_a.into_iter().zip(curve_b.into_iter()) {
-        points.push(a.0);
-        points.push(a.1);
-        points.push(b.0);
-        points.push(b.1);
+    let polyline_a = polyline_from_segments(&segments_a);
+    let polyline_b = polyline_from_segments(&segments_b);
+
+    let (resampled_a, resampled_b) =
+        super::curve_sampler::resample_polylines(&polyline_a, &polyline_b);
+
+    let n = resampled_a.len();
+    if n < 2 {
+        return into_output(PIN_OUTPUT_SURFACE, Value::Null);
     }
 
-    let surface = create_surface_from_points(&points, component)?;
+    let mut vertices = resampled_a;
+    vertices.extend(resampled_b);
+
+    let mut faces = Vec::with_capacity((n - 1) * 2);
+    for i in 0..(n - 1) {
+        let i0 = i as u32;
+        let i1 = (i + 1) as u32;
+        let j0 = (n + i) as u32;
+        let j1 = (n + i + 1) as u32;
+
+        // Quad: (i0, i1, j1, j0)
+        faces.push(vec![i0, i1, j1]);
+        faces.push(vec![i0, j1, j0]);
+    }
+
+    let surface = Value::Surface { vertices, faces };
     into_output(PIN_OUTPUT_SURFACE, surface)
 }
 
@@ -1184,5 +1215,92 @@ mod tests {
             .expect("loft surface");
 
         assert!(matches!(outputs.get(PIN_OUTPUT_LOFT), Some(Value::Surface { .. })));
+    }
+
+    #[test]
+    fn ruled_surface_with_uneven_curves() {
+        let component = ComponentKind::RuledSurface;
+        let inputs = [
+            // Curve A: 1 segment, 2 points
+            Value::List(vec![Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [1.0, 0.0, 0.0],
+            }]),
+            // Curve B: 2 segments, 3 points
+            Value::List(vec![
+                Value::CurveLine {
+                    p1: [0.0, 1.0, 0.0],
+                    p2: [0.5, 1.0, 1.0],
+                },
+                Value::CurveLine {
+                    p1: [0.5, 1.0, 1.0],
+                    p2: [1.0, 1.0, 0.0],
+                },
+            ]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("ruled surface");
+
+        let Value::Surface { vertices, faces } = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // After resampling, both polylines should have 3 points. Total vertices = 6.
+        assert_eq!(vertices.len(), 6, "Expected 6 vertices after resampling");
+        // We should have 2 quads, which means 4 triangles.
+        assert_eq!(faces.len(), 4, "Expected 4 faces for 2 quads");
+
+        // Verify that the resampled version of curve A has a point in the middle.
+        // Original was [0,0,0] -> [1,0,0]. Resampled should have a point at [0.5,0,0].
+        assert_eq!(vertices[0], [0.0, 0.0, 0.0]);
+        assert_eq!(vertices[1], [0.5, 0.0, 0.0]);
+        assert_eq!(vertices[2], [1.0, 0.0, 0.0]);
+
+        // Verify the original points of curve B are untouched.
+        assert_eq!(vertices[3], [0.0, 1.0, 0.0]);
+        assert_eq!(vertices[4], [0.5, 1.0, 1.0]);
+        assert_eq!(vertices[5], [1.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn ruled_surface_with_line_and_arc() {
+        let component = ComponentKind::RuledSurface;
+        let inputs = [
+            // Input A: A simple straight line (1 segment, 2 points)
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [2.0, 0.0, 0.0],
+            },
+            // Input B: A polyline simulating an arc (3 segments, 4 points)
+            Value::List(vec![
+                Value::Point([0.0, 2.0, 0.0]),
+                Value::Point([1.0, 2.0, 1.0]),
+                Value::Point([2.0, 2.0, 0.0]),
+            ]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("ruled surface with arc");
+
+        let Value::Surface { vertices, faces } = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // Curve A has 2 points, Curve B has 3 points.
+        // After resampling, both should have 3 points. Total vertices = 6.
+        assert_eq!(vertices.len(), 6, "Expected 6 vertices after resampling");
+        // (3 - 1) = 2 quads, which means 4 triangles.
+        assert_eq!(faces.len(), 4, "Expected 4 faces");
+
+        // Check that the line (Curve A) was resampled correctly.
+        assert_eq!(vertices[0], [0.0, 0.0, 0.0]); // Start
+        assert_eq!(vertices[1], [1.0, 0.0, 0.0]); // Interpolated midpoint
+        assert_eq!(vertices[2], [2.0, 0.0, 0.0]); // End
+
+        // Check that the arc points (Curve B) are preserved.
+        assert_eq!(vertices[3], [0.0, 2.0, 0.0]);
+        assert_eq!(vertices[4], [1.0, 2.0, 1.0]);
+        assert_eq!(vertices[5], [2.0, 2.0, 0.0]);
     }
 }
