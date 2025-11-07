@@ -118,16 +118,6 @@ async function init() {
     return sliders;
   }
 
-  function syncNodeInfo() {
-    try {
-      const nodeInfo = engine.get_node_info();
-      ui.renderNodeList(normalizeNodeInfo(nodeInfo));
-    } catch (error) {
-      console.warn('Kon node-informatie niet ophalen:', error);
-      ui.renderNodeList([]);
-    }
-  }
-
   function evaluateAndRender({ announce } = {}) {
     try {
       engine.evaluate();
@@ -171,19 +161,11 @@ async function init() {
       syncNodeInfo();
       syncSliders({ replace: true });
       evaluateAndRender({ announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.' });
-      try {
-        const topologyMap = engine.get_topology_map();
-        ui.renderTopologyMap(topologyMap);
-      } catch (error) {
-        ui.renderTopologyMap(`Fout: ${error.message}`);
-      }
     } catch (error) {
       console.error('Fout bij het laden van GHX:', error);
       ui.renderSliders([]);
       three.updateGeometry([]);
       ui.setStatus('Fout bij het laden van het GHX-bestand: ' + (error?.message ?? String(error)));
-      ui.renderTopologyMap('');
-      ui.renderNodeList([]);
     } finally {
       syncSliders();
       ui.showLoading(false);
