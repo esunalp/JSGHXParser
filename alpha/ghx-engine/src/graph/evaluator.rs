@@ -18,6 +18,70 @@ pub struct EvaluationResult {
     pub geometry: Vec<Value>,
 }
 
+/// Voorbereide metadata die hergebruik van topologie en verbindingen mogelijk maakt.
+#[derive(Debug, Clone, Default)]
+pub struct EvaluationPlan {
+    order: Vec<NodeId>,
+    incoming: HashMap<NodeId, HashMap<String, Vec<(NodeId, String)>>>,
+    pin_order: HashMap<NodeId, Vec<String>>,
+}
+
+impl EvaluationPlan {
+    /// Bouwt een evaluatieplan op basis van een graph.
+    pub fn new(graph: &Graph) -> Result<Self, EvaluationError> {
+        let topology = Topology::sort(graph)?;
+
+        let mut incoming: HashMap<NodeId, HashMap<String, Vec<(NodeId, String)>>> = HashMap::new();
+        for wire in graph.wires() {
+            incoming
+                .entry(wire.to_node)
+                .or_default()
+                .entry(wire.to_pin.0.clone())
+                .or_default()
+                .push((wire.from_node, wire.from_pin.0.clone()));
+        }
+
+        for per_node in incoming.values_mut() {
+            for connections in per_node.values_mut() {
+                connections.sort();
+            }
+        }
+
+        let mut pin_order = HashMap::new();
+        for node in graph.nodes() {
+            let mut pins: BTreeSet<String> = node.inputs.keys().cloned().collect();
+            if let Some(connections) = incoming.get(&node.id) {
+                pins.extend(connections.keys().cloned());
+            }
+            pin_order.insert(node.id, pins.into_iter().collect());
+        }
+
+        Ok(Self {
+            order: topology.order,
+            incoming,
+            pin_order,
+        })
+    }
+
+    #[must_use]
+    pub fn order(&self) -> &[NodeId] {
+        &self.order
+    }
+
+    fn incoming_connections(&self, node: NodeId, pin: &str) -> Option<&Vec<(NodeId, String)>> {
+        self.incoming
+            .get(&node)
+            .and_then(|node_map| node_map.get(pin))
+    }
+
+    fn pins(&self, node: NodeId) -> &[String] {
+        self.pin_order
+            .get(&node)
+            .map(Vec::as_slice)
+            .unwrap_or_else(|| &[])
+    }
+}
+
 /// Fouttype voor evaluatieproblemen.
 #[derive(Debug)]
 pub enum EvaluationError {
@@ -111,27 +175,19 @@ pub fn evaluate(
     graph: &Graph,
     registry: &ComponentRegistry,
 ) -> Result<EvaluationResult, EvaluationError> {
-    let topology = Topology::sort(graph).map_err(EvaluationError::from)?;
+    let plan = EvaluationPlan::new(graph)?;
+    evaluate_with_plan(graph, registry, &plan)
+}
 
-    let mut incoming: HashMap<NodeId, HashMap<String, Vec<(NodeId, String)>>> = HashMap::new();
-    for wire in graph.wires() {
-        incoming
-            .entry(wire.to_node)
-            .or_default()
-            .entry(wire.to_pin.0.clone())
-            .or_default()
-            .push((wire.from_node, wire.from_pin.0.clone()));
-    }
-
-    for per_node in incoming.values_mut() {
-        for connections in per_node.values_mut() {
-            connections.sort();
-        }
-    }
-
+/// Evalueert een graph met behulp van een vooraf opgebouwd evaluatieplan.
+pub fn evaluate_with_plan(
+    graph: &Graph,
+    registry: &ComponentRegistry,
+    plan: &EvaluationPlan,
+) -> Result<EvaluationResult, EvaluationError> {
     let mut result = EvaluationResult::default();
 
-    for node_id in topology.order {
+    for &node_id in plan.order() {
         let node = graph
             .node(node_id)
             .ok_or(EvaluationError::UnknownNode(node_id))?;
@@ -149,17 +205,11 @@ pub fn evaluate(
             nickname: node.nickname.clone(),
         })?;
 
-        let mut pin_names: BTreeSet<String> = node.inputs.keys().cloned().collect();
-        if let Some(connections) = incoming.get(&node_id) {
-            pin_names.extend(connections.keys().cloned());
-        }
+        let pins = plan.pins(node_id);
+        let mut input_values = Vec::with_capacity(pins.len());
 
-        let mut input_values = Vec::with_capacity(pin_names.len());
-        for pin in pin_names {
-            let value = if let Some(connections) = incoming
-                .get(&node_id)
-                .and_then(|node_map| node_map.get(&pin))
-            {
+        for pin in pins {
+            let value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
                 let mut values = Vec::with_capacity(connections.len());
                 for (from_node, from_pin) in connections {
                     let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
@@ -185,10 +235,13 @@ pub fn evaluate(
                 } else {
                     Value::List(values)
                 }
-            } else if let Some(default) = node.inputs.get(&pin) {
+            } else if let Some(default) = node.inputs.get(pin) {
                 default.clone()
             } else {
-                return Err(EvaluationError::MissingInput { node_id, pin });
+                return Err(EvaluationError::MissingInput {
+                    node_id,
+                    pin: pin.clone(),
+                });
             };
 
             input_values.push(value);

@@ -10,9 +10,8 @@ use std::fmt;
 
 use components::{ComponentKind, ComponentRegistry};
 use graph::Graph;
-use graph::evaluator::{self, EvaluationResult};
+use graph::evaluator::{self, EvaluationPlan, EvaluationResult};
 use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
-use graph::topo::Topology;
 use graph::value::Value;
 use serde::Serialize;
 use wasm_bindgen::JsError;
@@ -126,6 +125,7 @@ pub struct Engine {
     graph: Option<Graph>,
     last_result: Option<EvaluationResult>,
     slider_bindings: Vec<SliderBinding>,
+    evaluation_plan: Option<EvaluationPlan>,
 }
 
 #[wasm_bindgen]
@@ -138,6 +138,7 @@ impl Engine {
             graph: None,
             last_result: None,
             slider_bindings: Vec::new(),
+            evaluation_plan: None,
         }
     }
 
@@ -152,10 +153,12 @@ impl Engine {
     pub fn load_ghx(&mut self, xml: &str) -> Result<(), JsValue> {
         let graph = parse::ghx_xml::parse_str(xml).map_err(to_js_error)?;
         let slider_bindings = collect_slider_bindings(&graph, &self.registry);
+        let evaluation_plan = evaluator::EvaluationPlan::new(&graph).map_err(to_js_error)?;
 
         self.graph = Some(graph);
         self.slider_bindings = slider_bindings;
         self.last_result = None;
+        self.evaluation_plan = Some(evaluation_plan);
 
         Ok(())
     }
@@ -248,7 +251,13 @@ impl Engine {
             None => return Err(js_error("er is geen GHX-bestand geladen")),
         };
 
-        let result = evaluator::evaluate(graph, &self.registry).map_err(to_js_error)?;
+        let plan = self
+            .evaluation_plan
+            .as_ref()
+            .ok_or_else(|| js_error("graph is niet voorbereid voor evaluatie"))?;
+
+        let result =
+            evaluator::evaluate_with_plan(graph, &self.registry, plan).map_err(to_js_error)?;
         self.last_result = Some(result);
         Ok(())
     }
@@ -275,15 +284,17 @@ impl Engine {
     /// Haalt een tekstuele weergave op van de topologisch gesorteerde graaf.
     #[wasm_bindgen]
     pub fn get_topology_map(&self) -> Result<JsValue, JsValue> {
-        let graph = self
-            .graph
+        if self.graph.is_none() {
+            return Err(js_error("er is geen GHX-bestand geladen"));
+        }
+
+        let plan = self
+            .evaluation_plan
             .as_ref()
-            .ok_or_else(|| js_error("er is geen GHX-bestand geladen"))?;
+            .ok_or_else(|| js_error("graph is niet voorbereid voor evaluatie"))?;
 
-        let topology = Topology::sort(graph).map_err(to_js_error)?;
-
-        let map = topology
-            .order
+        let map = plan
+            .order()
             .iter()
             .map(|id| id.0.to_string())
             .collect::<Vec<_>>()
@@ -323,7 +334,11 @@ impl Engine {
 
             nodes_info.push(NodeInfo {
                 id: node.id.0,
-                name: node.nickname.clone().or(node.name.clone()).unwrap_or_default(),
+                name: node
+                    .nickname
+                    .clone()
+                    .or(node.name.clone())
+                    .unwrap_or_default(),
                 outputs,
                 connected_to,
             });
