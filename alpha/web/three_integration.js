@@ -114,7 +114,7 @@ const POINT_SPHERE_RADIUS_MM = 10;
 const POINT_SPHERE_WIDTH_SEGMENTS = 16;
 const POINT_SPHERE_HEIGHT_SEGMENTS = 12;
 
-function createSurfaceMesh(item) {
+function createMeshObject(item) {
   if (!Array.isArray(item.vertices) || item.vertices.length === 0) {
     return null;
   }
@@ -322,8 +322,18 @@ export function createThreeApp(canvas) {
       const group = new THREE.Group();
       group.name = 'GHXCurveOverlay';
       lastOverlayItems.forEach(item => {
-          if (item.type === 'CurveLine') {
-              const points = item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          if (item.type === 'Line') {
+              const points = [item.start, item.end]
+                  .filter(Array.isArray)
+                  .map(p => new THREE.Vector3(p[0], p[1], p[2]));
+              const segmentObject = createSegmentsObject(points);
+              if (segmentObject) {
+                  group.add(segmentObject.object);
+              }
+          } else if (item.type === 'Polyline') {
+              const points = Array.isArray(item.points)
+                  ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
+                  : [];
               const segmentObject = createSegmentsObject(points);
               if (segmentObject) {
                   group.add(segmentObject.object);
@@ -546,18 +556,28 @@ export function createThreeApp(canvas) {
       geometryGroup.name = 'ghx-geometry';
 
       const safeItems = Array.isArray(items) ? items : [];
-      lastOverlayItems = safeItems.filter(item => item && (item.type === 'CurveLine' || item.type === 'Point'));
+      lastOverlayItems = safeItems.filter(item => item && (item.type === 'Line' || item.type === 'Polyline' || item.type === 'Point'));
 
       safeItems.forEach(item => {
           if (!item) return;
 
-          if (item.type === 'Surface') {
-              const mesh = createSurfaceMesh(item);
+          if (item.type === 'Mesh') {
+              const mesh = createMeshObject(item);
               if (mesh) {
                   geometryGroup.add(mesh);
               }
-          } else if (item.type === 'CurveLine') {
-              const points = item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+          } else if (item.type === 'Line') {
+              const points = [item.start, item.end]
+                  .filter(Array.isArray)
+                  .map(p => new THREE.Vector3(p[0], p[1], p[2]));
+              const segmentObject = createSegmentsObject(points);
+              if (segmentObject) {
+                  geometryGroup.add(segmentObject.object);
+              }
+          } else if (item.type === 'Polyline') {
+              const points = Array.isArray(item.points)
+                  ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
+                  : [];
               const segmentObject = createSegmentsObject(points);
               if (segmentObject) {
                   geometryGroup.add(segmentObject.object);

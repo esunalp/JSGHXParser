@@ -19,17 +19,18 @@ Het proces bestaat uit de volgende stappen:
 Alles begint in een component in de `ghx-engine` (bijvoorbeeld `curve_primitive.rs`). De `evaluate` functie van een component retourneert een `ComponentResult`, wat bij succes een `BTreeMap<String, Value>` bevat.
 
 -   **Punten**: Worden weergegeven als `Value::Point`.
--   **Lijnen/Curves**: Worden doorgaans weergegeven als een lijst van punten: `Value::List(vec![Value::Point(...)])`.
+-   **Lijnen/Curves**: Worden doorgaans weergegeven als een lijst van punten: `Value::List(vec![Value::Point(...)])` of als `Value::CurveLine { p1, p2 }`.
 -   **Oppervlakken/Meshes**: Worden weergegeven als `Value::Surface { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`.
 
 ### 2. Conversie naar `GeometryItem` (Rust Backend)
 
-Nadat de graph is geëvalueerd, roept de frontend de `engine.get_geometry()` functie aan. Binnen deze functie wordt de `geometry_item_from_value` functie (`alpha/ghx-engine/src/lib.rs`) gebruikt om de `Value` objecten om te zetten in `GeometryItem` enums. Dit is een `enum` die specifiek is ontworpen om over de WASM-grens te worden geserialiseerd.
+Nadat de graph is geëvalueerd, roept de frontend de `engine.get_geometry()` functie aan. Binnen deze functie worden de waardes verzameld en via `append_geometry_items` (`alpha/ghx-engine/src/lib.rs`) vertaald naar `GeometryItem` enums. Dit is een `enum` die specifiek is ontworpen om over de WASM-grens te worden geserialiseerd.
 
 De `GeometryItem` heeft de volgende varianten:
 -   `Point { coordinates: [f64; 3] }`
--   `CurveLine { points: Vec<[f64; 3]> }`
--   `Surface { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`
+-   `Line { start: [f64; 3], end: [f64; 3] }`
+-   `Polyline { points: Vec<[f64; 3]> }`
+-   `Mesh { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`
 
 ### 3. Frontend Verwerking (JavaScript)
 
@@ -38,8 +39,8 @@ De JavaScript-code in `alpha/web/three_integration.js` ontvangt een `GeometryRes
 Voor elke `GeometryItem` wordt een overeenkomstige functie aangeroepen om een Three.js object te maken:
 
 -   `Point` → `createPointsObject` → `THREE.InstancedMesh`
--   `CurveLine` → `createSegmentsObject` → `THREE.Line`
--   `Surface` → `createSurfaceMesh` → `THREE.Mesh`
+-   `Line`/`Polyline` → `createSegmentsObject` → `THREE.Line`
+-   `Mesh` → `createMeshObject` → `THREE.Mesh`
 
 ### 4. Rendering en Vereisten
 
