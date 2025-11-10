@@ -108,10 +108,14 @@ enum GeometryItem {
     Point {
         coordinates: [f64; 3],
     },
-    CurveLine {
+    Line {
+        start: [f64; 3],
+        end: [f64; 3],
+    },
+    Polyline {
         points: Vec<[f64; 3]>,
     },
-    Surface {
+    Mesh {
         vertices: Vec<[f64; 3]>,
         faces: Vec<Vec<u32>>,
     },
@@ -270,11 +274,9 @@ impl Engine {
             None => return Err(js_error("graph is nog niet geëvalueerd")),
         };
 
-        let mut items = Vec::with_capacity(result.geometry.len());
+        let mut items = Vec::new();
         for value in &result.geometry {
-            let item = geometry_item_from_value(value)
-                .ok_or_else(|| JsError::new("niet-renderbaar geometrisch type aangetroffen"))?;
-            items.push(item);
+            append_geometry_items(value, &mut items);
         }
 
         serde_wasm_bindgen::to_value(&GeometryResponse { items })
@@ -416,46 +418,125 @@ fn slider_state(graph: &Graph, binding: &SliderBinding) -> Result<SliderExport, 
     })
 }
 
-fn geometry_item_from_value(value: &Value) -> Option<GeometryItem> {
+fn append_geometry_items(value: &Value, items: &mut Vec<GeometryItem>) {
     match value {
-        Value::Point(point) => Some(GeometryItem::Point {
-            coordinates: *point,
-        }),
-        Value::CurveLine { p1, p2 } => Some(GeometryItem::CurveLine {
-            points: vec![*p1, *p2],
-        }),
-        Value::Surface { vertices, faces } => Some(GeometryItem::Surface {
-            vertices: vertices.clone(),
-            faces: faces.clone(),
-        }),
-        Value::List(values) => {
-            // Probeer eerst de lijst als een polyline te interpreteren.
-            let points: Vec<[f64; 3]> = values
-                .iter()
-                .filter_map(|v| match v {
-                    Value::Point(p) => Some(*p),
-                    _ => None,
-                })
-                .collect();
-
-            if points.len() > 1 && points.len() == values.len() {
-                return Some(GeometryItem::CurveLine { points });
-            }
-
-            // Als dat niet lukt, zoek dan naar het eerste renderbare item in de lijst.
-            // Dit lost het probleem op waarbij een `CurveLine` in een `List` is verpakt.
-            values.iter().find_map(geometry_item_from_value)
+        Value::Point(point) => {
+            items.push(GeometryItem::Point {
+                coordinates: *point,
+            });
         }
-        Value::Null | Value::Number(_) | Value::Vector(_) | Value::Boolean(_) => None,
-        Value::Domain(_) => None,
-        Value::Matrix(_) => None,
-        Value::Text(_) => None,
-        Value::DateTime(_) => None,
-        Value::Complex(_) => None,
-        Value::Tag(_) => None,
-        Value::Color(_) => None,
-        Value::Material(_) => None,
-        Value::Symbol(_) => None,
+        Value::CurveLine { p1, p2 } => {
+            items.push(GeometryItem::Line {
+                start: *p1,
+                end: *p2,
+            });
+        }
+        Value::Surface { vertices, faces } => {
+            items.push(GeometryItem::Mesh {
+                vertices: vertices.clone(),
+                faces: faces.clone(),
+            });
+        }
+        Value::List(values) => {
+            if let Some(polyline) = list_as_polyline(values) {
+                items.push(GeometryItem::Polyline { points: polyline });
+            } else {
+                for entry in values {
+                    append_geometry_items(entry, items);
+                }
+            }
+        }
+        Value::Null
+        | Value::Number(_)
+        | Value::Vector(_)
+        | Value::Boolean(_)
+        | Value::Domain(_)
+        | Value::Matrix(_)
+        | Value::Text(_)
+        | Value::DateTime(_)
+        | Value::Complex(_)
+        | Value::Tag(_)
+        | Value::Color(_)
+        | Value::Material(_)
+        | Value::Symbol(_) => {}
+    }
+}
+
+fn list_as_polyline(values: &[Value]) -> Option<Vec<[f64; 3]>> {
+    if values.len() < 2 {
+        return None;
+    }
+
+    let mut points = Vec::with_capacity(values.len());
+    for value in values {
+        match value {
+            Value::Point(point) => points.push(*point),
+            _ => return None,
+        }
+    }
+
+    Some(points)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{append_geometry_items, list_as_polyline, GeometryItem};
+    use crate::graph::value::Value;
+
+    #[test]
+    fn detects_polyline_from_point_list() {
+        let mut items = Vec::new();
+        let list = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+        ]);
+
+        append_geometry_items(&list, &mut items);
+
+        assert_eq!(items.len(), 1);
+        match &items[0] {
+            GeometryItem::Polyline { points } => {
+                assert_eq!(points.len(), 3);
+                assert_eq!(points[0], [0.0, 0.0, 0.0]);
+                assert_eq!(points[2], [1.0, 1.0, 0.0]);
+            }
+            other => panic!("verwacht Polyline, kreeg {other:?}"),
+        }
+    }
+
+    #[test]
+    fn collects_nested_geometry_variants() {
+        let mut items = Vec::new();
+        let value = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [5.0, 0.0, 0.0],
+            },
+            Value::Surface {
+                vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                faces: vec![vec![0, 1, 2]],
+            },
+        ]);
+
+        append_geometry_items(&value, &mut items);
+
+        assert_eq!(items.len(), 3);
+        assert!(matches!(items[0], GeometryItem::Point { .. }));
+        assert!(matches!(items[1], GeometryItem::Line { .. }));
+        assert!(matches!(items[2], GeometryItem::Mesh { .. }));
+    }
+
+    #[test]
+    fn list_as_polyline_rejects_mixed_values() {
+        let values = vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Number(1.0),
+            Value::Point([1.0, 1.0, 0.0]),
+        ];
+
+        assert!(list_as_polyline(&values).is_none());
     }
 }
 

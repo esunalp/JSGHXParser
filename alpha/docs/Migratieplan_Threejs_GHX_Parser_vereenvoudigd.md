@@ -213,9 +213,9 @@ start();
 
 ```json
 {
-  "meshes": [
-    { "type": "Surface", "vertices": [[0,0,0], [0,1,0]], "faces": [[0,1,2,3]] },
-    { "type": "CurveLine", "points": [[0,0,0], [1,0,0]] }
+  "items": [
+    { "type": "Mesh", "vertices": [[0,0,0], [0,1,0]], "faces": [[0,1,2,3]] },
+    { "type": "Line", "start": [0,0,0], "end": [1,0,0] }
   ]
 }
 ```
@@ -234,8 +234,8 @@ function updateThreeScene(geomData) {
   });
 
   // Voeg nieuwe geometrie toe
-  geomData.meshes.forEach(item => {
-    if (item.type === "Surface") {
+  geomData.items.forEach(item => {
+    if (item.type === "Mesh") {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(item.vertices.flat(), 3));
       geometry.setIndex(item.faces.flat());
@@ -244,7 +244,14 @@ function updateThreeScene(geomData) {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.userData.generatedByGHX = true;
       scene.add(mesh);
-    } else if (item.type === "CurveLine") {
+    } else if (item.type === "Line") {
+      const points = [item.start, item.end].map(p => new THREE.Vector3(...p));
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ color: 0x000000 });
+      const line = new THREE.Line(geometry, material);
+      line.userData.generatedByGHX = true;
+      scene.add(line);
+    } else if (item.type === "Polyline") {
       const points = item.points.map(p => new THREE.Vector3(...p));
       const geometry = new THREE.BufferGeometry().setFromPoints(points);
       const material = new THREE.LineBasicMaterial({ color: 0x000000 });
@@ -491,8 +498,8 @@ FRONT-END CONTRACT
 - Geometry format must be consistent and documented. Example:
   {
     "items": [
-      {"type":"CurveLine","points":[[x1,y1,z1],[x2,y2,z2]]},
-      {"type":"Surface","vertices":[[...],[...],...],"faces":[[a,b,c], ...]}
+      {"type":"Line","start":[x1,y1,z1],"end":[x2,y2,z2]},
+      {"type":"Mesh","vertices":[[...],[...],...],"faces":[[a,b,c], ...]}
     ]
   }
 
