@@ -1,13 +1,13 @@
 //! Evaluatie van grafen in topologische volgorde.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 use crate::components::{ComponentError, ComponentRegistry, OutputMap};
-use crate::graph::Graph;
 use crate::graph::node::NodeId;
 use crate::graph::topo::{Topology, TopologyError};
 use crate::graph::value::Value;
+use crate::graph::Graph;
 
 /// Resultaat van een evaluatie-run.
 #[derive(Debug, Default, Clone)]
@@ -269,6 +269,119 @@ pub fn evaluate_with_plan(
     Ok(result)
 }
 
+/// Evalueert enkel nodes die veranderd zijn of afhankelijk zijn van veranderingen.
+pub fn evaluate_with_plan_incremental(
+    graph: &Graph,
+    registry: &ComponentRegistry,
+    plan: &EvaluationPlan,
+    previous: Option<&EvaluationResult>,
+    dirty_nodes: &HashSet<NodeId>,
+) -> Result<(EvaluationResult, HashSet<NodeId>), EvaluationError> {
+    let mut result = EvaluationResult::default();
+    let mut changed_nodes = HashSet::new();
+
+    for &node_id in plan.order() {
+        let node = graph
+            .node(node_id)
+            .ok_or(EvaluationError::UnknownNode(node_id))?;
+
+        let component = registry.resolve(
+            node.guid.as_deref(),
+            node.name.as_deref(),
+            node.nickname.as_deref(),
+        );
+
+        let component = component.ok_or_else(|| EvaluationError::ComponentNotFound {
+            node_id,
+            guid: node.guid.clone(),
+            name: node.name.clone(),
+            nickname: node.nickname.clone(),
+        })?;
+
+        let pins = plan.pins(node_id);
+        let mut input_values = Vec::with_capacity(pins.len());
+        let mut dependency_changed = false;
+
+        for pin in pins {
+            let value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
+                let mut values = Vec::with_capacity(connections.len());
+                for (from_node, from_pin) in connections {
+                    let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
+                        EvaluationError::MissingDependencyOutput {
+                            node_id,
+                            dependency: *from_node,
+                            pin: from_pin.clone(),
+                        }
+                    })?;
+
+                    let value = outputs.get(from_pin).ok_or_else(|| {
+                        EvaluationError::MissingDependencyOutput {
+                            node_id,
+                            dependency: *from_node,
+                            pin: from_pin.clone(),
+                        }
+                    })?;
+
+                    if changed_nodes.contains(from_node) {
+                        dependency_changed = true;
+                    }
+
+                    values.push(value.clone());
+                }
+
+                if values.len() == 1 {
+                    values.into_iter().next().unwrap()
+                } else {
+                    Value::List(values)
+                }
+            } else if let Some(default) = node.inputs.get(pin) {
+                default.clone()
+            } else {
+                return Err(EvaluationError::MissingInput {
+                    node_id,
+                    pin: pin.clone(),
+                });
+            };
+
+            input_values.push(value);
+        }
+
+        let needs_recompute =
+            dirty_nodes.contains(&node_id) || dependency_changed || previous.is_none();
+
+        if !needs_recompute {
+            if let Some(previous_outputs) =
+                previous.and_then(|prev| prev.node_outputs.get(&node_id))
+            {
+                let stored_outputs = previous_outputs.clone();
+                collect_geometry(&stored_outputs, &mut result.geometry);
+                result.node_outputs.insert(node_id, stored_outputs);
+                continue;
+            }
+        }
+
+        let outputs = component
+            .evaluate(&input_values, &node.meta)
+            .map_err(|error| EvaluationError::ComponentFailed {
+                node_id,
+                component: component.name().to_owned(),
+                source: error,
+            })?;
+
+        let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
+
+        let previous_outputs = previous.and_then(|prev| prev.node_outputs.get(&node_id));
+        if previous_outputs.map_or(true, |prev| prev != &stored_outputs) {
+            changed_nodes.insert(node_id);
+        }
+
+        collect_geometry(&stored_outputs, &mut result.geometry);
+        result.node_outputs.insert(node_id, stored_outputs);
+    }
+
+    Ok((result, changed_nodes))
+}
+
 fn merge_outputs(
     mut existing: BTreeMap<String, Value>,
     new_outputs: OutputMap,
@@ -301,12 +414,13 @@ fn collect_value_geometry(value: &Value, geometry: &mut Vec<Value>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{EvaluationError, EvaluationPlan, evaluate};
+    use super::{evaluate, evaluate_with_plan_incremental, EvaluationError, EvaluationPlan};
     use crate::components::ComponentRegistry;
-    use crate::graph::Graph;
     use crate::graph::node::{Node, NodeId};
     use crate::graph::value::Value;
     use crate::graph::wire::Wire;
+    use crate::graph::Graph;
+    use std::collections::HashSet;
 
     #[test]
     fn evaluates_empty_graph() {
@@ -358,5 +472,98 @@ mod tests {
         let pins = plan.pins(node_id);
         let expected = ["C", "N", "K", "Extra"].map(String::from);
         assert_eq!(pins, &expected);
+    }
+
+    #[test]
+    fn incremental_evaluation_updates_dependents() {
+        let mut graph = Graph::new();
+
+        let mut slider_a = Node::new(NodeId::new(0));
+        slider_a.guid = Some("57da07bd-ecab-415d-9d86-af36d7073abc".to_string());
+        slider_a.insert_meta("value", 1.0);
+        slider_a.insert_meta("min", 0.0);
+        slider_a.insert_meta("max", 10.0);
+        slider_a.insert_meta("step", 0.1);
+        slider_a.set_output("Output", Value::Number(1.0));
+        let slider_a_id = graph.add_node(slider_a).unwrap();
+
+        let mut slider_b = Node::new(NodeId::new(1));
+        slider_b.guid = Some("57da07bd-ecab-415d-9d86-af36d7073abc".to_string());
+        slider_b.insert_meta("value", 2.0);
+        slider_b.insert_meta("min", 0.0);
+        slider_b.insert_meta("max", 10.0);
+        slider_b.insert_meta("step", 0.1);
+        slider_b.set_output("Output", Value::Number(2.0));
+        let slider_b_id = graph.add_node(slider_b).unwrap();
+
+        let mut addition = Node::new(NodeId::new(2));
+        addition.guid = Some("cae37d1c-8146-4e0b-9cf1-14cb3e337b94".to_string());
+        addition.name = Some("Addition".to_string());
+        addition.add_input_pin("A");
+        addition.add_input_pin("B");
+        addition.set_output("R", Value::Number(0.0));
+        let addition_id = graph.add_node(addition).unwrap();
+
+        graph
+            .add_wire(Wire::new(slider_a_id, "Output", addition_id, "A"))
+            .unwrap();
+        graph
+            .add_wire(Wire::new(slider_b_id, "Output", addition_id, "B"))
+            .unwrap();
+
+        let registry = ComponentRegistry::default();
+        let plan = EvaluationPlan::new(&graph).expect("plan beschikbaar");
+
+        let initial_dirty: HashSet<NodeId> = HashSet::from([slider_a_id, slider_b_id, addition_id]);
+        let (initial_result, initial_changed) =
+            evaluate_with_plan_incremental(&graph, &registry, &plan, None, &initial_dirty)
+                .expect("initiële evaluatie slaagt");
+
+        let sum = initial_result
+            .node_outputs
+            .get(&addition_id)
+            .and_then(|outputs| outputs.get("R"))
+            .cloned()
+            .unwrap();
+        assert_eq!(sum, Value::Number(3.0));
+        assert_eq!(initial_changed.len(), 3);
+
+        let slider_node = graph
+            .node_mut(slider_a_id)
+            .expect("slider beschikbaar voor update");
+        slider_node.insert_meta("value", 5.0);
+        slider_node.set_output("Output", Value::Number(5.0));
+
+        let dirty_after_update: HashSet<NodeId> = HashSet::from([slider_a_id]);
+        let (updated_result, changed_after_update) = evaluate_with_plan_incremental(
+            &graph,
+            &registry,
+            &plan,
+            Some(&initial_result),
+            &dirty_after_update,
+        )
+        .expect("incrementiële evaluatie slaagt");
+
+        let updated_sum = updated_result
+            .node_outputs
+            .get(&addition_id)
+            .and_then(|outputs| outputs.get("R"))
+            .cloned()
+            .unwrap();
+        assert_eq!(updated_sum, Value::Number(7.0));
+        assert_eq!(changed_after_update.len(), 2);
+        assert!(changed_after_update.contains(&slider_a_id));
+        assert!(changed_after_update.contains(&addition_id));
+
+        let empty_dirty: HashSet<NodeId> = HashSet::new();
+        let (_final_result, changed_final) = evaluate_with_plan_incremental(
+            &graph,
+            &registry,
+            &plan,
+            Some(&updated_result),
+            &empty_dirty,
+        )
+        .expect("her-evaluatie zonder wijzigingen slaagt");
+        assert!(changed_final.is_empty());
     }
 }
