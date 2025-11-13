@@ -1221,7 +1221,7 @@ fn build_tag_values(
     tags
 }
 
-fn parse_color_value(value: &Value) -> Option<ColorValue> {
+pub(crate) fn parse_color_value(value: &Value) -> Option<ColorValue> {
     match value {
         Value::Number(number) => parse_color_from_number(*number),
         Value::Boolean(boolean) => Some(if *boolean {
@@ -1821,7 +1821,7 @@ impl Line {
 
 #[cfg(test)]
 mod tests {
-use super::{
+    use super::{
         Component, ComponentKind, PIN_OUTPUT_DISTANCE, PIN_OUTPUT_GROUPS, PIN_OUTPUT_INDEX,
         PIN_OUTPUT_INDICES, PIN_OUTPUT_NUMBERS, PIN_OUTPUT_PHI, PIN_OUTPUT_POINT,
         PIN_OUTPUT_POINTS, PIN_OUTPUT_RADIUS, PIN_OUTPUT_TAGS, PIN_OUTPUT_THETA,

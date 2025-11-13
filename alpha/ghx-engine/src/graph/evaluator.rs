@@ -4,10 +4,10 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
 use crate::components::{ComponentError, ComponentRegistry, OutputMap};
+use crate::graph::Graph;
 use crate::graph::node::NodeId;
 use crate::graph::topo::{Topology, TopologyError};
-use crate::graph::value::Value;
-use crate::graph::Graph;
+use crate::graph::value::{MaterialValue, Value};
 
 /// Resultaat van een evaluatie-run.
 #[derive(Debug, Default, Clone)]
@@ -15,7 +15,14 @@ pub struct EvaluationResult {
     /// Uitgangen per node.
     pub node_outputs: HashMap<NodeId, BTreeMap<String, Value>>,
     /// Verzameling van renderbare geometrie-waarden.
-    pub geometry: Vec<Value>,
+    pub geometry: Vec<GeometryEntry>,
+}
+
+/// Een geometrie-item dat optioneel van materiaalinformatie is voorzien.
+#[derive(Debug, Clone)]
+pub struct GeometryEntry {
+    pub value: Value,
+    pub material: Option<MaterialValue>,
 }
 
 /// Voorbereide metadata die hergebruik van topologie en verbindingen mogelijk maakt.
@@ -392,35 +399,56 @@ fn merge_outputs(
     existing
 }
 
-fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<Value>) {
+fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<GeometryEntry>) {
+    let material = outputs.values().find_map(extract_material_value);
+
     for value in outputs.values() {
-        collect_value_geometry(value, geometry);
+        collect_value_geometry(value, material, geometry);
     }
 }
 
-fn collect_value_geometry(value: &Value, geometry: &mut Vec<Value>) {
+fn collect_value_geometry(
+    value: &Value,
+    material: Option<MaterialValue>,
+    geometry: &mut Vec<GeometryEntry>,
+) {
     match value {
         Value::Point(_) | Value::CurveLine { .. } | Value::Surface { .. } => {
-            geometry.push(value.clone());
+            geometry.push(GeometryEntry {
+                value: value.clone(),
+                material,
+            });
         }
         Value::List(values) => {
             for value in values {
-                collect_value_geometry(value, geometry);
+                collect_value_geometry(value, material, geometry);
             }
         }
+        Value::Material(_) => {}
         _ => {}
+    }
+}
+
+fn extract_material_value(value: &Value) -> Option<MaterialValue> {
+    match value {
+        Value::Material(material) => Some(*material),
+        Value::List(values) => values.iter().find_map(extract_material_value),
+        _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{evaluate, evaluate_with_plan_incremental, EvaluationError, EvaluationPlan};
+    use super::{
+        EvaluationError, EvaluationPlan, GeometryEntry, collect_geometry, evaluate,
+        evaluate_with_plan_incremental,
+    };
     use crate::components::ComponentRegistry;
-    use crate::graph::node::{Node, NodeId};
-    use crate::graph::value::Value;
-    use crate::graph::wire::Wire;
     use crate::graph::Graph;
-    use std::collections::HashSet;
+    use crate::graph::node::{Node, NodeId};
+    use crate::graph::value::{ColorValue, MaterialValue, Value};
+    use crate::graph::wire::Wire;
+    use std::collections::{BTreeMap, HashSet};
 
     #[test]
     fn evaluates_empty_graph() {
@@ -429,6 +457,34 @@ mod tests {
         let result = evaluate(&graph, &registry).expect("lege graph evalueert");
         assert!(result.node_outputs.is_empty());
         assert!(result.geometry.is_empty());
+    }
+
+    #[test]
+    fn collect_geometry_attaches_material() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(
+            "Geometry".to_string(),
+            Value::Surface {
+                vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+                faces: vec![vec![0, 1, 2]],
+            },
+        );
+        outputs.insert(
+            "Material".to_string(),
+            Value::Material(MaterialValue {
+                diffuse: ColorValue::new(1.0, 0.0, 0.0),
+                specular: ColorValue::new(1.0, 1.0, 1.0),
+                emission: ColorValue::new(0.0, 0.0, 0.0),
+                transparency: 0.0,
+                shine: 30.0,
+            }),
+        );
+
+        let mut geometry = Vec::<GeometryEntry>::new();
+        collect_geometry(&outputs, &mut geometry);
+
+        assert_eq!(geometry.len(), 1);
+        assert!(geometry[0].material.is_some());
     }
 
     #[test]

@@ -1,9 +1,10 @@
 //! Componenten voor weergave en preview in de GHX-engine.
 
-use std::collections::BTreeMap;
-use crate::graph::node::MetaMap;
-use crate::graph::value::{Value, ColorValue, MaterialValue, SymbolValue};
 use super::{Component, ComponentError, ComponentResult};
+use crate::components::vector_point::parse_color_value;
+use crate::graph::node::MetaMap;
+use crate::graph::value::{ColorValue, MaterialValue, SymbolValue, Value};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
@@ -46,7 +47,9 @@ impl ComponentKind {
 
 fn cloud_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 3 {
-        return Err(ComponentError::new("Expected 3 inputs: Points, Colours, Size"));
+        return Err(ComponentError::new(
+            "Expected 3 inputs: Points, Colours, Size",
+        ));
     }
     let points = collect_points(&inputs[0])?;
     let colors = collect_colors(&inputs[1])?;
@@ -55,7 +58,10 @@ fn cloud_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut tags = Vec::new();
     for i in 0..points.len() {
         let point = points[i];
-        let color = colors.get(i).cloned().unwrap_or_else(|| ColorValue::from_rgb255(0.0, 0.0, 0.0));
+        let color = colors
+            .get(i)
+            .cloned()
+            .unwrap_or_else(|| ColorValue::from_rgb255(0.0, 0.0, 0.0));
         let size = sizes.get(i).cloned().unwrap_or(1.0);
 
         let tag = crate::graph::value::TextTagValue {
@@ -105,7 +111,9 @@ fn symbol_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn dot_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 3 {
-        return Err(ComponentError::new("Expected 3 inputs: Point, Colour, Size"));
+        return Err(ComponentError::new(
+            "Expected 3 inputs: Point, Colour, Size",
+        ));
     }
     let points = collect_points(&inputs[0])?;
     let colors = collect_colors(&inputs[1])?;
@@ -114,7 +122,10 @@ fn dot_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut tags = Vec::new();
     for i in 0..points.len() {
         let point = points[i];
-        let color = colors.get(i).cloned().unwrap_or_else(|| ColorValue::from_rgb255(0.0, 0.0, 0.0));
+        let color = colors
+            .get(i)
+            .cloned()
+            .unwrap_or_else(|| ColorValue::from_rgb255(0.0, 0.0, 0.0));
         let size = sizes.get(i).cloned().unwrap_or(1.0);
 
         let tag = crate::graph::value::TextTagValue {
@@ -138,7 +149,9 @@ fn dot_display(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn create_material(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 5 {
-        return Err(ComponentError::new("Expected 5 inputs: Diffuse, Specular, Emission, Transparency, Shine"));
+        return Err(ComponentError::new(
+            "Expected 5 inputs: Diffuse, Specular, Emission, Transparency, Shine",
+        ));
     }
     let diffuse = coerce_color(&inputs[0])?;
     let specular = coerce_color(&inputs[1])?;
@@ -161,7 +174,9 @@ fn create_material(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn symbol_simple(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 4 {
-        return Err(ComponentError::new("Expected 4 inputs: Style, Size, Rotation, Colour"));
+        return Err(ComponentError::new(
+            "Expected 4 inputs: Style, Size, Rotation, Colour",
+        ));
     }
     let style = coerce_text(&inputs[0])?;
     let size = coerce_number(&inputs[1])?;
@@ -186,7 +201,9 @@ fn symbol_simple(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn symbol_advanced(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 8 {
-        return Err(ComponentError::new("Expected 8 inputs: Style, Size Primary, Size Secondary, Rotation, Fill, Edge, Width, Adjust"));
+        return Err(ComponentError::new(
+            "Expected 8 inputs: Style, Size Primary, Size Secondary, Rotation, Fill, Edge, Width, Adjust",
+        ));
     }
     let style = coerce_text(&inputs[0])?;
     let size_primary = coerce_number(&inputs[1])?;
@@ -226,10 +243,8 @@ fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
 fn coerce_color(value: &Value) -> Result<ColorValue, ComponentError> {
     match value {
         Value::Color(c) => Ok(*c),
-        other => Err(ComponentError::new(format!(
-            "Expected a color, got {}",
-            other.kind()
-        ))),
+        other => parse_color_value(other)
+            .ok_or_else(|| ComponentError::new(format!("Expected a color, got {}", other.kind()))),
     }
 }
 
@@ -252,7 +267,6 @@ fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
         ))),
     }
 }
-
 
 pub struct Registration {
     pub guids: &'static [&'static str],
@@ -301,7 +315,10 @@ pub const REGISTRATIONS: &[Registration] = &[
 #[cfg(test)]
 mod tests {
     use super::{Component, ComponentKind};
-    use crate::graph::{node::MetaMap, value::{Value, ColorValue}};
+    use crate::graph::{
+        node::MetaMap,
+        value::{ColorValue, Value},
+    };
 
     #[test]
     fn test_dot_display_success() {
@@ -381,10 +398,29 @@ mod tests {
     }
 
     #[test]
+    fn test_create_material_accepts_text_colors() {
+        let component = ComponentKind::CreateMaterial;
+        let inputs = &[
+            Value::Text("255;255;255".to_string()),
+            Value::Text("128,128,128".to_string()),
+            Value::Text("#0000ff".to_string()),
+            Value::Number(0.25),
+            Value::Number(25.0),
+        ];
+        let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        match outputs.get("M") {
+            Some(Value::Material(material)) => {
+                assert!((material.transparency - 0.25).abs() < f64::EPSILON);
+            }
+            other => panic!("expected material output, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn test_create_material_wrong_input_type() {
         let component = ComponentKind::CreateMaterial;
         let inputs = &[
-            Value::Text("red".to_string()),
+            Value::Null,
             Value::Color(ColorValue::from_rgb255(0.0, 255.0, 0.0)),
             Value::Color(ColorValue::from_rgb255(0.0, 0.0, 255.0)),
             Value::Number(0.5),
@@ -463,7 +499,10 @@ fn collect_points_into(value: &Value, output: &mut Vec<[f64; 3]>) -> Result<(), 
             }
             Ok(())
         }
-        _ => Err(ComponentError::new(format!("Expected a point, got {}", value.kind()))),
+        _ => Err(ComponentError::new(format!(
+            "Expected a point, got {}",
+            value.kind()
+        ))),
     }
 }
 
@@ -485,7 +524,10 @@ fn collect_colors_into(value: &Value, output: &mut Vec<ColorValue>) -> Result<()
             }
             Ok(())
         }
-        _ => Err(ComponentError::new(format!("Expected a color, got {}", value.kind()))),
+        _ => Err(ComponentError::new(format!(
+            "Expected a color, got {}",
+            value.kind()
+        ))),
     }
 }
 
@@ -507,6 +549,9 @@ fn collect_numbers_into(value: &Value, output: &mut Vec<f64>) -> Result<(), Comp
             }
             Ok(())
         }
-        _ => Err(ComponentError::new(format!("Expected a number, got {}", value.kind()))),
+        _ => Err(ComponentError::new(format!(
+            "Expected a number, got {}",
+            value.kind()
+        ))),
     }
 }
