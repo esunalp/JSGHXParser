@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::Value;
+use crate::graph::value::{Value, ValueKind};
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -467,13 +467,46 @@ fn evaluate_line(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let start = coerce_point(inputs.get(0).unwrap(), "Line")?;
-    let end = coerce_point(inputs.get(1).unwrap(), "Line")?;
+    let starts = extract_points(inputs.get(0).unwrap(), "Line start")?;
+    let ends = extract_points(inputs.get(1).unwrap(), "Line end")?;
 
-    let output = if start != end {
-        Value::CurveLine { p1: start, p2: end }
+    if starts.is_empty() {
+        return Err(ComponentError::new(
+            "Line component vereist minimaal één startpunt",
+        ));
+    }
+
+    if ends.is_empty() {
+        return Err(ComponentError::new(
+            "Line component vereist minimaal één eindpunt",
+        ));
+    }
+
+    let count = starts.len().max(ends.len());
+    let mut values = Vec::with_capacity(count);
+
+    for index in 0..count {
+        let start = *starts
+            .get(index)
+            .or_else(|| starts.last())
+            .expect("starts is niet leeg");
+        let end = *ends
+            .get(index)
+            .or_else(|| ends.last())
+            .expect("ends is niet leeg");
+
+        let value = if start != end {
+            Value::CurveLine { p1: start, p2: end }
+        } else {
+            Value::Null
+        };
+        values.push(value);
+    }
+
+    let output = if values.len() == 1 {
+        values.into_iter().next().unwrap()
     } else {
-        Value::Null
+        Value::List(values)
     };
 
     let mut outputs = BTreeMap::new();
@@ -849,12 +882,27 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
 fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => Ok(*point),
-        Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(Some(&values[0]), context)?;
-            let y = coerce_number(Some(&values[1]), context)?;
-            let z = coerce_number(Some(&values[2]), context)?;
-            Ok([x, y, z])
+        Value::List(values) => {
+            if values.len() == 1 {
+                return coerce_point(&values[0], context);
+            }
+
+            if let Some(point) = try_point_from_list(values, context)? {
+                return Ok(point);
+            }
+
+            if values.len() >= 3 {
+                let x = coerce_number(Some(&values[0]), context)?;
+                let y = coerce_number(Some(&values[1]), context)?;
+                let z = coerce_number(Some(&values[2]), context)?;
+                return Ok([x, y, z]);
+            }
+
+            Err(ComponentError::new(format!(
+                "{} verwacht een punt, kreeg {}",
+                context,
+                ValueKind::List
+            )))
         }
         other => Err(ComponentError::new(format!(
             "{} verwacht een punt, kreeg {}",
@@ -862,6 +910,65 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
             other.kind()
         ))),
     }
+}
+
+fn extract_points(value: &Value, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+    let mut points = Vec::new();
+    collect_points_recursive(value, context, &mut points)?;
+    Ok(points)
+}
+
+fn collect_points_recursive(
+    value: &Value,
+    context: &str,
+    output: &mut Vec<[f64; 3]>,
+) -> Result<(), ComponentError> {
+    match value {
+        Value::Point(point) | Value::Vector(point) => {
+            output.push(*point);
+            Ok(())
+        }
+        Value::List(values) if values.is_empty() => Ok(()),
+        Value::List(values) => {
+            if let Some(point) = try_point_from_list(values, context)? {
+                output.push(point);
+                return Ok(());
+            }
+
+            for entry in values {
+                collect_points_recursive(entry, context, output)?;
+            }
+            Ok(())
+        }
+        other => {
+            output.push(coerce_point(other, context)?);
+            Ok(())
+        }
+    }
+}
+
+fn try_point_from_list(
+    values: &[Value],
+    context: &str,
+) -> Result<Option<[f64; 3]>, ComponentError> {
+    if values.len() < 3 {
+        return Ok(None);
+    }
+
+    let x = match coerce_number(Some(&values[0]), context) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let y = match coerce_number(Some(&values[1]), context) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+    let z = match coerce_number(Some(&values[2]), context) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    Ok(Some([x, y, z]))
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1421,6 +1528,51 @@ mod tests {
             outputs.get(PIN_OUTPUT_LINE),
             Some(Value::CurveLine { .. })
         ));
+    }
+
+    #[test]
+    fn line_outputs_multiple_segments_for_matching_lists() {
+        let component = ComponentKind::Line;
+        let inputs = [
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([2.0, 0.0, 0.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([2.0, 1.0, 0.0]),
+            ]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("parallel lists handled");
+        let Some(Value::List(lines)) = outputs.get(PIN_OUTPUT_LINE) else {
+            panic!("expected line list");
+        };
+        assert_eq!(lines.len(), 3);
+        assert!(lines.iter().all(|value| matches!(value, Value::CurveLine { .. })));
+    }
+
+    #[test]
+    fn line_repeats_single_point_to_match_list_length() {
+        let component = ComponentKind::Line;
+        let inputs = [
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::List(vec![
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([2.0, 0.0, 0.0]),
+            ]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("single point repeated");
+        let Some(Value::List(lines)) = outputs.get(PIN_OUTPUT_LINE) else {
+            panic!("expected line list");
+        };
+        assert_eq!(lines.len(), 2);
+        assert!(lines.iter().all(|value| matches!(value, Value::CurveLine { .. })));
     }
 
     #[test]
