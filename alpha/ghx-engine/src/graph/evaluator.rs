@@ -1,6 +1,6 @@
 //! Evaluatie van grafen in topologische volgorde.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 
 use crate::components::{ComponentError, ComponentRegistry, OutputMap};
@@ -49,11 +49,17 @@ impl EvaluationPlan {
 
         let mut pin_order = HashMap::new();
         for node in graph.nodes() {
-            let mut pins: BTreeSet<String> = node.inputs.keys().cloned().collect();
+            let mut pins: Vec<String> = node.input_order().to_vec();
             if let Some(connections) = incoming.get(&node.id) {
-                pins.extend(connections.keys().cloned());
+                let mut extra: Vec<String> = connections.keys().cloned().collect();
+                extra.sort();
+                for pin in extra {
+                    if !pins.iter().any(|existing| existing == &pin) {
+                        pins.push(pin);
+                    }
+                }
             }
-            pin_order.insert(node.id, pins.into_iter().collect());
+            pin_order.insert(node.id, pins);
         }
 
         Ok(Self {
@@ -295,10 +301,12 @@ fn collect_value_geometry(value: &Value, geometry: &mut Vec<Value>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{EvaluationError, evaluate};
+    use super::{EvaluationError, EvaluationPlan, evaluate};
     use crate::components::ComponentRegistry;
     use crate::graph::Graph;
-    use crate::graph::node::Node;
+    use crate::graph::node::{Node, NodeId};
+    use crate::graph::value::Value;
+    use crate::graph::wire::Wire;
 
     #[test]
     fn evaluates_empty_graph() {
@@ -326,5 +334,29 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[test]
+    fn evaluation_plan_preserves_declared_input_order() {
+        let mut graph = Graph::new();
+
+        let mut node = Node::new(NodeId::new(0));
+        node.add_input_pin("C");
+        node.add_input_pin("N");
+        node.add_input_pin("K");
+        let node_id = graph.add_node(node).unwrap();
+
+        let mut source = Node::new(NodeId::new(1));
+        source.set_output("Out", Value::Number(5.0));
+        let source_id = graph.add_node(source).unwrap();
+
+        graph
+            .add_wire(Wire::new(source_id, "Out", node_id, "Extra"))
+            .unwrap();
+
+        let plan = EvaluationPlan::new(&graph).expect("kan plan bouwen");
+        let pins = plan.pins(node_id);
+        let expected = ["C", "N", "K", "Extra"].map(String::from);
+        assert_eq!(pins, &expected);
     }
 }

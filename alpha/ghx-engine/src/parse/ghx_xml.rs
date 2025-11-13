@@ -277,6 +277,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             component_guid_norm.as_deref(),
             false,
         );
+        node.add_input_pin(info.pin_name.clone());
         if let Some(default_value) = info.default_value.clone() {
             node.set_input(info.pin_name.clone(), default_value);
         }
