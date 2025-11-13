@@ -426,62 +426,174 @@ fn evaluate_sum_surface(inputs: &[Value]) -> ComponentResult {
     into_output(PIN_OUTPUT_SURFACE, surface)
 }
 
-fn polyline_from_segments(segments: &Vec<([f64; 3], [f64; 3])>) -> Vec<[f64; 3]> {
+fn collect_ruled_surface_curves(value: &Value) -> Result<Vec<Vec<[f64; 3]>>, ComponentError> {
+    match value {
+        Value::Null => Ok(Vec::new()),
+        Value::CurveLine { p1, p2 } => Ok(vec![vec![*p1, *p2]]),
+        Value::List(values) => {
+            if values.is_empty() {
+                return Ok(Vec::new());
+            }
+
+            if values
+                .iter()
+                .all(|entry| matches!(entry, Value::Point(_)))
+            {
+                let polyline = values
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        Value::Point(point) => Some(*point),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                if polyline.len() < 2 {
+                    return Ok(Vec::new());
+                }
+                return Ok(vec![polyline]);
+            }
+
+            if values
+                .iter()
+                .all(|entry| matches!(entry, Value::List(_) | Value::Null))
+            {
+                let mut curves = Vec::new();
+                for entry in values {
+                    curves.extend(collect_ruled_surface_curves(entry)?);
+                }
+                return Ok(curves);
+            }
+
+            let segments = coerce::coerce_curve_segments(value)?;
+            Ok(group_segments_into_polylines(segments))
+        }
+        Value::Surface { .. } => {
+            let segments = coerce::coerce_curve_segments(value)?;
+            Ok(group_segments_into_polylines(segments))
+        }
+        other => Err(ComponentError::new(format!(
+            "Ruled Surface kon invoer van type {} niet interpreteren als curve",
+            other.kind()
+        ))),
+    }
+}
+
+fn group_segments_into_polylines(
+    segments: Vec<([f64; 3], [f64; 3])>,
+) -> Vec<Vec<[f64; 3]>> {
     if segments.is_empty() {
         return Vec::new();
     }
-    let mut points = Vec::with_capacity(segments.len() + 1);
-    points.push(segments[0].0);
-    for segment in segments {
-        points.push(segment.1);
+
+    let mut polylines: Vec<Vec<[f64; 3]>> = Vec::new();
+    let mut current: Vec<[f64; 3]> = Vec::new();
+    let mut last_end: Option<[f64; 3]> = None;
+
+    for (start, end) in segments {
+        if let Some(last) = last_end {
+            if !points_equal(last, start) {
+                if current.len() >= 2 {
+                    polylines.push(current);
+                }
+                current = vec![start, end];
+            } else {
+                if current.is_empty() {
+                    current.push(start);
+                } else if !points_equal(*current.last().unwrap(), start) {
+                    current.push(start);
+                }
+                current.push(end);
+            }
+        } else {
+            current.push(start);
+            current.push(end);
+        }
+        last_end = Some(end);
     }
-    points
+
+    if current.len() >= 2 {
+        polylines.push(current);
+    }
+
+    polylines
+}
+
+fn points_equal(a: [f64; 3], b: [f64; 3]) -> bool {
+    a.iter()
+        .zip(b.iter())
+        .all(|(ax, bx)| (ax - bx).abs() <= EPSILON)
 }
 
 fn evaluate_ruled_surface(inputs: &[Value]) -> ComponentResult {
-    let component = "Ruled Surface";
     if inputs.len() < 2 {
         return Err(ComponentError::new(
             "Ruled Surface vereist twee invoercurves",
         ));
     }
-    let segments_a = coerce::coerce_curve_segments(&inputs[0])?;
-    let segments_b = coerce::coerce_curve_segments(&inputs[1])?;
+    let curves_a = collect_ruled_surface_curves(&inputs[0])?;
+    let curves_b = collect_ruled_surface_curves(&inputs[1])?;
 
-    if segments_a.is_empty() || segments_b.is_empty() {
+    if curves_a.is_empty() || curves_b.is_empty() {
         return Err(ComponentError::new(
             "Ruled Surface kon geen volledige curves interpreteren",
         ));
     }
 
-    let polyline_a = polyline_from_segments(&segments_a);
-    let polyline_b = polyline_from_segments(&segments_b);
+    let target_count = match (curves_a.len(), curves_b.len()) {
+        (1, b) => b,
+        (a, 1) => a,
+        (a, b) => a.min(b),
+    };
 
-    let (resampled_a, resampled_b) =
-        super::curve_sampler::resample_polylines(&polyline_a, &polyline_b);
+    let mut surfaces = Vec::new();
 
-    let n = resampled_a.len();
-    if n < 2 {
-        return into_output(PIN_OUTPUT_SURFACE, Value::Null);
+    for idx in 0..target_count {
+        let polyline_a = if curves_a.len() == 1 {
+            &curves_a[0]
+        } else {
+            &curves_a[idx]
+        };
+        let polyline_b = if curves_b.len() == 1 {
+            &curves_b[0]
+        } else {
+            &curves_b[idx]
+        };
+
+        if polyline_a.len() < 2 || polyline_b.len() < 2 {
+            continue;
+        }
+
+        let (resampled_a, resampled_b) =
+            super::curve_sampler::resample_polylines(polyline_a, polyline_b);
+
+        let n = resampled_a.len();
+        if n < 2 {
+            continue;
+        }
+
+        let mut vertices = resampled_a;
+        vertices.extend(resampled_b);
+
+        let mut faces = Vec::with_capacity((n - 1) * 2);
+        for i in 0..(n - 1) {
+            let i0 = i as u32;
+            let i1 = (i + 1) as u32;
+            let j0 = (n + i) as u32;
+            let j1 = (n + i + 1) as u32;
+
+            faces.push(vec![i0, i1, j1]);
+            faces.push(vec![i0, j1, j0]);
+        }
+
+        surfaces.push(Value::Surface { vertices, faces });
     }
 
-    let mut vertices = resampled_a;
-    vertices.extend(resampled_b);
+    let output = match surfaces.len() {
+        0 => Value::Null,
+        1 => surfaces.pop().unwrap(),
+        _ => Value::List(surfaces),
+    };
 
-    let mut faces = Vec::with_capacity((n - 1) * 2);
-    for i in 0..(n - 1) {
-        let i0 = i as u32;
-        let i1 = (i + 1) as u32;
-        let j0 = (n + i) as u32;
-        let j1 = (n + i + 1) as u32;
-
-        // Quad: (i0, i1, j1, j0)
-        faces.push(vec![i0, i1, j1]);
-        faces.push(vec![i0, j1, j0]);
-    }
-
-    let surface = Value::Surface { vertices, faces };
-    into_output(PIN_OUTPUT_SURFACE, surface)
+    into_output(PIN_OUTPUT_SURFACE, output)
 }
 
 fn evaluate_network_surface(inputs: &[Value]) -> ComponentResult {
@@ -1302,5 +1414,59 @@ mod tests {
         assert_eq!(vertices[3], [0.0, 2.0, 0.0]);
         assert_eq!(vertices[4], [1.0, 2.0, 1.0]);
         assert_eq!(vertices[5], [2.0, 2.0, 0.0]);
+    }
+
+    #[test]
+    fn ruled_surface_generates_multiple_pairs() {
+        let component = ComponentKind::RuledSurface;
+        let inputs = [
+            Value::List(vec![
+                Value::List(vec![
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([0.0, 0.0, 5.0]),
+                ]),
+                Value::List(vec![
+                    Value::Point([2.0, 0.0, 0.0]),
+                    Value::Point([2.0, 0.0, 5.0]),
+                ]),
+            ]),
+            Value::List(vec![
+                Value::List(vec![
+                    Value::Point([1.0, 2.0, 0.0]),
+                    Value::Point([1.0, 2.0, 5.0]),
+                ]),
+                Value::List(vec![
+                    Value::Point([3.0, 2.0, 0.0]),
+                    Value::Point([3.0, 2.0, 5.0]),
+                ]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("multiple ruled surfaces");
+
+        let Value::List(surfaces) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list of surfaces");
+        };
+
+        assert_eq!(surfaces.len(), 2, "expected two ruled surfaces");
+
+        let expect_spans = [(0.0, 1.0), (2.0, 3.0)];
+        for (surface, (min_x, max_x)) in surfaces.iter().zip(expect_spans) {
+            let Value::Surface { vertices, faces } = surface else {
+                panic!("expected surface value");
+            };
+            assert_eq!(faces.len(), 2, "each ruled pair should create 2 faces");
+
+            let xs: Vec<f64> = vertices.iter().map(|v| v[0]).collect();
+            let span = (
+                xs.iter().fold(f64::INFINITY, |acc, value| acc.min(*value)),
+                xs.iter()
+                    .fold(f64::NEG_INFINITY, |acc, value| acc.max(*value)),
+            );
+            assert!((span.0 - min_x).abs() < 1e-9, "unexpected minimum span");
+            assert!((span.1 - max_x).abs() < 1e-9, "unexpected maximum span");
+        }
     }
 }
