@@ -108,7 +108,20 @@ function createSliderElement(slider, handlers) {
       return;
     }
     applyValue(numeric, { updateRange: false });
+  });
+
+  const commitRangeValue = (rawValue) => {
+    const numeric = Number(rawValue);
+    if (Number.isNaN(numeric)) {
+      applyValue(committedValue);
+      return;
+    }
+    applyValue(numeric);
     emitChange(numeric);
+  };
+
+  rangeInput.addEventListener('change', (event) => {
+    commitRangeValue(event.target.value);
   });
 
   const commitNumberValue = (rawValue) => {
