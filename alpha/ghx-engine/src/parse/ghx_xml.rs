@@ -154,12 +154,10 @@ fn parse_archive_document(input: &str) -> ParseResult<Graph> {
             }
         }
 
-        for (guid, pin) in parsed
-            .output_guids
-            .into_iter()
-            .zip(parsed.output_pins.into_iter())
-        {
-            output_lookup.insert(guid, (node_id, pin));
+        for output in parsed.outputs.into_iter() {
+            if let Some(guid) = output.guid {
+                output_lookup.insert(guid, (node_id, output.pin));
+            }
         }
 
         for pending in parsed.pending_inputs {
@@ -242,14 +240,10 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         }
     }
 
-    let mut output_guids = Vec::new();
-    let mut output_pins = Vec::new();
+    let mut outputs = Vec::new();
 
-    for (output_index, output_chunk) in container
-        .children()
-        .filter(|child| child.name.eq_ignore_ascii_case("param_output"))
-        .enumerate()
-    {
+    let output_chunks = collect_param_chunks(container, &["param_output", "outputparam"]);
+    for (output_index, output_chunk) in output_chunks.into_iter().enumerate() {
         let info = parse_param_chunk(
             output_chunk,
             "out",
@@ -259,18 +253,15 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         );
         let pin_name = info.pin_name.clone();
         node.set_output(pin_name.clone(), Value::Null);
-        if let Some(guid) = info.instance_guid {
-            output_guids.push(guid);
-        }
-        output_pins.push(pin_name);
+        outputs.push(OutputInfo {
+            guid: info.instance_guid,
+            pin: pin_name,
+        });
     }
 
     let mut pending_inputs = Vec::new();
-    for (input_index, input_chunk) in container
-        .children()
-        .filter(|child| child.name.eq_ignore_ascii_case("param_input"))
-        .enumerate()
-    {
+    let input_chunks = collect_param_chunks(container, &["param_input", "inputparam"]);
+    for (input_index, input_chunk) in input_chunks.into_iter().enumerate() {
         let info = parse_param_chunk(
             input_chunk,
             "in",
@@ -290,8 +281,8 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         }
     }
 
-    let default_output_pin = if !output_pins.is_empty() {
-        output_pins.first().cloned()
+    let default_output_pin = if let Some(first) = outputs.first() {
+        Some(first.pin.clone())
     } else if is_slider {
         if !node.outputs.contains_key("OUT") {
             node.set_output("OUT", Value::Null);
@@ -306,8 +297,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     Ok(ArchiveObjectParseResult {
         node,
         instance_guid: instance_guid_norm,
-        output_guids,
-        output_pins,
+        outputs,
         default_output_pin,
         pending_inputs,
     })
@@ -368,6 +358,25 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
         node.insert_meta("step", step);
     }
     node.set_output("OUT", Value::Number(value));
+}
+
+fn collect_param_chunks<'a>(root: &'a RawChunk, target_names: &[&str]) -> Vec<&'a RawChunk> {
+    let mut collected = Vec::new();
+
+    fn visit<'a>(chunk: &'a RawChunk, target_names: &[&str], output: &mut Vec<&'a RawChunk>) {
+        for child in chunk.children() {
+            if target_names
+                .iter()
+                .any(|name| child.name.eq_ignore_ascii_case(name))
+            {
+                output.push(child);
+            }
+            visit(child, target_names, output);
+        }
+    }
+
+    visit(root, target_names, &mut collected);
+    collected
 }
 
 fn parse_param_chunk(
@@ -692,10 +701,15 @@ struct RawItem {
 struct ArchiveObjectParseResult {
     node: Node,
     instance_guid: Option<String>,
-    output_guids: Vec<String>,
-    output_pins: Vec<String>,
+    outputs: Vec<OutputInfo>,
     default_output_pin: Option<String>,
     pending_inputs: Vec<PendingInput>,
+}
+
+#[derive(Debug)]
+struct OutputInfo {
+    guid: Option<String>,
+    pin: String,
 }
 
 #[derive(Debug)]
@@ -896,5 +910,138 @@ mod tests {
             _ => panic!("panel user text missing"),
         };
         assert!(!panel_text.is_empty());
+    }
+
+    #[test]
+    fn parses_parameter_data_output_param_wires() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<Archive name="Root">
+  <items count="0" />
+  <chunks count="1">
+    <chunk name="Definition">
+      <items count="0" />
+      <chunks count="1">
+        <chunk name="DefinitionObjects">
+          <items count="1">
+            <item name="ObjectCount" type_name="gh_int32" type_code="3">2</item>
+          </items>
+          <chunks count="2">
+            <chunk name="Object" index="0">
+              <items count="2">
+                <item name="GUID" type_name="gh_guid" type_code="9">aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa</item>
+                <item name="Name" type_name="gh_string" type_code="10">Producer</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <items count="4">
+                    <item name="Description" type_name="gh_string" type_code="10"></item>
+                    <item name="InstanceGuid" type_name="gh_guid" type_code="9">11111111-1111-1111-1111-111111111111</item>
+                    <item name="Name" type_name="gh_string" type_code="10">Producer</item>
+                    <item name="NickName" type_name="gh_string" type_code="10">Producer</item>
+                  </items>
+                  <chunks count="2">
+                    <chunk name="ParameterData">
+                      <items count="2">
+                        <item name="InputCount" type_name="gh_int32" type_code="3">0</item>
+                        <item name="OutputCount" type_name="gh_int32" type_code="3">2</item>
+                      </items>
+                      <chunks count="2">
+                        <chunk name="OutputParam" index="0">
+                          <items count="5">
+                            <item name="Description" type_name="gh_string" type_code="10">Primary result</item>
+                            <item name="Name" type_name="gh_string" type_code="10">Primary</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">P</item>
+                            <item name="Optional" type_name="gh_bool" type_code="1">false</item>
+                            <item name="SourceCount" type_name="gh_int32" type_code="3">0</item>
+                          </items>
+                        </chunk>
+                        <chunk name="OutputParam" index="1">
+                          <items count="6">
+                            <item name="Description" type_name="gh_string" type_code="10">Secondary result</item>
+                            <item name="InstanceGuid" type_name="gh_guid" type_code="9">22222222-2222-2222-2222-222222222222</item>
+                            <item name="Name" type_name="gh_string" type_code="10">Secondary</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">S</item>
+                            <item name="Optional" type_name="gh_bool" type_code="1">false</item>
+                            <item name="SourceCount" type_name="gh_int32" type_code="3">0</item>
+                          </items>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                    <chunk name="Attributes">
+                      <items count="0" />
+                    </chunk>
+                  </chunks>
+                </chunk>
+              </chunks>
+            </chunk>
+            <chunk name="Object" index="1">
+              <items count="2">
+                <item name="GUID" type_name="gh_guid" type_code="9">bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb</item>
+                <item name="Name" type_name="gh_string" type_code="10">Consumer</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <items count="4">
+                    <item name="Description" type_name="gh_string" type_code="10"></item>
+                    <item name="InstanceGuid" type_name="gh_guid" type_code="9">33333333-3333-3333-3333-333333333333</item>
+                    <item name="Name" type_name="gh_string" type_code="10">Consumer</item>
+                    <item name="NickName" type_name="gh_string" type_code="10">Consumer</item>
+                  </items>
+                  <chunks count="2">
+                    <chunk name="ParameterData">
+                      <items count="2">
+                        <item name="InputCount" type_name="gh_int32" type_code="3">1</item>
+                        <item name="OutputCount" type_name="gh_int32" type_code="3">1</item>
+                      </items>
+                      <chunks count="2">
+                        <chunk name="InputParam" index="0">
+                          <items count="7">
+                            <item name="Description" type_name="gh_string" type_code="10">Input</item>
+                            <item name="InstanceGuid" type_name="gh_guid" type_code="9">44444444-4444-4444-4444-444444444444</item>
+                            <item name="Name" type_name="gh_string" type_code="10">In</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">I</item>
+                            <item name="Optional" type_name="gh_bool" type_code="1">false</item>
+                            <item name="Source" index="0" type_name="gh_guid" type_code="9">22222222-2222-2222-2222-222222222222</item>
+                            <item name="SourceCount" type_name="gh_int32" type_code="3">1</item>
+                          </items>
+                        </chunk>
+                        <chunk name="OutputParam" index="0">
+                          <items count="5">
+                            <item name="Description" type_name="gh_string" type_code="10">Out</item>
+                            <item name="Name" type_name="gh_string" type_code="10">Out</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">Out</item>
+                            <item name="Optional" type_name="gh_bool" type_code="1">false</item>
+                            <item name="SourceCount" type_name="gh_int32" type_code="3">0</item>
+                          </items>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                    <chunk name="Attributes">
+                      <items count="0" />
+                    </chunk>
+                  </chunks>
+                </chunk>
+              </chunks>
+            </chunk>
+          </chunks>
+        </chunk>
+      </chunks>
+    </chunk>
+  </chunks>
+</Archive>
+"#;
+
+        let graph = parse_str(xml).expect("graph parsed");
+        assert_eq!(graph.node_count(), 2);
+        assert_eq!(graph.wire_count(), 1);
+
+        let wire = &graph.wires()[0];
+        let source_node = graph.node(wire.from_node).expect("source node exists");
+        assert!(
+            source_node.outputs.contains_key("S"),
+            "secondary output pin should be registered"
+        );
+        assert_eq!(wire.from_pin.0, "S");
+        assert_eq!(wire.to_pin.0, "I");
     }
 }
