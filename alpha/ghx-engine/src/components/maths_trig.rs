@@ -7,7 +7,7 @@ use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 const PIN_DEGREES: &str = "D";
 const PIN_RADIANS: &str = "R";
@@ -157,15 +157,15 @@ impl Component for ComponentKind {
         match self {
             Self::Degrees => evaluate_degrees(inputs),
             Self::Radians => evaluate_radians(inputs),
-            Self::Sine => evaluate_simple_trig(inputs, f64::sin),
-            Self::Cosine => evaluate_simple_trig(inputs, f64::cos),
+            Self::Sine => evaluate_simple_trig(inputs, f32::sin),
+            Self::Cosine => evaluate_simple_trig(inputs, f32::cos),
             Self::Tangent => evaluate_tangent(inputs),
             Self::Cotangent => evaluate_cotangent(inputs),
             Self::Secant => evaluate_secant(inputs),
             Self::Cosecant => evaluate_cosecant(inputs),
             Self::ArcSine => evaluate_arcsine(inputs),
             Self::ArcCosine => evaluate_arccosine(inputs),
-            Self::ArcTangent => evaluate_simple_trig(inputs, f64::atan),
+            Self::ArcTangent => evaluate_simple_trig(inputs, f32::atan),
             Self::Sinc => evaluate_sinc(inputs),
             Self::TriangleTrigonometry => evaluate_triangle_trigonometry(inputs),
             Self::RightTrigonometry => evaluate_right_trigonometry(inputs),
@@ -206,7 +206,7 @@ impl ComponentKind {
 fn evaluate_degrees(inputs: &[Value]) -> ComponentResult {
     let radians = coerce_number_any(inputs.get(0));
     let degrees = if let Some(value) = radians.filter(|value| value.is_finite()) {
-        value * 180.0 / std::f64::consts::PI
+        value * 180.0 / std::f32::consts::PI
     } else {
         0.0
     };
@@ -219,7 +219,7 @@ fn evaluate_degrees(inputs: &[Value]) -> ComponentResult {
 fn evaluate_radians(inputs: &[Value]) -> ComponentResult {
     let degrees = coerce_number_any(inputs.get(0));
     let radians = if let Some(value) = degrees.filter(|value| value.is_finite()) {
-        value * std::f64::consts::PI / 180.0
+        value * std::f32::consts::PI / 180.0
     } else {
         0.0
     };
@@ -229,7 +229,7 @@ fn evaluate_radians(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn evaluate_simple_trig(inputs: &[Value], compute: fn(f64) -> f64) -> ComponentResult {
+fn evaluate_simple_trig(inputs: &[Value], compute: fn(f32) -> f32) -> ComponentResult {
     let numeric = coerce_number_any(inputs.get(0));
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         compute(value)
@@ -260,7 +260,7 @@ fn evaluate_tangent(inputs: &[Value]) -> ComponentResult {
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         let cos_value = value.cos();
         if cos_value.abs() < EPSILON {
-            f64::NAN
+            f32::NAN
         } else {
             value.tan()
         }
@@ -276,7 +276,7 @@ fn evaluate_cotangent(inputs: &[Value]) -> ComponentResult {
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         let tan_value = value.tan();
         if tan_value.abs() < EPSILON {
-            f64::NAN
+            f32::NAN
         } else {
             1.0 / tan_value
         }
@@ -292,7 +292,7 @@ fn evaluate_secant(inputs: &[Value]) -> ComponentResult {
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         let cos_value = value.cos();
         if cos_value.abs() < EPSILON {
-            f64::NAN
+            f32::NAN
         } else {
             1.0 / cos_value
         }
@@ -308,7 +308,7 @@ fn evaluate_cosecant(inputs: &[Value]) -> ComponentResult {
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         let sin_value = value.sin();
         if sin_value.abs() < EPSILON {
-            f64::NAN
+            f32::NAN
         } else {
             1.0 / sin_value
         }
@@ -325,7 +325,7 @@ fn evaluate_arcsine(inputs: &[Value]) -> ComponentResult {
         if (-1.0..=1.0).contains(&value) {
             value.asin()
         } else {
-            f64::NAN
+            f32::NAN
         }
     } else {
         0.0
@@ -340,7 +340,7 @@ fn evaluate_arccosine(inputs: &[Value]) -> ComponentResult {
         if (-1.0..=1.0).contains(&value) {
             value.acos()
         } else {
-            f64::NAN
+            f32::NAN
         }
     } else {
         0.0
@@ -359,7 +359,7 @@ fn evaluate_triangle_trigonometry(inputs: &[Value]) -> ComponentResult {
 
     let unit = detect_angle_unit(
         &[alpha_input, beta_input, gamma_input],
-        std::f64::consts::PI,
+        std::f32::consts::PI,
     );
     let to_radians = unit.to_radians_factor();
     let from_radians = unit.from_radians_factor();
@@ -392,7 +392,7 @@ fn evaluate_right_trigonometry(inputs: &[Value]) -> ComponentResult {
     let q_input = coerce_positive_length(inputs.get(3));
     let r_input = coerce_positive_length(inputs.get(4));
 
-    let unit = detect_angle_unit(&[alpha_input, beta_input], std::f64::consts::PI / 2.0);
+    let unit = detect_angle_unit(&[alpha_input, beta_input], std::f32::consts::PI / 2.0);
     let to_radians = unit.to_radians_factor();
     let from_radians = unit.from_radians_factor();
 
@@ -501,33 +501,33 @@ fn ensure_input_len(
     }
 }
 
-fn single_result(value: f64) -> BTreeMap<String, Value> {
+fn single_result(value: f32) -> BTreeMap<String, Value> {
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Number(value));
     outputs
 }
 
-type Point3 = [f64; 3];
+type Point3 = [f32; 3];
 
 type Line3 = (Point3, Point3);
 
 #[derive(Default, Clone, Copy)]
 struct TriangleState {
-    alpha: Option<f64>,
-    beta: Option<f64>,
-    gamma: Option<f64>,
-    a: Option<f64>,
-    b: Option<f64>,
-    c: Option<f64>,
+    alpha: Option<f32>,
+    beta: Option<f32>,
+    gamma: Option<f32>,
+    a: Option<f32>,
+    b: Option<f32>,
+    c: Option<f32>,
 }
 
 #[derive(Default, Clone, Copy)]
 struct RightTriangleState {
-    alpha: Option<f64>,
-    beta: Option<f64>,
-    p: Option<f64>,
-    q: Option<f64>,
-    r: Option<f64>,
+    alpha: Option<f32>,
+    beta: Option<f32>,
+    p: Option<f32>,
+    q: Option<f32>,
+    r: Option<f32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -555,8 +555,8 @@ struct TriangleCoords {
 
 #[derive(Debug, Clone, Copy)]
 struct Point2 {
-    x: f64,
-    y: f64,
+    x: f32,
+    y: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -598,23 +598,23 @@ enum AngleUnit {
 }
 
 impl AngleUnit {
-    fn to_radians_factor(self) -> f64 {
+    fn to_radians_factor(self) -> f32 {
         match self {
             Self::Radians => 1.0,
-            Self::Degrees => std::f64::consts::PI / 180.0,
+            Self::Degrees => std::f32::consts::PI / 180.0,
         }
     }
 
-    fn from_radians_factor(self) -> f64 {
+    fn from_radians_factor(self) -> f32 {
         match self {
             Self::Radians => 1.0,
-            Self::Degrees => 180.0 / std::f64::consts::PI,
+            Self::Degrees => 180.0 / std::f32::consts::PI,
         }
     }
 }
 
-fn detect_angle_unit(values: &[Option<f64>], sum_target: f64) -> AngleUnit {
-    let valid: Vec<f64> = values
+fn detect_angle_unit(values: &[Option<f32>], sum_target: f32) -> AngleUnit {
+    let valid: Vec<f32> = values
         .iter()
         .copied()
         .flatten()
@@ -628,12 +628,12 @@ fn detect_angle_unit(values: &[Option<f64>], sum_target: f64) -> AngleUnit {
     let max_abs = valid
         .iter()
         .map(|value| value.abs())
-        .fold(0.0_f64, f64::max);
+        .fold(0.0_f32, f32::max);
     if max_abs > sum_target + 0.1 {
         return AngleUnit::Degrees;
     }
 
-    let sum: f64 = valid.iter().map(|value| value.abs()).sum();
+    let sum: f32 = valid.iter().map(|value| value.abs()).sum();
     if sum > sum_target + 0.1 {
         AngleUnit::Degrees
     } else {
@@ -647,17 +647,17 @@ fn solve_triangle(mut state: TriangleState) -> TriangleState {
 
         if let (Some(alpha), Some(beta)) = (state.alpha, state.beta) {
             if state.gamma.is_none() {
-                changed |= assign_angle(&mut state.gamma, std::f64::consts::PI - alpha - beta);
+                changed |= assign_angle(&mut state.gamma, std::f32::consts::PI - alpha - beta);
             }
         }
         if let (Some(alpha), Some(gamma)) = (state.alpha, state.gamma) {
             if state.beta.is_none() {
-                changed |= assign_angle(&mut state.beta, std::f64::consts::PI - alpha - gamma);
+                changed |= assign_angle(&mut state.beta, std::f32::consts::PI - alpha - gamma);
             }
         }
         if let (Some(beta), Some(gamma)) = (state.beta, state.gamma) {
             if state.alpha.is_none() {
-                changed |= assign_angle(&mut state.alpha, std::f64::consts::PI - beta - gamma);
+                changed |= assign_angle(&mut state.alpha, std::f32::consts::PI - beta - gamma);
             }
         }
 
@@ -750,13 +750,13 @@ fn solve_right_triangle(mut state: RightTriangleState) -> RightTriangleState {
         if is_angle(state.alpha) && state.beta.is_none() {
             changed |= assign_angle(
                 &mut state.beta,
-                std::f64::consts::FRAC_PI_2 - state.alpha.unwrap(),
+                std::f32::consts::FRAC_PI_2 - state.alpha.unwrap(),
             );
         }
         if is_angle(state.beta) && state.alpha.is_none() {
             changed |= assign_angle(
                 &mut state.alpha,
-                std::f64::consts::FRAC_PI_2 - state.beta.unwrap(),
+                std::f32::consts::FRAC_PI_2 - state.beta.unwrap(),
             );
         }
 
@@ -853,16 +853,16 @@ fn solve_right_triangle(mut state: RightTriangleState) -> RightTriangleState {
     }
 
     if is_angle(state.alpha) && !is_angle(state.beta) {
-        state.beta = state.alpha.map(|alpha| std::f64::consts::FRAC_PI_2 - alpha);
+        state.beta = state.alpha.map(|alpha| std::f32::consts::FRAC_PI_2 - alpha);
     }
     if is_angle(state.beta) && !is_angle(state.alpha) {
-        state.alpha = state.beta.map(|beta| std::f64::consts::FRAC_PI_2 - beta);
+        state.alpha = state.beta.map(|beta| std::f32::consts::FRAC_PI_2 - beta);
     }
 
     state
 }
 
-fn compute_sine_ratio(state: &TriangleState) -> Option<f64> {
+fn compute_sine_ratio(state: &TriangleState) -> Option<f32> {
     let mut ratios = Vec::new();
 
     if is_angle(state.alpha) && is_length(state.a) {
@@ -896,7 +896,7 @@ fn compute_sine_ratio(state: &TriangleState) -> Option<f64> {
         return None;
     }
 
-    let valid: Vec<f64> = ratios
+    let valid: Vec<f32> = ratios
         .into_iter()
         .filter(|value| value.is_finite() && value.abs() > EPSILON)
         .collect();
@@ -904,10 +904,10 @@ fn compute_sine_ratio(state: &TriangleState) -> Option<f64> {
         return None;
     }
 
-    Some(valid.iter().copied().sum::<f64>() / valid.len() as f64)
+    Some(valid.iter().copied().sum::<f32>() / valid.len() as f32)
 }
 
-fn assign_angle(slot: &mut Option<f64>, value: f64) -> bool {
+fn assign_angle(slot: &mut Option<f32>, value: f32) -> bool {
     if !value.is_finite() || value <= EPSILON {
         return false;
     }
@@ -919,7 +919,7 @@ fn assign_angle(slot: &mut Option<f64>, value: f64) -> bool {
     }
 }
 
-fn assign_length(slot: &mut Option<f64>, value: f64) -> bool {
+fn assign_length(slot: &mut Option<f32>, value: f32) -> bool {
     if !value.is_finite() || value <= EPSILON {
         return false;
     }
@@ -931,50 +931,50 @@ fn assign_length(slot: &mut Option<f64>, value: f64) -> bool {
     }
 }
 
-fn is_angle(value: Option<f64>) -> bool {
+fn is_angle(value: Option<f32>) -> bool {
     matches!(value, Some(angle) if angle.is_finite() && angle > EPSILON)
 }
 
-fn is_length(value: Option<f64>) -> bool {
+fn is_length(value: Option<f32>) -> bool {
     matches!(value, Some(length) if length.is_finite() && length > EPSILON)
 }
 
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
+fn clamp(value: f32, min: f32, max: f32) -> f32 {
     value.max(min).min(max)
 }
 
 fn insert_angle_output(
     outputs: &mut BTreeMap<String, Value>,
     pin: &str,
-    angle: Option<f64>,
-    factor: f64,
+    angle: Option<f32>,
+    factor: f32,
 ) {
     if let Some(angle) = angle.filter(|value| value.is_finite() && *value > EPSILON) {
         outputs.insert(pin.to_owned(), Value::Number(angle * factor));
     }
 }
 
-fn insert_length_output(outputs: &mut BTreeMap<String, Value>, pin: &str, length: Option<f64>) {
+fn insert_length_output(outputs: &mut BTreeMap<String, Value>, pin: &str, length: Option<f32>) {
     if let Some(length) = length.filter(|value| value.is_finite() && *value > EPSILON) {
         outputs.insert(pin.to_owned(), Value::Number(length));
     }
 }
 
-fn coerce_number_any(value: Option<&Value>) -> Option<f64> {
+fn coerce_number_any(value: Option<&Value>) -> Option<f32> {
     value.and_then(|value| match value {
         Value::Number(number) => Some(*number),
         Value::Boolean(boolean) => Some(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => text.trim().parse::<f64>().ok(),
+        Value::Text(text) => text.trim().parse::<f32>().ok(),
         Value::List(values) if values.len() == 1 => coerce_number_any(values.get(0)),
         _ => None,
     })
 }
 
-fn coerce_number_finite(value: Option<&Value>) -> Option<f64> {
+fn coerce_number_finite(value: Option<&Value>) -> Option<f32> {
     coerce_number_any(value).filter(|value| value.is_finite())
 }
 
-fn coerce_positive_length(value: Option<&Value>) -> Option<f64> {
+fn coerce_positive_length(value: Option<&Value>) -> Option<f32> {
     coerce_number_finite(value).filter(|value| *value > EPSILON)
 }
 
@@ -1000,7 +1000,7 @@ fn coerce_list_number(
     values: &[Value],
     index: usize,
     context: &str,
-) -> Result<f64, ComponentError> {
+) -> Result<f32, ComponentError> {
     values
         .get(index)
         .and_then(|value| coerce_number_any(Some(value)))
@@ -1194,7 +1194,7 @@ fn line_value(line: Line3) -> Value {
     }
 }
 
-fn dot(a: Point3, b: Point3) -> f64 {
+fn dot(a: Point3, b: Point3) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
@@ -1206,7 +1206,7 @@ fn cross(a: Point3, b: Point3) -> Point3 {
     ]
 }
 
-fn length(vector: Point3) -> f64 {
+fn length(vector: Point3) -> f32 {
     dot(vector, vector).sqrt()
 }
 
@@ -1227,7 +1227,7 @@ fn add(a: Point3, b: Point3) -> Point3 {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn scale(a: Point3, factor: f64) -> Point3 {
+fn scale(a: Point3, factor: f32) -> Point3 {
     [a[0] * factor, a[1] * factor, a[2] * factor]
 }
 
@@ -1242,7 +1242,7 @@ mod tests {
     #[test]
     fn degrees_converts_radians_to_degrees() {
         let outputs =
-            evaluate_degrees(&[Value::Number(std::f64::consts::PI)]).expect("degrees succeeded");
+            evaluate_degrees(&[Value::Number(std::f32::consts::PI)]).expect("degrees succeeded");
         assert!(matches!(
             outputs.get(super::PIN_DEGREES),
             Some(Value::Number(value)) if (value - 180.0).abs() < 1e-9
@@ -1333,7 +1333,7 @@ mod tests {
 
     #[test]
     fn angle_unit_detection_handles_degrees() {
-        let unit = detect_angle_unit(&[Some(90.0), None, None], std::f64::consts::PI);
+        let unit = detect_angle_unit(&[Some(90.0), None, None], std::f32::consts::PI);
         match unit {
             AngleUnit::Degrees => {}
             _ => panic!("expected degrees"),

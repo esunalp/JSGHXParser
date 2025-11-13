@@ -27,7 +27,7 @@ const PIN_OUTPUT_AFTER: &str = "N1";
 const PIN_OUTPUT_CAPS: &str = "C";
 const PIN_OUTPUT_SOLID: &str = "S";
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componenten binnen Surface → Util.
 #[derive(Debug, Clone, Copy)]
@@ -267,13 +267,13 @@ fn evaluate_divide_surface(inputs: &[Value], component: &str) -> ComponentResult
         let fv = if v_segments == 0 {
             0.0
         } else {
-            v as f64 / v_segments as f64
+            v as f32 / v_segments as f32
         };
         for u in 0..=u_segments {
             let fu = if u_segments == 0 {
                 0.0
             } else {
-                u as f64 / u_segments as f64
+                u as f32 / u_segments as f32
             };
             let point = metrics.sample_point((fu, fv));
             points.push(Value::Point(point));
@@ -308,7 +308,7 @@ fn evaluate_surface_frames(inputs: &[Value], component: &str) -> ComponentResult
         let fv = if v_segments == 0 {
             0.0
         } else {
-            v as f64 / v_segments as f64
+            v as f32 / v_segments as f32
         };
         let mut frames_row = Vec::new();
         let mut parameters_row = Vec::new();
@@ -316,7 +316,7 @@ fn evaluate_surface_frames(inputs: &[Value], component: &str) -> ComponentResult
             let fu = if u_segments == 0 {
                 0.0
             } else {
-                u as f64 / u_segments as f64
+                u as f32 / u_segments as f32
             };
             let point = metrics.sample_point((fu, fv));
             let tangent_u = metrics.tangent_hint_u();
@@ -450,15 +450,15 @@ fn evaluate_edges_from_directions(inputs: &[Value]) -> ComponentResult {
                 let (candidate, _) = normalize(*candidate).unwrap_or(([1.0, 0.0, 0.0], 1.0));
                 let dot = clamp(dot(direction, candidate), -1.0, 1.0);
                 let angle = dot.acos();
-                if angle <= tolerance || (reflex && (std::f64::consts::PI - angle) <= tolerance) {
+                if angle <= tolerance || (reflex && (std::f32::consts::PI - angle) <= tolerance) {
                     matched = Some(dir_index);
                     break;
                 }
             }
             if let Some(dir_index) = matched {
                 selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
-                mapping.push(Value::Number(dir_index as f64));
+                indices.push(Value::Number(index as f32));
+                mapping.push(Value::Number(dir_index as f32));
             }
         }
     }
@@ -509,10 +509,10 @@ fn evaluate_closed_edges(inputs: &[Value]) -> ComponentResult {
     for (index, edge) in brep.edges.iter().enumerate() {
         if edge.face_count() >= 2 {
             closed_edges.push(edge.to_value());
-            closed_indices.push(Value::Number(index as f64));
+            closed_indices.push(Value::Number(index as f32));
         } else {
             open_edges.push(edge.to_value());
-            open_indices.push(Value::Number(index as f64));
+            open_indices.push(Value::Number(index as f32));
         }
     }
 
@@ -571,7 +571,7 @@ fn evaluate_edges_from_faces(inputs: &[Value]) -> ComponentResult {
                 .any(|face_index| selected_faces.contains(face_index))
             {
                 selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
+                indices.push(Value::Number(index as f32));
             }
         }
     } else {
@@ -582,7 +582,7 @@ fn evaluate_edges_from_faces(inputs: &[Value]) -> ComponentResult {
                     .any(|point| edge.touches_point(point, tolerance));
             if include {
                 selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
+                indices.push(Value::Number(index as f32));
             }
         }
     }
@@ -631,7 +631,7 @@ fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
         }
         if matched_points.len() >= valence {
             selected.push(edge.to_value());
-            indices.push(Value::Number(index as f64));
+            indices.push(Value::Number(index as f32));
             for point_index in matched_points {
                 mapping[point_index] += 1;
             }
@@ -640,7 +640,7 @@ fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
 
     let map_values = mapping
         .into_iter()
-        .map(|count| Value::Number(count as f64))
+        .map(|count| Value::Number(count as f32))
         .collect();
 
     let mut outputs = BTreeMap::new();
@@ -767,7 +767,7 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
         PIN_OUTPUT_BREPS.to_owned(),
         Value::List(vec![merged_surface]),
     );
-    outputs.insert(PIN_OUTPUT_BEFORE.to_owned(), Value::Number(before as f64));
+    outputs.insert(PIN_OUTPUT_BEFORE.to_owned(), Value::Number(before as f32));
     outputs.insert(PIN_OUTPUT_AFTER.to_owned(), Value::Number(1.0));
     Ok(outputs)
 }
@@ -795,7 +795,7 @@ fn evaluate_edges_by_length(inputs: &[Value], component: &str) -> ComponentResul
         let length = edge.length();
         if length >= min_length && length <= max_length.max(min_length) {
             selected.push(edge.to_value());
-            indices.push(Value::Number(index as f64));
+            indices.push(Value::Number(index as f32));
         }
     }
 
@@ -815,11 +815,11 @@ fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
 
 #[derive(Debug, Clone)]
 struct Face {
-    vertices: Vec<[f64; 3]>,
+    vertices: Vec<[f32; 3]>,
 }
 
 impl Face {
-    fn centroid(&self) -> [f64; 3] {
+    fn centroid(&self) -> [f32; 3] {
         if self.vertices.is_empty() {
             return [0.0, 0.0, 0.0];
         }
@@ -829,20 +829,20 @@ impl Face {
             sum[1] += vertex[1];
             sum[2] += vertex[2];
         }
-        let scale = 1.0 / self.vertices.len() as f64;
+        let scale = 1.0 / self.vertices.len() as f32;
         [sum[0] * scale, sum[1] * scale, sum[2] * scale]
     }
 }
 
 #[derive(Debug, Clone)]
 struct EdgeData {
-    start: [f64; 3],
-    end: [f64; 3],
+    start: [f32; 3],
+    end: [f32; 3],
     faces: Vec<usize>,
 }
 
 impl EdgeData {
-    fn new(start: [f64; 3], end: [f64; 3]) -> Self {
+    fn new(start: [f32; 3], end: [f32; 3]) -> Self {
         Self {
             start,
             end,
@@ -867,7 +867,7 @@ impl EdgeData {
         }
     }
 
-    fn vector(&self) -> [f64; 3] {
+    fn vector(&self) -> [f32; 3] {
         [
             self.end[0] - self.start[0],
             self.end[1] - self.start[1],
@@ -875,16 +875,16 @@ impl EdgeData {
         ]
     }
 
-    fn length(&self) -> f64 {
+    fn length(&self) -> f32 {
         distance(&self.start, &self.end)
     }
 
-    fn matches(&self, start: [f64; 3], end: [f64; 3]) -> bool {
+    fn matches(&self, start: [f32; 3], end: [f32; 3]) -> bool {
         (nearly_equal_points(&self.start, &start) && nearly_equal_points(&self.end, &end))
             || (nearly_equal_points(&self.start, &end) && nearly_equal_points(&self.end, &start))
     }
 
-    fn touches_point(&self, point: &[f64; 3], tolerance: f64) -> bool {
+    fn touches_point(&self, point: &[f32; 3], tolerance: f32) -> bool {
         distance(&self.start, point) <= tolerance || distance(&self.end, point) <= tolerance
     }
 }
@@ -896,7 +896,7 @@ struct BrepData {
 }
 
 impl BrepData {
-    fn add_edge(&mut self, start: [f64; 3], end: [f64; 3], face: Option<usize>) {
+    fn add_edge(&mut self, start: [f32; 3], end: [f32; 3], face: Option<usize>) {
         if nearly_equal_points(&start, &end) {
             return;
         }
@@ -924,8 +924,8 @@ impl BrepData {
 
 #[derive(Debug, Clone)]
 struct ShapeMetrics {
-    min: [f64; 3],
-    max: [f64; 3],
+    min: [f32; 3],
+    max: [f32; 3],
 }
 
 impl ShapeMetrics {
@@ -938,7 +938,7 @@ impl ShapeMetrics {
         Some(Self { min, max })
     }
 
-    fn size(&self) -> [f64; 3] {
+    fn size(&self) -> [f32; 3] {
         [
             self.max[0] - self.min[0],
             self.max[1] - self.min[1],
@@ -946,7 +946,7 @@ impl ShapeMetrics {
         ]
     }
 
-    fn sample_point(&self, uv: (f64, f64)) -> [f64; 3] {
+    fn sample_point(&self, uv: (f32, f32)) -> [f32; 3] {
         [
             self.min[0] + self.size()[0] * uv.0,
             self.min[1] + self.size()[1] * uv.1,
@@ -954,25 +954,25 @@ impl ShapeMetrics {
         ]
     }
 
-    fn normal_hint(&self) -> [f64; 3] {
+    fn normal_hint(&self) -> [f32; 3] {
         [0.0, 0.0, 1.0]
     }
 
-    fn tangent_hint_u(&self) -> [f64; 3] {
+    fn tangent_hint_u(&self) -> [f32; 3] {
         [self.size()[0].signum().max(EPSILON), 0.0, 0.0]
     }
 
-    fn tangent_hint_v(&self) -> [f64; 3] {
+    fn tangent_hint_v(&self) -> [f32; 3] {
         [0.0, self.size()[1].signum().max(EPSILON), 0.0]
     }
 
-    fn volume(&self) -> f64 {
+    fn volume(&self) -> f32 {
         let size = self.size();
         size[0].abs() * size[1].abs() * size[2].abs()
     }
 }
 
-fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
+fn frame_value(origin: [f32; 3], x_axis: [f32; 3], y_axis: [f32; 3], z_axis: [f32; 3]) -> Value {
     Value::List(vec![
         Value::Point(origin),
         Value::Vector(x_axis),
@@ -981,7 +981,7 @@ fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f6
     ])
 }
 
-fn create_surface_from_bounds(min: [f64; 3], max: [f64; 3]) -> Value {
+fn create_surface_from_bounds(min: [f32; 3], max: [f32; 3]) -> Value {
     let vertices = vec![
         [min[0], min[1], min[2]],
         [max[0], min[1], min[2]],
@@ -1014,7 +1014,7 @@ fn create_box_edges(metrics: &ShapeMetrics) -> Vec<EdgeData> {
         .collect()
 }
 
-fn create_box_corners(metrics: &ShapeMetrics) -> Vec<[f64; 3]> {
+fn create_box_corners(metrics: &ShapeMetrics) -> Vec<[f32; 3]> {
     let mut corners = Vec::with_capacity(8);
     for &z in &[metrics.min[2], metrics.max[2]] {
         for &y in &[metrics.min[1], metrics.max[1]] {
@@ -1068,7 +1068,7 @@ fn collect_brep_data_recursive(value: Option<&Value>, data: &mut BrepData) {
     }
 }
 
-fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
+fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
@@ -1089,7 +1089,7 @@ fn collect_shapes(value: Option<&Value>) -> Vec<Value> {
     }
 }
 
-fn collect_point_list(value: Option<&Value>) -> Vec<[f64; 3]> {
+fn collect_point_list(value: Option<&Value>) -> Vec<[f32; 3]> {
     match value {
         Some(Value::List(values)) => values
             .iter()
@@ -1103,9 +1103,9 @@ fn collect_point_list(value: Option<&Value>) -> Vec<[f64; 3]> {
     }
 }
 
-fn bounding_box(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
+fn bounding_box(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
+    let mut min = [f32::INFINITY; 3];
+    let mut max = [f32::NEG_INFINITY; 3];
     for point in points {
         for axis in 0..3 {
             min[axis] = min[axis].min(point[axis]);
@@ -1123,7 +1123,7 @@ fn coerce_shape_metrics(
         .ok_or_else(|| ComponentError::new(format!("{} vereist geometrische invoer", component)))
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     match value {
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
@@ -1176,7 +1176,7 @@ fn coerce_boolean(value: Option<&Value>, default: bool) -> Result<bool, Componen
 fn coerce_domain_pair(
     value: &Value,
     context: &str,
-) -> Result<((f64, f64), (f64, f64)), ComponentError> {
+) -> Result<((f32, f32), (f32, f32)), ComponentError> {
     match value {
         Value::Domain(Domain::Two(Domain2D { u, v })) => Ok(((u.min, u.max), (v.min, v.max))),
         Value::Domain(Domain::One(Domain1D { min, max, .. })) => Ok(((*min, *max), (*min, *max))),
@@ -1199,8 +1199,8 @@ fn coerce_domain_pair(
     }
 }
 
-fn parse_directions(value: Option<&Value>) -> Vec<[f64; 3]> {
-    fn parse(value: &Value) -> Option<[f64; 3]> {
+fn parse_directions(value: Option<&Value>) -> Vec<[f32; 3]> {
+    fn parse(value: &Value) -> Option<[f32; 3]> {
         match value {
             Value::Vector(vector) | Value::Point(vector) => Some(*vector),
             Value::List(values) if values.len() >= 3 => {
@@ -1220,7 +1220,7 @@ fn parse_directions(value: Option<&Value>) -> Vec<[f64; 3]> {
     }
 }
 
-fn normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn normalize(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
     if length < EPSILON {
         None
@@ -1232,25 +1232,25 @@ fn normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn nearly_equal_points(a: &[f64; 3], b: &[f64; 3]) -> bool {
+fn nearly_equal_points(a: &[f32; 3], b: &[f32; 3]) -> bool {
     (a[0] - b[0]).abs() <= EPSILON
         && (a[1] - b[1]).abs() <= EPSILON
         && (a[2] - b[2]).abs() <= EPSILON
 }
 
-fn distance(a: &[f64; 3], b: &[f64; 3]) -> f64 {
+fn distance(a: &[f32; 3], b: &[f32; 3]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
+fn clamp(value: f32, min: f32, max: f32) -> f32 {
     value.max(min).min(max)
 }
 
-fn clamp01(value: f64) -> f64 {
+fn clamp01(value: f32) -> f32 {
     clamp(value, 0.0, 1.0)
 }
 
@@ -1455,11 +1455,11 @@ mod tests {
         let Value::Surface { vertices, .. } = surface else {
             panic!("expected surface value");
         };
-        let min_z = vertices.iter().map(|v| v[2]).fold(f64::INFINITY, f64::min);
+        let min_z = vertices.iter().map(|v| v[2]).fold(f32::INFINITY, f32::min);
         let max_z = vertices
             .iter()
             .map(|v| v[2])
-            .fold(f64::NEG_INFINITY, f64::max);
+            .fold(f32::NEG_INFINITY, f32::max);
         assert_eq!(min_z, -2.0);
         assert_eq!(max_z, 2.0);
     }

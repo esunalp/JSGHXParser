@@ -1006,10 +1006,10 @@ impl Component for TreeStatisticsComponent {
         let lengths: Vec<Value> = tree
             .branches
             .values()
-            .map(|branch| Value::Number(branch.len() as f64))
+            .map(|branch| Value::Number(branch.len() as f32))
             .collect();
 
-        let count = Value::Number(tree.branches.len() as f64);
+        let count = Value::Number(tree.branches.len() as f32);
 
         let mut outputs = BTreeMap::new();
         outputs.insert("P".to_string(), Value::List(paths));
@@ -1207,7 +1207,7 @@ impl Component for DeconstructPathComponent {
 
         let segments: Vec<Value> = path
             .into_iter()
-            .map(|segment| Value::Number(segment as f64))
+            .map(|segment| Value::Number(segment as f32))
             .collect();
 
         let mut outputs = BTreeMap::new();
@@ -1238,10 +1238,10 @@ impl Component for NullCheckComponent {
         for (i, item) in items.into_iter().enumerate() {
             if matches!(item, Value::Null) {
                 null_items.push(item);
-                null_indices.push(Value::Number(i as f64));
+                null_indices.push(Value::Number(i as f32));
             } else {
                 valid_items.push(item);
-                valid_indices.push(Value::Number(i as f64));
+                valid_indices.push(Value::Number(i as f32));
             }
         }
 

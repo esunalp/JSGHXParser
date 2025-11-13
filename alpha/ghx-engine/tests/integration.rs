@@ -127,14 +127,14 @@ fn evaluate_sample(xml: &str) -> EvaluationResult {
     evaluator::evaluate(&graph, &registry).expect("evaluate graph")
 }
 
-fn assert_point_close(actual: &[f64; 3], expected: [f64; 3]) {
+fn assert_point_close(actual: &[f32; 3], expected: [f32; 3]) {
     for (idx, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
         let diff = (a - e).abs();
         assert!(diff < 1e-9, "coordinate {idx} differs: {a} vs {e}");
     }
 }
 
-fn assert_value_close(actual: &Value, expected: &Value, tol: f64) {
+fn assert_value_close(actual: &Value, expected: &Value, tol: f32) {
     match (actual, expected) {
         (Value::CurveLine { p1: lp1, p2: lp2 }, Value::CurveLine { p1: rp1, p2: rp2 }) => {
             assert_point_close(lp1, *rp1);

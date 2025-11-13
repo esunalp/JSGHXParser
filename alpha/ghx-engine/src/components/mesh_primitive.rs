@@ -40,9 +40,9 @@ impl Component for ConstructMeshComponent {
     }
 }
 
-/// Converteert een `Value` naar een lijst van vertices (`Vec<[f64; 3]>`).
+/// Converteert een `Value` naar een lijst van vertices (`Vec<[f32; 3]>`).
 /// Verwacht een `Value::List` van `Value::Point`.
-fn coerce_vertices(value: &Value) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn coerce_vertices(value: &Value) -> Result<Vec<[f32; 3]>, ComponentError> {
     let list = value
         .expect_list()
         .map_err(|e| ComponentError::new(format!("Vertices moeten een lijst zijn: {}", e)))?;
@@ -101,9 +101,9 @@ impl Component for MeshTriangleComponent {
         let c = coerce_index(&inputs[2])?;
 
         let face = Value::List(vec![
-            Value::Number(a as f64),
-            Value::Number(b as f64),
-            Value::Number(c as f64),
+            Value::Number(a as f32),
+            Value::Number(b as f32),
+            Value::Number(c as f32),
         ]);
 
         let mut outputs = BTreeMap::new();
@@ -129,10 +129,10 @@ impl Component for MeshQuadComponent {
         let d = coerce_index(&inputs[3])?;
 
         let face = Value::List(vec![
-            Value::Number(a as f64),
-            Value::Number(b as f64),
-            Value::Number(c as f64),
-            Value::Number(d as f64),
+            Value::Number(a as f32),
+            Value::Number(b as f32),
+            Value::Number(c as f32),
+            Value::Number(d as f32),
         ]);
 
         let mut outputs = BTreeMap::new();
@@ -200,8 +200,8 @@ impl Component for MeshSphereExComponent {
 
             for j in 0..=count {
                 for i in 0..=count {
-                    let u = (i as f64 / count as f64 - 0.5) * 2.0;
-                    let v = (j as f64 / count as f64 - 0.5) * 2.0;
+                    let u = (i as f32 / count as f32 - 0.5) * 2.0;
+                    let v = (j as f32 / count as f32 - 0.5) * 2.0;
 
                     let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
                     let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
@@ -241,8 +241,8 @@ impl Component for MeshSphereExComponent {
                 for i in 0..count {
                     let mut face_indices = Vec::with_capacity(4);
                     for (u_offset, v_offset) in [(0, 0), (1, 0), (1, 1), (0, 1)] {
-                         let u = ((i + u_offset) as f64 / count as f64 - 0.5) * 2.0;
-                         let v = ((j + v_offset) as f64 / count as f64 - 0.5) * 2.0;
+                         let u = ((i + u_offset) as f32 / count as f32 - 0.5) * 2.0;
+                         let v = ((j + v_offset) as f32 / count as f32 - 0.5) * 2.0;
 
                          let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
                          let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
@@ -503,7 +503,7 @@ mod tests {
     }
 }
 
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 /// Enum to differentiate between the mesh primitive components.
 #[derive(Debug, Clone, Copy)]
@@ -638,12 +638,12 @@ impl Component for MeshSphereComponent {
 
         // Generate vertices for the rings
         for i in 1..v_count {
-            let phi = PI * i as f64 / v_count as f64;
+            let phi = PI * i as f32 / v_count as f32;
             let z = radius * phi.cos();
             let ring_radius = radius * phi.sin();
 
             for j in 0..u_count {
-                let theta = 2.0 * PI * j as f64 / u_count as f64;
+                let theta = 2.0 * PI * j as f32 / u_count as f32;
                 let x = ring_radius * theta.cos();
                 let y = ring_radius * theta.sin();
                 vertices.push([x, y, z]);
@@ -722,12 +722,12 @@ impl Component for MeshBoxComponent {
 
         let mut vertices = Vec::new();
         let mut faces = Vec::new();
-        let mut add_face = |v: [[f64; 3]; 4], nx: usize, ny: usize| {
+        let mut add_face = |v: [[f32; 3]; 4], nx: usize, ny: usize| {
             let base_index = vertices.len() as u32;
             for j in 0..=ny {
                 for i in 0..=nx {
-                    let u = i as f64 / nx as f64;
-                    let v_ = j as f64 / ny as f64;
+                    let u = i as f32 / nx as f32;
+                    let v_ = j as f32 / ny as f32;
                     let p = [
                         (1.0 - u) * (1.0 - v_) * v[0][0] + u * (1.0 - v_) * v[1][0] + u * v_ * v[2][0] + (1.0 - u) * v_ * v[3][0],
                         (1.0 - u) * (1.0 - v_) * v[0][1] + u * (1.0 - v_) * v[1][1] + u * v_ * v[2][1] + (1.0 - u) * v_ * v[3][1],
@@ -796,8 +796,8 @@ impl Component for MeshPlaneComponent {
         let mut vertices = Vec::with_capacity((w_count + 1) * (h_count + 1));
         for j in 0..=h_count {
             for i in 0..=w_count {
-                let x = i as f64 / w_count as f64;
-                let y = j as f64 / h_count as f64;
+                let x = i as f32 / w_count as f32;
+                let y = j as f32 / h_count as f32;
                 vertices.push([x, y, 0.0]);
             }
         }

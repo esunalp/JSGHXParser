@@ -13,7 +13,7 @@ const PIN_COLUMNS: &str = "C";
 const PIN_VALUES: &str = "V";
 const PIN_SUCCESS: &str = "S";
 
-const DEFAULT_TOLERANCE: f64 = 1e-10;
+const DEFAULT_TOLERANCE: f32 = 1e-10;
 
 /// Beschikbare matrixcomponenten.
 #[derive(Debug, Clone, Copy)]
@@ -129,8 +129,8 @@ fn evaluate_deconstruct_matrix(inputs: &[Value]) -> ComponentResult {
     let matrix = coerce_matrix(matrix_value, "Deconstruct Matrix")?;
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_ROWS.to_owned(), Value::Number(matrix.rows as f64));
-    outputs.insert(PIN_COLUMNS.to_owned(), Value::Number(matrix.columns as f64));
+    outputs.insert(PIN_ROWS.to_owned(), Value::Number(matrix.rows as f32));
+    outputs.insert(PIN_COLUMNS.to_owned(), Value::Number(matrix.columns as f32));
     outputs.insert(
         PIN_VALUES.to_owned(),
         Value::List(matrix.values.iter().copied().map(Value::Number).collect()),
@@ -224,7 +224,7 @@ fn coerce_dimension(value: &Value, context: &str) -> Result<usize, ComponentErro
             context, number
         )));
     }
-    if truncated > (usize::MAX as f64) {
+    if truncated > (usize::MAX as f32) {
         return Err(ComponentError::new(format!(
             "{} dimensie is te groot: {}",
             context, number
@@ -233,7 +233,7 @@ fn coerce_dimension(value: &Value, context: &str) -> Result<usize, ComponentErro
     Ok(truncated as usize)
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
     if let Some(number) = try_coerce_number(value) {
         return Ok(number);
     }
@@ -244,7 +244,7 @@ fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     )))
 }
 
-fn try_coerce_number(value: &Value) -> Option<f64> {
+fn try_coerce_number(value: &Value) -> Option<f32> {
     match value {
         Value::Number(number) => Some(*number),
         Value::Boolean(boolean) => Some(if *boolean { 1.0 } else { 0.0 }),
@@ -253,7 +253,7 @@ fn try_coerce_number(value: &Value) -> Option<f64> {
     }
 }
 
-fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
+fn collect_numbers(value: Option<&Value>) -> Vec<f32> {
     let mut result = Vec::new();
     if let Some(value) = value {
         collect_numbers_inner(value, &mut result);
@@ -261,7 +261,7 @@ fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
     result
 }
 
-fn collect_numbers_inner(value: &Value, result: &mut Vec<f64>) {
+fn collect_numbers_inner(value: &Value, result: &mut Vec<f32>) {
     match value {
         Value::Number(number) => result.push(*number),
         Value::Boolean(boolean) => result.push(if *boolean { 1.0 } else { 0.0 }),
@@ -308,7 +308,7 @@ fn interpret_list_as_matrix(values: &[Value]) -> Option<Matrix> {
     if values.iter().all(|entry| matches!(entry, Value::List(_))) {
         let rows = values.len();
         let mut columns = 0_usize;
-        let mut row_data: Vec<Vec<f64>> = Vec::with_capacity(rows);
+        let mut row_data: Vec<Vec<f32>> = Vec::with_capacity(rows);
         for entry in values {
             let Value::List(row_values) = entry else {
                 continue;
@@ -346,7 +346,7 @@ fn interpret_list_as_matrix(values: &[Value]) -> Option<Matrix> {
     }
 }
 
-fn flatten_numbers(values: &[Value]) -> Vec<f64> {
+fn flatten_numbers(values: &[Value]) -> Vec<f32> {
     let mut result = Vec::new();
     for value in values {
         collect_numbers_inner(value, &mut result);
@@ -354,7 +354,7 @@ fn flatten_numbers(values: &[Value]) -> Vec<f64> {
     result
 }
 
-fn create_matrix(rows: usize, columns: usize, values: &[f64], identity_fallback: bool) -> Matrix {
+fn create_matrix(rows: usize, columns: usize, values: &[f32], identity_fallback: bool) -> Matrix {
     let total = rows * columns;
     let mut flat = vec![0.0; total];
     let count = values.len().min(total);
@@ -453,7 +453,7 @@ fn swap_columns(matrix: &Matrix, column_a: Option<usize>, column_b: Option<usize
     }
 }
 
-fn extract_tolerance(value: Option<&Value>) -> f64 {
+fn extract_tolerance(value: Option<&Value>) -> f32 {
     value
         .and_then(try_coerce_number)
         .map(|number| number.abs())
@@ -461,7 +461,7 @@ fn extract_tolerance(value: Option<&Value>) -> f64 {
         .unwrap_or(DEFAULT_TOLERANCE)
 }
 
-fn invert_matrix(matrix: &Matrix, tolerance: f64) -> (Option<Matrix>, bool) {
+fn invert_matrix(matrix: &Matrix, tolerance: f32) -> (Option<Matrix>, bool) {
     if matrix.rows != matrix.columns {
         return (None, false);
     }
@@ -539,7 +539,7 @@ mod tests {
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
-    fn matrix(values: &[f64], rows: usize, columns: usize) -> Value {
+    fn matrix(values: &[f32], rows: usize, columns: usize) -> Value {
         Value::Matrix(Matrix {
             rows,
             columns,
@@ -555,7 +555,7 @@ mod tests {
                 &[
                     Value::Number(2.0),
                     Value::Number(3.0),
-                    Value::List((1..=6).map(|n| Value::Number(n as f64)).collect::<Vec<_>>()),
+                    Value::List((1..=6).map(|n| Value::Number(n as f32)).collect::<Vec<_>>()),
                 ],
                 &MetaMap::new(),
             )

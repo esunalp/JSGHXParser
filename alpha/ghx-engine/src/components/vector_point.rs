@@ -24,7 +24,7 @@ const PIN_OUTPUT_THETA: &str = "T";
 const PIN_OUTPUT_RADIUS: &str = "R";
 const PIN_OUTPUT_TAGS: &str = "Tag";
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -405,7 +405,7 @@ fn evaluate_closest_point(inputs: &[Value]) -> ComponentResult {
     }
 
     let mut best_index = 0usize;
-    let mut best_distance_sq = f64::INFINITY;
+    let mut best_distance_sq = f32::INFINITY;
     for (index, candidate) in candidates.iter().enumerate() {
         let dx = candidate[0] - target[0];
         let dy = candidate[1] - target[1];
@@ -424,7 +424,7 @@ fn evaluate_closest_point(inputs: &[Value]) -> ComponentResult {
     );
     outputs.insert(
         PIN_OUTPUT_INDEX.to_owned(),
-        Value::Number(best_index as f64),
+        Value::Number(best_index as f32),
     );
     outputs.insert(
         PIN_OUTPUT_DISTANCE.to_owned(),
@@ -452,7 +452,7 @@ fn evaluate_closest_points(inputs: &[Value]) -> ComponentResult {
 
     let count = coerce_count(inputs.get(2), 1, context)?;
 
-    let mut entries: Vec<(usize, [f64; 3], f64)> = candidates
+    let mut entries: Vec<(usize, [f32; 3], f32)> = candidates
         .iter()
         .enumerate()
         .map(|(index, candidate)| {
@@ -472,7 +472,7 @@ fn evaluate_closest_points(inputs: &[Value]) -> ComponentResult {
 
     for entry in entries.iter().take(take) {
         points.push(Value::Point(entry.1));
-        indices.push(Value::Number(entry.0 as f64));
+        indices.push(Value::Number(entry.0 as f32));
         distances.push(Value::Number(entry.2.sqrt()));
     }
 
@@ -493,14 +493,14 @@ fn evaluate_sort_points(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = collect_points(inputs.get(0), context)?;
-    let mut enumerated: Vec<(usize, [f64; 3])> = points.into_iter().enumerate().collect();
+    let mut enumerated: Vec<(usize, [f32; 3])> = points.into_iter().enumerate().collect();
     enumerated.sort_by(|a, b| compare_points(a.1, b.1));
 
     let mut sorted_points = Vec::with_capacity(enumerated.len());
     let mut indices = Vec::with_capacity(enumerated.len());
     for (index, point) in enumerated {
         sorted_points.push(Value::Point(point));
-        indices.push(Value::Number(index as f64));
+        indices.push(Value::Number(index as f32));
     }
 
     let mut outputs = BTreeMap::new();
@@ -543,7 +543,7 @@ fn evaluate_cull_duplicates(inputs: &[Value]) -> ComponentResult {
             }
             None => {
                 unique.push(*point);
-                indices.push(Value::Number(input_index as f64));
+                indices.push(Value::Number(input_index as f32));
                 valence.push(1.0);
             }
         }
@@ -576,7 +576,7 @@ fn evaluate_barycentric(inputs: &[Value]) -> ComponentResult {
     let c = coerce_point(&inputs[2], context)?;
     let u = coerce_number(Some(&inputs[3]), context)?;
     let v = coerce_number(Some(&inputs[4]), context)?;
-    let mut w = coerce_number(Some(&inputs[5]), context).unwrap_or(f64::NAN);
+    let mut w = coerce_number(Some(&inputs[5]), context).unwrap_or(f32::NAN);
     if !w.is_finite() {
         w = 1.0 - u - v;
     }
@@ -732,7 +732,7 @@ fn evaluate_sort_along_curve(inputs: &[Value]) -> ComponentResult {
     let direction = curve.direction();
     let length_sq = vector_length_squared(direction);
 
-    let mut entries: Vec<(f64, usize, [f64; 3])> = points
+    let mut entries: Vec<(f32, usize, [f32; 3])> = points
         .into_iter()
         .enumerate()
         .map(|(index, point)| {
@@ -751,7 +751,7 @@ fn evaluate_sort_along_curve(inputs: &[Value]) -> ComponentResult {
     let mut indices = Vec::with_capacity(entries.len());
     for (_, original_index, point) in entries {
         sorted_points.push(Value::Point(point));
-        indices.push(Value::Number(original_index as f64));
+        indices.push(Value::Number(original_index as f32));
     }
 
     let mut outputs = BTreeMap::new();
@@ -800,7 +800,7 @@ fn evaluate_point_groups(inputs: &[Value]) -> ComponentResult {
             .entry(root)
             .or_insert_with(|| (Vec::new(), Vec::new()));
         entry.0.push(Value::Point(*point));
-        entry.1.push(Value::Number(index as f64));
+        entry.1.push(Value::Number(index as f32));
     }
 
     let group_values: Vec<Value> = groups
@@ -843,7 +843,7 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let mut best: Option<(f64, usize, [f64; 3])> = None;
+    let mut best: Option<(f32, usize, [f32; 3])> = None;
     for (index, plane) in planes.iter().enumerate() {
         if let Some((intersection, distance)) = intersect_ray_plane(origin, direction, plane) {
             if distance >= 0.0
@@ -863,14 +863,14 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(intersection));
-    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(index as f64));
+    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(index as f32));
     Ok(outputs)
 }
 
 fn evaluate_construct_point(inputs: &[Value]) -> ComponentResult {
     let context = "Construct Point";
 
-    let get_coord = |index: usize| -> f64 {
+    let get_coord = |index: usize| -> f32 {
         match inputs.get(index) {
             Some(&Value::Null) | None => 0.0,
             Some(value) => coerce_number(Some(value), context).unwrap_or(0.0),
@@ -904,7 +904,7 @@ fn evaluate_pull_point(inputs: &[Value]) -> ComponentResult {
     let planes = collect_planes(inputs.get(1), context)?;
     let point_candidates = collect_points(inputs.get(1), context)?;
 
-    let mut candidates: Vec<([f64; 3], f64)> = Vec::new();
+    let mut candidates: Vec<([f32; 3], f32)> = Vec::new();
     for plane in planes {
         let coords = plane_coordinates(point, &plane);
         let projection = apply_plane(&plane, coords[0], coords[1], 0.0);
@@ -935,20 +935,20 @@ fn evaluate_pull_point(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn compare_points(a: [f64; 3], b: [f64; 3]) -> Ordering {
-    compare_f64(a[0], b[0])
-        .then(compare_f64(a[1], b[1]))
-        .then(compare_f64(a[2], b[2]))
+fn compare_points(a: [f32; 3], b: [f32; 3]) -> Ordering {
+    compare_f32(a[0], b[0])
+        .then(compare_f32(a[1], b[1]))
+        .then(compare_f32(a[2], b[2]))
 }
 
-fn compare_f64(a: f64, b: f64) -> Ordering {
+fn compare_f32(a: f32, b: f32) -> Ordering {
     match a.partial_cmp(&b) {
         Some(ordering) => ordering,
         None => Ordering::Equal,
     }
 }
 
-fn distance_squared(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn distance_squared(a: [f32; 3], b: [f32; 3]) -> f32 {
     let dx = a[0] - b[0];
     let dy = a[1] - b[1];
     let dz = a[2] - b[2];
@@ -977,7 +977,7 @@ fn coerce_count(
     }
 }
 
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => Ok(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
@@ -995,7 +995,7 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
     }
 }
 
-fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let mut points = Vec::new();
     if let Some(value) = value {
         collect_points_into(value, context, &mut points)?;
@@ -1006,7 +1006,7 @@ fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>,
 fn collect_points_into(
     value: &Value,
     context: &str,
-    output: &mut Vec<[f64; 3]>,
+    output: &mut Vec<[f32; 3]>,
 ) -> Result<(), ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => {
@@ -1032,7 +1032,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f64>() {
+            if let Ok(parsed) = text.trim().parse::<f32>() {
                 output.push([parsed, 0.0, 0.0]);
                 Ok(())
             } else {
@@ -1050,7 +1050,7 @@ fn collect_points_into(
     }
 }
 
-fn collect_numbers(value: Option<&Value>, context: &str) -> Result<Vec<f64>, ComponentError> {
+fn collect_numbers(value: Option<&Value>, context: &str) -> Result<Vec<f32>, ComponentError> {
     let mut numbers = Vec::new();
     if let Some(value) = value {
         collect_numbers_into(value, context, &mut numbers)?;
@@ -1061,7 +1061,7 @@ fn collect_numbers(value: Option<&Value>, context: &str) -> Result<Vec<f64>, Com
 fn collect_numbers_into(
     value: &Value,
     context: &str,
-    output: &mut Vec<f64>,
+    output: &mut Vec<f32>,
 ) -> Result<(), ComponentError> {
     match value {
         Value::Number(number) => {
@@ -1083,7 +1083,7 @@ fn collect_numbers_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f64>() {
+            if let Ok(parsed) = text.trim().parse::<f32>() {
                 output.push(parsed);
                 Ok(())
             } else {
@@ -1192,7 +1192,7 @@ fn collect_colors_into(value: &Value, output: &mut Vec<Option<ColorValue>>) {
 fn build_tag_values(
     planes: &[Plane],
     texts: &[String],
-    sizes: &[f64],
+    sizes: &[f32],
     colors: &[Option<ColorValue>],
 ) -> Vec<Value> {
     let count = planes
@@ -1275,17 +1275,17 @@ fn parse_color_value(value: &Value) -> Option<ColorValue> {
     }
 }
 
-fn parse_color_number(value: &Value) -> Option<f64> {
+fn parse_color_number(value: &Value) -> Option<f32> {
     match value {
         Value::Number(number) => Some(*number),
         Value::Boolean(boolean) => Some(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => text.trim().parse::<f64>().ok(),
+        Value::Text(text) => text.trim().parse::<f32>().ok(),
         Value::List(values) if values.len() == 1 => parse_color_number(&values[0]),
         _ => None,
     }
 }
 
-fn parse_color_from_number(number: f64) -> Option<ColorValue> {
+fn parse_color_from_number(number: f32) -> Option<ColorValue> {
     if !number.is_finite() {
         return None;
     }
@@ -1298,9 +1298,9 @@ fn parse_color_from_number(number: f64) -> Option<ColorValue> {
 
     let mut encoded = number.round() as i64;
     encoded &= 0x00FF_FFFF;
-    let r = ((encoded >> 16) & 0xFF) as f64;
-    let g = ((encoded >> 8) & 0xFF) as f64;
-    let b = (encoded & 0xFF) as f64;
+    let r = ((encoded >> 16) & 0xFF) as f32;
+    let g = ((encoded >> 8) & 0xFF) as f32;
+    let b = (encoded & 0xFF) as f32;
     Some(ColorValue::from_rgb255(r, g, b))
 }
 
@@ -1341,9 +1341,9 @@ fn parse_hex_color(text: &str) -> Option<ColorValue> {
     };
 
     u32::from_str_radix(&expanded, 16).ok().map(|value| {
-        let r = ((value >> 16) & 0xFF) as f64;
-        let g = ((value >> 8) & 0xFF) as f64;
-        let b = (value & 0xFF) as f64;
+        let r = ((value >> 16) & 0xFF) as f32;
+        let g = ((value >> 8) & 0xFF) as f32;
+        let b = (value & 0xFF) as f32;
         ColorValue::from_rgb255(r, g, b)
     })
 }
@@ -1361,7 +1361,7 @@ fn parse_delimited_color(text: &str) -> Option<ColorValue> {
     }
     let mut values = Vec::new();
     for token in tokens.iter().take(3) {
-        if let Ok(number) = token.parse::<f64>() {
+        if let Ok(number) = token.parse::<f32>() {
             values.push(number);
         } else {
             return None;
@@ -1391,7 +1391,7 @@ fn named_color(text: &str) -> Option<ColorValue> {
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     match value {
         None => Err(ComponentError::new(format!(
             "{} vereist een numerieke waarde",
@@ -1401,7 +1401,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentE
             Value::Number(number) => Ok(*number),
             Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
             Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
-            Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
+            Value::Text(text) => text.trim().parse::<f32>().map_err(|_| {
                 ComponentError::new(format!(
                     "{} kon tekst '{}' niet als getal interpreteren",
                     context, text
@@ -1466,7 +1466,7 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
     }
 }
 
-fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_vector(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Vector(vector) | Value::Point(vector) => Ok(*vector),
         Value::List(values) if values.len() == 1 => coerce_vector(&values[0], context),
@@ -1612,7 +1612,7 @@ fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError> {
     }
 }
 
-fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
+fn plane_coordinates(point: [f32; 3], plane: &Plane) -> [f32; 3] {
     let relative = subtract(point, plane.origin);
     [
         dot(relative, plane.x_axis),
@@ -1621,7 +1621,7 @@ fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
     ]
 }
 
-fn apply_plane(plane: &Plane, u: f64, v: f64, w: f64) -> [f64; 3] {
+fn apply_plane(plane: &Plane, u: f32, v: f32, w: f32) -> [f32; 3] {
     add(
         add(
             add(plane.origin, scale(plane.x_axis, u)),
@@ -1632,10 +1632,10 @@ fn apply_plane(plane: &Plane, u: f64, v: f64, w: f64) -> [f64; 3] {
 }
 
 fn intersect_ray_plane(
-    origin: [f64; 3],
-    direction: [f64; 3],
+    origin: [f32; 3],
+    direction: [f32; 3],
     plane: &Plane,
-) -> Option<([f64; 3], f64)> {
+) -> Option<([f32; 3], f32)> {
     let normal = plane.z_axis;
     let denom = dot(direction, normal);
     if denom.abs() < EPSILON {
@@ -1650,19 +1650,19 @@ fn intersect_ray_plane(
     Some((point, distance))
 }
 
-fn vector_length_squared(vector: [f64; 3]) -> f64 {
+fn vector_length_squared(vector: [f32; 3]) -> f32 {
     dot(vector, vector)
 }
 
-fn vector_length(vector: [f64; 3]) -> f64 {
+fn vector_length(vector: [f32; 3]) -> f32 {
     vector_length_squared(vector).sqrt()
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1670,19 +1670,19 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = vector_length(vector);
     if length < EPSILON {
         None
@@ -1691,13 +1691,13 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
+fn normalize(vector: [f32; 3]) -> [f32; 3] {
     safe_normalized(vector)
         .map(|(unit, _)| unit)
         .unwrap_or([0.0, 0.0, 0.0])
 }
 
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     let abs_x = vector[0].abs();
     let abs_y = vector[1].abs();
     let abs_z = vector[2].abs();
@@ -1738,10 +1738,10 @@ fn union_sets(parents: &mut [usize], ranks: &mut [u8], a: usize, b: usize) {
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    z_axis: [f32; 3],
 }
 
 impl Default for Plane {
@@ -1757,10 +1757,10 @@ impl Default for Plane {
 
 impl Plane {
     fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
+        origin: [f32; 3],
+        x_axis: [f32; 3],
+        y_axis: [f32; 3],
+        z_axis: [f32; 3],
     ) -> Self {
         let z = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -1785,7 +1785,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
         let ab = subtract(b, a);
         let ac = subtract(c, a);
         let normal = cross(ab, ac);
@@ -1809,12 +1809,12 @@ impl Plane {
 
 #[derive(Debug, Clone, Copy)]
 struct Line {
-    start: [f64; 3],
-    end: [f64; 3],
+    start: [f32; 3],
+    end: [f32; 3],
 }
 
 impl Line {
-    fn direction(self) -> [f64; 3] {
+    fn direction(self) -> [f32; 3] {
         subtract(self.end, self.start)
     }
 }
@@ -1940,7 +1940,7 @@ use super::{
             .get(PIN_OUTPUT_NUMBERS)
             .and_then(|value| value.expect_list().ok())
             .expect("numbers output present");
-        let values: Vec<f64> = numbers
+        let values: Vec<f32> = numbers
             .iter()
             .map(|value| value.expect_number().unwrap())
             .collect();
@@ -2019,7 +2019,7 @@ use super::{
             .get(PIN_OUTPUT_INDICES)
             .and_then(|value| value.expect_list().ok())
             .unwrap();
-        let values: Vec<f64> = indices
+        let values: Vec<f32> = indices
             .iter()
             .map(|value| value.expect_number().unwrap())
             .collect();
@@ -2043,7 +2043,7 @@ use super::{
             .get(PIN_OUTPUT_POINTS)
             .and_then(|value| value.expect_list().ok())
             .unwrap();
-        let sorted: Vec<[f64; 3]> = points
+        let sorted: Vec<[f32; 3]> = points
             .iter()
             .map(|value| value.expect_point().unwrap())
             .collect();
@@ -2056,7 +2056,7 @@ use super::{
             .get(PIN_OUTPUT_INDICES)
             .and_then(|value| value.expect_list().ok())
             .unwrap();
-        let values: Vec<f64> = indices
+        let values: Vec<f32> = indices
             .iter()
             .map(|value| value.expect_number().unwrap())
             .collect();
@@ -2088,7 +2088,7 @@ use super::{
             .get(PIN_OUTPUT_VALENCE)
             .and_then(|value| value.expect_list().ok())
             .unwrap();
-        let counts: Vec<f64> = valence
+        let counts: Vec<f32> = valence
             .iter()
             .map(|value| value.expect_number().unwrap())
             .collect();
@@ -2217,7 +2217,7 @@ use super::{
             .evaluate(
                 &[
                     plane,
-                    Value::Number(std::f64::consts::FRAC_PI_2),
+                    Value::Number(std::f32::consts::FRAC_PI_2),
                     Value::Number(2.0),
                     Value::Number(5.0),
                 ],
@@ -2279,9 +2279,9 @@ use super::{
             .get(PIN_OUTPUT_RADIUS)
             .and_then(|value| value.expect_number().ok())
             .unwrap();
-        assert!((phi - std::f64::consts::FRAC_PI_2).abs() < 1e-9);
-        assert!((theta - std::f64::consts::FRAC_PI_4).abs() < 1e-9);
-        assert!((radius - (2.0f64).sqrt()).abs() < 1e-9);
+        assert!((phi - std::f32::consts::FRAC_PI_2).abs() < 1e-9);
+        assert!((theta - std::f32::consts::FRAC_PI_4).abs() < 1e-9);
+        assert!((radius - (2.0f32).sqrt()).abs() < 1e-9);
     }
 
     #[test]
@@ -2308,7 +2308,7 @@ use super::{
             .get(PIN_OUTPUT_POINTS)
             .and_then(|value| value.expect_list().ok())
             .unwrap();
-        let ordered: Vec<[f64; 3]> = points
+        let ordered: Vec<[f32; 3]> = points
             .iter()
             .map(|value| value.expect_point().unwrap())
             .collect();

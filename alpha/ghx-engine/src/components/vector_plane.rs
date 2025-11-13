@@ -22,7 +22,7 @@ const PIN_OUTPUT_UV: &str = "uv";
 const PIN_OUTPUT_DISTANCE: &str = "D";
 const PIN_OUTPUT_ANGLE: &str = "A";
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componentvarianten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -621,10 +621,10 @@ fn plane_to_value(plane: Plane) -> Value {
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    z_axis: [f32; 3],
 }
 
 impl Default for Plane {
@@ -640,10 +640,10 @@ impl Default for Plane {
 
 impl Plane {
     fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
+        origin: [f32; 3],
+        x_axis: [f32; 3],
+        y_axis: [f32; 3],
+        z_axis: [f32; 3],
     ) -> Self {
         let z = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -668,7 +668,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
         let ab = subtract(b, a);
         let ac = subtract(c, a);
         let normal = cross(ab, ac);
@@ -701,17 +701,17 @@ impl From<Line> for Plane {
 
 #[derive(Debug, Clone, Copy)]
 struct Line {
-    start: [f64; 3],
-    end: [f64; 3],
+    start: [f32; 3],
+    end: [f32; 3],
 }
 
 impl Line {
-    fn direction(self) -> [f64; 3] {
+    fn direction(self) -> [f32; 3] {
         subtract(self.end, self.start)
     }
 }
 
-fn fit_plane_to_points(points: &[[f64; 3]]) -> (Plane, f64) {
+fn fit_plane_to_points(points: &[[f32; 3]]) -> (Plane, f32) {
     match points.len() {
         0 => (Plane::default(), 0.0),
         1 => {
@@ -735,7 +735,7 @@ fn fit_plane_to_points(points: &[[f64; 3]]) -> (Plane, f64) {
             for point in points {
                 centroid = add(centroid, *point);
             }
-            centroid = scale(centroid, 1.0 / points.len() as f64);
+            centroid = scale(centroid, 1.0 / points.len() as f32);
 
             let mut xx = 0.0;
             let mut xy = 0.0;
@@ -787,7 +787,7 @@ fn fit_plane_to_points(points: &[[f64; 3]]) -> (Plane, f64) {
             x_axis = normalize(cross(y_axis, normal));
             let plane = Plane::normalize_axes(centroid, x_axis, y_axis, normal);
 
-            let mut deviation = 0.0_f64;
+            let mut deviation = 0.0_f32;
             for point in points {
                 let coords = plane_coordinates(*point, &plane);
                 deviation = deviation.max(coords[2].abs());
@@ -798,7 +798,7 @@ fn fit_plane_to_points(points: &[[f64; 3]]) -> (Plane, f64) {
     }
 }
 
-fn plane_from_line_and_point(line: Line, point: [f64; 3]) -> Plane {
+fn plane_from_line_and_point(line: Line, point: [f32; 3]) -> Plane {
     let origin = line.start;
     let mut x_axis = line.direction();
     if vector_length_squared(x_axis) < EPSILON {
@@ -877,7 +877,7 @@ fn align_plane_to_reference(reference: Plane, plane: Plane) -> Plane {
     ];
 
     let mut best = candidates[0];
-    let mut best_score = f64::NEG_INFINITY;
+    let mut best_score = f32::NEG_INFINITY;
     for candidate in candidates {
         let score =
             dot(candidate.x_axis, reference.x_axis) + dot(candidate.y_axis, reference.y_axis);
@@ -889,7 +889,7 @@ fn align_plane_to_reference(reference: Plane, plane: Plane) -> Plane {
     Plane::normalize_axes(best.origin, best.x_axis, best.y_axis, best.z_axis)
 }
 
-fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
+fn plane_coordinates(point: [f32; 3], plane: &Plane) -> [f32; 3] {
     let relative = subtract(point, plane.origin);
     [
         dot(relative, plane.x_axis),
@@ -898,7 +898,7 @@ fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
     ]
 }
 
-fn apply_plane(plane: &Plane, u: f64, v: f64, w: f64) -> [f64; 3] {
+fn apply_plane(plane: &Plane, u: f32, v: f32, w: f32) -> [f32; 3] {
     add(
         add(
             add(plane.origin, scale(plane.x_axis, u)),
@@ -946,7 +946,7 @@ fn collect_planes_into(
     }
 }
 
-fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let mut points = Vec::new();
     if let Some(value) = value {
         collect_points_into(value, context, &mut points)?;
@@ -957,7 +957,7 @@ fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>,
 fn collect_points_into(
     value: &Value,
     context: &str,
-    output: &mut Vec<[f64; 3]>,
+    output: &mut Vec<[f32; 3]>,
 ) -> Result<(), ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => {
@@ -983,7 +983,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f64>() {
+            if let Ok(parsed) = text.trim().parse::<f32>() {
                 output.push([parsed, 0.0, 0.0]);
                 Ok(())
             } else {
@@ -1073,7 +1073,7 @@ fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError> {
     }
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => Ok(*number),
         Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
@@ -1099,7 +1099,7 @@ fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> 
     }
 }
 
-fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_vector(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Vector(vector) => Ok(*vector),
         Value::Point(point) => Ok(*point),
@@ -1124,7 +1124,7 @@ fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentErro
     }
 }
 
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(point) => Ok(*point),
         Value::Vector(vector) => Ok(*vector),
@@ -1144,13 +1144,13 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
 }
 
 fn jacobi_eigen_decomposition(
-    xx: f64,
-    xy: f64,
-    xz: f64,
-    yy: f64,
-    yz: f64,
-    zz: f64,
-) -> ([f64; 3], [[f64; 3]; 3]) {
+    xx: f32,
+    xy: f32,
+    xz: f32,
+    yy: f32,
+    yz: f32,
+    zz: f32,
+) -> ([f32; 3], [[f32; 3]; 3]) {
     let mut m = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]];
     let mut eigen_vectors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
     let tolerance = 1e-10;
@@ -1202,7 +1202,7 @@ fn jacobi_eigen_decomposition(
     ([m[0][0], m[1][1], m[2][2]], eigen_vectors)
 }
 
-fn quaternion_from_axis_angle(axis: [f64; 3], angle: f64) -> [f64; 4] {
+fn quaternion_from_axis_angle(axis: [f32; 3], angle: f32) -> [f32; 4] {
     if vector_length_squared(axis) < EPSILON {
         return [1.0, 0.0, 0.0, 0.0];
     }
@@ -1217,7 +1217,7 @@ fn quaternion_from_axis_angle(axis: [f64; 3], angle: f64) -> [f64; 4] {
     ]
 }
 
-fn apply_quaternion(vector: [f64; 3], quaternion: [f64; 4]) -> [f64; 3] {
+fn apply_quaternion(vector: [f32; 3], quaternion: [f32; 4]) -> [f32; 3] {
     let [w, x, y, z] = quaternion;
     let q_vec = [x, y, z];
     let uv = cross(q_vec, vector);
@@ -1227,7 +1227,7 @@ fn apply_quaternion(vector: [f64; 3], quaternion: [f64; 4]) -> [f64; 3] {
     add(vector, add(uv, uuv))
 }
 
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = vector_length(vector);
     if length < EPSILON {
         None
@@ -1236,7 +1236,7 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
+fn normalize(vector: [f32; 3]) -> [f32; 3] {
     if let Some((normalized, _)) = safe_normalized(vector) {
         normalized
     } else {
@@ -1244,19 +1244,19 @@ fn normalize(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn vector_length_squared(vector: [f64; 3]) -> f64 {
+fn vector_length_squared(vector: [f32; 3]) -> f32 {
     dot(vector, vector)
 }
 
-fn vector_length(vector: [f64; 3]) -> f64 {
+fn vector_length(vector: [f32; 3]) -> f32 {
     vector_length_squared(vector).sqrt()
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1264,19 +1264,19 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     let abs_x = vector[0].abs();
     let abs_y = vector[1].abs();
     let abs_z = vector[2].abs();
@@ -1289,7 +1289,7 @@ fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn clamp_to_unit(value: f64) -> f64 {
+fn clamp_to_unit(value: f32) -> f32 {
     if value > 1.0 {
         1.0
     } else if value < -1.0 {
@@ -1361,6 +1361,6 @@ mod tests {
                 _ => None,
             })
             .expect("hoek output aanwezig");
-        assert!((angle - std::f64::consts::FRAC_PI_2).abs() < 1e-6);
+        assert!((angle - std::f32::consts::FRAC_PI_2).abs() < 1e-6);
     }
 }

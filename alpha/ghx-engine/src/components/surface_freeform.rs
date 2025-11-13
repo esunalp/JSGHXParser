@@ -16,7 +16,7 @@ const PIN_OUTPUT_PIPE: &str = "P";
 const PIN_OUTPUT_LOFT: &str = "L";
 const PIN_OUTPUT_SHAPE: &str = "S";
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componentvarianten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -426,7 +426,7 @@ fn evaluate_sum_surface(inputs: &[Value]) -> ComponentResult {
     into_output(PIN_OUTPUT_SURFACE, surface)
 }
 
-fn polyline_from_segments(segments: &Vec<([f64; 3], [f64; 3])>) -> Vec<[f64; 3]> {
+fn polyline_from_segments(segments: &Vec<([f32; 3], [f32; 3])>) -> Vec<[f32; 3]> {
     if segments.is_empty() {
         return Vec::new();
     }
@@ -575,8 +575,8 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
         coerce_number(value, component, "Caps")?;
     }
 
-    let average_radius = radii.iter().map(|value| value.abs()).sum::<f64>()
-        / radii.len() as f64;
+    let average_radius = radii.iter().map(|value| value.abs()).sum::<f32>()
+        / radii.len() as f32;
 
     let mut points = Vec::new();
     for (start, end) in segments {
@@ -842,7 +842,7 @@ fn evaluate_rail_revolution(inputs: &[Value]) -> ComponentResult {
     into_output(PIN_OUTPUT_SURFACE, surface)
 }
 
-fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn collect_points(value: &Value, component: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     match value {
         Value::Point(point) => Ok(vec![*point]),
         Value::Vector(vector) => Ok(vec![*vector]),
@@ -862,7 +862,7 @@ fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, Compo
     }
 }
 
-fn coerce_direction(value: &Value, component: &str, name: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_direction(value: &Value, component: &str, name: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Vector(vector) => Ok(*vector),
         Value::CurveLine { p1, p2 } => Ok(subtract_points(*p2, *p1)),
@@ -875,7 +875,7 @@ fn coerce_direction(value: &Value, component: &str, name: &str) -> Result<[f64; 
     }
 }
 
-fn coerce_point(value: &Value, component: &str, name: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value, component: &str, name: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(point) => Ok(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0], component, name),
@@ -886,7 +886,7 @@ fn coerce_point(value: &Value, component: &str, name: &str) -> Result<[f64; 3], 
     }
 }
 
-fn coerce_number(value: &Value, component: &str, name: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value, component: &str, name: &str) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => Ok(*number),
         Value::List(values) if values.len() == 1 => coerce_number(&values[0], component, name),
@@ -913,7 +913,7 @@ fn coerce_number_list(
     value: &Value,
     component: &str,
     name: &str,
-) -> Result<Vec<f64>, ComponentError> {
+) -> Result<Vec<f32>, ComponentError> {
     match value {
         Value::Number(number) => Ok(vec![*number]),
         Value::List(values) => {
@@ -930,7 +930,7 @@ fn coerce_number_list(
     }
 }
 
-fn coerce_angle_domain(value: &Value, component: &str) -> Result<f64, ComponentError> {
+fn coerce_angle_domain(value: &Value, component: &str) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => Ok(*number),
         Value::Domain(Domain::One(domain)) => Ok(domain.length.abs()),
@@ -946,15 +946,15 @@ fn coerce_angle_domain(value: &Value, component: &str) -> Result<f64, ComponentE
 }
 
 fn create_surface_from_points(
-    points: &[[f64; 3]],
+    points: &[[f32; 3]],
     component: &str,
 ) -> Result<Value, ComponentError> {
     create_surface_from_points_with_padding(points, 0.0, component)
 }
 
 fn create_surface_from_points_with_padding(
-    points: &[[f64; 3]],
-    padding: f64,
+    points: &[[f32; 3]],
+    padding: f32,
     component: &str,
 ) -> Result<Value, ComponentError> {
     if points.len() < 2 {
@@ -1045,7 +1045,7 @@ fn expect_input<'a>(
     })
 }
 
-fn add_vector(point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
+fn add_vector(point: [f32; 3], direction: [f32; 3]) -> [f32; 3] {
     [
         point[0] + direction[0],
         point[1] + direction[1],
@@ -1053,11 +1053,11 @@ fn add_vector(point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn subtract_points(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract_points(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn is_zero_vector(vector: [f64; 3]) -> bool {
+fn is_zero_vector(vector: [f32; 3]) -> bool {
     vector.iter().all(|component| component.abs() < EPSILON)
 }
 
@@ -1191,7 +1191,7 @@ mod tests {
         let span = vertices
             .iter()
             .map(|vertex| vertex[0])
-            .fold((f64::MAX, f64::MIN), |(min, max), value| {
+            .fold((f32::MAX, f32::MIN), |(min, max), value| {
                 (min.min(value), max.max(value))
             });
         assert!((span.1 - span.0) > 0.5);

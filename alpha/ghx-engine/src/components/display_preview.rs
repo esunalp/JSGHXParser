@@ -213,7 +213,7 @@ fn symbol_advanced(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     Ok(outputs)
 }
 
-fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value) -> Result<f32, ComponentError> {
     match value {
         Value::Number(n) => Ok(*n),
         other => Err(ComponentError::new(format!(
@@ -445,13 +445,13 @@ fn coerce_material(value: &Value) -> Result<MaterialValue, ComponentError> {
     }
 }
 
-fn collect_points(value: &Value) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn collect_points(value: &Value) -> Result<Vec<[f32; 3]>, ComponentError> {
     let mut points = Vec::new();
     collect_points_into(value, &mut points)?;
     Ok(points)
 }
 
-fn collect_points_into(value: &Value, output: &mut Vec<[f64; 3]>) -> Result<(), ComponentError> {
+fn collect_points_into(value: &Value, output: &mut Vec<[f32; 3]>) -> Result<(), ComponentError> {
     match value {
         Value::Point(p) => {
             output.push(*p);
@@ -489,13 +489,13 @@ fn collect_colors_into(value: &Value, output: &mut Vec<ColorValue>) -> Result<()
     }
 }
 
-fn collect_numbers(value: &Value) -> Result<Vec<f64>, ComponentError> {
+fn collect_numbers(value: &Value) -> Result<Vec<f32>, ComponentError> {
     let mut numbers = Vec::new();
     collect_numbers_into(value, &mut numbers)?;
     Ok(numbers)
 }
 
-fn collect_numbers_into(value: &Value, output: &mut Vec<f64>) -> Result<(), ComponentError> {
+fn collect_numbers_into(value: &Value, output: &mut Vec<f32>) -> Result<(), ComponentError> {
     match value {
         Value::Number(n) => {
             output.push(*n);

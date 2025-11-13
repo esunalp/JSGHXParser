@@ -59,7 +59,7 @@ impl Component for TextLengthComponent {
         }
         let text = coerce_string(&inputs[0])?;
         let mut outputs = BTreeMap::new();
-        outputs.insert("L".to_owned(), Value::Number(text.len() as f64));
+        outputs.insert("L".to_owned(), Value::Number(text.len() as f32));
         Ok(outputs)
     }
 }
@@ -133,7 +133,7 @@ impl Component for CharactersComponent {
         }
         let text = coerce_string(&inputs[0])?;
         let chars = text.chars().map(|c| Value::Text(c.to_string())).collect();
-        let unicode = text.chars().map(|c| Value::Number(c as u32 as f64)).collect();
+        let unicode = text.chars().map(|c| Value::Number(c as u32 as f32)).collect();
         let mut outputs = BTreeMap::new();
         outputs.insert("C".to_owned(), Value::List(chars));
         outputs.insert("U".to_owned(), Value::List(unicode));
@@ -231,7 +231,7 @@ impl Component for TextDistanceComponent {
         };
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("D".to_owned(), Value::Number(distance as f64));
+        outputs.insert("D".to_owned(), Value::Number(distance as f32));
         Ok(outputs)
     }
 }

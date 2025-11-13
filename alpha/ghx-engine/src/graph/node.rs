@@ -24,15 +24,15 @@ impl From<usize> for NodeId {
 /// Waarde die meta-informatie over een node beschrijft (bv. slider-ranges).
 #[derive(Debug, Clone, PartialEq)]
 pub enum MetaValue {
-    Number(f64),
+    Number(f32),
     Integer(i64),
     Boolean(bool),
     Text(String),
     List(Vec<MetaValue>),
 }
 
-impl From<f64> for MetaValue {
-    fn from(value: f64) -> Self {
+impl From<f32> for MetaValue {
+    fn from(value: f32) -> Self {
         Self::Number(value)
     }
 }
@@ -184,11 +184,11 @@ mod tests {
 
         assert!(matches!(
             node.input("A"),
-            Some(Value::Number(value)) if (value - 1.0).abs() < f64::EPSILON
+            Some(Value::Number(value)) if (value - 1.0).abs() < f32::EPSILON
         ));
         assert!(matches!(
             node.output("R"),
-            Some(Value::Number(value)) if (value - 2.0).abs() < f64::EPSILON
+            Some(Value::Number(value)) if (value - 2.0).abs() < f32::EPSILON
         ));
     }
 
@@ -199,7 +199,7 @@ mod tests {
         node.insert_meta("label", "Example");
 
         assert!(
-            matches!(node.meta("min"), Some(MetaValue::Number(v)) if (*v - 0.0).abs() < f64::EPSILON)
+            matches!(node.meta("min"), Some(MetaValue::Number(v)) if (*v - 0.0).abs() < f32::EPSILON)
         );
         assert!(matches!(node.meta("label"), Some(MetaValue::Text(text)) if text == "Example"));
     }

@@ -323,17 +323,17 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
     {
         if let Some(raw_value) = slider_chunk.item_value("Value") {
             if value.is_none() {
-                value = parse_f64(raw_value);
+                value = parse_f32(raw_value);
             }
         }
         if let Some(raw_min) = slider_chunk.item_value("Min") {
             if min.is_none() {
-                min = parse_f64(raw_min);
+                min = parse_f32(raw_min);
             }
         }
         if let Some(raw_max) = slider_chunk.item_value("Max") {
             if max.is_none() {
-                max = parse_f64(raw_max);
+                max = parse_f32(raw_max);
             }
         }
         if let Some(raw_step) = slider_chunk
@@ -342,7 +342,7 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
             .or_else(|| slider_chunk.item_value("Interval"))
         {
             if step.is_none() {
-                step = parse_f64(raw_step);
+                step = parse_f32(raw_step);
             }
         }
     }
@@ -458,7 +458,7 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
         || type_name.contains("int")
         || type_name.contains("number")
     {
-        if let Some(number) = parse_f64(text) {
+        if let Some(number) = parse_f32(text) {
             return Some(Value::Number(number));
         }
     }
@@ -473,8 +473,8 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
     Some(Value::Text(text.to_owned()))
 }
 
-fn parse_point_value(text: &str) -> Option<[f64; 3]> {
-    let parts: Vec<Option<f64>> = text.split(',').map(parse_f64).collect();
+fn parse_point_value(text: &str) -> Option<[f32; 3]> {
+    let parts: Vec<Option<f32>> = text.split(',').map(parse_f32).collect();
     if parts.len() != 3 {
         return None;
     }
@@ -484,9 +484,9 @@ fn parse_point_value(text: &str) -> Option<[f64; 3]> {
     Some([x, y, z])
 }
 
-fn parse_f64(value: &str) -> Option<f64> {
+fn parse_f32(value: &str) -> Option<f32> {
     let normalized = value.trim().replace(',', ".");
-    normalized.parse::<f64>().ok()
+    normalized.parse::<f32>().ok()
 }
 
 fn normalize_guid_str(raw: &str) -> Option<String> {
@@ -563,13 +563,13 @@ struct GhxWire {
 #[derive(Debug, Deserialize)]
 struct GhxSlider {
     #[serde(rename = "@min")]
-    min: f64,
+    min: f32,
     #[serde(rename = "@max")]
-    max: f64,
+    max: f32,
     #[serde(rename = "@value")]
-    value: f64,
+    value: f32,
     #[serde(rename = "@step")]
-    step: f64,
+    step: f32,
     #[serde(default, rename = "@output")]
     output_pin: Option<String>,
 }
@@ -618,7 +618,7 @@ impl GhxPin {
 impl GhxPin {
     fn as_value(&self) -> Option<Value> {
         let raw = self.value()?;
-        if let Ok(number) = raw.parse::<f64>() {
+        if let Ok(number) = raw.parse::<f32>() {
             return Some(Value::Number(number));
         }
 
@@ -778,9 +778,9 @@ mod tests {
         let input_value = point_node.inputs.get("P").unwrap();
         match input_value {
             Value::Point(p) => {
-                assert!((p[0] - 10.5).abs() < f64::EPSILON);
-                assert!((p[1] - 20.0).abs() < f64::EPSILON);
-                assert!((p[2] - -5.2).abs() < f64::EPSILON);
+                assert!((p[0] - 10.5).abs() < f32::EPSILON);
+                assert!((p[1] - 20.0).abs() < f32::EPSILON);
+                assert!((p[2] - -5.2).abs() < f32::EPSILON);
             }
             _ => panic!("Expected a Point value, got {:?}", input_value),
         }
@@ -804,7 +804,7 @@ mod tests {
 
         let extract = |key: &str| match slider.meta(key) {
             Some(MetaValue::Number(number)) => Some(*number),
-            Some(MetaValue::Integer(integer)) => Some(*integer as f64),
+            Some(MetaValue::Integer(integer)) => Some(*integer as f32),
             _ => None,
         };
 
@@ -863,7 +863,7 @@ mod tests {
             Some(MetaValue::Number(number)) => *number,
             other => panic!("unexpected slider value meta: {other:?}"),
         };
-        assert!((height_value - 2.0).abs() < f64::EPSILON);
+        assert!((height_value - 2.0).abs() < f32::EPSILON);
     }
 
     #[test]

@@ -7,7 +7,7 @@ use crate::graph::value::Value;
 
 use super::{Component, ComponentResult};
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -167,28 +167,28 @@ pub const REGISTRATIONS: &[Registration] = &[
 impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
-            Self::Tangent => evaluate_simple_trig(inputs, f64::tan),
+            Self::Tangent => evaluate_simple_trig(inputs, f32::tan),
             Self::Mean => evaluate_mean(inputs),
-            Self::Cosine => evaluate_simple_trig(inputs, f64::cos),
-            Self::ArcSine => evaluate_simple_trig(inputs, f64::asin),
+            Self::Cosine => evaluate_simple_trig(inputs, f32::cos),
+            Self::ArcSine => evaluate_simple_trig(inputs, f32::asin),
             Self::Multiplication => evaluate_binary_op(inputs, |a, b| a * b),
             Self::Modulus => evaluate_binary_op(inputs, |a, b| a % b),
             Self::Minimum => evaluate_binary_op(inputs, |a, b| a.min(b)),
-            Self::PowerOfE => evaluate_simple_trig(inputs, f64::exp),
+            Self::PowerOfE => evaluate_simple_trig(inputs, f32::exp),
             Self::MassAddition => evaluate_mass_addition(inputs),
-            Self::ArcTangent => evaluate_simple_trig(inputs, f64::atan),
-            Self::NaturalLogarithm => evaluate_simple_trig(inputs, f64::ln),
+            Self::ArcTangent => evaluate_simple_trig(inputs, f32::atan),
+            Self::NaturalLogarithm => evaluate_simple_trig(inputs, f32::ln),
             Self::Power => evaluate_binary_op(inputs, |a, b| a.powf(b)),
-            Self::PowerOf2 => evaluate_simple_trig(inputs, |x| 2.0_f64.powf(x)),
+            Self::PowerOf2 => evaluate_simple_trig(inputs, |x| 2.0_f32.powf(x)),
             Self::Truncate => evaluate_truncate(inputs),
             Self::Addition => evaluate_binary_op(inputs, |a, b| a + b),
-            Self::ArcCosine => evaluate_simple_trig(inputs, f64::acos),
-            Self::Logarithm => evaluate_simple_trig(inputs, f64::log10),
+            Self::ArcCosine => evaluate_simple_trig(inputs, f32::acos),
+            Self::Logarithm => evaluate_simple_trig(inputs, f32::log10),
             Self::Sinc => evaluate_sinc(inputs),
             Self::Maximum => evaluate_binary_op(inputs, |a, b| a.max(b)),
             Self::Division => evaluate_division(inputs),
-            Self::Sine => evaluate_simple_trig(inputs, f64::sin),
-            Self::PowerOf10 => evaluate_simple_trig(inputs, |x| 10.0_f64.powf(x)),
+            Self::Sine => evaluate_simple_trig(inputs, f32::sin),
+            Self::PowerOf10 => evaluate_simple_trig(inputs, |x| 10.0_f32.powf(x)),
             Self::Subtraction => evaluate_binary_op(inputs, |a, b| a - b),
         }
     }
@@ -225,7 +225,7 @@ impl ComponentKind {
     }
 }
 
-fn evaluate_simple_trig(inputs: &[Value], compute: fn(f64) -> f64) -> ComponentResult {
+fn evaluate_simple_trig(inputs: &[Value], compute: fn(f32) -> f32) -> ComponentResult {
     let numeric = coerce_number_any(inputs.get(0));
     let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
         compute(value)
@@ -253,7 +253,7 @@ fn evaluate_sinc(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn evaluate_binary_op(inputs: &[Value], op: fn(f64, f64) -> f64) -> ComponentResult {
+fn evaluate_binary_op(inputs: &[Value], op: fn(f32, f32) -> f32) -> ComponentResult {
     let a = coerce_number_any(inputs.get(0)).unwrap_or(0.0);
     let b = coerce_number_any(inputs.get(1)).unwrap_or(0.0);
     let result = op(a, b);
@@ -265,7 +265,7 @@ fn evaluate_binary_op(inputs: &[Value], op: fn(f64, f64) -> f64) -> ComponentRes
 fn evaluate_division(inputs: &[Value]) -> ComponentResult {
     let a = coerce_number_any(inputs.get(0)).unwrap_or(0.0);
     let b = coerce_number_any(inputs.get(1)).unwrap_or(0.0);
-    let result = if b.abs() < EPSILON { f64::NAN } else { a / b };
+    let result = if b.abs() < EPSILON { f32::NAN } else { a / b };
     let mut outputs = BTreeMap::new();
     outputs.insert("R".to_owned(), Value::Number(result));
     Ok(outputs)
@@ -281,14 +281,14 @@ fn evaluate_mean(inputs: &[Value]) -> ComponentResult {
         return Ok(outputs);
     }
 
-    let count = numbers.len() as f64;
-    let sum: f64 = numbers.iter().sum();
+    let count = numbers.len() as f32;
+    let sum: f32 = numbers.iter().sum();
     let am = sum / count;
 
-    let prod: f64 = numbers.iter().product();
+    let prod: f32 = numbers.iter().product();
     let gm = prod.powf(1.0 / count);
 
-    let hm = count / numbers.iter().map(|n| 1.0 / n).sum::<f64>();
+    let hm = count / numbers.iter().map(|n| 1.0 / n).sum::<f32>();
 
     outputs.insert("AM".to_owned(), Value::Number(am));
     outputs.insert("GM".to_owned(), Value::Number(gm));
@@ -317,7 +317,7 @@ fn evaluate_truncate(inputs: &[Value]) -> ComponentResult {
 
     numbers.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let len = numbers.len();
-    let count = (len as f64 * factor / 2.0).floor() as usize;
+    let count = (len as f32 * factor / 2.0).floor() as usize;
 
     let truncated = numbers.into_iter().skip(count).take(len - 2 * count).map(Value::Number).collect();
 
@@ -326,17 +326,17 @@ fn evaluate_truncate(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn coerce_number_any(value: Option<&Value>) -> Option<f64> {
+fn coerce_number_any(value: Option<&Value>) -> Option<f32> {
     value.and_then(|value| match value {
         Value::Number(number) => Some(*number),
         Value::Boolean(boolean) => Some(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => text.trim().parse::<f64>().ok(),
+        Value::Text(text) => text.trim().parse::<f32>().ok(),
         Value::List(values) if values.len() == 1 => coerce_number_any(values.get(0)),
         _ => None,
     })
 }
 
-fn coerce_number_list(value: Option<&Value>) -> Vec<f64> {
+fn coerce_number_list(value: Option<&Value>) -> Vec<f32> {
     if let Some(Value::List(values)) = value {
         values.iter().filter_map(|v| coerce_number_any(Some(v))).collect()
     } else if let Some(v) = coerce_number_any(value) {

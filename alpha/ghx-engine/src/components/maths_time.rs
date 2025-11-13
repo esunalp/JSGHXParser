@@ -187,8 +187,8 @@ fn evaluate_interpolate_date(inputs: &[Value]) -> ComponentResult {
     let factor = coerce_number(inputs.get(2), "Interpolation")?;
 
     let diff = end - start;
-    let nanos = (diff.whole_nanoseconds() as f64 * factor).round();
-    if !nanos.is_finite() || nanos < i128::MIN as f64 || nanos > i128::MAX as f64 {
+    let nanos = (diff.whole_nanoseconds() as f32 * factor).round();
+    if !nanos.is_finite() || nanos < i128::MIN as f32 || nanos > i128::MAX as f32 {
         return Err(ComponentError::new(
             "Interpolation resulteert in een waarde buiten het bereik",
         ));
@@ -214,18 +214,18 @@ fn evaluate_deconstruct_date(inputs: &[Value]) -> ComponentResult {
     let time = datetime.time();
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_YEAR.to_owned(), Value::Number(date.year() as f64));
+    outputs.insert(PIN_YEAR.to_owned(), Value::Number(date.year() as f32));
     outputs.insert(
         PIN_MONTH.to_owned(),
-        Value::Number((date.month() as u8) as f64),
+        Value::Number((date.month() as u8) as f32),
     );
-    outputs.insert(PIN_DAY.to_owned(), Value::Number(date.day() as f64));
-    outputs.insert(PIN_HOUR_LOWER.to_owned(), Value::Number(time.hour() as f64));
+    outputs.insert(PIN_DAY.to_owned(), Value::Number(date.day() as f32));
+    outputs.insert(PIN_HOUR_LOWER.to_owned(), Value::Number(time.hour() as f32));
     outputs.insert(
         PIN_MINUTE_LOWER.to_owned(),
-        Value::Number(time.minute() as f64),
+        Value::Number(time.minute() as f32),
     );
-    let seconds = time.second() as f64 + time.nanosecond() as f64 / 1_000_000_000.0;
+    let seconds = time.second() as f32 + time.nanosecond() as f32 / 1_000_000_000.0;
     outputs.insert(PIN_SECOND_LOWER.to_owned(), Value::Number(seconds));
     Ok(outputs)
 }
@@ -252,8 +252,8 @@ fn evaluate_construct_smooth_time(inputs: &[Value]) -> ComponentResult {
 
     let total_seconds = days * 86_400.0 + hours * 3_600.0 + minutes * 60.0 + seconds;
     if !total_seconds.is_finite()
-        || total_seconds < (i128::MIN as f64) / 1_000_000_000.0
-        || total_seconds > (i128::MAX as f64) / 1_000_000_000.0
+        || total_seconds < (i128::MIN as f32) / 1_000_000_000.0
+        || total_seconds > (i128::MAX as f32) / 1_000_000_000.0
     {
         return Err(ComponentError::new(
             "De ingevoerde waarden leveren een tijd buiten het bereik op",
@@ -302,9 +302,9 @@ fn coerce_integer_with_default(
 
 fn coerce_second_with_default(
     value: Option<&Value>,
-    default: f64,
+    default: f32,
     label: &str,
-) -> Result<f64, ComponentError> {
+) -> Result<f32, ComponentError> {
     let seconds = match value {
         Some(value) => number_from_value(value, label)?,
         None => return Ok(default),
@@ -317,16 +317,16 @@ fn coerce_second_with_default(
     Ok(seconds)
 }
 
-fn coerce_number(value: Option<&Value>, label: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, label: &str) -> Result<f32, ComponentError> {
     let value = value.ok_or_else(|| ComponentError::new(format!("{label} vereist een invoer")))?;
     number_from_value(value, label)
 }
 
 fn coerce_number_with_default(
     value: Option<&Value>,
-    default: f64,
+    default: f32,
     label: &str,
-) -> Result<f64, ComponentError> {
+) -> Result<f32, ComponentError> {
     match value {
         Some(value) => number_from_value(value, label),
         None => Ok(default),
@@ -355,7 +355,7 @@ fn integer_from_value(value: &Value, label: &str) -> Result<i32, ComponentError>
                     "{label} verwacht een geheel getal, kreeg {number}"
                 )));
             }
-            if rounded < i32::MIN as f64 || rounded > i32::MAX as f64 {
+            if rounded < i32::MIN as f32 || rounded > i32::MAX as f32 {
                 return Err(ComponentError::new(format!(
                     "{label} valt buiten het ondersteunde bereik"
                 )));
@@ -370,7 +370,7 @@ fn integer_from_value(value: &Value, label: &str) -> Result<i32, ComponentError>
     }
 }
 
-fn number_from_value(value: &Value, label: &str) -> Result<f64, ComponentError> {
+fn number_from_value(value: &Value, label: &str) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => {
             if !number.is_finite() {
@@ -399,7 +399,7 @@ fn date_time_from_value(value: &Value, label: &str) -> Result<PrimitiveDateTime,
     }
 }
 
-fn build_time(hour: i32, minute: i32, seconds: f64) -> Result<Time, ComponentError> {
+fn build_time(hour: i32, minute: i32, seconds: f32) -> Result<Time, ComponentError> {
     if !(0.0..60.0).contains(&seconds) {
         return Err(ComponentError::new(format!(
             "Second moet tussen 0 en 60 liggen, kreeg {seconds}"

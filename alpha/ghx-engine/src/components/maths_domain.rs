@@ -26,7 +26,7 @@ const PIN_V_COMPONENT: &str = "V";
 const PIN_INCLUDES: &str = "I";
 const PIN_DEVIATION: &str = "D";
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -207,7 +207,7 @@ fn evaluate_find_domain(inputs: &[Value]) -> ComponentResult {
     let value = value.unwrap();
     let mut first_match = -1;
     let mut closest_index = -1;
-    let mut closest_distance = f64::INFINITY;
+    let mut closest_distance = f32::INFINITY;
 
     for (idx, domain) in domains.iter().enumerate() {
         if first_match == -1 && is_value_in_domain(value, domain, strict) {
@@ -462,8 +462,8 @@ fn evaluate_bounds_2d(inputs: &[Value]) -> ComponentResult {
     if pairs.is_empty() {
         return Ok(BTreeMap::new());
     }
-    let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
-    let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
+    let (mut min_x, mut max_x) = (f32::INFINITY, f32::NEG_INFINITY);
+    let (mut min_y, mut max_y) = (f32::INFINITY, f32::NEG_INFINITY);
     for (x, y) in pairs {
         if x < min_x {
             min_x = x;
@@ -524,7 +524,7 @@ fn evaluate_includes(inputs: &[Value]) -> ComponentResult {
     if !value.is_finite() {
         let mut outputs = BTreeMap::new();
         outputs.insert(PIN_INCLUDES.to_owned(), Value::Boolean(false));
-        outputs.insert(PIN_DEVIATION.to_owned(), Value::Number(f64::NAN));
+        outputs.insert(PIN_DEVIATION.to_owned(), Value::Number(f32::NAN));
         return Ok(outputs);
     }
     let includes = is_value_in_domain(value, &domain, false);
@@ -571,12 +571,12 @@ fn evaluate_remap_numbers_single(inputs: &[Value]) -> ComponentResult {
 
 fn default_index_output(index: i32, neighbour: i32) -> BTreeMap<String, Value> {
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_INDEX.to_owned(), Value::Number(index as f64));
-    outputs.insert(PIN_NEIGHBOUR.to_owned(), Value::Number(neighbour as f64));
+    outputs.insert(PIN_INDEX.to_owned(), Value::Number(index as f32));
+    outputs.insert(PIN_NEIGHBOUR.to_owned(), Value::Number(neighbour as f32));
     outputs
 }
 
-fn extract_number(value: &Value) -> Option<f64> {
+fn extract_number(value: &Value) -> Option<f32> {
     match value {
         Value::Number(number) if number.is_finite() => Some(*number),
         Value::Number(number) if number.is_nan() => None,
@@ -658,7 +658,7 @@ fn parse_domain2d(value: &Value) -> Option<Domain2D> {
     }
 }
 
-fn create_domain(start: f64, end: f64) -> Option<Domain1D> {
+fn create_domain(start: f32, end: f32) -> Option<Domain1D> {
     if !start.is_finite() || !end.is_finite() {
         return None;
     }
@@ -705,7 +705,7 @@ fn collect_domains_recursive(value: &Value, result: &mut Vec<Domain1D>) {
     }
 }
 
-fn domain_distance(value: f64, domain: &Domain1D) -> f64 {
+fn domain_distance(value: f32, domain: &Domain1D) -> f32 {
     if value < domain.min {
         domain.min - value
     } else if value > domain.max {
@@ -715,7 +715,7 @@ fn domain_distance(value: f64, domain: &Domain1D) -> f64 {
     }
 }
 
-fn is_value_in_domain(value: f64, domain: &Domain1D, strict: bool) -> bool {
+fn is_value_in_domain(value: f32, domain: &Domain1D, strict: bool) -> bool {
     if strict {
         if domain.length <= EPSILON {
             return false;
@@ -726,7 +726,7 @@ fn is_value_in_domain(value: f64, domain: &Domain1D, strict: bool) -> bool {
     }
 }
 
-fn clamp_value_to_domain(value: f64, domain: &Domain1D) -> f64 {
+fn clamp_value_to_domain(value: f32, domain: &Domain1D) -> f32 {
     if value < domain.min {
         domain.min
     } else if value > domain.max {
@@ -736,7 +736,7 @@ fn clamp_value_to_domain(value: f64, domain: &Domain1D) -> f64 {
     }
 }
 
-fn remap_value(value: f64, source: &Domain1D, target: &Domain1D) -> f64 {
+fn remap_value(value: f32, source: &Domain1D, target: &Domain1D) -> f32 {
     let source_span = source.end - source.start;
     if source_span.abs() <= EPSILON {
         return target.start;
@@ -745,7 +745,7 @@ fn remap_value(value: f64, source: &Domain1D, target: &Domain1D) -> f64 {
     target.start + ratio * (target.end - target.start)
 }
 
-fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
+fn collect_numbers(value: Option<&Value>) -> Vec<f32> {
     let mut result = Vec::new();
     if let Some(value) = value {
         collect_numbers_recursive(value, &mut result);
@@ -753,7 +753,7 @@ fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
     result
 }
 
-fn collect_numbers_recursive(value: &Value, result: &mut Vec<f64>) {
+fn collect_numbers_recursive(value: &Value, result: &mut Vec<f32>) {
     match value {
         Value::Number(number) if number.is_finite() => result.push(*number),
         Value::List(values) => {
@@ -781,7 +781,7 @@ fn collect_numbers_recursive(value: &Value, result: &mut Vec<f64>) {
     }
 }
 
-fn collect_coordinate_pairs(value: Option<&Value>) -> Vec<(f64, f64)> {
+fn collect_coordinate_pairs(value: Option<&Value>) -> Vec<(f32, f32)> {
     let mut result = Vec::new();
     if let Some(value) = value {
         collect_coordinate_pairs_recursive(value, &mut result);
@@ -789,7 +789,7 @@ fn collect_coordinate_pairs(value: Option<&Value>) -> Vec<(f64, f64)> {
     result
 }
 
-fn collect_coordinate_pairs_recursive(value: &Value, result: &mut Vec<(f64, f64)>) {
+fn collect_coordinate_pairs_recursive(value: &Value, result: &mut Vec<(f32, f32)>) {
     match value {
         Value::Point([x, y, _]) | Value::Vector([x, y, _]) => {
             if x.is_finite() && y.is_finite() {
@@ -812,12 +812,12 @@ fn collect_coordinate_pairs_recursive(value: &Value, result: &mut Vec<(f64, f64)
     }
 }
 
-fn compute_domain_from_numbers(numbers: &[f64]) -> Option<Domain1D> {
+fn compute_domain_from_numbers(numbers: &[f32]) -> Option<Domain1D> {
     if numbers.is_empty() {
         return None;
     }
-    let mut min = f64::INFINITY;
-    let mut max = f64::NEG_INFINITY;
+    let mut min = f32::INFINITY;
+    let mut max = f32::NEG_INFINITY;
     for number in numbers {
         if !number.is_finite() {
             continue;
@@ -835,7 +835,7 @@ fn compute_domain_from_numbers(numbers: &[f64]) -> Option<Domain1D> {
     create_domain(min, max)
 }
 
-fn sanitize_segment_count(value: f64) -> usize {
+fn sanitize_segment_count(value: f32) -> usize {
     if !value.is_finite() {
         return 0;
     }
@@ -847,14 +847,14 @@ fn subdivide_domain(domain: &Domain1D, count: usize) -> Vec<Domain1D> {
     if count == 0 {
         return Vec::new();
     }
-    let step = (domain.end - domain.start) / count as f64;
+    let step = (domain.end - domain.start) / count as f32;
     let mut result = Vec::with_capacity(count);
     for i in 0..count {
-        let start = domain.start + step * i as f64;
+        let start = domain.start + step * i as f32;
         let end = if i == count - 1 {
             domain.end
         } else {
-            domain.start + step * (i + 1) as f64
+            domain.start + step * (i + 1) as f32
         };
         if let Some(segment) = create_domain(start, end) {
             result.push(segment);

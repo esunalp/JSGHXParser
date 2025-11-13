@@ -278,17 +278,17 @@ impl ExpressionComponent {
 
 struct VariableContext {
     mapping: HashMap<String, usize>,
-    values: Vec<f64>,
+    values: Vec<f32>,
 }
 
 impl VariableContext {
-    fn new(mapping: HashMap<String, usize>, values: Vec<f64>) -> Self {
+    fn new(mapping: HashMap<String, usize>, values: Vec<f32>) -> Self {
         Self { mapping, values }
     }
 }
 
 impl ContextProvider for VariableContext {
-    fn get_var(&self, name: &str) -> Option<f64> {
+    fn get_var(&self, name: &str) -> Option<f32> {
         self.mapping
             .get(name)
             .copied()
@@ -360,11 +360,11 @@ fn coerce_expression(value: &Value) -> Option<String> {
     }
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => Ok(*number),
         Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
+        Value::Text(text) => text.trim().parse::<f32>().map_err(|_| {
             ComponentError::new(format!(
                 "{context} verwacht een numerieke waarde, kreeg tekst `{text}`"
             ))
@@ -458,8 +458,8 @@ fn build_context() -> Context<'static> {
     context.func("frac", |value| value.fract());
     context.func2("mod", modulo);
     context.func2("modulo", modulo);
-    context.func("sign", f64::signum);
-    context.func("sgn", f64::signum);
+    context.func("sign", f32::signum);
+    context.func("sgn", f32::signum);
     context.func("sec", |value| 1.0 / value.cos());
     context.func("csc", |value| 1.0 / value.sin());
     context.func("cot", |value| 1.0 / value.tan());
@@ -492,11 +492,11 @@ fn build_context() -> Context<'static> {
     context
 }
 
-fn to_boolean(value: f64) -> bool {
+fn to_boolean(value: f32) -> bool {
     value != 0.0
 }
 
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
+fn clamp(value: f32, min: f32, max: f32) -> f32 {
     let lower = min.min(max);
     let upper = min.max(max);
     if value <= lower {
@@ -508,13 +508,13 @@ fn clamp(value: f64, min: f64, max: f64) -> f64 {
     }
 }
 
-fn lerp(a: f64, b: f64, t: f64) -> f64 {
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-fn modulo(dividend: f64, divisor: f64) -> f64 {
+fn modulo(dividend: f32, divisor: f32) -> f32 {
     if divisor == 0.0 {
-        return f64::NAN;
+        return f32::NAN;
     }
     let remainder = dividend % divisor;
     if remainder == 0.0 {
@@ -526,17 +526,17 @@ fn modulo(dividend: f64, divisor: f64) -> f64 {
     }
 }
 
-fn random_value(values: &[f64]) -> f64 {
+fn random_value(values: &[f32]) -> f32 {
     let mut rng = rng();
     match values.len() {
-        0 => rand::random::<f64>(),
+        0 => rand::random::<f32>(),
         1 => {
             let end = values[0];
             if end == 0.0 {
                 0.0
             } else {
                 let (lower, upper) = if end >= 0.0 { (0.0, end) } else { (end, 0.0) };
-                if (upper - lower).abs() < f64::EPSILON {
+                if (upper - lower).abs() < f32::EPSILON {
                     lower
                 } else {
                     rng.random_range(lower..upper)
@@ -550,7 +550,7 @@ fn random_value(values: &[f64]) -> f64 {
                 min
             } else {
                 let (lower, upper) = if min < max { (min, max) } else { (max, min) };
-                if (upper - lower).abs() < f64::EPSILON {
+                if (upper - lower).abs() < f32::EPSILON {
                     lower
                 } else {
                     rng.random_range(lower..upper)
@@ -560,7 +560,7 @@ fn random_value(values: &[f64]) -> f64 {
     }
 }
 
-fn conditional(values: &[f64]) -> f64 {
+fn conditional(values: &[f32]) -> f32 {
     match values.len() {
         2 => {
             if to_boolean(values[0]) {

@@ -1,7 +1,7 @@
 //! Implementaties van Grasshopper "Curve → Primitive" componenten.
 
 use std::collections::BTreeMap;
-use std::f64::consts::TAU;
+use std::f32::consts::TAU;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
@@ -381,10 +381,10 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
 }
 
 fn circle_from_three_points(
-    p1: [f64; 3],
-    p2: [f64; 3],
-    p3: [f64; 3],
-) -> Option<([f64; 3], f64, [f64; 3])> {
+    p1: [f32; 3],
+    p2: [f32; 3],
+    p3: [f32; 3],
+) -> Option<([f32; 3], f32, [f32; 3])> {
     let v21 = subtract(p2, p1);
     let v31 = subtract(p3, p1);
 
@@ -510,24 +510,24 @@ fn evaluate_arc(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn create_arc_points(plane: &Plane, radius: f64, angle: f64) -> (Vec<[f64; 3]>, f64) {
+fn create_arc_points(plane: &Plane, radius: f32, angle: f32) -> (Vec<[f32; 3]>, f32) {
     create_arc_points_from_angles(plane, radius, 0.0, angle)
 }
 
 fn create_arc_points_from_angles(
     plane: &Plane,
-    radius: f64,
-    start_angle: f64,
-    end_angle: f64,
-) -> (Vec<[f64; 3]>, f64) {
+    radius: f32,
+    start_angle: f32,
+    end_angle: f32,
+) -> (Vec<[f32; 3]>, f32) {
     let total_angle = end_angle - start_angle;
     let mut points = Vec::new();
     let segments = (total_angle.abs() * 32.0 / TAU).ceil() as usize;
     let segments = segments.max(1);
-    let angle_step = total_angle / segments as f64;
+    let angle_step = total_angle / segments as f32;
 
     for i in 0..=segments {
-        let current_angle = start_angle + i as f64 * angle_step;
+        let current_angle = start_angle + i as f32 * angle_step;
         points.push(plane.apply(radius * current_angle.cos(), radius * current_angle.sin()));
     }
 
@@ -572,15 +572,15 @@ fn evaluate_polygon(inputs: &[Value]) -> ComponentResult {
 
 fn create_polygon_points(
     plane: &Plane,
-    radius: f64,
+    radius: f32,
     segments: usize,
-    _fillet_radius: f64,
-) -> (Vec<[f64; 3]>, f64) {
+    _fillet_radius: f32,
+) -> (Vec<[f32; 3]>, f32) {
     let mut points = Vec::new();
-    let angle_step = TAU / segments as f64;
+    let angle_step = TAU / segments as f32;
 
     for i in 0..segments {
-        let angle = i as f64 * angle_step;
+        let angle = i as f32 * angle_step;
         points.push(plane.apply(radius * angle.cos(), radius * angle.sin()));
     }
 
@@ -588,7 +588,7 @@ fn create_polygon_points(
         points.push(first);
     }
 
-    let length = segments as f64 * 2.0 * radius * (TAU / (2.0 * segments as f64)).sin();
+    let length = segments as f32 * 2.0 * radius * (TAU / (2.0 * segments as f32)).sin();
 
     (points, length)
 }
@@ -615,7 +615,7 @@ fn evaluate_fit_line(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let value = value
         .ok_or_else(|| ComponentError::new(format!("{} vereist een lijst van punten", context)))?;
 
@@ -630,7 +630,7 @@ fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, 
     }
 }
 
-fn find_farthest_points(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
+fn find_farthest_points(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
     let mut max_dist_sq = -1.0;
     let mut p1 = [0.0; 3];
     let mut p2 = [0.0; 3];
@@ -681,10 +681,10 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
 
 fn create_rectangle_points(
     plane: &Plane,
-    x_size: f64,
-    y_size: f64,
-    radius: f64,
-) -> (Vec<[f64; 3]>, f64) {
+    x_size: f32,
+    y_size: f32,
+    radius: f32,
+) -> (Vec<[f32; 3]>, f32) {
     let mut points = Vec::new();
     let half_x = x_size / 2.0;
     let half_y = y_size / 2.0;
@@ -716,7 +716,7 @@ fn create_rectangle_points(
 
         // Arc for top-right corner (from 0 to PI/2)
         for i in 0..=segments_per_corner {
-            let angle = 0.0 + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = 0.0 + (TAU / 4.0) * (i as f32 / segments_per_corner as f32);
             points.push(plane.apply(
                 c_tr_uv.0 + radius * angle.cos(),
                 c_tr_uv.1 + radius * angle.sin(),
@@ -725,7 +725,7 @@ fn create_rectangle_points(
 
         // Arc for top-left corner (from PI/2 to PI)
         for i in 1..=segments_per_corner {
-            let angle = (TAU / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (TAU / 4.0) + (TAU / 4.0) * (i as f32 / segments_per_corner as f32);
             points.push(plane.apply(
                 c_tl_uv.0 + radius * angle.cos(),
                 c_tl_uv.1 + radius * angle.sin(),
@@ -734,7 +734,7 @@ fn create_rectangle_points(
 
         // Arc for bottom-left corner (from PI to 3*PI/2)
         for i in 1..=segments_per_corner {
-            let angle = (TAU / 2.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (TAU / 2.0) + (TAU / 4.0) * (i as f32 / segments_per_corner as f32);
             points.push(plane.apply(
                 c_bl_uv.0 + radius * angle.cos(),
                 c_bl_uv.1 + radius * angle.sin(),
@@ -743,7 +743,7 @@ fn create_rectangle_points(
 
         // Arc for bottom-right corner (from 3*PI/2 to 2*PI)
         for i in 1..=segments_per_corner {
-            let angle = (TAU * 3.0 / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (TAU * 3.0 / 4.0) + (TAU / 4.0) * (i as f32 / segments_per_corner as f32);
             points.push(plane.apply(
                 c_br_uv.0 + radius * angle.cos(),
                 c_br_uv.1 + radius * angle.sin(),
@@ -786,11 +786,11 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64; 3]> {
+fn sample_circle_points(plane: &Plane, radius: f32, segments: usize) -> Vec<[f32; 3]> {
     let mut points = Vec::with_capacity(segments + 1);
-    let step = TAU / segments as f64;
+    let step = TAU / segments as f32;
     for i in 0..segments {
-        let angle = i as f64 * step;
+        let angle = i as f32 * step;
         let point = plane.apply(radius * angle.cos(), radius * angle.sin());
         points.push(point);
     }
@@ -800,7 +800,7 @@ fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64
     points
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     match value {
         None => Err(ComponentError::new(format!(
             "{} vereist een numerieke waarde",
@@ -810,7 +810,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentE
             Value::Number(number) => Ok(*number),
             Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
             Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
-            Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
+            Value::Text(text) => text.trim().parse::<f32>().map_err(|_| {
                 ComponentError::new(format!(
                     "{} kon tekst '{}' niet als getal interpreteren",
                     context, text
@@ -846,7 +846,7 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
     }
 }
 
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => Ok(*point),
         Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
@@ -866,10 +866,10 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    _z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    _z_axis: [f32; 3],
 }
 
 impl Default for Plane {
@@ -884,35 +884,35 @@ impl Default for Plane {
 }
 
 impl Plane {
-    fn from_origin(origin: [f64; 3]) -> Self {
+    fn from_origin(origin: [f32; 3]) -> Self {
         Self {
             origin,
             ..Self::default()
         }
     }
 
-    fn from_points(origin: [f64; 3], point_x: [f64; 3], point_y: [f64; 3]) -> Self {
+    fn from_points(origin: [f32; 3], point_x: [f32; 3], point_y: [f32; 3]) -> Self {
         let x_axis = subtract(point_x, origin);
         let y_axis = subtract(point_y, origin);
         let z_axis = cross(x_axis, y_axis);
         Self::normalize_axes(origin, x_axis, y_axis, z_axis)
     }
 
-    fn from_origin_and_normal(origin: [f64; 3], z_axis: [f64; 3]) -> Self {
+    fn from_origin_and_normal(origin: [f32; 3], z_axis: [f32; 3]) -> Self {
         let x_axis = orthogonal_vector(z_axis);
         let y_axis = cross(z_axis, x_axis);
         Self::normalize_axes(origin, x_axis, y_axis, z_axis)
     }
 
-    fn from_axes(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Self {
+    fn from_axes(origin: [f32; 3], x_axis: [f32; 3], y_axis: [f32; 3], z_axis: [f32; 3]) -> Self {
         Self::normalize_axes(origin, x_axis, y_axis, z_axis)
     }
 
     fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
+        origin: [f32; 3],
+        x_axis: [f32; 3],
+        y_axis: [f32; 3],
+        z_axis: [f32; 3],
     ) -> Self {
         let z_axis = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -948,33 +948,33 @@ impl Plane {
         }
     }
 
-    fn apply(&self, u: f64, v: f64) -> [f64; 3] {
+    fn apply(&self, u: f32, v: f32) -> [f32; 3] {
         add(
             self.origin,
             add(scale(self.x_axis, u), scale(self.y_axis, v)),
         )
     }
 
-    fn project(&self, point: [f64; 3]) -> (f64, f64) {
+    fn project(&self, point: [f32; 3]) -> (f32, f32) {
         let delta = subtract(point, self.origin);
         (dot(delta, self.x_axis), dot(delta, self.y_axis))
     }
 }
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
-fn unwrap_angle(angle: f64, reference: f64) -> f64 {
+fn unwrap_angle(angle: f32, reference: f32) -> f32 {
     let mut result = angle;
-    while result < reference - std::f64::consts::PI {
+    while result < reference - std::f32::consts::PI {
         result += TAU;
     }
-    while result > reference + std::f64::consts::PI {
+    while result > reference + std::f32::consts::PI {
         result -= TAU;
     }
     result
 }
 
-fn solve_linear_3x3(mut a: [[f64; 3]; 3], mut b: [f64; 3]) -> Option<[f64; 3]> {
+fn solve_linear_3x3(mut a: [[f32; 3]; 3], mut b: [f32; 3]) -> Option<[f32; 3]> {
     for i in 0..3 {
         let mut pivot_row = i;
         let mut pivot_value = a[i][i].abs();
@@ -1019,19 +1019,19 @@ fn solve_linear_3x3(mut a: [[f64; 3]; 3], mut b: [f64; 3]) -> Option<[f64; 3]> {
     Some(b)
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn scale(v: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(v: [f32; 3], factor: f32) -> [f32; 3] {
     [v[0] * factor, v[1] * factor, v[2] * factor]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1039,19 +1039,19 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn vector_length_squared(v: [f64; 3]) -> f64 {
+fn vector_length_squared(v: [f32; 3]) -> f32 {
     dot(v, v)
 }
 
-fn vector_length(v: [f64; 3]) -> f64 {
+fn vector_length(v: [f32; 3]) -> f32 {
     vector_length_squared(v).sqrt()
 }
 
-fn safe_normalized(v: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(v: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = vector_length(v);
     if length < EPSILON {
         None
@@ -1060,13 +1060,13 @@ fn safe_normalized(v: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn normalize(v: [f64; 3]) -> [f64; 3] {
+fn normalize(v: [f32; 3]) -> [f32; 3] {
     safe_normalized(v)
         .map(|(vector, _)| vector)
         .unwrap_or([0.0, 0.0, 0.0])
 }
 
-fn orthogonal_vector(reference: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(reference: [f32; 3]) -> [f32; 3] {
     let mut candidate = if reference[0].abs() < reference[1].abs() {
         [0.0, -reference[2], reference[1]]
     } else {
@@ -1142,7 +1142,7 @@ mod tests {
             panic!("expected length");
         };
         assert!(
-            (length - (2.0 * (10.0 - 4.0) + 2.0 * (20.0 - 4.0) + std::f64::consts::TAU * 2.0))
+            (length - (2.0 * (10.0 - 4.0) + 2.0 * (20.0 - 4.0) + std::f32::consts::TAU * 2.0))
                 .abs()
                 < 1e-9
         );
@@ -1232,7 +1232,7 @@ mod tests {
                 &[
                     Value::Point([0.0, 0.0, 0.0]),
                     Value::Number(10.0),
-                    Value::Number(std::f64::consts::PI),
+                    Value::Number(std::f32::consts::PI),
                 ],
                 &MetaMap::new(),
             )
@@ -1246,7 +1246,7 @@ mod tests {
         let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
             panic!("expected length");
         };
-        assert!((length - 10.0 * std::f64::consts::PI).abs() < 1e-9);
+        assert!((length - 10.0 * std::f32::consts::PI).abs() < 1e-9);
     }
 
     #[test]

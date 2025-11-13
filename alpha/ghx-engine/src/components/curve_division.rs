@@ -152,7 +152,7 @@ fn evaluate_curve_frames(inputs: &[Value]) -> ComponentResult {
 
     let steps = segments.max(1);
     for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
+        let parameter = i as f32 / steps as f32;
         let sample = sample_curve(&points, parameter);
         let derivative = approximate_derivative(&points, parameter, 1);
         let tangent = safe_normalized(derivative)
@@ -215,8 +215,8 @@ fn evaluate_divide_curve(inputs: &[Value]) -> ComponentResult {
         .transpose()?
         .unwrap_or(false);
 
-    let mut parameters: Vec<f64> = (0..=segments.max(1))
-        .map(|index| index as f64 / segments.max(1) as f64)
+    let mut parameters: Vec<f32> = (0..=segments.max(1))
+        .map(|index| index as f32 / segments.max(1) as f32)
         .collect();
 
     if include_kinks {
@@ -274,7 +274,7 @@ fn evaluate_divide_by_deviation(inputs: &[Value]) -> ComponentResult {
     let mut deviations = Vec::new();
 
     for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
+        let parameter = i as f32 / steps as f32;
         let sample = sample_curve(&points, parameter);
         let derivative = approximate_derivative(&points, parameter, 1);
         let tangent = safe_normalized(derivative)
@@ -313,10 +313,10 @@ fn evaluate_perp_frames(inputs: &[Value]) -> ComponentResult {
     let steps = segments.max(1);
     let mut frames = Vec::new();
     let mut parameters = Vec::new();
-    let mut previous_axes: Option<([f64; 3], [f64; 3])> = None;
+    let mut previous_axes: Option<([f32; 3], [f32; 3])> = None;
 
     for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
+        let parameter = i as f32 / steps as f32;
         let sample = sample_curve(&points, parameter);
         let derivative = approximate_derivative(&points, parameter, 1);
         let tangent = safe_normalized(derivative)
@@ -366,7 +366,7 @@ fn evaluate_horizontal_frames(inputs: &[Value]) -> ComponentResult {
     let mut parameters = Vec::new();
 
     for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
+        let parameter = i as f32 / steps as f32;
         let sample = sample_curve(&points, parameter);
         let derivative = approximate_derivative(&points, parameter, 1);
         let tangent = safe_normalized(derivative)
@@ -571,9 +571,9 @@ fn evaluate_dash_pattern(inputs: &[Value]) -> ComponentResult {
 }
 
 fn contour_with_offsets(
-    points: &[[f64; 3]],
+    points: &[[f32; 3]],
     plane: &Plane,
-    offsets: &[f64],
+    offsets: &[f32],
     context: &str,
 ) -> ComponentResult {
     if offsets.is_empty() {
@@ -591,7 +591,7 @@ fn contour_with_offsets(
         )));
     }
 
-    let total_length = segments.iter().map(|segment| segment.length).sum::<f64>();
+    let total_length = segments.iter().map(|segment| segment.length).sum::<f32>();
     if total_length < EPSILON {
         return Err(ComponentError::new(format!(
             "{} curve heeft geen lengte",
@@ -657,12 +657,12 @@ fn contour_with_offsets(
 }
 
 fn determine_offsets(
-    origin: [f64; 3],
-    normal: [f64; 3],
-    points: &[[f64; 3]],
-    offsets: Option<Vec<f64>>,
-    distances: Option<Vec<f64>>,
-) -> Result<Vec<f64>, ComponentError> {
+    origin: [f32; 3],
+    normal: [f32; 3],
+    points: &[[f32; 3]],
+    offsets: Option<Vec<f32>>,
+    distances: Option<Vec<f32>>,
+) -> Result<Vec<f32>, ComponentError> {
     if let Some(offsets) = offsets {
         if offsets.is_empty() {
             return Err(ComponentError::new("Contour vereist minstens één offset"));
@@ -702,8 +702,8 @@ fn determine_offsets(
         .collect())
 }
 
-fn determine_offsets_from_distance(plane: &Plane, points: &[[f64; 3]], distance: f64) -> Vec<f64> {
-    let projections: Vec<f64> = points
+fn determine_offsets_from_distance(plane: &Plane, points: &[[f32; 3]], distance: f32) -> Vec<f32> {
+    let projections: Vec<f32> = points
         .iter()
         .map(|point| dot(subtract(*point, plane.origin), plane.normal))
         .collect();
@@ -712,11 +712,11 @@ fn determine_offsets_from_distance(plane: &Plane, points: &[[f64; 3]], distance:
         return Vec::new();
     }
 
-    let min_proj = projections.iter().copied().fold(f64::INFINITY, f64::min);
+    let min_proj = projections.iter().copied().fold(f32::INFINITY, f32::min);
     let max_proj = projections
         .iter()
         .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
+        .fold(f32::NEG_INFINITY, f32::max);
 
     let mut offsets = Vec::new();
     let mut current = plane.origin_projection();
@@ -737,7 +737,7 @@ fn determine_offsets_from_distance(plane: &Plane, points: &[[f64; 3]], distance:
     offsets
 }
 
-fn divide_curve_by_length(points: &[[f64; 3]], distance: f64, context: &str) -> ComponentResult {
+fn divide_curve_by_length(points: &[[f32; 3]], distance: f32, context: &str) -> ComponentResult {
     let segments = polyline_segments(points);
     if segments.is_empty() {
         return Err(ComponentError::new(format!(
@@ -746,7 +746,7 @@ fn divide_curve_by_length(points: &[[f64; 3]], distance: f64, context: &str) -> 
         )));
     }
 
-    let total_length = segments.iter().map(|segment| segment.length).sum::<f64>();
+    let total_length = segments.iter().map(|segment| segment.length).sum::<f32>();
     if total_length < EPSILON {
         return Err(ComponentError::new(format!(
             "{} curve heeft geen lengte",
@@ -839,7 +839,7 @@ fn divide_curve_by_length(points: &[[f64; 3]], distance: f64, context: &str) -> 
     Ok(outputs)
 }
 
-fn sample_subcurve(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
+fn sample_subcurve(points: &[[f32; 3]], start: f32, end: f32) -> Vec<[f32; 3]> {
     if end <= start {
         let point = sample_curve(points, start).point;
         return vec![point];
@@ -852,7 +852,7 @@ fn sample_subcurve(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
 
 // --- Parsers en hulpfuncties ------------------------------------------------
 
-fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!(
             "{} vereist minimaal één curve",
@@ -873,7 +873,7 @@ fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>
 
 fn collect_points(
     value: &Value,
-    output: &mut Vec<[f64; 3]>,
+    output: &mut Vec<[f32; 3]>,
     context: &str,
 ) -> Result<(), ComponentError> {
     match value {
@@ -906,7 +906,7 @@ fn collect_points(
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!(
             "{} vereist een numerieke waarde",
@@ -924,7 +924,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentE
     }
 }
 
-fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     let number = coerce_number(value, context)?;
     if number <= 0.0 {
         return Err(ComponentError::new(format!(
@@ -947,7 +947,7 @@ fn coerce_positive_integer(value: Option<&Value>, context: &str) -> Result<usize
     Ok(rounded as usize)
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!("{} vereist een punt", context)));
     };
@@ -962,7 +962,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!(
             "{} vereist een vector",
@@ -993,7 +993,7 @@ fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> 
     }
 }
 
-fn coerce_number_list(value: &Value, context: &str) -> Result<Vec<f64>, ComponentError> {
+fn coerce_number_list(value: &Value, context: &str) -> Result<Vec<f32>, ComponentError> {
     match value {
         Value::Number(number) => Ok(vec![*number]),
         Value::List(values) => {
@@ -1039,34 +1039,34 @@ fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, Component
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    normal: [f64; 3],
+    origin: [f32; 3],
+    normal: [f32; 3],
 }
 
 impl Plane {
-    fn origin_projection(&self) -> f64 {
+    fn origin_projection(&self) -> f32 {
         dot(self.origin, self.normal)
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 struct CurveSample {
-    point: [f64; 3],
-    tangent: Option<[f64; 3]>,
+    point: [f32; 3],
+    tangent: Option<[f32; 3]>,
 }
 
-fn sample_curve(points: &[[f64; 3]], parameter: f64) -> CurveSample {
+fn sample_curve(points: &[[f32; 3]], parameter: f32) -> CurveSample {
     let (point, tangent, _) = sample_curve_basic(points, clamp(parameter, 0.0, 1.0));
     CurveSample { point, tangent }
 }
 
-fn sample_curve_basic(points: &[[f64; 3]], parameter: f64) -> ([f64; 3], Option<[f64; 3]>, f64) {
+fn sample_curve_basic(points: &[[f32; 3]], parameter: f32) -> ([f32; 3], Option<[f32; 3]>, f32) {
     let segments = polyline_segments(points);
     if segments.is_empty() {
         return (points.get(0).copied().unwrap_or([0.0, 0.0, 0.0]), None, 0.0);
     }
 
-    let total_length: f64 = segments.iter().map(|segment| segment.length).sum();
+    let total_length: f32 = segments.iter().map(|segment| segment.length).sum();
     if total_length < EPSILON {
         let tangent = safe_normalized(subtract(segments[0].end, segments[0].start)).map(|(v, _)| v);
         return (segments[0].start, tangent, 0.0);
@@ -1094,8 +1094,8 @@ fn sample_curve_basic(points: &[[f64; 3]], parameter: f64) -> ([f64; 3], Option<
     (last.end, tangent, total_length)
 }
 
-fn approximate_derivative(points: &[[f64; 3]], parameter: f64, order: usize) -> [f64; 3] {
-    let h = 1.0 / (points.len().max(8) as f64 * 4.0);
+fn approximate_derivative(points: &[[f32; 3]], parameter: f32, order: usize) -> [f32; 3] {
+    let h = 1.0 / (points.len().max(8) as f32 * 4.0);
     match order {
         1 => {
             let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
@@ -1132,12 +1132,12 @@ fn approximate_derivative(points: &[[f64; 3]], parameter: f64, order: usize) -> 
 
 #[derive(Debug, Clone, Copy)]
 struct PolylineSegment {
-    start: [f64; 3],
-    end: [f64; 3],
-    length: f64,
+    start: [f32; 3],
+    end: [f32; 3],
+    length: f32,
 }
 
-fn polyline_segments(points: &[[f64; 3]]) -> Vec<PolylineSegment> {
+fn polyline_segments(points: &[[f32; 3]]) -> Vec<PolylineSegment> {
     points
         .windows(2)
         .map(|pair| PolylineSegment {
@@ -1148,7 +1148,7 @@ fn polyline_segments(points: &[[f64; 3]]) -> Vec<PolylineSegment> {
         .collect()
 }
 
-fn polyline_length(points: &[[f64; 3]]) -> f64 {
+fn polyline_length(points: &[[f32; 3]]) -> f32 {
     polyline_segments(points)
         .iter()
         .map(|segment| segment.length)
@@ -1157,17 +1157,17 @@ fn polyline_length(points: &[[f64; 3]]) -> f64 {
 
 #[derive(Debug, Clone, Copy)]
 struct FrameData {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    z_axis: [f32; 3],
 }
 
 fn compute_frenet_frame(
-    points: &[[f64; 3]],
-    parameter: f64,
-    origin: [f64; 3],
-    tangent: [f64; 3],
+    points: &[[f32; 3]],
+    parameter: f32,
+    origin: [f32; 3],
+    tangent: [f32; 3],
 ) -> FrameData {
     let second = approximate_derivative(points, parameter, 2);
     let mut normal = subtract(second, scale(tangent, dot(second, tangent)));
@@ -1185,7 +1185,7 @@ fn compute_frenet_frame(
     }
 }
 
-fn compute_parallel_frame(points: &[[f64; 3]], origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
+fn compute_parallel_frame(points: &[[f32; 3]], origin: [f32; 3], tangent: [f32; 3]) -> FrameData {
     let plane = plane_from_polyline(points);
     let mut binormal = plane.normal;
     if length_squared(binormal) < EPSILON || length_squared(cross(binormal, tangent)) < EPSILON {
@@ -1204,7 +1204,7 @@ fn compute_parallel_frame(points: &[[f64; 3]], origin: [f64; 3], tangent: [f64; 
     }
 }
 
-fn compute_horizontal_frame(origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
+fn compute_horizontal_frame(origin: [f32; 3], tangent: [f32; 3]) -> FrameData {
     let mut binormal = [0.0, 0.0, 1.0];
     if length_squared(cross(binormal, tangent)) < EPSILON {
         binormal = [1.0, 0.0, 0.0];
@@ -1219,7 +1219,7 @@ fn compute_horizontal_frame(origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
     }
 }
 
-fn plane_from_polyline(points: &[[f64; 3]]) -> Plane {
+fn plane_from_polyline(points: &[[f32; 3]]) -> Plane {
     if points.len() < 3 {
         return Plane {
             origin: points.first().copied().unwrap_or([0.0, 0.0, 0.0]),
@@ -1234,7 +1234,7 @@ fn plane_from_polyline(points: &[[f64; 3]]) -> Plane {
     Plane { origin: a, normal }
 }
 
-fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
+fn frame_value(origin: [f32; 3], x_axis: [f32; 3], y_axis: [f32; 3], z_axis: [f32; 3]) -> Value {
     Value::List(vec![
         Value::Point(origin),
         Value::Vector(x_axis),
@@ -1243,7 +1243,7 @@ fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f6
     ])
 }
 
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = length(vector);
     if length < EPSILON {
         None
@@ -1252,23 +1252,23 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn distance(a: [f32; 3], b: [f32; 3]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
-fn length(vector: [f64; 3]) -> f64 {
+fn length(vector: [f32; 3]) -> f32 {
     (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt()
 }
 
-fn length_squared(vector: [f64; 3]) -> f64 {
+fn length_squared(vector: [f32; 3]) -> f32 {
     vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1276,25 +1276,25 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(a: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(a: [f32; 3], factor: f32) -> [f32; 3] {
     [a[0] * factor, a[1] * factor, a[2] * factor]
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
+fn normalize(vector: [f32; 3]) -> [f32; 3] {
     safe_normalized(vector)
         .map(|(v, _)| v)
         .unwrap_or([1.0, 0.0, 0.0])
 }
 
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     if vector[0].abs() < vector[1].abs() && vector[0].abs() < vector[2].abs() {
         normalize(cross(vector, [1.0, 0.0, 0.0]))
     } else if vector[1].abs() < vector[2].abs() {
@@ -1304,7 +1304,7 @@ fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
+fn lerp(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     [
         a[0] + (b[0] - a[0]) * t,
         a[1] + (b[1] - a[1]) * t,
@@ -1312,8 +1312,8 @@ fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
     ]
 }
 
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
+fn clamp(value: f32, min: f32, max: f32) -> f32 {
     value.max(min).min(max)
 }
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;

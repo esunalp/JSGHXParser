@@ -5,11 +5,11 @@ use crate::graph::value::Value;
 use super::ComponentError;
 
 pub struct Surface<'a> {
-    pub vertices: &'a Vec<[f64; 3]>,
+    pub vertices: &'a Vec<[f32; 3]>,
     pub faces: &'a Vec<Vec<u32>>,
 }
 
-pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
+pub fn coerce_number(value: &Value) -> Result<f32, ComponentError> {
     match value {
         Value::Number(n) => Ok(*n),
         Value::Boolean(b) => Ok(if *b { 1.0 } else { 0.0 }),
@@ -61,7 +61,7 @@ pub fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
     }
 }
 
-pub fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
+pub fn coerce_point(value: &Value) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(p) => Ok(*p),
         Value::List(l) if l.len() == 1 => coerce_point(&l[0]),
@@ -83,13 +83,13 @@ pub fn coerce_surface<'a>(value: &'a Value) -> Result<Surface<'a>, ComponentErro
     }
 }
 
-pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>, ComponentError> {
+pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f32; 3], [f32; 3])>, ComponentError> {
     match value {
         Value::Null => Ok(Vec::new()),
         Value::CurveLine { p1, p2 } => Ok(vec![(*p1, *p2)]),
         Value::List(values) => {
             let mut segments = Vec::new();
-            let mut last_point: Option<[f64; 3]> = None;
+            let mut last_point: Option<[f32; 3]> = None;
 
             for entry in values {
                 if let Value::Point(p) = entry {

@@ -224,7 +224,7 @@ fn evaluate_edges(inputs: &[Value]) -> ComponentResult {
                 Value::Point(end.point),
             ]));
             tags.push(Value::Text(edge.tag.to_string()));
-            ids.push(Value::Number(edge.id as f64));
+            ids.push(Value::Number(edge.id as f32));
         }
     }
     let mut outputs = BTreeMap::new();
@@ -269,8 +269,8 @@ fn evaluate_multi_pipe(inputs: &[Value]) -> ComponentResult {
     let radii = collect_numbers(inputs.get(1));
     let radius = radii
         .into_iter()
-        .fold(0.5_f64, |acc, value| acc.max(value.abs()));
-    expand_bounds(&mut min, &mut max, radius.max(0.25_f64));
+        .fold(0.5_f32, |acc, value| acc.max(value.abs()));
+    expand_bounds(&mut min, &mut max, radius.max(0.25_f32));
     let mut subd = Subd::box_from_bounds(min, max);
     if coerce_boolean(inputs.get(8), false, "MultiPipe caps").unwrap_or(false) {
         let ids: Vec<_> = (0..subd.edges.len()).collect();
@@ -300,25 +300,25 @@ fn evaluate_faces(inputs: &[Value]) -> ComponentResult {
             });
         let point = if centroid.1 > 0 {
             [
-                centroid.0[0] / centroid.1 as f64,
-                centroid.0[1] / centroid.1 as f64,
-                centroid.0[2] / centroid.1 as f64,
+                centroid.0[0] / centroid.1 as f32,
+                centroid.0[1] / centroid.1 as f32,
+                centroid.0[2] / centroid.1 as f32,
             ]
         } else {
             [0.0, 0.0, 0.0]
         };
         centres.push(Value::Point(point));
-        counts.push(Value::Number(face.vertices.len() as f64));
+        counts.push(Value::Number(face.vertices.len() as f32));
         edge_ids.push(Value::List(
             face.edges
                 .iter()
-                .map(|id| Value::Number(*id as f64))
+                .map(|id| Value::Number(*id as f32))
                 .collect(),
         ));
         vertex_ids.push(Value::List(
             face.vertices
                 .iter()
-                .map(|id| Value::Number(*id as f64))
+                .map(|id| Value::Number(*id as f32))
                 .collect(),
         ));
     }
@@ -402,7 +402,7 @@ fn evaluate_vertices(inputs: &[Value], include_tags: bool) -> ComponentResult {
     let mut tags = Vec::new();
     for vertex in &subd.vertices {
         points.push(Value::Point(vertex.point));
-        ids.push(Value::Number(vertex.id as f64));
+        ids.push(Value::Number(vertex.id as f32));
         if include_tags {
             tags.push(Value::Text(vertex.tag.to_string()));
         }
@@ -549,7 +549,7 @@ impl Subd {
         }
     }
 
-    fn from_vertices_faces(points: Vec<[f64; 3]>, faces: Vec<Vec<usize>>) -> Self {
+    fn from_vertices_faces(points: Vec<[f32; 3]>, faces: Vec<Vec<usize>>) -> Self {
         let vertices = points
             .into_iter()
             .enumerate()
@@ -583,7 +583,7 @@ impl Subd {
         subd
     }
 
-    fn box_from_bounds(min: [f64; 3], max: [f64; 3]) -> Self {
+    fn box_from_bounds(min: [f32; 3], max: [f32; 3]) -> Self {
         let vertices = vec![
             [min[0], min[1], min[2]],
             [max[0], min[1], min[2]],
@@ -613,7 +613,7 @@ impl Subd {
             .iter()
             .map(|vertex| {
                 Value::List(vec![
-                    Value::Number(vertex.id as f64),
+                    Value::Number(vertex.id as f32),
                     Value::Point(vertex.point),
                     Value::Text(vertex.tag.to_string()),
                 ])
@@ -624,10 +624,10 @@ impl Subd {
             .iter()
             .map(|edge| {
                 let mut entry = vec![
-                    Value::Number(edge.id as f64),
+                    Value::Number(edge.id as f32),
                     Value::List(vec![
-                        Value::Number(edge.vertices.0 as f64),
-                        Value::Number(edge.vertices.1 as f64),
+                        Value::Number(edge.vertices.0 as f32),
+                        Value::Number(edge.vertices.1 as f32),
                     ]),
                     Value::Text(edge.tag.to_string()),
                 ];
@@ -635,7 +635,7 @@ impl Subd {
                     entry.push(Value::List(
                         edge.faces
                             .iter()
-                            .map(|id| Value::Number(*id as f64))
+                            .map(|id| Value::Number(*id as f32))
                             .collect(),
                     ));
                 }
@@ -647,11 +647,11 @@ impl Subd {
             .iter()
             .map(|face| {
                 let mut entry = vec![
-                    Value::Number(face.id as f64),
+                    Value::Number(face.id as f32),
                     Value::List(
                         face.vertices
                             .iter()
-                            .map(|id| Value::Number(*id as f64))
+                            .map(|id| Value::Number(*id as f32))
                             .collect(),
                     ),
                 ];
@@ -659,7 +659,7 @@ impl Subd {
                     entry.push(Value::List(
                         face.edges
                             .iter()
-                            .map(|id| Value::Number(*id as f64))
+                            .map(|id| Value::Number(*id as f32))
                             .collect(),
                     ));
                 }
@@ -697,7 +697,7 @@ impl Subd {
             clone.smooth(steps);
         }
         clone.rebuild_topology();
-        let mut vertices: Vec<[f64; 3]> =
+        let mut vertices: Vec<[f32; 3]> =
             clone.vertices.iter().map(|vertex| vertex.point).collect();
         let mut faces: Vec<Vec<u32>> = Vec::new();
         for face in &clone.faces {
@@ -717,9 +717,9 @@ impl Subd {
             if count < 3 {
                 continue;
             }
-            centroid[0] /= count as f64;
-            centroid[1] /= count as f64;
-            centroid[2] /= count as f64;
+            centroid[0] /= count as f32;
+            centroid[1] /= count as f32;
+            centroid[2] /= count as f32;
             let centroid_index = vertices.len();
             vertices.push(centroid);
             for index in 0..face.vertices.len() {
@@ -801,9 +801,9 @@ impl Subd {
                     continue;
                 }
                 let avg = [
-                    sums[index][0] / counts[index] as f64,
-                    sums[index][1] / counts[index] as f64,
-                    sums[index][2] / counts[index] as f64,
+                    sums[index][0] / counts[index] as f32,
+                    sums[index][1] / counts[index] as f32,
+                    sums[index][2] / counts[index] as f32,
                 ];
                 vertex.point = [
                     (vertex.point[0] + avg[0]) * 0.5,
@@ -844,7 +844,7 @@ impl Subd {
         self
     }
 
-    fn bounding_box(&self) -> Option<([f64; 3], [f64; 3])> {
+    fn bounding_box(&self) -> Option<([f32; 3], [f32; 3])> {
         if self.vertices.is_empty() {
             return None;
         }
@@ -907,7 +907,7 @@ impl Subd {
 #[derive(Debug, Clone)]
 struct SubdVertex {
     id: usize,
-    point: [f64; 3],
+    point: [f32; 3],
     tag: VertexTag,
 }
 
@@ -1025,7 +1025,7 @@ fn normalized_pair(vertices: (usize, usize)) -> (usize, usize) {
     }
 }
 
-fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
+fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
@@ -1038,7 +1038,7 @@ fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     }
 }
 
-fn bounding_box(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
+fn bounding_box(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
     let mut min = [points[0][0], points[0][1], points[0][2]];
     let mut max = min;
     for point in points.iter().skip(1) {
@@ -1050,7 +1050,7 @@ fn bounding_box(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
     (min, max)
 }
 
-fn expand_bounds(min: &mut [f64; 3], max: &mut [f64; 3], radius: f64) {
+fn expand_bounds(min: &mut [f32; 3], max: &mut [f32; 3], radius: f32) {
     let padding = radius.max(0.0);
     for axis in 0..3 {
         min[axis] -= padding;
@@ -1083,7 +1083,7 @@ fn collect_indices(value: Option<&Value>) -> Vec<usize> {
     }
 }
 
-fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
+fn collect_numbers(value: Option<&Value>) -> Vec<f32> {
     match value {
         Some(Value::Number(number)) if number.is_finite() => vec![*number],
         Some(Value::Boolean(flag)) => vec![if *flag { 1.0 } else { 0.0 }],
@@ -1095,13 +1095,13 @@ fn collect_numbers(value: Option<&Value>) -> Vec<f64> {
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     match value {
         Some(Value::Number(number)) if number.is_finite() => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
         Some(Value::Text(text)) => text
             .trim()
-            .parse::<f64>()
+            .parse::<f32>()
             .map_err(|_| ComponentError::new(format!("{context} verwacht een getal"))),
         Some(Value::List(values)) if !values.is_empty() => coerce_number(values.get(0), context),
         None => Ok(0.0),
@@ -1252,7 +1252,7 @@ fn parse_faces(value: &Value) -> Option<Vec<SubdFace>> {
     Some(faces)
 }
 
-fn list_to_point(values: &[Value]) -> Option<[f64; 3]> {
+fn list_to_point(values: &[Value]) -> Option<[f32; 3]> {
     if values.len() < 3 {
         return None;
     }

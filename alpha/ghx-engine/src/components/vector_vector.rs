@@ -1,7 +1,7 @@
 //! Implementaties van Grasshopper "Vector → Vector" componenten.
 
 use std::collections::BTreeMap;
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 use time::{Date, Month, PrimitiveDateTime, Time};
 
@@ -10,7 +10,7 @@ use crate::graph::value::Value;
 
 use super::{coerce, Component, ComponentError, ComponentResult};
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 const PIN_OUTPUT_ANGLE: &str = "A";
 const PIN_OUTPUT_REFLEX: &str = "R";
@@ -492,7 +492,7 @@ fn evaluate_amplitude(inputs: &[Value]) -> ComponentResult {
     }
 }
 
-fn evaluate_unit_axis(inputs: &[Value], axis: [f64; 3], name: &str) -> ComponentResult {
+fn evaluate_unit_axis(inputs: &[Value], axis: [f32; 3], name: &str) -> ComponentResult {
     let factor = inputs
         .get(0)
         .map(|value| coerce_number(value, name))
@@ -635,7 +635,7 @@ fn single_output(pin: &str, value: Value) -> BTreeMap<String, Value> {
     outputs
 }
 
-fn coerce_number(value: &Value, _context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value, _context: &str) -> Result<f32, ComponentError> {
     coerce::coerce_number(value)
 }
 
@@ -643,7 +643,7 @@ fn coerce_boolean(value: &Value, _context: &str) -> Result<bool, ComponentError>
     coerce::coerce_boolean(value)
 }
 
-fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_vector(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Vector(vector) => Ok(*vector),
         Value::Point(point) => Ok(*point),
@@ -668,7 +668,7 @@ fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentErro
     }
 }
 
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: &Value, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Point(point) => Ok(*point),
         Value::Vector(vector) => Ok(*vector),
@@ -687,7 +687,7 @@ fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError
     }
 }
 
-fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     match value {
         Value::List(values) => {
             let mut result = Vec::new();
@@ -717,10 +717,10 @@ fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f64; 3]>, Com
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    z_axis: [f32; 3],
 }
 
 impl Default for Plane {
@@ -736,10 +736,10 @@ impl Default for Plane {
 
 impl Plane {
     fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
+        origin: [f32; 3],
+        x_axis: [f32; 3],
+        y_axis: [f32; 3],
+        z_axis: [f32; 3],
     ) -> Self {
         let z = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -764,7 +764,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
         let ab = subtract(b, a);
         let ac = subtract(c, a);
         let normal = cross(ab, ac);
@@ -831,7 +831,7 @@ fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
     }
 }
 
-fn coerce_geo_location(value: &Value, context: &str) -> Result<(f64, f64), ComponentError> {
+fn coerce_geo_location(value: &Value, context: &str) -> Result<(f32, f32), ComponentError> {
     match value {
         Value::Vector(vector) | Value::Point(vector) => Ok((vector[0], vector[1])),
         Value::List(values) if !values.is_empty() => {
@@ -865,7 +865,7 @@ fn default_datetime() -> PrimitiveDateTime {
     let time = Time::from_hms(12, 0, 0).unwrap();
     PrimitiveDateTime::new(date, time)
 }
-fn compute_angle_3d(a: [f64; 3], b: [f64; 3]) -> (f64, f64) {
+fn compute_angle_3d(a: [f32; 3], b: [f32; 3]) -> (f32, f32) {
     let length_a = vector_length(a);
     let length_b = vector_length(b);
     if length_a < EPSILON || length_b < EPSILON {
@@ -876,7 +876,7 @@ fn compute_angle_3d(a: [f64; 3], b: [f64; 3]) -> (f64, f64) {
     (angle, 2.0 * PI - angle)
 }
 
-fn compute_angle_on_plane(a: [f64; 3], b: [f64; 3], plane: &Plane) -> (f64, f64) {
+fn compute_angle_on_plane(a: [f32; 3], b: [f32; 3], plane: &Plane) -> (f32, f32) {
     let projected_a = [dot(a, plane.x_axis), dot(a, plane.y_axis)];
     let projected_b = [dot(b, plane.x_axis), dot(b, plane.y_axis)];
     let mag_a = projected_a[0].hypot(projected_a[1]);
@@ -902,7 +902,7 @@ fn compute_angle_on_plane(a: [f64; 3], b: [f64; 3], plane: &Plane) -> (f64, f64)
     (delta, reflex)
 }
 
-fn sum_vectors(vectors: &[[f64; 3]], unitize: bool) -> [f64; 3] {
+fn sum_vectors(vectors: &[[f32; 3]], unitize: bool) -> [f32; 3] {
     let mut sum = [0.0, 0.0, 0.0];
     for vector in vectors {
         if unitize {
@@ -916,7 +916,7 @@ fn sum_vectors(vectors: &[[f64; 3]], unitize: bool) -> [f64; 3] {
     sum
 }
 
-fn rotate(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
+fn rotate(vector: [f32; 3], axis: [f32; 3], angle: f32) -> [f32; 3] {
     if let Some((unit_axis, _)) = safe_normalized(axis) {
         let cos = angle.cos();
         let sin = angle.sin();
@@ -931,17 +931,17 @@ fn rotate(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
 
 fn compute_solar_data(
     datetime: PrimitiveDateTime,
-    location: (f64, f64),
+    location: (f32, f32),
     plane: &Plane,
-) -> ([f64; 3], f64, bool) {
+) -> ([f32; 3], f32, bool) {
     let (longitude_deg, latitude_deg) = location;
     let lat_rad = latitude_deg.to_radians();
 
     let date = datetime.date();
     let time = datetime.time();
-    let day_of_year = date.ordinal() as f64;
+    let day_of_year = date.ordinal() as f32;
     let minutes =
-        f64::from(time.hour()) * 60.0 + f64::from(time.minute()) + f64::from(time.second()) / 60.0;
+        f32::from(time.hour()) * 60.0 + f32::from(time.minute()) + f32::from(time.second()) / 60.0;
 
     let gamma = (2.0 * PI / 365.0) * (day_of_year - 1.0 + (minutes / 60.0 - 12.0) / 24.0);
 
@@ -1001,7 +1001,7 @@ fn compute_solar_data(
     (direction, elevation, elevation > 0.0)
 }
 
-fn color_for_elevation(elevation: f64) -> [f64; 3] {
+fn color_for_elevation(elevation: f32) -> [f32; 3] {
     if !(elevation > 0.0) {
         return [0.08, 0.09, 0.15];
     }
@@ -1013,7 +1013,7 @@ fn color_for_elevation(elevation: f64) -> [f64; 3] {
     hsl_to_rgb(hue, saturation, lightness)
 }
 
-fn hsl_to_rgb(h: f64, s: f64, l: f64) -> [f64; 3] {
+fn hsl_to_rgb(h: f32, s: f32, l: f32) -> [f32; 3] {
     if s <= 0.0 {
         return [l, l, l];
     }
@@ -1025,7 +1025,7 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> [f64; 3] {
     };
     let p = 2.0 * l - q;
 
-    fn hue_to_rgb(p: f64, q: f64, mut t: f64) -> f64 {
+    fn hue_to_rgb(p: f32, q: f32, mut t: f32) -> f32 {
         if t < 0.0 {
             t += 1.0;
         }
@@ -1050,15 +1050,15 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> [f64; 3] {
     ]
 }
 
-fn clamp_to_unit(value: f64) -> f64 {
+fn clamp_to_unit(value: f32) -> f32 {
     value.max(-1.0).min(1.0)
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1066,27 +1066,27 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn vector_length(vector: [f64; 3]) -> f64 {
+fn vector_length(vector: [f32; 3]) -> f32 {
     vector_length_squared(vector).sqrt()
 }
 
-fn vector_length_squared(vector: [f64; 3]) -> f64 {
+fn vector_length_squared(vector: [f32; 3]) -> f32 {
     dot(vector, vector)
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
+fn normalize(vector: [f32; 3]) -> [f32; 3] {
     if let Some((normalized, _)) = safe_normalized(vector) {
         normalized
     } else {
@@ -1094,7 +1094,7 @@ fn normalize(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     let abs_x = vector[0].abs();
     let abs_y = vector[1].abs();
     let abs_z = vector[2].abs();
@@ -1107,7 +1107,7 @@ fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = vector_length(vector);
     if length < EPSILON {
         None
@@ -1139,10 +1139,10 @@ mod tests {
         ])
         .expect("angle computed");
         assert!(
-            matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if (angle - std::f64::consts::FRAC_PI_2).abs() < 1e-9)
+            matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if (angle - std::f32::consts::FRAC_PI_2).abs() < 1e-9)
         );
         assert!(
-            matches!(outputs.get(PIN_OUTPUT_REFLEX), Some(Value::Number(angle)) if (angle - 3.0 * std::f64::consts::FRAC_PI_2).abs() < 1e-9)
+            matches!(outputs.get(PIN_OUTPUT_REFLEX), Some(Value::Number(angle)) if (angle - 3.0 * std::f32::consts::FRAC_PI_2).abs() < 1e-9)
         );
     }
 
@@ -1160,7 +1160,7 @@ mod tests {
         ])
         .expect("angle computed");
         assert!(
-            matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if (angle - std::f64::consts::FRAC_PI_2).abs() < 1e-9)
+            matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if (angle - std::f32::consts::FRAC_PI_2).abs() < 1e-9)
         );
     }
 
@@ -1198,7 +1198,7 @@ mod tests {
         ])
         .expect("dot computed");
         assert!(
-            matches!(outputs.get(PIN_OUTPUT_DOT), Some(Value::Number(value)) if (value - 1.0 / std::f64::consts::SQRT_2).abs() < 1e-9)
+            matches!(outputs.get(PIN_OUTPUT_DOT), Some(Value::Number(value)) if (value - 1.0 / std::f32::consts::SQRT_2).abs() < 1e-9)
         );
     }
 
@@ -1293,7 +1293,7 @@ mod tests {
         let outputs = evaluate_rotate(&[
             Value::Vector([1.0, 0.0, 0.0]),
             Value::Vector([0.0, 0.0, 1.0]),
-            Value::Number(std::f64::consts::FRAC_PI_2),
+            Value::Number(std::f32::consts::FRAC_PI_2),
         ])
         .expect("rotate");
         assert!(
@@ -1357,7 +1357,7 @@ mod tests {
         )
         .unwrap();
         let (angle, _) = compute_angle_3d([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-        assert!((angle - std::f64::consts::FRAC_PI_2).abs() < 1e-9);
+        assert!((angle - std::f32::consts::FRAC_PI_2).abs() < 1e-9);
         let (direction, elevation, horizon) =
             compute_solar_data(datetime!(2024-06-21 12:00:00), (0.0, 0.0), &plane);
         assert!(vector_length(direction) - 1.0 < 1e-9);

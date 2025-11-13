@@ -30,7 +30,7 @@ impl Component for ComponentImpl {
     }
 }
 
-fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
+fn coerce_number(value: &Value) -> Result<f32, ComponentError> {
     match value {
         Value::Number(number) => {
             if number.is_nan() {
@@ -95,7 +95,7 @@ mod tests {
         let component = ComponentImpl;
         let err = component
             .evaluate(
-                &[Value::Number(f64::NAN), Value::Number(1.0)],
+                &[Value::Number(f32::NAN), Value::Number(1.0)],
                 &MetaMap::new(),
             )
             .unwrap_err();

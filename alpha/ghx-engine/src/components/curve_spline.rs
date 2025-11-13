@@ -473,7 +473,7 @@ fn evaluate_match_curve(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn evaluate_interpolate(inputs: &[Value], domain_override: Option<(f64, f64)>) -> ComponentResult {
+fn evaluate_interpolate(inputs: &[Value], domain_override: Option<(f32, f32)>) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Interpolate vereist een puntenlijst"));
     }
@@ -507,7 +507,7 @@ fn evaluate_bezier_span(inputs: &[Value]) -> ComponentResult {
 
     let mut samples = Vec::new();
     for i in 0..=16 {
-        let t = i as f64 / 16.0;
+        let t = i as f32 / 16.0;
         let point = cubic_bezier(start, control1, control2, end, t);
         samples.push(point);
     }
@@ -695,7 +695,7 @@ fn evaluate_knot_vector(inputs: &[Value]) -> ComponentResult {
     let knot_count = count + degree + if periodic { 0 } else { 1 };
     let mut knots = Vec::with_capacity(knot_count);
     for idx in 0..knot_count {
-        knots.push(Value::Number(idx as f64 / (knot_count.max(1) as f64)));
+        knots.push(Value::Number(idx as f32 / (knot_count.max(1) as f32)));
     }
 
     let mut outputs = BTreeMap::new();
@@ -759,7 +759,7 @@ fn evaluate_tangent_curve(inputs: &[Value]) -> ComponentResult {
         .and_then(|value| value.expect_number().ok())
         .unwrap_or(0.5);
 
-    let adjusted: Vec<[f64; 3]> = points
+    let adjusted: Vec<[f32; 3]> = points
         .iter()
         .zip(tangents.iter().cycle())
         .map(|(point, tangent)| add_vector(*point, scale_vector(*tangent, blend * 0.25)))
@@ -824,7 +824,7 @@ fn evaluate_curve_on_surface(inputs: &[Value]) -> ComponentResult {
     build_curve_outputs(points, 0.0, 1.0)
 }
 
-fn build_curve_outputs(points: Vec<[f64; 3]>, start: f64, end: f64) -> ComponentResult {
+fn build_curve_outputs(points: Vec<[f32; 3]>, start: f32, end: f32) -> ComponentResult {
     if points.len() < 2 {
         return Err(ComponentError::new(
             "Curve evaluatie vereist minstens twee punten",
@@ -842,7 +842,7 @@ fn build_curve_outputs(points: Vec<[f64; 3]>, start: f64, end: f64) -> Component
     Ok(outputs)
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist een punt", context)))?;
     match value {
@@ -856,7 +856,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist een vector", context)))?;
     match value {
@@ -874,7 +874,7 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compo
 fn coerce_point_list(
     value: Option<&Value>,
     context: &str,
-) -> Result<Vec<[f64; 3]>, ComponentError> {
+) -> Result<Vec<[f32; 3]>, ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist een puntenlijst", context)))?;
     match value {
@@ -897,7 +897,7 @@ fn coerce_point_list(
 fn coerce_vector_list(
     value: Option<&Value>,
     context: &str,
-) -> Result<Vec<[f64; 3]>, ComponentError> {
+) -> Result<Vec<[f32; 3]>, ComponentError> {
     let value = value.ok_or_else(|| ComponentError::new(format!("{} vereist vectors", context)))?;
     match value {
         Value::List(values) => {
@@ -919,7 +919,7 @@ fn coerce_vector_list(
 fn coerce_curve_collection(
     value: Option<&Value>,
     context: &str,
-) -> Result<Vec<Vec<[f64; 3]>>, ComponentError> {
+) -> Result<Vec<Vec<[f32; 3]>>, ComponentError> {
     let value = value.ok_or_else(|| ComponentError::new(format!("{} vereist curves", context)))?;
     match value {
         Value::List(values) => {
@@ -933,7 +933,7 @@ fn coerce_curve_collection(
     }
 }
 
-fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn coerce_polyline(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist een curve", context)))?;
     match value {
@@ -977,7 +977,7 @@ fn coerce_domain(value: Option<&Value>, context: &str) -> Result<Domain1D, Compo
     }
 }
 
-fn coerce_uv(value: &Value, context: &str) -> Result<(f64, f64), ComponentError> {
+fn coerce_uv(value: &Value, context: &str) -> Result<(f32, f32), ComponentError> {
     match value {
         Value::Vector(vector) => Ok((vector[0], vector[1])),
         Value::Point(point) => Ok((point[0], point[1])),
@@ -994,7 +994,7 @@ fn coerce_uv(value: &Value, context: &str) -> Result<(f64, f64), ComponentError>
     }
 }
 
-fn coerce_uv_list(value: Option<&Value>, context: &str) -> Result<Vec<(f64, f64)>, ComponentError> {
+fn coerce_uv_list(value: Option<&Value>, context: &str) -> Result<Vec<(f32, f32)>, ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist uv-coördinaten", context)))?;
     match value {
@@ -1009,7 +1009,7 @@ fn coerce_uv_list(value: Option<&Value>, context: &str) -> Result<Vec<(f64, f64)
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     let value = value
         .ok_or_else(|| ComponentError::new(format!("{} vereist een numerieke waarde", context)))?;
     match value {
@@ -1023,7 +1023,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentE
     }
 }
 
-fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
     let number = coerce_number(value, context)?;
     if number <= 0.0 {
         return Err(ComponentError::new(format!(
@@ -1034,7 +1034,7 @@ fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f64, C
     Ok(number)
 }
 
-fn chaikin_refine(points: &[[f64; 3]], iterations: usize, closed: bool) -> Vec<[f64; 3]> {
+fn chaikin_refine(points: &[[f32; 3]], iterations: usize, closed: bool) -> Vec<[f32; 3]> {
     let mut result = points.to_vec();
     for _ in 0..iterations {
         if result.len() < 2 {
@@ -1060,7 +1060,7 @@ fn chaikin_refine(points: &[[f64; 3]], iterations: usize, closed: bool) -> Vec<[
     result
 }
 
-fn resample_polyline(points: &[[f64; 3]], count: usize) -> Vec<[f64; 3]> {
+fn resample_polyline(points: &[[f32; 3]], count: usize) -> Vec<[f32; 3]> {
     if count <= 2 || points.len() <= 2 {
         return points.to_vec();
     }
@@ -1071,13 +1071,13 @@ fn resample_polyline(points: &[[f64; 3]], count: usize) -> Vec<[f64; 3]> {
 
     let mut result = Vec::with_capacity(count);
     for i in 0..count {
-        let t = i as f64 / (count - 1) as f64;
+        let t = i as f32 / (count - 1) as f32;
         result.push(sample_polyline(points, t));
     }
     result
 }
 
-fn sample_polyline(points: &[[f64; 3]], t: f64) -> [f64; 3] {
+fn sample_polyline(points: &[[f32; 3]], t: f32) -> [f32; 3] {
     if points.len() < 2 {
         return points.first().copied().unwrap_or([0.0, 0.0, 0.0]);
     }
@@ -1105,17 +1105,17 @@ fn sample_polyline(points: &[[f64; 3]], t: f64) -> [f64; 3] {
 }
 
 fn sample_polyline_domain(
-    points: &[[f64; 3]],
-    start: f64,
-    end: f64,
+    points: &[[f32; 3]],
+    start: f32,
+    end: f32,
     segments: usize,
-) -> Vec<[f64; 3]> {
+) -> Vec<[f32; 3]> {
     let mut samples = Vec::new();
     for i in 0..=segments {
         let t = if segments == 0 {
             0.0
         } else {
-            start + (end - start) * (i as f64 / segments as f64)
+            start + (end - start) * (i as f32 / segments as f32)
         };
         samples.push(sample_polyline(
             points,
@@ -1125,18 +1125,18 @@ fn sample_polyline_domain(
     samples
 }
 
-fn polyline_length(points: &[[f64; 3]]) -> f64 {
+fn polyline_length(points: &[[f32; 3]]) -> f32 {
     points
         .windows(2)
         .map(|segment| distance(segment[0], segment[1]))
         .sum()
 }
 
-fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn distance(a: [f32; 3], b: [f32; 3]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
-fn midpoint(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn midpoint(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         (a[0] + b[0]) * 0.5,
         (a[1] + b[1]) * 0.5,
@@ -1144,11 +1144,11 @@ fn midpoint(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn lerp(a: f64, b: f64, t: f64) -> f64 {
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-fn lerp_point(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
+fn lerp_point(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     [
         lerp(a[0], b[0], t),
         lerp(a[1], b[1], t),
@@ -1156,7 +1156,7 @@ fn lerp_point(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
     ]
 }
 
-fn add_vector(point: [f64; 3], vector: [f64; 3]) -> [f64; 3] {
+fn add_vector(point: [f32; 3], vector: [f32; 3]) -> [f32; 3] {
     [
         point[0] + vector[0],
         point[1] + vector[1],
@@ -1164,15 +1164,15 @@ fn add_vector(point: [f64; 3], vector: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale_vector(vector: [f64; 3], scale: f64) -> [f64; 3] {
+fn scale_vector(vector: [f32; 3], scale: f32) -> [f32; 3] {
     [vector[0] * scale, vector[1] * scale, vector[2] * scale]
 }
 
-fn cubic_bezier(p0: [f64; 3], p1: [f64; 3], p2: [f64; 3], p3: [f64; 3], t: f64) -> [f64; 3] {
+fn cubic_bezier(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3], p3: [f32; 3], t: f32) -> [f32; 3] {
     let u = 1.0 - t;
     let tt = t * t;
     let uu = u * u;
@@ -1185,10 +1185,10 @@ fn cubic_bezier(p0: [f64; 3], p1: [f64; 3], p2: [f64; 3], p3: [f64; 3], t: f64) 
     add_vector(point, scale_vector(p3, ttt))
 }
 
-fn approximate_circle(center: [f64; 3], radius: f64, segments: usize) -> Vec<Value> {
+fn approximate_circle(center: [f32; 3], radius: f32, segments: usize) -> Vec<Value> {
     let mut values = Vec::with_capacity(segments + 1);
     for i in 0..=segments {
-        let angle = (i as f64 / segments as f64) * std::f64::consts::TAU;
+        let angle = (i as f32 / segments as f32) * std::f32::consts::TAU;
         values.push(Value::Point([
             center[0] + radius * angle.cos(),
             center[1] + radius * angle.sin(),
@@ -1198,7 +1198,7 @@ fn approximate_circle(center: [f64; 3], radius: f64, segments: usize) -> Vec<Val
     values
 }
 
-fn create_domain1d(start: f64, end: f64) -> Domain1D {
+fn create_domain1d(start: f32, end: f32) -> Domain1D {
     let min = start.min(end);
     let max = start.max(end);
     Domain1D {
@@ -1214,13 +1214,13 @@ fn create_domain1d(start: f64, end: f64) -> Domain1D {
 
 #[derive(Clone, Debug)]
 struct BoundingBox {
-    min: [f64; 3],
-    max: [f64; 3],
+    min: [f32; 3],
+    max: [f32; 3],
 }
 
-fn bounding_box(points: &[[f64; 3]]) -> BoundingBox {
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
+fn bounding_box(points: &[[f32; 3]]) -> BoundingBox {
+    let mut min = [f32::INFINITY; 3];
+    let mut max = [f32::NEG_INFINITY; 3];
     for point in points {
         for i in 0..3 {
             min[i] = min[i].min(point[i]);

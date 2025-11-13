@@ -76,12 +76,12 @@ struct SliderExport {
     id: String,
     name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    min: Option<f64>,
+    min: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    max: Option<f64>,
+    max: Option<f32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    step: Option<f64>,
-    value: f64,
+    step: Option<f32>,
+    value: f32,
 }
 
 #[derive(Debug, Serialize)]
@@ -106,17 +106,17 @@ struct NodeInfoResponse {
 #[serde(tag = "type")]
 enum GeometryItem {
     Point {
-        coordinates: [f64; 3],
+        coordinates: [f32; 3],
     },
     Line {
-        start: [f64; 3],
-        end: [f64; 3],
+        start: [f32; 3],
+        end: [f32; 3],
     },
     Polyline {
-        points: Vec<[f64; 3]>,
+        points: Vec<[f32; 3]>,
     },
     Mesh {
-        vertices: Vec<[f64; 3]>,
+        vertices: Vec<[f32; 3]>,
         faces: Vec<Vec<u32>>,
     },
 }
@@ -189,7 +189,7 @@ impl Engine {
 
     /// Stel een sliderwaarde in op basis van id of naam.
     #[wasm_bindgen]
-    pub fn set_slider_value(&mut self, id_or_name: &str, value: f64) -> Result<(), JsValue> {
+    pub fn set_slider_value(&mut self, id_or_name: &str, value: f32) -> Result<(), JsValue> {
         if !value.is_finite() {
             return Err(JsError::new("sliderwaarde moet een eindig getal zijn").into());
         }
@@ -225,8 +225,8 @@ impl Engine {
 
         let mut clamped = clamp(
             value,
-            min.unwrap_or(f64::NEG_INFINITY),
-            max.unwrap_or(f64::INFINITY),
+            min.unwrap_or(f32::NEG_INFINITY),
+            max.unwrap_or(f32::INFINITY),
         );
 
         if let Some(step) = step.filter(|s| *s > 0.0) {
@@ -235,8 +235,8 @@ impl Engine {
             }
             clamped = clamp(
                 clamped,
-                min.unwrap_or(f64::NEG_INFINITY),
-                max.unwrap_or(f64::INFINITY),
+                min.unwrap_or(f32::NEG_INFINITY),
+                max.unwrap_or(f32::INFINITY),
             );
         }
 
@@ -462,7 +462,7 @@ fn append_geometry_items(value: &Value, items: &mut Vec<GeometryItem>) {
     }
 }
 
-fn list_as_polyline(values: &[Value]) -> Option<Vec<[f64; 3]>> {
+fn list_as_polyline(values: &[Value]) -> Option<Vec<[f32; 3]>> {
     if values.len() < 2 {
         return None;
     }
@@ -540,13 +540,13 @@ mod tests {
     }
 }
 
-fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f64>, String> {
+fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f32>, String> {
     match meta.get_normalized(key) {
         Some(MetaValue::Number(value)) => Ok(Some(*value)),
-        Some(MetaValue::Integer(value)) => Ok(Some(*value as f64)),
+        Some(MetaValue::Integer(value)) => Ok(Some(*value as f32)),
         Some(MetaValue::List(list)) if list.len() == 1 => match &list[0] {
             MetaValue::Number(value) => Ok(Some(*value)),
-            MetaValue::Integer(value) => Ok(Some(*value as f64)),
+            MetaValue::Integer(value) => Ok(Some(*value as f32)),
             _ => Err(format!("meta sleutel `{key}` bevat geen numerieke waarde")),
         },
         Some(MetaValue::Boolean(_)) | Some(MetaValue::Text(_)) | Some(MetaValue::List(_)) => {
@@ -556,11 +556,11 @@ fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f64>, String> {
     }
 }
 
-fn required_meta_number(meta: &MetaMap, key: &str) -> Result<f64, String> {
+fn required_meta_number(meta: &MetaMap, key: &str) -> Result<f32, String> {
     meta_number(meta, key)?.ok_or_else(|| format!("meta sleutel `{key}` ontbreekt voor slider"))
 }
 
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
+fn clamp(value: f32, min: f32, max: f32) -> f32 {
     value.max(min).min(max)
 }
 

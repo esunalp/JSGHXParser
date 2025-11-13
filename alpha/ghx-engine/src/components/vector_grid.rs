@@ -10,7 +10,7 @@ use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
 
-const EPSILON: f64 = 1e-9;
+const EPSILON: f32 = 1e-9;
 
 const PIN_OUTPUT_CELLS: &str = "C";
 const PIN_OUTPUT_POINTS: &str = "P";
@@ -234,7 +234,7 @@ fn evaluate_populate_geometry(inputs: &[Value]) -> ComponentResult {
     let count = resolve_count(inputs.get(1), 100, "Populate Geometry count")?;
     let mut rng = create_seeded_rng(inputs.get(2));
     let existing = collect_points(inputs.get(3), "Populate Geometry bestaande populatie")?;
-    let mut population: Vec<[f64; 3]> = existing.into_iter().take(count).collect();
+    let mut population: Vec<[f32; 3]> = existing.into_iter().take(count).collect();
 
     let geometry = gather_geometry(inputs.get(0), "Populate Geometry")?;
     let fallback = geometry
@@ -269,7 +269,7 @@ fn evaluate_populate_2d(inputs: &[Value]) -> ComponentResult {
     let count = resolve_count(inputs.get(1), 100, "Populate 2D count")?;
     let mut rng = create_seeded_rng(inputs.get(2));
     let existing = collect_points(inputs.get(3), "Populate 2D bestaande populatie")?;
-    let mut population: Vec<[f64; 3]> = existing.into_iter().take(count).collect();
+    let mut population: Vec<[f32; 3]> = existing.into_iter().take(count).collect();
     let mut attempts = 0usize;
     while population.len() < count && attempts < count.saturating_mul(10).max(10) {
         attempts += 1;
@@ -298,7 +298,7 @@ fn evaluate_populate_3d(inputs: &[Value]) -> ComponentResult {
     let count = resolve_count(inputs.get(1), 100, "Populate 3D count")?;
     let mut rng = create_seeded_rng(inputs.get(2));
     let existing = collect_points(inputs.get(3), "Populate 3D bestaande populatie")?;
-    let mut population: Vec<[f64; 3]> = existing.into_iter().take(count).collect();
+    let mut population: Vec<[f32; 3]> = existing.into_iter().take(count).collect();
     let mut attempts = 0usize;
     while population.len() < count && attempts < count.saturating_mul(10).max(10) {
         attempts += 1;
@@ -359,9 +359,9 @@ fn evaluate_spherical_cloud(inputs: &[Value]) -> ComponentResult {
     let mut cloud = Vec::with_capacity(count);
     let mut normals = Vec::with_capacity(count);
     for _ in 0..count {
-        let u: f64 = rng.random();
-        let v: f64 = rng.random();
-        let theta = 2.0 * std::f64::consts::PI * u;
+        let u: f32 = rng.random();
+        let v: f32 = rng.random();
+        let theta = 2.0 * std::f32::consts::PI * u;
         let phi = (2.0 * v - 1.0).acos();
         let dir = [phi.sin() * theta.cos(), phi.sin() * theta.sin(), phi.cos()];
         let point = add(center, scale(dir, radius));
@@ -374,25 +374,25 @@ fn evaluate_spherical_cloud(inputs: &[Value]) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_NORMALS.to_owned(), vectors_to_value(normals));
     Ok(outputs)
 }
-fn build_hex_grid_by_extents(plane: &Plane, size: f64, count_x: usize, count_y: usize) -> HexGrid {
+fn build_hex_grid_by_extents(plane: &Plane, size: f32, count_x: usize, count_y: usize) -> HexGrid {
     let mut rows = Vec::with_capacity(count_y);
     let mut cells = Vec::new();
     let mut local_rows = Vec::with_capacity(count_y);
 
-    let step_x = size * 3.0_f64.sqrt();
+    let step_x = size * 3.0_f32.sqrt();
     let step_y = 1.5 * size;
 
-    let mut min_x = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
+    let mut min_x = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
 
     for row in 0..count_y {
         let mut local_row = Vec::with_capacity(count_x);
         let row_offset = if row % 2 == 0 { 0.0 } else { step_x / 2.0 };
         for col in 0..count_x {
-            let x = col as f64 * step_x + row_offset;
-            let y = row as f64 * step_y;
+            let x = col as f32 * step_x + row_offset;
+            let y = row as f32 * step_y;
             local_row.push((x, y));
             min_x = min_x.min(x);
             max_x = max_x.max(x);
@@ -420,7 +420,7 @@ fn build_hex_grid_by_extents(plane: &Plane, size: f64, count_x: usize, count_y: 
 
             let mut corners = Vec::with_capacity(7);
             for i in 0..6 {
-                let angle = std::f64::consts::FRAC_PI_3 * i as f64 + std::f64::consts::FRAC_PI_6;
+                let angle = std::f32::consts::FRAC_PI_3 * i as f32 + std::f32::consts::FRAC_PI_6;
                 let corner = plane.apply(
                     x - offset_x + size * angle.cos(),
                     y - offset_y + size * angle.sin(),
@@ -443,16 +443,16 @@ fn build_rectangular_grid(
     plane: &Plane,
     count_x: usize,
     count_y: usize,
-    size_x: f64,
-    size_y: f64,
+    size_x: f32,
+    size_y: f32,
     offset: Offset,
 ) -> RectangularGrid {
     let mut rows = Vec::with_capacity(count_y);
     for iy in 0..count_y {
         let mut row = Vec::with_capacity(count_x);
         for ix in 0..count_x {
-            let x = offset.x + ix as f64 * size_x;
-            let y = offset.y + iy as f64 * size_y;
+            let x = offset.x + ix as f32 * size_x;
+            let y = offset.y + iy as f32 * size_y;
             row.push(plane.apply(x, y, 0.0));
         }
         rows.push(row);
@@ -485,7 +485,7 @@ fn build_rectangular_grid(
 
 fn build_radial_grid(
     plane: &Plane,
-    radius_step: f64,
+    radius_step: f32,
     radial_count: usize,
     polar_count: usize,
 ) -> RadialGrid {
@@ -495,24 +495,24 @@ fn build_radial_grid(
     rings.push(vec![plane.apply(0.0, 0.0, 0.0)]);
 
     let normalized_polar = polar_count.max(3);
-    let angle_step = 2.0 * std::f64::consts::PI / normalized_polar as f64;
+    let angle_step = 2.0 * std::f32::consts::PI / normalized_polar as f32;
 
     for ring in 1..=radial_count {
-        let radius = radius_step * ring as f64;
+        let radius = radius_step * ring as f32;
         let mut ring_points = Vec::with_capacity(normalized_polar);
         for segment in 0..normalized_polar {
-            let angle = segment as f64 * angle_step;
+            let angle = segment as f32 * angle_step;
             ring_points.push(plane.apply(radius * angle.cos(), radius * angle.sin(), 0.0));
         }
         rings.push(ring_points);
     }
 
     for ring in 0..radial_count {
-        let inner_radius = radius_step * ring as f64;
-        let outer_radius = radius_step * (ring as f64 + 1.0);
+        let inner_radius = radius_step * ring as f32;
+        let outer_radius = radius_step * (ring as f32 + 1.0);
         for segment in 0..normalized_polar {
-            let angle_a = segment as f64 * angle_step;
-            let angle_b = (segment as f64 + 1.0) * angle_step;
+            let angle_a = segment as f32 * angle_step;
+            let angle_b = (segment as f32 + 1.0) * angle_step;
             let mut corners = vec![
                 plane.apply(
                     inner_radius * angle_a.cos(),
@@ -547,22 +547,22 @@ fn build_radial_grid(
 
 fn build_triangular_grid(
     plane: &Plane,
-    edge_length: f64,
+    edge_length: f32,
     count_x: usize,
     count_y: usize,
 ) -> TriangularGrid {
-    let height = edge_length * (3.0_f64).sqrt() / 2.0;
+    let height = edge_length * (3.0_f32).sqrt() / 2.0;
     let mut local_rows = Vec::with_capacity(count_y + 1);
-    let mut min_x = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
+    let mut min_x = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
 
     for row in 0..=count_y {
         let mut local_row = Vec::with_capacity(count_x + 1);
         for col in 0..=count_x {
-            let x = (col as f64 + row as f64 / 2.0) * edge_length;
-            let y = row as f64 * height;
+            let x = (col as f32 + row as f32 / 2.0) * edge_length;
+            let y = row as f32 * height;
             local_row.push((x, y));
             min_x = min_x.min(x);
             max_x = max_x.max(x);
@@ -614,7 +614,7 @@ fn build_triangular_grid(
     }
 }
 
-fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
     let mut points = Vec::new();
     if let Some(value) = value {
         collect_points_into(value, context, &mut points)?;
@@ -625,7 +625,7 @@ fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>,
 fn collect_points_into(
     value: &Value,
     context: &str,
-    output: &mut Vec<[f64; 3]>,
+    output: &mut Vec<[f32; 3]>,
 ) -> Result<(), ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => {
@@ -659,7 +659,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f64>() {
+            if let Ok(parsed) = text.trim().parse::<f32>() {
                 output.push([parsed, 0.0, 0.0]);
                 Ok(())
             } else {
@@ -677,7 +677,7 @@ fn collect_points_into(
     }
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
     match value {
         Some(Value::Point(point) | Value::Vector(point)) => Ok(*point),
         Some(Value::List(values)) if values.len() == 1 => coerce_point(values.get(0), context),
@@ -698,14 +698,14 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
 
 fn coerce_number(
     value: Option<&Value>,
-    default: f64,
+    default: f32,
     context: &str,
-) -> Result<f64, ComponentError> {
+) -> Result<f32, ComponentError> {
     match value {
         None => Ok(default),
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(boolean)) => Ok(if *boolean { 1.0 } else { 0.0 }),
-        Some(Value::Text(text)) => text.trim().parse::<f64>().map_err(|_| {
+        Some(Value::Text(text)) => text.trim().parse::<f32>().map_err(|_| {
             ComponentError::new(format!(
                 "{} kon tekst '{}' niet als getal interpreteren",
                 context, text
@@ -724,9 +724,9 @@ fn coerce_number(
 
 fn coerce_positive_number(
     value: Option<&Value>,
-    default: f64,
+    default: f32,
     context: &str,
-) -> Result<f64, ComponentError> {
+) -> Result<f32, ComponentError> {
     let number = coerce_number(value, default, context)?;
     Ok(number.max(EPSILON))
 }
@@ -737,12 +737,12 @@ fn coerce_usize(
     min: usize,
     context: &str,
 ) -> Result<usize, ComponentError> {
-    let number = coerce_number(value, default as f64, context)?;
+    let number = coerce_number(value, default as f32, context)?;
     if !number.is_finite() {
         return Ok(min.max(default));
     }
     let rounded = number.round();
-    if rounded < min as f64 {
+    if rounded < min as f32 {
         Ok(min)
     } else {
         Ok(rounded as usize)
@@ -830,15 +830,15 @@ fn create_seeded_rng(seed: Option<&Value>) -> StdRng {
     StdRng::seed_from_u64(seed_value.to_bits())
 }
 
-fn points_to_value(points: Vec<[f64; 3]>) -> Value {
+fn points_to_value(points: Vec<[f32; 3]>) -> Value {
     Value::List(points.into_iter().map(Value::Point).collect())
 }
 
-fn vectors_to_value(vectors: Vec<[f64; 3]>) -> Value {
+fn vectors_to_value(vectors: Vec<[f32; 3]>) -> Value {
     Value::List(vectors.into_iter().map(Value::Vector).collect())
 }
 
-fn polygons_to_value(polygons: Vec<Vec<[f64; 3]>>) -> Value {
+fn polygons_to_value(polygons: Vec<Vec<[f32; 3]>>) -> Value {
     Value::List(
         polygons
             .into_iter()
@@ -847,7 +847,7 @@ fn polygons_to_value(polygons: Vec<Vec<[f64; 3]>>) -> Value {
     )
 }
 
-fn nested_points_to_value(points: Vec<Vec<[f64; 3]>>) -> Value {
+fn nested_points_to_value(points: Vec<Vec<[f32; 3]>>) -> Value {
     Value::List(
         points
             .into_iter()
@@ -856,15 +856,15 @@ fn nested_points_to_value(points: Vec<Vec<[f64; 3]>>) -> Value {
     )
 }
 
-fn random_point_in_rectangle(section: &RectangleSection, rng: &mut impl Rng) -> [f64; 3] {
-    let u: f64 = rng.random();
-    let v: f64 = rng.random();
+fn random_point_in_rectangle(section: &RectangleSection, rng: &mut impl Rng) -> [f32; 3] {
+    let u: f32 = rng.random();
+    let v: f32 = rng.random();
     let x = lerp(section.min_x, section.max_x, u);
     let y = lerp(section.min_y, section.max_y, v);
     section.plane.apply(x, y, 0.0)
 }
 
-fn random_point_in_box(region: &BoxRegion, rng: &mut impl Rng) -> [f64; 3] {
+fn random_point_in_box(region: &BoxRegion, rng: &mut impl Rng) -> [f32; 3] {
     [
         lerp(region.min[0], region.max[0], rng.random()),
         lerp(region.min[1], region.max[1], rng.random()),
@@ -872,7 +872,7 @@ fn random_point_in_box(region: &BoxRegion, rng: &mut impl Rng) -> [f64; 3] {
     ]
 }
 
-fn lerp(a: f64, b: f64, t: f64) -> f64 {
+fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 fn extract_rectangle_section(
@@ -892,10 +892,10 @@ fn extract_rectangle_section(
     if points.is_empty() {
         return Ok(RectangleSection::default());
     }
-    let mut min_x = f64::INFINITY;
-    let mut max_x = f64::NEG_INFINITY;
-    let mut min_y = f64::INFINITY;
-    let mut max_y = f64::NEG_INFINITY;
+    let mut min_x = f32::INFINITY;
+    let mut max_x = f32::NEG_INFINITY;
+    let mut min_y = f32::INFINITY;
+    let mut max_y = f32::NEG_INFINITY;
     for point in points {
         let coords = plane.coordinates(point);
         min_x = min_x.min(coords[0]);
@@ -994,7 +994,7 @@ fn gather_geometry_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f64>() {
+            if let Ok(parsed) = text.trim().parse::<f32>() {
                 collection.push_point([parsed, 0.0, 0.0]);
                 Ok(())
             } else {
@@ -1015,18 +1015,18 @@ fn gather_geometry_into(
 #[derive(Debug, Default)]
 struct GeometryCollection {
     samplers: Vec<Sampler>,
-    fallback_points: Vec<[f64; 3]>,
+    fallback_points: Vec<[f32; 3]>,
     bounds: BoundingBox,
 }
 
 impl GeometryCollection {
-    fn push_point(&mut self, point: [f64; 3]) {
+    fn push_point(&mut self, point: [f32; 3]) {
         self.samplers.push(Sampler::Point(point));
         self.fallback_points.push(point);
         self.bounds.include(point);
     }
 
-    fn push_line(&mut self, start: [f64; 3], end: [f64; 3]) {
+    fn push_line(&mut self, start: [f32; 3], end: [f32; 3]) {
         self.samplers.push(Sampler::Line { start, end });
         self.fallback_points.push(start);
         self.fallback_points.push(end);
@@ -1034,7 +1034,7 @@ impl GeometryCollection {
         self.bounds.include(end);
     }
 
-    fn push_triangle(&mut self, a: [f64; 3], b: [f64; 3], c: [f64; 3]) {
+    fn push_triangle(&mut self, a: [f32; 3], b: [f32; 3], c: [f32; 3]) {
         self.samplers.push(Sampler::Triangle { a, b, c });
         self.fallback_points.push(a);
         self.fallback_points.push(b);
@@ -1044,7 +1044,7 @@ impl GeometryCollection {
         self.bounds.include(c);
     }
 
-    fn sample(&self, rng: &mut impl Rng) -> Option<[f64; 3]> {
+    fn sample(&self, rng: &mut impl Rng) -> Option<[f32; 3]> {
         if self.samplers.is_empty() {
             return if self.bounds.valid {
                 Some(self.bounds.random_point(rng))
@@ -1059,8 +1059,8 @@ impl GeometryCollection {
 
 #[derive(Debug, Clone, Copy)]
 struct BoxRegion {
-    min: [f64; 3],
-    max: [f64; 3],
+    min: [f32; 3],
+    max: [f32; 3],
 }
 
 impl Default for BoxRegion {
@@ -1083,10 +1083,10 @@ impl BoxRegion {
 #[derive(Debug, Clone, Copy)]
 struct RectangleSection {
     plane: Plane,
-    min_x: f64,
-    max_x: f64,
-    min_y: f64,
-    max_y: f64,
+    min_x: f32,
+    max_x: f32,
+    min_y: f32,
+    max_y: f32,
 }
 
 impl Default for RectangleSection {
@@ -1103,49 +1103,49 @@ impl Default for RectangleSection {
 
 #[derive(Debug, Clone, Copy)]
 struct Offset {
-    x: f64,
-    y: f64,
+    x: f32,
+    y: f32,
 }
 
 impl Offset {
-    fn centered(count_x: usize, count_y: usize, size_x: f64, size_y: f64) -> Self {
+    fn centered(count_x: usize, count_y: usize, size_x: f32, size_y: f32) -> Self {
         Self {
-            x: -((count_x - 1) as f64 * size_x) / 2.0,
-            y: -((count_y - 1) as f64 * size_y) / 2.0,
+            x: -((count_x - 1) as f32 * size_x) / 2.0,
+            y: -((count_y - 1) as f32 * size_y) / 2.0,
         }
     }
 }
 
 #[derive(Debug)]
 struct HexGrid {
-    rows: Vec<Vec<[f64; 3]>>,
-    cells: Vec<Vec<[f64; 3]>>,
+    rows: Vec<Vec<[f32; 3]>>,
+    cells: Vec<Vec<[f32; 3]>>,
 }
 
 #[derive(Debug)]
 struct RectangularGrid {
-    points: Vec<Vec<[f64; 3]>>,
-    cells: Vec<Vec<[f64; 3]>>,
+    points: Vec<Vec<[f32; 3]>>,
+    cells: Vec<Vec<[f32; 3]>>,
 }
 
 #[derive(Debug)]
 struct RadialGrid {
-    rings: Vec<Vec<[f64; 3]>>,
-    cells: Vec<Vec<[f64; 3]>>,
+    rings: Vec<Vec<[f32; 3]>>,
+    cells: Vec<Vec<[f32; 3]>>,
 }
 
 #[derive(Debug)]
 struct TriangularGrid {
-    points: Vec<Vec<[f64; 3]>>,
-    cells: Vec<Vec<[f64; 3]>>,
+    points: Vec<Vec<[f32; 3]>>,
+    cells: Vec<Vec<[f32; 3]>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
+    origin: [f32; 3],
+    x_axis: [f32; 3],
+    y_axis: [f32; 3],
+    z_axis: [f32; 3],
 }
 
 impl Default for Plane {
@@ -1161,10 +1161,10 @@ impl Default for Plane {
 
 impl Plane {
     fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
+        origin: [f32; 3],
+        x_axis: [f32; 3],
+        y_axis: [f32; 3],
+        z_axis: [f32; 3],
     ) -> Self {
         let z = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -1189,7 +1189,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
         let ab = subtract(b, a);
         let ac = subtract(c, a);
         let normal = cross(ab, ac);
@@ -1206,7 +1206,7 @@ impl Plane {
         Self::normalize_axes(a, x_axis, y_axis, z_axis)
     }
 
-    fn apply(&self, u: f64, v: f64, w: f64) -> [f64; 3] {
+    fn apply(&self, u: f32, v: f32, w: f32) -> [f32; 3] {
         add(
             add(
                 add(self.origin, scale(self.x_axis, u)),
@@ -1216,7 +1216,7 @@ impl Plane {
         )
     }
 
-    fn coordinates(&self, point: [f64; 3]) -> [f64; 3] {
+    fn coordinates(&self, point: [f32; 3]) -> [f32; 3] {
         let relative = subtract(point, self.origin);
         [
             dot(relative, self.x_axis),
@@ -1241,25 +1241,25 @@ impl From<Line> for Plane {
 
 #[derive(Debug, Clone, Copy)]
 struct Line {
-    start: [f64; 3],
-    end: [f64; 3],
+    start: [f32; 3],
+    end: [f32; 3],
 }
 
 impl Line {
-    fn direction(self) -> [f64; 3] {
+    fn direction(self) -> [f32; 3] {
         subtract(self.end, self.start)
     }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 struct BoundingBox {
-    min: [f64; 3],
-    max: [f64; 3],
+    min: [f32; 3],
+    max: [f32; 3],
     valid: bool,
 }
 
 impl BoundingBox {
-    fn include(&mut self, point: [f64; 3]) {
+    fn include(&mut self, point: [f32; 3]) {
         if !self.valid {
             self.min = point;
             self.max = point;
@@ -1272,7 +1272,7 @@ impl BoundingBox {
         }
     }
 
-    fn random_point(&self, rng: &mut impl Rng) -> [f64; 3] {
+    fn random_point(&self, rng: &mut impl Rng) -> [f32; 3] {
         [
             lerp(self.min[0], self.max[0], rng.random()),
             lerp(self.min[1], self.max[1], rng.random()),
@@ -1283,29 +1283,29 @@ impl BoundingBox {
 
 #[derive(Debug, Clone, Copy)]
 enum Sampler {
-    Point([f64; 3]),
+    Point([f32; 3]),
     Line {
-        start: [f64; 3],
-        end: [f64; 3],
+        start: [f32; 3],
+        end: [f32; 3],
     },
     Triangle {
-        a: [f64; 3],
-        b: [f64; 3],
-        c: [f64; 3],
+        a: [f32; 3],
+        b: [f32; 3],
+        c: [f32; 3],
     },
 }
 
 impl Sampler {
-    fn sample(self, rng: &mut impl Rng) -> [f64; 3] {
+    fn sample(self, rng: &mut impl Rng) -> [f32; 3] {
         match self {
             Self::Point(point) => point,
             Self::Line { start, end } => {
-                let t: f64 = rng.random();
+                let t: f32 = rng.random();
                 add(start, scale(subtract(end, start), t))
             }
             Self::Triangle { a, b, c } => {
-                let r1: f64 = rng.random();
-                let r2: f64 = rng.random();
+                let r1: f32 = rng.random();
+                let r2: f32 = rng.random();
                 let sqrt_r1 = r1.sqrt();
                 let u = 1.0 - sqrt_r1;
                 let v = r2 * sqrt_r1;
@@ -1316,23 +1316,23 @@ impl Sampler {
     }
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1340,11 +1340,11 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn vector_length_squared(vector: [f64; 3]) -> f64 {
+fn vector_length_squared(vector: [f32; 3]) -> f32 {
     dot(vector, vector)
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
+fn normalize(vector: [f32; 3]) -> [f32; 3] {
     if let Some((normalized, _)) = safe_normalized(vector) {
         normalized
     } else {
@@ -1352,7 +1352,7 @@ fn normalize(vector: [f64; 3]) -> [f64; 3] {
     }
 }
 
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+fn safe_normalized(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     let length = vector_length_squared(vector).sqrt();
     if length < EPSILON {
         None
@@ -1361,7 +1361,7 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     }
 }
 
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     let abs_x = vector[0].abs();
     let abs_y = vector[1].abs();
     let abs_z = vector[2].abs();

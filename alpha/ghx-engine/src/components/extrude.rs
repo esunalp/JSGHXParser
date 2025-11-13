@@ -53,11 +53,11 @@ impl Component for ComponentImpl {
     }
 }
 
-fn collect_curves(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>, ComponentError> {
+fn collect_curves(value: &Value) -> Result<Vec<([f32; 3], [f32; 3])>, ComponentError> {
     super::coerce::coerce_curve_segments(value)
 }
 
-fn coerce_direction(value: &Value) -> Result<[f64; 3], ComponentError> {
+fn coerce_direction(value: &Value) -> Result<[f32; 3], ComponentError> {
     match value {
         Value::Vector(vector) => Ok(*vector),
         Value::Number(height) => Ok([0.0, 0.0, *height]),
@@ -69,7 +69,7 @@ fn coerce_direction(value: &Value) -> Result<[f64; 3], ComponentError> {
     }
 }
 
-fn extrude_curve(p1: [f64; 3], p2: [f64; 3], direction: [f64; 3]) -> Value {
+fn extrude_curve(p1: [f32; 3], p2: [f32; 3], direction: [f32; 3]) -> Value {
     let top1 = add_vector(p1, direction);
     let top2 = add_vector(p2, direction);
 
@@ -78,7 +78,7 @@ fn extrude_curve(p1: [f64; 3], p2: [f64; 3], direction: [f64; 3]) -> Value {
     Value::Surface { vertices, faces }
 }
 
-fn add_vector(point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
+fn add_vector(point: [f32; 3], direction: [f32; 3]) -> [f32; 3] {
     [
         point[0] + direction[0],
         point[1] + direction[1],
@@ -86,7 +86,7 @@ fn add_vector(point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn is_zero_vector(vector: [f64; 3]) -> bool {
+fn is_zero_vector(vector: [f32; 3]) -> bool {
     vector.iter().all(|component| component.abs() < 1e-9)
 }
 
