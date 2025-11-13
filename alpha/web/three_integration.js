@@ -125,7 +125,22 @@ function createMeshObject(item) {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
   if (Array.isArray(item.faces) && item.faces.length) {
-    const indices = item.faces.flat();
+    const flippedFaces = item.faces.map((face) => {
+      if (!Array.isArray(face) || face.length < 3) {
+        return face;
+      }
+
+      const flipped = face.slice();
+      for (let left = 1, right = flipped.length - 1; left < right; left += 1, right -= 1) {
+        const swap = flipped[left];
+        flipped[left] = flipped[right];
+        flipped[right] = swap;
+      }
+
+      return flipped;
+    });
+
+    const indices = flippedFaces.flat();
     let maxIndex = 0;
     for (const value of indices) {
       if (typeof value === 'number' && value > maxIndex) {
