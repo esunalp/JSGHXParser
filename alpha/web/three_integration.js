@@ -19,6 +19,7 @@ import { PhysicalSunSky } from './shaders/physical-sun-sky.js';
 import {
   cloneSurfaceMaterial,
   createStandardSurfaceMaterial,
+  createTlsMaterial,
   convertMaterialToNode,
   ensureGeometryHasVertexNormals,
 } from './shaders/material-utils.js';
@@ -139,12 +140,55 @@ function createMeshObject(item) {
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
 
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x3c82ff,
-    metalness: 0.1,
-    roughness: 0.65,
-    side: THREE.DoubleSide,
-  });
+  const createPreviewMaterial = (materialData) => {
+    if (!materialData || typeof materialData !== 'object') {
+      return createStandardSurfaceMaterial(
+        { color: 0x3c82ff, metalness: 0.1, roughness: 0.65 },
+        { side: DEFAULT_MESH_SIDE },
+      );
+    }
+
+    const toColorLike = (value, fallback) => {
+      if (Array.isArray(value) && value.length >= 3) {
+        return [
+          Number.isFinite(value[0]) ? value[0] : fallback[0],
+          Number.isFinite(value[1]) ? value[1] : fallback[1],
+          Number.isFinite(value[2]) ? value[2] : fallback[2],
+        ];
+      }
+
+      if (value && typeof value === 'object') {
+        const { r, g, b } = value;
+        if ([r, g, b].every((component) => Number.isFinite(component))) {
+          return [r, g, b];
+        }
+      }
+
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+      }
+
+      return fallback;
+    };
+
+    const transparency = Number(materialData.transparency);
+    const shininess = Number(materialData.shine);
+
+    return createTlsMaterial(
+      {
+        diffuse: toColorLike(materialData.diffuse, [0.6, 0.65, 0.69]),
+        specular: toColorLike(materialData.specular, [0.2, 0.2, 0.2]),
+        emissive: toColorLike(materialData.emission, [0, 0, 0]),
+        transparency: Number.isFinite(transparency)
+          ? THREE.MathUtils.clamp(transparency, 0, 1)
+          : 0,
+        shininess: Number.isFinite(shininess) ? shininess : 30,
+      },
+      { side: DEFAULT_MESH_SIDE },
+    );
+  };
+
+  const material = createPreviewMaterial(item.material);
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.castShadow = true;

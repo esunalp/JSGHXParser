@@ -35,7 +35,7 @@ fn lijntest2_line_outputs_expected_points() {
     let line = result
         .geometry
         .iter()
-        .find_map(|value| match value {
+        .find_map(|entry| match &entry.value {
             Value::CurveLine { p1, p2 } => Some((p1, p2)),
             _ => None,
         })
@@ -66,14 +66,14 @@ fn line_sample_produces_curve_line() {
     let curve_count = result
         .geometry
         .iter()
-        .filter(|value| matches!(value, Value::CurveLine { .. }))
+        .filter(|entry| matches!(&entry.value, Value::CurveLine { .. }))
         .count();
     assert_eq!(curve_count, 1, "expected exactly one curve line");
 
     let line = result
         .geometry
         .iter()
-        .find_map(|value| match value {
+        .find_map(|entry| match &entry.value {
             Value::CurveLine { p1, p2 } => Some((p1, p2)),
             _ => None,
         })
@@ -92,7 +92,7 @@ fn extrude_sample_produces_surface_with_faces() {
     let surface = result
         .geometry
         .iter()
-        .find_map(|value| match value {
+        .find_map(|entry| match &entry.value {
             Value::Surface { vertices, faces } => Some((vertices, faces)),
             _ => None,
         })
@@ -108,17 +108,17 @@ fn line_sample_matches_expected_snapshot() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../tools/ghx-samples/minimal_line.ghx"
     )));
-    let curve = result
+    let curve_entry = result
         .geometry
         .iter()
-        .find(|value| matches!(value, Value::CurveLine { .. }))
+        .find(|entry| matches!(&entry.value, Value::CurveLine { .. }))
         .expect("curve line present");
     let expected = Value::CurveLine {
         p1: [0.0, 0.0, 0.0],
         p2: [3.0, 0.0, 0.0],
     };
 
-    assert_value_close(curve, &expected, 1e-9);
+    assert_value_close(&curve_entry.value, &expected, 1e-9);
 }
 
 fn evaluate_sample(xml: &str) -> EvaluationResult {

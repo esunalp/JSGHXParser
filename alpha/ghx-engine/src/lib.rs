@@ -9,13 +9,13 @@ use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
 use components::{ComponentKind, ComponentRegistry};
-use graph::evaluator::{self, EvaluationPlan, EvaluationResult};
-use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
-use graph::value::Value;
 use graph::Graph;
+use graph::evaluator::{self, EvaluationPlan, EvaluationResult, GeometryEntry};
+use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
+use graph::value::{ColorValue, MaterialValue, Value};
 use serde::Serialize;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsError;
+use wasm_bindgen::prelude::*;
 
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "console_error_panic_hook", target_arch = "wasm32"))] {
@@ -103,6 +103,15 @@ struct NodeInfoResponse {
 }
 
 #[derive(Debug, Serialize)]
+struct MaterialExport {
+    diffuse: [f64; 3],
+    specular: [f64; 3],
+    emission: [f64; 3],
+    transparency: f64,
+    shine: f64,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(tag = "type")]
 enum GeometryItem {
     Point {
@@ -118,7 +127,25 @@ enum GeometryItem {
     Mesh {
         vertices: Vec<[f64; 3]>,
         faces: Vec<Vec<u32>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        material: Option<MaterialExport>,
     },
+}
+
+impl From<MaterialValue> for MaterialExport {
+    fn from(material: MaterialValue) -> Self {
+        Self {
+            diffuse: color_to_array(material.diffuse),
+            specular: color_to_array(material.specular),
+            emission: color_to_array(material.emission),
+            transparency: material.transparency,
+            shine: material.shine,
+        }
+    }
+}
+
+fn color_to_array(color: ColorValue) -> [f64; 3] {
+    [color.r, color.g, color.b]
 }
 
 /// Public entry point for consumers.
@@ -318,8 +345,8 @@ impl Engine {
         };
 
         let mut items = Vec::new();
-        for value in &result.geometry {
-            append_geometry_items(value, &mut items);
+        for entry in &result.geometry {
+            append_geometry_items(entry, &mut items);
         }
 
         serde_wasm_bindgen::to_value(&GeometryResponse { items })
@@ -465,7 +492,15 @@ fn slider_state(graph: &Graph, binding: &SliderBinding) -> Result<SliderExport, 
     })
 }
 
-fn append_geometry_items(value: &Value, items: &mut Vec<GeometryItem>) {
+fn append_geometry_items(entry: &GeometryEntry, items: &mut Vec<GeometryItem>) {
+    append_geometry_value(&entry.value, entry.material, items);
+}
+
+fn append_geometry_value(
+    value: &Value,
+    material: Option<MaterialValue>,
+    items: &mut Vec<GeometryItem>,
+) {
     match value {
         Value::Point(point) => {
             items.push(GeometryItem::Point {
@@ -482,6 +517,7 @@ fn append_geometry_items(value: &Value, items: &mut Vec<GeometryItem>) {
             items.push(GeometryItem::Mesh {
                 vertices: vertices.clone(),
                 faces: faces.clone(),
+                material: material.map(MaterialExport::from),
             });
         }
         Value::List(values) => {
@@ -489,7 +525,7 @@ fn append_geometry_items(value: &Value, items: &mut Vec<GeometryItem>) {
                 items.push(GeometryItem::Polyline { points: polyline });
             } else {
                 for entry in values {
-                    append_geometry_items(entry, items);
+                    append_geometry_value(entry, material, items);
                 }
             }
         }
@@ -527,7 +563,7 @@ fn list_as_polyline(values: &[Value]) -> Option<Vec<[f64; 3]>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{append_geometry_items, list_as_polyline, GeometryItem};
+    use super::{GeometryEntry, GeometryItem, append_geometry_items, list_as_polyline};
     use crate::graph::value::Value;
 
     #[test]
@@ -539,7 +575,12 @@ mod tests {
             Value::Point([1.0, 1.0, 0.0]),
         ]);
 
-        append_geometry_items(&list, &mut items);
+        let entry = GeometryEntry {
+            value: list,
+            material: None,
+        };
+
+        append_geometry_items(&entry, &mut items);
 
         assert_eq!(items.len(), 1);
         match &items[0] {
@@ -567,7 +608,12 @@ mod tests {
             },
         ]);
 
-        append_geometry_items(&value, &mut items);
+        let entry = GeometryEntry {
+            value,
+            material: None,
+        };
+
+        append_geometry_items(&entry, &mut items);
 
         assert_eq!(items.len(), 3);
         assert!(matches!(items[0], GeometryItem::Point { .. }));

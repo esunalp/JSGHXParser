@@ -111,7 +111,12 @@ impl fmt::Display for Value {
                 p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]
             ),
             Self::Surface { vertices, faces } => {
-                write!(f, "Surface [{} vertices, {} faces]", vertices.len(), faces.len())
+                write!(
+                    f,
+                    "Surface [{} vertices, {} faces]",
+                    vertices.len(),
+                    faces.len()
+                )
             }
             Self::Domain(d) => match d {
                 Domain::One(d1) => write!(f, "Domain {} to {}", d1.start, d1.end),
