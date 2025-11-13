@@ -100,8 +100,12 @@ pub struct Node {
     pub nickname: Option<String>,
     /// Ingangswaarden, per pinnickname.
     pub inputs: BTreeMap<String, Value>,
+    /// Registratie van de oorspronkelijke pinnavolgorde uit het GHX-bestand.
+    input_order: Vec<String>,
     /// Uitgangswaarden, per pinnickname.
     pub outputs: BTreeMap<String, Value>,
+    /// Registratie van de oorspronkelijke outputvolgorde uit het GHX-bestand.
+    output_order: Vec<String>,
     /// Verdere metadata zoals slider-range of UI hints.
     pub meta: MetaMap,
 }
@@ -114,7 +118,9 @@ impl Default for Node {
             name: None,
             nickname: None,
             inputs: BTreeMap::new(),
+            input_order: Vec::new(),
             outputs: BTreeMap::new(),
+            output_order: Vec::new(),
             meta: BTreeMap::new(),
         }
     }
@@ -130,9 +136,29 @@ impl Node {
         }
     }
 
+    fn register_input_order(&mut self, pin: &str) {
+        if !self.input_order.iter().any(|existing| existing == pin) {
+            self.input_order.push(pin.to_owned());
+        }
+    }
+
+    fn register_output_order(&mut self, pin: &str) {
+        if !self.output_order.iter().any(|existing| existing == pin) {
+            self.output_order.push(pin.to_owned());
+        }
+    }
+
+    /// Registreer een inputpin zonder direct een waarde toe te kennen.
+    pub fn add_input_pin<S: Into<String>>(&mut self, pin: S) {
+        let pin_string = pin.into();
+        self.register_input_order(&pin_string);
+    }
+
     /// Sla een input-waarde op.
     pub fn set_input<S: Into<String>>(&mut self, pin: S, value: Value) {
-        self.inputs.insert(pin.into(), value);
+        let pin_string = pin.into();
+        self.register_input_order(&pin_string);
+        self.inputs.insert(pin_string, value);
     }
 
     /// Haal een verwijzing naar een input op.
@@ -142,7 +168,9 @@ impl Node {
 
     /// Sla een output-waarde op.
     pub fn set_output<S: Into<String>>(&mut self, pin: S, value: Value) {
-        self.outputs.insert(pin.into(), value);
+        let pin_string = pin.into();
+        self.register_output_order(&pin_string);
+        self.outputs.insert(pin_string, value);
     }
 
     /// Haal een output op.
@@ -168,6 +196,12 @@ impl Node {
         self.meta
             .get(key)
             .or_else(|| self.meta.get(&key.to_ascii_lowercase()))
+    }
+
+    /// Geeft de originele volgorde van inputpinnen terug.
+    #[must_use]
+    pub fn input_order(&self) -> &[String] {
+        &self.input_order
     }
 }
 
