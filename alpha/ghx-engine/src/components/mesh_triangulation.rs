@@ -302,7 +302,7 @@ impl Component for Proximity2D {
             let r = coerce::coerce_number(&inputs[4])?;
             r * r
         } else {
-            f32::INFINITY
+            f64::INFINITY
         };
 
         if points.is_empty() {
@@ -394,7 +394,7 @@ impl Component for ConvexHull {
         let hull_indices: Vec<Value> = triangulation
             .hull
             .iter()
-            .map(|&i| Value::Number(i as f32))
+            .map(|&i| Value::Number(i as f64))
             .collect();
 
         let mut hull_lines = Vec::new();
@@ -546,11 +546,11 @@ impl Component for DelaunayEdges {
                 connectivity
                     .entry(p1_idx)
                     .or_default()
-                    .push(Value::Number(p2_idx as f32));
+                    .push(Value::Number(p2_idx as f64));
                 connectivity
                     .entry(p2_idx)
                     .or_default()
-                    .push(Value::Number(p1_idx as f32));
+                    .push(Value::Number(p1_idx as f64));
             }
         }
 
@@ -608,7 +608,7 @@ impl Component for Proximity3D {
             let r = coerce::coerce_number(&inputs[3])?;
             r * r
         } else {
-            f32::INFINITY
+            f64::INFINITY
         };
 
         if points.is_empty() {

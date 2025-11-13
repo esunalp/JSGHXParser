@@ -323,7 +323,7 @@ fn evaluate_split_group(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     Ok(outputs)
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
@@ -356,7 +356,7 @@ fn apply_transform(geometry: &Value, transform: &Value) -> Result<Value, Compone
                         if let (Some(Value::Point(p)), Some(Value::Vector(a)), Some(Value::Number(angle))) =
                             (list.get(1), list.get(2), list.get(3))
                         {
-                            let mut point_fn = |point: [f32; 3]| {
+                            let mut point_fn = |point: [f64; 3]| {
                                 let translated = subtract(point, *p);
                                 let rotated = rotate_vector(translated, *a, *angle);
                                 add(rotated, *p)
@@ -382,8 +382,8 @@ fn map_geometry<FPoint, FVector>(
     vector_fn: &mut FVector,
 ) -> Value
 where
-    FPoint: FnMut([f32; 3]) -> [f32; 3],
-    FVector: FnMut([f32; 3]) -> [f32; 3],
+    FPoint: FnMut([f64; 3]) -> [f64; 3],
+    FVector: FnMut([f64; 3]) -> [f64; 3],
 {
     match value {
         Value::Point(point) => Value::Point(point_fn(*point)),
@@ -407,23 +407,23 @@ where
     }
 }
 
-fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
+fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -431,15 +431,15 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn length_squared(vector: [f32; 3]) -> f32 {
+fn length_squared(vector: [f64; 3]) -> f64 {
     dot(vector, vector)
 }
 
-fn length(vector: [f32; 3]) -> f32 {
+fn length(vector: [f64; 3]) -> f64 {
     length_squared(vector).sqrt()
 }
 
-fn normalize(vector: [f32; 3]) -> [f32; 3] {
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
     let len = length(vector);
     if len.abs() < 1e-9 {
         vector
@@ -448,7 +448,7 @@ fn normalize(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
-fn rotate_vector(vector: [f32; 3], axis: [f32; 3], angle: f32) -> [f32; 3] {
+fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     if angle.abs() < 1e-9 {
         return vector;
     }
@@ -470,7 +470,7 @@ mod tests {
     use super::{Component, ComponentKind, PIN_OUTPUT_GROUP, PIN_OUTPUT_OBJECTS, PIN_OUTPUT_GROUP_A, PIN_OUTPUT_GROUP_B, PIN_OUTPUT_TRANSFORM, PIN_OUTPUT_GEOMETRY, PIN_OUTPUT_FRAGMENTS, PIN_OUTPUT_COMPOUND};
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
-    use std::f32::consts::PI;
+    use std::f64::consts::PI;
 
     #[test]
     fn group_numbers() {

@@ -10,7 +10,7 @@ use super::{Component, ComponentError, ComponentResult};
 const PIN_OUTPUT_GEOMETRY: &str = "G";
 const PIN_OUTPUT_TRANSFORM: &str = "X";
 
-const EPSILON: f32 = 1e-9;
+const EPSILON: f64 = 1e-9;
 
 /// Beschikbare componenten binnen Transform → Affine.
 #[derive(Debug, Clone, Copy)]
@@ -195,8 +195,8 @@ fn evaluate_project_along(inputs: &[Value]) -> ComponentResult {
     let plane = coerce_plane(inputs.get(1), "Project Along vlak")?;
     let direction = coerce_direction(inputs.get(2), "Project Along richting")?;
 
-    let mut point_fn = |point: [f32; 3]| plane.project_along(point, direction);
-    let mut vector_fn = |vector: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| plane.project_along(point, direction);
+    let mut vector_fn = |vector: [f64; 3]| {
         let along = dot(vector, plane.normal());
         subtract(vector, scale(direction, along))
     };
@@ -236,7 +236,7 @@ fn evaluate_orient_direction(inputs: &[Value], include_transform: bool) -> Compo
         let dot_dirs = clamp(dot(dir_a, dir_b), -1.0, 1.0);
         if dot_dirs < -0.999_999 {
             let fallback = orthogonal_vector(dir_a);
-            (fallback, std::f32::consts::PI)
+            (fallback, std::f64::consts::PI)
         } else {
             ([0.0, 0.0, 1.0], 0.0)
         }
@@ -246,12 +246,12 @@ fn evaluate_orient_direction(inputs: &[Value], include_transform: bool) -> Compo
         (axis, dot_dirs.acos())
     };
 
-    let mut point_fn = |point: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| {
         let relative = subtract(point, point_a);
         let rotated = rotate_vector(relative, axis, angle);
         add(point_b, rotated)
     };
-    let mut vector_fn = |vector: [f32; 3]| rotate_vector(vector, axis, angle);
+    let mut vector_fn = |vector: [f64; 3]| rotate_vector(vector, axis, angle);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -294,8 +294,8 @@ fn evaluate_rectangle_mapping(inputs: &[Value]) -> ComponentResult {
     let target_bounds = Bounds::from_points(&target_points);
     let ratios = target_bounds.ratios(&source_bounds);
 
-    let mut point_fn = |point: [f32; 3]| map_between_bounds(point, &source_bounds, &target_bounds);
-    let mut vector_fn = |vector: [f32; 3]| scale_components(vector, ratios);
+    let mut point_fn = |point: [f64; 3]| map_between_bounds(point, &source_bounds, &target_bounds);
+    let mut vector_fn = |vector: [f64; 3]| scale_components(vector, ratios);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -322,8 +322,8 @@ fn evaluate_project(inputs: &[Value], include_transform: bool) -> ComponentResul
         .ok_or_else(|| ComponentError::new("Project vereist geometrie"))?;
     let plane = coerce_plane(inputs.get(1), "Project vlak")?;
 
-    let mut point_fn = |point: [f32; 3]| plane.project(point);
-    let mut vector_fn = |vector: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| plane.project(point);
+    let mut vector_fn = |vector: [f64; 3]| {
         let normal_component = scale(plane.normal(), dot(vector, plane.normal()));
         subtract(vector, normal_component)
     };
@@ -360,11 +360,11 @@ fn evaluate_scale_non_uniform(inputs: &[Value], include_transform: bool) -> Comp
     let scale_y = coerce_number(inputs.get(3), "Scale NU Y")?;
     let scale_z = coerce_number(inputs.get(4), "Scale NU Z")?;
 
-    let mut point_fn = |point: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| {
         let local = plane.to_local(point);
         plane.from_local([local[0] * scale_x, local[1] * scale_y, local[2] * scale_z])
     };
-    let mut vector_fn = |vector: [f32; 3]| {
+    let mut vector_fn = |vector: [f64; 3]| {
         let local = plane.vector_to_local(vector);
         plane.vector_from_local([local[0] * scale_x, local[1] * scale_y, local[2] * scale_z])
     };
@@ -404,14 +404,14 @@ fn evaluate_shear(inputs: &[Value], include_transform: bool) -> ComponentResult 
     let delta_local = subtract(plane.to_local(target), grip_local);
     let reference_height = grip_local[2].abs().max(1.0);
 
-    let mut point_fn = |point: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| {
         let mut local = plane.to_local(point);
         let factor = (local[2] / reference_height).clamp(-2.0, 2.0);
         local[0] += delta_local[0] * factor;
         local[1] += delta_local[1] * factor;
         plane.from_local(local)
     };
-    let mut vector_fn = |vector: [f32; 3]| {
+    let mut vector_fn = |vector: [f64; 3]| {
         let mut local = plane.vector_to_local(vector);
         let factor = (local[2] / reference_height).clamp(-2.0, 2.0);
         local[0] += delta_local[0] * factor;
@@ -449,8 +449,8 @@ fn evaluate_camera_obscura(inputs: &[Value]) -> ComponentResult {
     let focus = coerce_point(inputs.get(1), "Camera Obscura punt")?;
     let factor = coerce_number(inputs.get(2), "Camera Obscura factor")?;
 
-    let mut point_fn = |point: [f32; 3]| add(focus, scale(subtract(point, focus), factor));
-    let mut vector_fn = |vector: [f32; 3]| scale(vector, factor);
+    let mut point_fn = |point: [f64; 3]| add(focus, scale(subtract(point, focus), factor));
+    let mut vector_fn = |vector: [f64; 3]| scale(vector, factor);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -480,8 +480,8 @@ fn evaluate_scale(inputs: &[Value], include_transform: bool) -> ComponentResult 
     let center = coerce_point(inputs.get(1), "Scale centrum")?;
     let factor = coerce_number(inputs.get(2), "Scale factor")?;
 
-    let mut point_fn = |point: [f32; 3]| add(center, scale(subtract(point, center), factor));
-    let mut vector_fn = |vector: [f32; 3]| scale(vector, factor);
+    let mut point_fn = |point: [f64; 3]| add(center, scale(subtract(point, center), factor));
+    let mut vector_fn = |vector: [f64; 3]| scale(vector, factor);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -514,8 +514,8 @@ fn evaluate_triangle_mapping(inputs: &[Value]) -> ComponentResult {
     let target_triangle = coerce_triangle(inputs.get(2), "Triangle Mapping doel")?;
     let mapper = TriangleMap::new(source_triangle, target_triangle);
 
-    let mut point_fn = |point: [f32; 3]| mapper.map_point(point);
-    let mut vector_fn = |vector: [f32; 3]| mapper.map_vector(vector);
+    let mut point_fn = |point: [f64; 3]| mapper.map_point(point);
+    let mut vector_fn = |vector: [f64; 3]| mapper.map_vector(vector);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -548,13 +548,13 @@ fn evaluate_shear_angle(inputs: &[Value], include_transform: bool) -> ComponentR
     let shear_x = angle_x.tan();
     let shear_y = angle_y.tan();
 
-    let mut point_fn = |point: [f32; 3]| {
+    let mut point_fn = |point: [f64; 3]| {
         let mut local = plane.to_local(point);
         local[0] += local[2] * shear_x;
         local[1] += local[2] * shear_y;
         plane.from_local(local)
     };
-    let mut vector_fn = |vector: [f32; 3]| {
+    let mut vector_fn = |vector: [f64; 3]| {
         let mut local = plane.vector_to_local(vector);
         local[0] += local[2] * shear_x;
         local[1] += local[2] * shear_y;
@@ -600,8 +600,8 @@ fn evaluate_box_mapping(inputs: &[Value]) -> ComponentResult {
     let target_bounds = Bounds::from_points(&target_points);
     let ratios = target_bounds.ratios(&source_bounds);
 
-    let mut point_fn = |point: [f32; 3]| map_between_bounds(point, &source_bounds, &target_bounds);
-    let mut vector_fn = |vector: [f32; 3]| scale_components(vector, ratios);
+    let mut point_fn = |point: [f64; 3]| map_between_bounds(point, &source_bounds, &target_bounds);
+    let mut vector_fn = |vector: [f64; 3]| scale_components(vector, ratios);
     let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
 
     let mut outputs = BTreeMap::new();
@@ -623,8 +623,8 @@ fn map_geometry<FPoint, FVector>(
     vector_fn: &mut FVector,
 ) -> Value
 where
-    FPoint: FnMut([f32; 3]) -> [f32; 3],
-    FVector: FnMut([f32; 3]) -> [f32; 3],
+    FPoint: FnMut([f64; 3]) -> [f64; 3],
+    FVector: FnMut([f64; 3]) -> [f64; 3],
 {
     match value {
         Value::Point(point) => Value::Point(point_fn(*point)),
@@ -650,14 +650,14 @@ where
 
 #[derive(Debug, Clone, Copy)]
 struct Bounds {
-    min: [f32; 3],
-    max: [f32; 3],
+    min: [f64; 3],
+    max: [f64; 3],
 }
 
 impl Bounds {
-    fn from_points(points: &[[f32; 3]]) -> Self {
-        let mut min = [f32::INFINITY; 3];
-        let mut max = [f32::NEG_INFINITY; 3];
+    fn from_points(points: &[[f64; 3]]) -> Self {
+        let mut min = [f64::INFINITY; 3];
+        let mut max = [f64::NEG_INFINITY; 3];
         for point in points {
             for axis in 0..3 {
                 min[axis] = min[axis].min(point[axis]);
@@ -667,7 +667,7 @@ impl Bounds {
         Self { min, max }
     }
 
-    fn size(&self) -> [f32; 3] {
+    fn size(&self) -> [f64; 3] {
         [
             self.max[0] - self.min[0],
             self.max[1] - self.min[1],
@@ -675,7 +675,7 @@ impl Bounds {
         ]
     }
 
-    fn ratios(&self, other: &Self) -> [f32; 3] {
+    fn ratios(&self, other: &Self) -> [f64; 3] {
         let self_size = self.size();
         let other_size = other.size();
         [
@@ -686,7 +686,7 @@ impl Bounds {
     }
 }
 
-fn scale_ratio(target: f32, source: f32) -> f32 {
+fn scale_ratio(target: f64, source: f64) -> f64 {
     if source.abs() < EPSILON {
         1.0
     } else {
@@ -694,7 +694,7 @@ fn scale_ratio(target: f32, source: f32) -> f32 {
     }
 }
 
-fn map_between_bounds(point: [f32; 3], source: &Bounds, target: &Bounds) -> [f32; 3] {
+fn map_between_bounds(point: [f64; 3], source: &Bounds, target: &Bounds) -> [f64; 3] {
     let source_size = source.size();
     let target_size = target.size();
     [
@@ -707,7 +707,7 @@ fn map_between_bounds(point: [f32; 3], source: &Bounds, target: &Bounds) -> [f32
     ]
 }
 
-fn normalized_coordinate(value: f32, min: f32, size: f32) -> f32 {
+fn normalized_coordinate(value: f64, min: f64, size: f64) -> f64 {
     if size.abs() < EPSILON {
         0.0
     } else {
@@ -715,7 +715,7 @@ fn normalized_coordinate(value: f32, min: f32, size: f32) -> f32 {
     }
 }
 
-fn scale_components(vector: [f32; 3], ratios: [f32; 3]) -> [f32; 3] {
+fn scale_components(vector: [f64; 3], ratios: [f64; 3]) -> [f64; 3] {
     [
         vector[0] * ratios[0],
         vector[1] * ratios[1],
@@ -725,14 +725,14 @@ fn scale_components(vector: [f32; 3], ratios: [f32; 3]) -> [f32; 3] {
 
 #[derive(Debug, Clone, Copy)]
 struct TriangleMap {
-    source: [[f32; 3]; 3],
-    target: [[f32; 3]; 3],
-    source_normal: [f32; 3],
-    target_normal: [f32; 3],
+    source: [[f64; 3]; 3],
+    target: [[f64; 3]; 3],
+    source_normal: [f64; 3],
+    target_normal: [f64; 3],
 }
 
 impl TriangleMap {
-    fn new(source: [[f32; 3]; 3], target: [[f32; 3]; 3]) -> Self {
+    fn new(source: [[f64; 3]; 3], target: [[f64; 3]; 3]) -> Self {
         let source_normal = cross(
             subtract(source[1], source[0]),
             subtract(source[2], source[0]),
@@ -749,7 +749,7 @@ impl TriangleMap {
         }
     }
 
-    fn map_point(&self, point: [f32; 3]) -> [f32; 3] {
+    fn map_point(&self, point: [f64; 3]) -> [f64; 3] {
         let bary = barycentric(point, self.source);
         add(
             add(
@@ -760,7 +760,7 @@ impl TriangleMap {
         )
     }
 
-    fn map_vector(&self, vector: [f32; 3]) -> [f32; 3] {
+    fn map_vector(&self, vector: [f64; 3]) -> [f64; 3] {
         let a = subtract(self.source[1], self.source[0]);
         let b = subtract(self.source[2], self.source[0]);
         let c = self.source_normal;
@@ -780,7 +780,7 @@ impl TriangleMap {
     }
 }
 
-fn barycentric(point: [f32; 3], triangle: [[f32; 3]; 3]) -> [f32; 3] {
+fn barycentric(point: [f64; 3], triangle: [[f64; 3]; 3]) -> [f64; 3] {
     let a = triangle[0];
     let b = triangle[1];
     let c = triangle[2];
@@ -802,7 +802,7 @@ fn barycentric(point: [f32; 3], triangle: [[f32; 3]; 3]) -> [f32; 3] {
     [u, v, w]
 }
 
-fn solve_basis(a: [f32; 3], b: [f32; 3], c: [f32; 3], vector: [f32; 3]) -> Option<[f32; 3]> {
+fn solve_basis(a: [f64; 3], b: [f64; 3], c: [f64; 3], vector: [f64; 3]) -> Option<[f64; 3]> {
     let denom = dot(a, cross(b, c));
     if denom.abs() < EPSILON {
         return None;
@@ -813,7 +813,7 @@ fn solve_basis(a: [f32; 3], b: [f32; 3], c: [f32; 3], vector: [f32; 3]) -> Optio
     Some([x, y, z])
 }
 
-fn normal_ratio(source: [f32; 3], target: [f32; 3]) -> f32 {
+fn normal_ratio(source: [f64; 3], target: [f64; 3]) -> f64 {
     let source_len = length(source).max(EPSILON);
     let target_len = length(target).max(EPSILON);
     target_len / source_len
@@ -821,10 +821,10 @@ fn normal_ratio(source: [f32; 3], target: [f32; 3]) -> f32 {
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f32; 3],
-    x_axis: [f32; 3],
-    y_axis: [f32; 3],
-    z_axis: [f32; 3],
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    z_axis: [f64; 3],
 }
 
 impl Plane {
@@ -837,7 +837,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
+    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
         let x_axis = safe_normalize(subtract(b, a))
             .map(|(axis, _)| axis)
             .unwrap_or([1.0, 0.0, 0.0]);
@@ -850,7 +850,7 @@ impl Plane {
         Self::normalize_axes(a, x_axis, y_axis, z_axis)
     }
 
-    fn from_origin(origin: [f32; 3]) -> Self {
+    fn from_origin(origin: [f64; 3]) -> Self {
         Self {
             origin,
             ..Self::default()
@@ -858,10 +858,10 @@ impl Plane {
     }
 
     fn normalize_axes(
-        origin: [f32; 3],
-        x_axis: [f32; 3],
-        y_axis: [f32; 3],
-        z_axis: [f32; 3],
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
     ) -> Self {
         let x_axis = normalize(x_axis);
         let mut y_axis = subtract(y_axis, scale(x_axis, dot(y_axis, x_axis)));
@@ -878,16 +878,16 @@ impl Plane {
         }
     }
 
-    fn normal(&self) -> [f32; 3] {
+    fn normal(&self) -> [f64; 3] {
         self.z_axis
     }
 
-    fn project(&self, point: [f32; 3]) -> [f32; 3] {
+    fn project(&self, point: [f64; 3]) -> [f64; 3] {
         let distance = dot(subtract(point, self.origin), self.z_axis);
         subtract(point, scale(self.z_axis, distance))
     }
 
-    fn project_along(&self, point: [f32; 3], direction: [f32; 3]) -> [f32; 3] {
+    fn project_along(&self, point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
         let numerator = dot(subtract(self.origin, point), self.z_axis);
         let denominator = dot(direction, self.z_axis);
         if denominator.abs() < EPSILON {
@@ -896,7 +896,7 @@ impl Plane {
         add(point, scale(direction, numerator / denominator))
     }
 
-    fn to_local(&self, point: [f32; 3]) -> [f32; 3] {
+    fn to_local(&self, point: [f64; 3]) -> [f64; 3] {
         let delta = subtract(point, self.origin);
         [
             dot(delta, self.x_axis),
@@ -905,7 +905,7 @@ impl Plane {
         ]
     }
 
-    fn from_local(&self, coords: [f32; 3]) -> [f32; 3] {
+    fn from_local(&self, coords: [f64; 3]) -> [f64; 3] {
         add(
             add(
                 add(self.origin, scale(self.x_axis, coords[0])),
@@ -915,7 +915,7 @@ impl Plane {
         )
     }
 
-    fn vector_to_local(&self, vector: [f32; 3]) -> [f32; 3] {
+    fn vector_to_local(&self, vector: [f64; 3]) -> [f64; 3] {
         [
             dot(vector, self.x_axis),
             dot(vector, self.y_axis),
@@ -923,7 +923,7 @@ impl Plane {
         ]
     }
 
-    fn vector_from_local(&self, coords: [f32; 3]) -> [f32; 3] {
+    fn vector_from_local(&self, coords: [f64; 3]) -> [f64; 3] {
         add(
             add(scale(self.x_axis, coords[0]), scale(self.y_axis, coords[1])),
             scale(self.z_axis, coords[2]),
@@ -931,7 +931,7 @@ impl Plane {
     }
 }
 
-fn coerce_triangle(value: Option<&Value>, context: &str) -> Result<[[f32; 3]; 3], ComponentError> {
+fn coerce_triangle(value: Option<&Value>, context: &str) -> Result<[[f64; 3]; 3], ComponentError> {
     let points = collect_points(value);
     if points.len() < 3 {
         return Err(ComponentError::new(format!(
@@ -988,14 +988,14 @@ fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, Component
     }
 }
 
-fn coerce_direction(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_direction(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     let vector = coerce_vector(value, context)?;
     safe_normalize(vector)
         .map(|(dir, _)| dir)
         .ok_or_else(|| ComponentError::new(format!("{} verwacht een niet-nul vector", context)))
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(Value::Point(point)) => Ok(*point),
         Some(Value::Vector(vector)) => Ok(*vector),
@@ -1015,7 +1015,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compon
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(Value::Vector(vector)) => Ok(*vector),
         Some(Value::Point(point)) => Ok(*point),
@@ -1038,7 +1038,7 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compo
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
@@ -1055,7 +1055,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentE
     }
 }
 
-fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
+fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
@@ -1068,7 +1068,7 @@ fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
     }
 }
 
-fn rotate_vector(vector: [f32; 3], axis: [f32; 3], angle: f32) -> [f32; 3] {
+fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     if angle.abs() < EPSILON {
         return vector;
     }
@@ -1084,23 +1084,23 @@ fn rotate_vector(vector: [f32; 3], axis: [f32; 3], angle: f32) -> [f32; 3] {
     )
 }
 
-fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
+fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1108,21 +1108,21 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn length(vector: [f32; 3]) -> f32 {
+fn length(vector: [f64; 3]) -> f64 {
     length_squared(vector).sqrt()
 }
 
-fn length_squared(vector: [f32; 3]) -> f32 {
+fn length_squared(vector: [f64; 3]) -> f64 {
     dot(vector, vector)
 }
 
-fn normalize(vector: [f32; 3]) -> [f32; 3] {
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
     safe_normalize(vector)
         .map(|(unit, _)| unit)
         .unwrap_or([1.0, 0.0, 0.0])
 }
 
-fn safe_normalize(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
+fn safe_normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     let length = length(vector);
     if length < EPSILON {
         None
@@ -1134,7 +1134,7 @@ fn safe_normalize(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     }
 }
 
-fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     if vector[0].abs() < vector[1].abs() && vector[0].abs() < vector[2].abs() {
         normalize([0.0, -vector[2], vector[1]])
     } else if vector[1].abs() < vector[2].abs() {
@@ -1144,7 +1144,7 @@ fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
-fn clamp(value: f32, min: f32, max: f32) -> f32 {
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value.max(min).min(max)
 }
 

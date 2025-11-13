@@ -1,7 +1,7 @@
 //! Implementaties van Grasshopper "Surface → Primitive" componenten.
 
 use std::collections::BTreeMap;
-use std::f32::consts::TAU;
+use std::f64::consts::TAU;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Value};
@@ -382,8 +382,8 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
         Plane::default()
     };
 
-    let mut min = [f32::INFINITY; 3];
-    let mut max = [f32::NEG_INFINITY; 3];
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
     for point in rectangle_points {
         let coords = plane.coordinates(point);
         for axis in 0..2 {
@@ -398,8 +398,8 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    min[2] = 0.0_f32.min(height);
-    max[2] = 0.0_f32.max(height);
+    min[2] = 0.0_f64.min(height);
+    max[2] = 0.0_f64.max(height);
 
     let box_value = create_oriented_box(&plane, min, max);
 
@@ -570,10 +570,10 @@ fn evaluate_plane_through_collection(inputs: &[Value], shape: ShapeInput) -> Com
         return Err(ComponentError::new("Plane Through kon geen punten vinden"));
     }
 
-    let mut min_x = f32::INFINITY;
-    let mut max_x = f32::NEG_INFINITY;
-    let mut min_y = f32::INFINITY;
-    let mut max_y = f32::NEG_INFINITY;
+    let mut min_x = f64::INFINITY;
+    let mut max_x = f64::NEG_INFINITY;
+    let mut min_y = f64::INFINITY;
+    let mut max_y = f64::NEG_INFINITY;
     for point in points {
         let coords = plane.coordinates(point);
         min_x = min_x.min(coords[0]);
@@ -650,20 +650,20 @@ fn compute_bounding_boxes(
 
 fn create_sphere_surface_points(
     plane: &Plane,
-    radius: f32,
+    radius: f64,
     lat_segments: usize,
     lon_segments: usize,
-) -> (Vec<[f32; 3]>, Vec<Vec<u32>>) {
+) -> (Vec<[f64; 3]>, Vec<Vec<u32>>) {
     let mut vertices = Vec::new();
     let mut faces = Vec::new();
 
     for lat in 0..=lat_segments {
-        let v = lat as f32 / lat_segments as f32;
+        let v = lat as f64 / lat_segments as f64;
         let phi = TAU * 0.5 * v;
         let sin_phi = phi.sin();
         let cos_phi = phi.cos();
         for lon in 0..=lon_segments {
-            let u = lon as f32 / lon_segments as f32;
+            let u = lon as f64 / lon_segments as f64;
             let theta = TAU * u;
             let x = radius * sin_phi * theta.cos();
             let y = radius * sin_phi * theta.sin();
@@ -692,13 +692,13 @@ fn create_sphere_surface_points(
     (vertices, faces)
 }
 
-fn create_cylinder_surface(plane: &Plane, radius: f32, height: f32) -> Value {
+fn create_cylinder_surface(plane: &Plane, radius: f64, height: f64) -> Value {
     let segments = 32;
     let mut vertices = Vec::with_capacity(segments * 2);
     let mut faces = Vec::with_capacity(segments * 2);
 
     for i in 0..segments {
-        let angle = TAU * i as f32 / segments as f32;
+        let angle = TAU * i as f64 / segments as f64;
         let x = radius * angle.cos();
         let y = radius * angle.sin();
         let base = plane.apply(x, y, 0.0);
@@ -720,13 +720,13 @@ fn create_cylinder_surface(plane: &Plane, radius: f32, height: f32) -> Value {
     Value::Surface { vertices, faces }
 }
 
-fn create_cone_surface(plane: &Plane, radius: f32, height: f32) -> (Value, [f32; 3]) {
+fn create_cone_surface(plane: &Plane, radius: f64, height: f64) -> (Value, [f64; 3]) {
     let segments = 32;
     let mut vertices = Vec::with_capacity(segments + 1);
     let mut faces = Vec::with_capacity(segments);
 
     for i in 0..segments {
-        let angle = TAU * i as f32 / segments as f32;
+        let angle = TAU * i as f64 / segments as f64;
         let x = radius * angle.cos();
         let y = radius * angle.sin();
         vertices.push(plane.apply(x, y, 0.0));
@@ -744,7 +744,7 @@ fn create_cone_surface(plane: &Plane, radius: f32, height: f32) -> (Value, [f32;
     (Value::Surface { vertices, faces }, tip)
 }
 
-fn create_plane_surface(plane: &Plane, size_x: f32, size_y: f32) -> Value {
+fn create_plane_surface(plane: &Plane, size_x: f64, size_y: f64) -> Value {
     let half_x = size_x / 2.0;
     let half_y = size_y / 2.0;
     create_planar_surface_from_bounds(plane, -half_x, half_x, -half_y, half_y)
@@ -752,10 +752,10 @@ fn create_plane_surface(plane: &Plane, size_x: f32, size_y: f32) -> Value {
 
 fn create_planar_surface_from_bounds(
     plane: &Plane,
-    min_x: f32,
-    max_x: f32,
-    min_y: f32,
-    max_y: f32,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
 ) -> Value {
     let vertices = vec![
         plane.apply(min_x, min_y, 0.0),
@@ -767,16 +767,16 @@ fn create_planar_surface_from_bounds(
     Value::Surface { vertices, faces }
 }
 
-fn create_sphere_surface(plane: &Plane, radius: f32, detailed: bool) -> Value {
+fn create_sphere_surface(plane: &Plane, radius: f64, detailed: bool) -> Value {
     let lat_segments = if detailed { 24 } else { 16 };
     let lon_segments = if detailed { 32 } else { 16 };
     let (vertices, faces) = create_sphere_surface_points(plane, radius, lat_segments, lon_segments);
     Value::Surface { vertices, faces }
 }
 
-fn create_axis_aligned_box(points: &[[f32; 3]]) -> Value {
-    let mut min = [f32::INFINITY; 3];
-    let mut max = [f32::NEG_INFINITY; 3];
+fn create_axis_aligned_box(points: &[[f64; 3]]) -> Value {
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
     for point in points {
         for axis in 0..3 {
             min[axis] = min[axis].min(point[axis]);
@@ -786,9 +786,9 @@ fn create_axis_aligned_box(points: &[[f32; 3]]) -> Value {
     create_box_from_extents(min, max)
 }
 
-fn create_oriented_box_from_points(plane: &Plane, points: &[[f32; 3]]) -> Value {
-    let mut min = [f32::INFINITY; 3];
-    let mut max = [f32::NEG_INFINITY; 3];
+fn create_oriented_box_from_points(plane: &Plane, points: &[[f64; 3]]) -> Value {
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
     for point in points {
         let coords = plane.coordinates(*point);
         for axis in 0..3 {
@@ -799,7 +799,7 @@ fn create_oriented_box_from_points(plane: &Plane, points: &[[f32; 3]]) -> Value 
     create_oriented_box(plane, min, max)
 }
 
-fn create_box_from_extents(min: [f32; 3], max: [f32; 3]) -> Value {
+fn create_box_from_extents(min: [f64; 3], max: [f64; 3]) -> Value {
     let corners = [
         [min[0], min[1], min[2]],
         [max[0], min[1], min[2]],
@@ -813,7 +813,7 @@ fn create_box_from_extents(min: [f32; 3], max: [f32; 3]) -> Value {
     Value::List(corners.into_iter().map(Value::Point).collect())
 }
 
-fn create_oriented_box(plane: &Plane, min: [f32; 3], max: [f32; 3]) -> Value {
+fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
     let mut corners = Vec::with_capacity(8);
     for &z in &[min[2], max[2]] {
         for &y in &[min[1], max[1]] {
@@ -878,7 +878,7 @@ fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, Component
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!(
             "{} vereist een numerieke invoer",
@@ -896,7 +896,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentE
     }
 }
 
-fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_positive_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     let number = coerce_number(value, context)?;
     if number <= 0.0 {
         return Err(ComponentError::new(format!(
@@ -926,8 +926,8 @@ fn coerce_boolean(value: Option<&Value>, default: bool) -> Result<bool, Componen
 fn coerce_domain_range(
     value: Option<&Value>,
     context: &str,
-    default: (f32, f32),
-) -> Result<(f32, f32), ComponentError> {
+    default: (f64, f64),
+) -> Result<(f64, f64), ComponentError> {
     match value {
         None => Ok(default),
         Some(Value::Domain(Domain::One(domain))) => {
@@ -953,7 +953,7 @@ fn coerce_domain_range(
     }
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!("{} vereist een punt", context)));
     };
@@ -974,7 +974,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compon
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!(
             "{} vereist een vector",
@@ -998,7 +998,7 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compo
     }
 }
 
-fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>, ComponentError> {
+fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
     let mut points = Vec::new();
     if let Some(value) = value {
         collect_points_into(value, context, &mut points)?;
@@ -1009,7 +1009,7 @@ fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f32; 3]>,
 fn collect_points_into(
     value: &Value,
     context: &str,
-    output: &mut Vec<[f32; 3]>,
+    output: &mut Vec<[f64; 3]>,
 ) -> Result<(), ComponentError> {
     match value {
         Value::Point(point) | Value::Vector(point) => {
@@ -1044,7 +1044,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::Text(text) => {
-            if let Ok(parsed) = text.trim().parse::<f32>() {
+            if let Ok(parsed) = text.trim().parse::<f64>() {
                 output.push([parsed, 0.0, 0.0]);
                 Ok(())
             } else {
@@ -1062,13 +1062,13 @@ fn collect_points_into(
     }
 }
 
-fn fit_sphere_to_points(points: &[[f32; 3]]) -> Option<([f32; 3], f32)> {
+fn fit_sphere_to_points(points: &[[f64; 3]]) -> Option<([f64; 3], f64)> {
     if points.len() < 3 {
         return None;
     }
 
-    let mut ata = [[0.0_f32; 4]; 4];
-    let mut atb = [0.0_f32; 4];
+    let mut ata = [[0.0_f64; 4]; 4];
+    let mut atb = [0.0_f64; 4];
 
     for point in points {
         let row = [2.0 * point[0], 2.0 * point[1], 2.0 * point[2], 1.0];
@@ -1097,9 +1097,9 @@ fn fit_sphere_to_points(points: &[[f32; 3]]) -> Option<([f32; 3], f32)> {
         }
     }
     for axis in 0..3 {
-        center[axis] /= points.len() as f32;
+        center[axis] /= points.len() as f64;
     }
-    let mut radius = 0.0_f32;
+    let mut radius = 0.0_f64;
     for point in points {
         radius = radius.max(vector_length(subtract(*point, center)));
     }
@@ -1110,7 +1110,7 @@ fn fit_sphere_to_points(points: &[[f32; 3]]) -> Option<([f32; 3], f32)> {
     }
 }
 
-fn solve_linear_system(matrix: &mut [[f32; 4]; 4], vector: &mut [f32; 4]) -> Option<[f32; 4]> {
+fn solve_linear_system(matrix: &mut [[f64; 4]; 4], vector: &mut [f64; 4]) -> Option<[f64; 4]> {
     for i in 0..4 {
         let mut pivot_row = i;
         let mut pivot_value = matrix[i][i].abs();
@@ -1150,23 +1150,23 @@ fn solve_linear_system(matrix: &mut [[f32; 4]; 4], vector: &mut [f32; 4]) -> Opt
     Some(*vector)
 }
 
-fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn scale(v: [f32; 3], factor: f32) -> [f32; 3] {
+fn scale(v: [f64; 3], factor: f64) -> [f64; 3] {
     [v[0] * factor, v[1] * factor, v[2] * factor]
 }
 
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1174,15 +1174,15 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn vector_length_squared(v: [f32; 3]) -> f32 {
+fn vector_length_squared(v: [f64; 3]) -> f64 {
     dot(v, v)
 }
 
-fn vector_length(v: [f32; 3]) -> f32 {
+fn vector_length(v: [f64; 3]) -> f64 {
     vector_length_squared(v).sqrt()
 }
 
-fn safe_normalized(v: [f32; 3]) -> Option<([f32; 3], f32)> {
+fn safe_normalized(v: [f64; 3]) -> Option<([f64; 3], f64)> {
     let length = vector_length(v);
     if length < EPSILON {
         None
@@ -1191,13 +1191,13 @@ fn safe_normalized(v: [f32; 3]) -> Option<([f32; 3], f32)> {
     }
 }
 
-fn normalize(v: [f32; 3]) -> [f32; 3] {
+fn normalize(v: [f64; 3]) -> [f64; 3] {
     safe_normalized(v)
         .map(|(vector, _)| vector)
         .unwrap_or([0.0, 0.0, 0.0])
 }
 
-fn orthogonal_vector(reference: [f32; 3]) -> [f32; 3] {
+fn orthogonal_vector(reference: [f64; 3]) -> [f64; 3] {
     let mut candidate = if reference[0].abs() < reference[1].abs() {
         [0.0, -reference[2], reference[1]]
     } else {
@@ -1214,14 +1214,14 @@ fn orthogonal_vector(reference: [f32; 3]) -> [f32; 3] {
     }
 }
 
-const EPSILON: f32 = 1e-9;
+const EPSILON: f64 = 1e-9;
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f32; 3],
-    x_axis: [f32; 3],
-    y_axis: [f32; 3],
-    z_axis: [f32; 3],
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    z_axis: [f64; 3],
 }
 
 impl Default for Plane {
@@ -1236,14 +1236,14 @@ impl Default for Plane {
 }
 
 impl Plane {
-    fn from_origin(origin: [f32; 3]) -> Self {
+    fn from_origin(origin: [f64; 3]) -> Self {
         Self {
             origin,
             ..Self::default()
         }
     }
 
-    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
+    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
         let ab = subtract(b, a);
         let ac = subtract(c, a);
         let normal = cross(ab, ac);
@@ -1261,10 +1261,10 @@ impl Plane {
     }
 
     fn normalize_axes(
-        origin: [f32; 3],
-        x_axis: [f32; 3],
-        y_axis: [f32; 3],
-        z_axis: [f32; 3],
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
     ) -> Self {
         let z_axis = safe_normalized(z_axis)
             .map(|(vector, _)| vector)
@@ -1300,7 +1300,7 @@ impl Plane {
         }
     }
 
-    fn apply(&self, u: f32, v: f32, w: f32) -> [f32; 3] {
+    fn apply(&self, u: f64, v: f64, w: f64) -> [f64; 3] {
         add(
             add(
                 add(self.origin, scale(self.x_axis, u)),
@@ -1310,7 +1310,7 @@ impl Plane {
         )
     }
 
-    fn coordinates(&self, point: [f32; 3]) -> [f32; 3] {
+    fn coordinates(&self, point: [f64; 3]) -> [f64; 3] {
         let relative = subtract(point, self.origin);
         [
             dot(relative, self.x_axis),

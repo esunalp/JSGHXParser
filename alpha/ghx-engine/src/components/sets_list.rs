@@ -206,7 +206,7 @@ fn evaluate_list_length(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
     let list = coerce_list(inputs.get(0), "List Length L")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_LIST.to_owned(), Value::Number(list.len() as f32));
+    outputs.insert(PIN_OUTPUT_LIST.to_owned(), Value::Number(list.len() as f64));
 
     Ok(outputs)
 }

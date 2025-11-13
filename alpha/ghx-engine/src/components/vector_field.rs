@@ -7,7 +7,7 @@ use crate::graph::value::{Matrix, Value};
 
 use super::{Component, ComponentError, ComponentResult};
 
-const EPSILON: f32 = 1e-9;
+const EPSILON: f64 = 1e-9;
 
 const PIN_OUTPUT_DISPLAY: &str = "D";
 const PIN_OUTPUT_FIELD: &str = "F";
@@ -152,50 +152,50 @@ struct FieldValue {
 
 #[derive(Debug, Clone, Copy)]
 struct FieldBounds {
-    min: [f32; 3],
-    max: [f32; 3],
+    min: [f64; 3],
+    max: [f64; 3],
 }
 
 #[derive(Debug, Clone, Copy)]
 enum FieldSource {
     PointCharge {
-        point: [f32; 3],
-        charge: f32,
-        decay: f32,
+        point: [f64; 3],
+        charge: f64,
+        decay: f64,
     },
     LineCharge {
-        start: [f32; 3],
-        end: [f32; 3],
-        charge: f32,
-        decay: f32,
+        start: [f64; 3],
+        end: [f64; 3],
+        charge: f64,
+        decay: f64,
     },
     VectorForce {
-        start: [f32; 3],
-        end: [f32; 3],
+        start: [f64; 3],
+        end: [f64; 3],
     },
     SpinForce {
-        origin: [f32; 3],
-        normal: [f32; 3],
-        radius: f32,
-        strength: f32,
-        decay: f32,
+        origin: [f64; 3],
+        normal: [f64; 3],
+        radius: f64,
+        strength: f64,
+        decay: f64,
     },
 }
 
 #[derive(Debug, Clone, Copy)]
 struct FieldEvaluation {
-    vector: [f32; 3],
-    magnitude: f32,
-    strength: f32,
-    tensor: [[f32; 3]; 3],
+    vector: [f64; 3],
+    magnitude: f64,
+    strength: f64,
+    tensor: [[f64; 3]; 3],
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f32; 3],
-    x_axis: [f32; 3],
-    y_axis: [f32; 3],
-    normal: [f32; 3],
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    normal: [f64; 3],
 }
 
 impl Default for Plane {
@@ -212,10 +212,10 @@ impl Default for Plane {
 #[derive(Debug, Clone, Copy)]
 struct Section {
     plane: Plane,
-    min_u: f32,
-    max_u: f32,
-    min_v: f32,
-    max_v: f32,
+    min_u: f64,
+    max_u: f64,
+    min_v: f64,
+    max_v: f64,
 }
 
 impl Default for Section {
@@ -237,16 +237,16 @@ impl Section {
         v_index: usize,
         u_count: usize,
         v_count: usize,
-    ) -> [f32; 3] {
+    ) -> [f64; 3] {
         let u_ratio = if u_count <= 1 {
             0.0
         } else {
-            u_index as f32 / (u_count as f32 - 1.0)
+            u_index as f64 / (u_count as f64 - 1.0)
         };
         let v_ratio = if v_count <= 1 {
             0.0
         } else {
-            v_index as f32 / (v_count as f32 - 1.0)
+            v_index as f64 / (v_count as f64 - 1.0)
         };
         let u = lerp(self.min_u, self.max_u, u_ratio);
         let v = lerp(self.min_v, self.max_v, v_ratio);
@@ -795,7 +795,7 @@ fn field_to_value(field: &FieldValue) -> Value {
     Value::List(entries)
 }
 
-fn evaluate_field_at_point(field: &FieldValue, point: [f32; 3]) -> FieldEvaluation {
+fn evaluate_field_at_point(field: &FieldValue, point: [f64; 3]) -> FieldEvaluation {
     let mut vector = [0.0, 0.0, 0.0];
     let mut strength = 0.0;
     let mut tensor = [[0.0; 3]; 3];
@@ -840,10 +840,10 @@ fn evaluate_field_at_point(field: &FieldValue, point: [f32; 3]) -> FieldEvaluati
 }
 
 fn evaluate_point_charge_source(
-    center: [f32; 3],
-    charge: f32,
-    decay: f32,
-    point: [f32; 3],
+    center: [f64; 3],
+    charge: f64,
+    decay: f64,
+    point: [f64; 3],
 ) -> FieldEvaluation {
     let direction = subtract(point, center);
     let distance = length(direction).max(EPSILON);
@@ -860,11 +860,11 @@ fn evaluate_point_charge_source(
 }
 
 fn evaluate_line_charge_source(
-    start: [f32; 3],
-    end: [f32; 3],
-    charge: f32,
-    decay: f32,
-    point: [f32; 3],
+    start: [f64; 3],
+    end: [f64; 3],
+    charge: f64,
+    decay: f64,
+    point: [f64; 3],
 ) -> FieldEvaluation {
     let direction = subtract(end, start);
     let length_line = length(direction).max(EPSILON);
@@ -884,9 +884,9 @@ fn evaluate_line_charge_source(
 }
 
 fn evaluate_vector_force_source(
-    start: [f32; 3],
-    end: [f32; 3],
-    point: [f32; 3],
+    start: [f64; 3],
+    end: [f64; 3],
+    point: [f64; 3],
 ) -> FieldEvaluation {
     let direction = subtract(end, start);
     let length_line = length(direction).max(EPSILON);
@@ -908,12 +908,12 @@ fn evaluate_vector_force_source(
 }
 
 fn evaluate_spin_force_source(
-    origin: [f32; 3],
-    normal: [f32; 3],
-    radius: f32,
-    strength: f32,
-    decay: f32,
-    point: [f32; 3],
+    origin: [f64; 3],
+    normal: [f64; 3],
+    radius: f64,
+    strength: f64,
+    decay: f64,
+    point: [f64; 3],
 ) -> FieldEvaluation {
     let axis = normalize(normal);
     let to_point = subtract(point, origin);
@@ -933,7 +933,7 @@ fn evaluate_spin_force_source(
     }
 }
 
-fn matrix_from_tensor(tensor: [[f32; 3]; 3]) -> Matrix {
+fn matrix_from_tensor(tensor: [[f64; 3]; 3]) -> Matrix {
     Matrix {
         rows: 3,
         columns: 3,
@@ -963,7 +963,7 @@ fn parse_samples(value: Option<&Value>) -> (usize, usize) {
             let v = values
                 .get(1)
                 .and_then(|value| coerce_number(Some(value), 10.0, "Samples").ok())
-                .unwrap_or(u as f32)
+                .unwrap_or(u as f64)
                 .round()
                 .max(1.0) as usize;
             (u, v)
@@ -991,16 +991,16 @@ fn parse_section(value: Option<&Value>) -> Result<Section, ComponentError> {
                 plane_coordinates(b, plane),
                 plane_coordinates(c, plane),
             ];
-            section.min_u = coords.iter().map(|c| c[0]).fold(f32::INFINITY, f32::min);
+            section.min_u = coords.iter().map(|c| c[0]).fold(f64::INFINITY, f64::min);
             section.max_u = coords
                 .iter()
                 .map(|c| c[0])
-                .fold(f32::NEG_INFINITY, f32::max);
-            section.min_v = coords.iter().map(|c| c[1]).fold(f32::INFINITY, f32::min);
+                .fold(f64::NEG_INFINITY, f64::max);
+            section.min_v = coords.iter().map(|c| c[1]).fold(f64::INFINITY, f64::min);
             section.max_v = coords
                 .iter()
                 .map(|c| c[1])
-                .fold(f32::NEG_INFINITY, f32::max);
+                .fold(f64::NEG_INFINITY, f64::max);
             Ok(section)
         }
         Value::List(values) if values.len() == 2 => {
@@ -1052,18 +1052,18 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
     }
 }
 
-fn plane_from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Plane {
+fn plane_from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Plane {
     let ab = subtract(b, a);
     let ac = subtract(c, a);
     let normal = normalize(cross(ab, ac));
     plane_from_axes(a, ab, normal)
 }
 
-fn plane_from_normal(origin: [f32; 3], normal: [f32; 3]) -> Plane {
+fn plane_from_normal(origin: [f64; 3], normal: [f64; 3]) -> Plane {
     plane_from_axes(origin, orthogonal_vector(normal), normal)
 }
 
-fn plane_from_axes(origin: [f32; 3], x_axis: [f32; 3], normal: [f32; 3]) -> Plane {
+fn plane_from_axes(origin: [f64; 3], x_axis: [f64; 3], normal: [f64; 3]) -> Plane {
     let z = normalize(normal);
     let mut x = normalize(x_axis);
     if length_squared(x) < EPSILON {
@@ -1078,7 +1078,7 @@ fn plane_from_axes(origin: [f32; 3], x_axis: [f32; 3], normal: [f32; 3]) -> Plan
     }
 }
 
-fn plane_coordinates(point: [f32; 3], plane: Plane) -> [f32; 3] {
+fn plane_coordinates(point: [f64; 3], plane: Plane) -> [f64; 3] {
     let relative = subtract(point, plane.origin);
     [
         dot(relative, plane.x_axis),
@@ -1087,7 +1087,7 @@ fn plane_coordinates(point: [f32; 3], plane: Plane) -> [f32; 3] {
     ]
 }
 
-fn parse_colour(value: Option<&Value>) -> Option<[f32; 3]> {
+fn parse_colour(value: Option<&Value>) -> Option<[f64; 3]> {
     match value? {
         Value::Vector(vector) | Value::Point(vector) => Some(*vector),
         Value::List(values) if values.len() >= 3 => {
@@ -1100,7 +1100,7 @@ fn parse_colour(value: Option<&Value>) -> Option<[f32; 3]> {
     }
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} verwacht een punt", context)))?;
     match value {
@@ -1125,7 +1125,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compon
 fn coerce_line(
     value: Option<&Value>,
     context: &str,
-) -> Result<([f32; 3], [f32; 3]), ComponentError> {
+) -> Result<([f64; 3], [f64; 3]), ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} vereist een lijn", context)))?;
     match value {
@@ -1144,7 +1144,7 @@ fn coerce_line(
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     let value =
         value.ok_or_else(|| ComponentError::new(format!("{} verwacht een vector", context)))?;
     match value {
@@ -1168,9 +1168,9 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compo
 
 fn coerce_number(
     value: Option<&Value>,
-    default: f32,
+    default: f64,
     context: &str,
-) -> Result<f32, ComponentError> {
+) -> Result<f64, ComponentError> {
     let Some(value) = value else {
         return Ok(default);
     };
@@ -1195,8 +1195,8 @@ fn coerce_usize(
     let Some(value) = value else {
         return Ok(default.max(min));
     };
-    let number = coerce_number(Some(value), default as f32, context)?;
-    let rounded = number.round().max(min as f32) as usize;
+    let number = coerce_number(Some(value), default as f64, context)?;
+    let rounded = number.round().max(min as f64) as usize;
     Ok(rounded)
 }
 
@@ -1234,23 +1234,23 @@ fn merge_bounds(a: Option<FieldBounds>, b: Option<FieldBounds>) -> Option<FieldB
     }
 }
 
-fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(a: [f32; 3], factor: f32) -> [f32; 3] {
+fn scale(a: [f64; 3], factor: f64) -> [f64; 3] {
     [a[0] * factor, a[1] * factor, a[2] * factor]
 }
 
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -1258,15 +1258,15 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn length(vector: [f32; 3]) -> f32 {
+fn length(vector: [f64; 3]) -> f64 {
     length_squared(vector).sqrt()
 }
 
-fn length_squared(vector: [f32; 3]) -> f32 {
+fn length_squared(vector: [f64; 3]) -> f64 {
     dot(vector, vector)
 }
 
-fn normalize(vector: [f32; 3]) -> [f32; 3] {
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
     let len = length(vector);
     if len < EPSILON {
         return [0.0, 0.0, 0.0];
@@ -1274,7 +1274,7 @@ fn normalize(vector: [f32; 3]) -> [f32; 3] {
     scale(vector, 1.0 / len)
 }
 
-fn outer_product(vector: [f32; 3]) -> [[f32; 3]; 3] {
+fn outer_product(vector: [f64; 3]) -> [[f64; 3]; 3] {
     [
         [
             vector[0] * vector[0],
@@ -1294,7 +1294,7 @@ fn outer_product(vector: [f32; 3]) -> [[f32; 3]; 3] {
     ]
 }
 
-fn add_matrix(a: [[f32; 3]; 3], b: [[f32; 3]; 3]) -> [[f32; 3]; 3] {
+fn add_matrix(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     let mut result = a;
     for i in 0..3 {
         for j in 0..3 {
@@ -1304,7 +1304,7 @@ fn add_matrix(a: [[f32; 3]; 3], b: [[f32; 3]; 3]) -> [[f32; 3]; 3] {
     result
 }
 
-fn scale_matrix(matrix: [[f32; 3]; 3], factor: f32) -> [[f32; 3]; 3] {
+fn scale_matrix(matrix: [[f64; 3]; 3], factor: f64) -> [[f64; 3]; 3] {
     let mut result = matrix;
     for row in &mut result {
         for value in row {
@@ -1314,7 +1314,7 @@ fn scale_matrix(matrix: [[f32; 3]; 3], factor: f32) -> [[f32; 3]; 3] {
     result
 }
 
-fn project(vector: [f32; 3], onto: [f32; 3]) -> [f32; 3] {
+fn project(vector: [f64; 3], onto: [f64; 3]) -> [f64; 3] {
     let denom = length_squared(onto);
     if denom < EPSILON {
         return [0.0, 0.0, 0.0];
@@ -1323,7 +1323,7 @@ fn project(vector: [f32; 3], onto: [f32; 3]) -> [f32; 3] {
     scale(onto, factor)
 }
 
-fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     if vector[0].abs() > vector[1].abs() {
         normalize([vector[2], 0.0, -vector[0]])
     } else {
@@ -1331,11 +1331,11 @@ fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
+fn lerp(a: f64, b: f64, t: f64) -> f64 {
     a + (b - a) * t
 }
 
-fn lerp_colour(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
+fn lerp_colour(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
     [
         lerp(a[0], b[0], t),
         lerp(a[1], b[1], t),

@@ -20,17 +20,17 @@ Alles begint in een component in de `ghx-engine` (bijvoorbeeld `curve_primitive.
 
 -   **Punten**: Worden weergegeven als `Value::Point`.
 -   **Lijnen/Curves**: Worden doorgaans weergegeven als een lijst van punten: `Value::List(vec![Value::Point(...)])` of als `Value::CurveLine { p1, p2 }`.
--   **Oppervlakken/Meshes**: Worden weergegeven als `Value::Surface { vertices: Vec<[f32; 3]>, faces: Vec<Vec<u32>> }`.
+-   **Oppervlakken/Meshes**: Worden weergegeven als `Value::Surface { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`.
 
 ### 2. Conversie naar `GeometryItem` (Rust Backend)
 
 Nadat de graph is geëvalueerd, roept de frontend de `engine.get_geometry()` functie aan. Binnen deze functie worden de waardes verzameld en via `append_geometry_items` (`alpha/ghx-engine/src/lib.rs`) vertaald naar `GeometryItem` enums. Dit is een `enum` die specifiek is ontworpen om over de WASM-grens te worden geserialiseerd.
 
 De `GeometryItem` heeft de volgende varianten:
--   `Point { coordinates: [f32; 3] }`
--   `Line { start: [f32; 3], end: [f32; 3] }`
--   `Polyline { points: Vec<[f32; 3]> }`
--   `Mesh { vertices: Vec<[f32; 3]>, faces: Vec<Vec<u32>> }`
+-   `Point { coordinates: [f64; 3] }`
+-   `Line { start: [f64; 3], end: [f64; 3] }`
+-   `Polyline { points: Vec<[f64; 3]> }`
+-   `Mesh { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`
 
 ### 3. Frontend Verwerking (JavaScript)
 

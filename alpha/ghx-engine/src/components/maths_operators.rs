@@ -7,7 +7,7 @@ use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
 
-const EPSILON: f32 = 1e-9;
+const EPSILON: f64 = 1e-9;
 
 const PIN_RESULT: &str = "R";
 const PIN_PARTIAL_RESULTS: &str = "Pr";
@@ -397,12 +397,12 @@ fn evaluate_factorial(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Factorial verwacht een geheel getal"));
     }
     let n = rounded as u64;
-    let mut result = 1.0f32;
+    let mut result = 1.0f64;
     for value in 2..=n {
-        result *= value as f32;
+        result *= value as f64;
         if !result.is_finite() {
             return Err(ComponentError::new(
-                "Factorial resultaat is te groot voor een f32",
+                "Factorial resultaat is te groot voor een f64",
             ));
         }
     }
@@ -620,7 +620,7 @@ fn evaluate_binary_gate(
 fn evaluate_binary_arithmetic(
     inputs: &[Value],
     context: &str,
-    operation: impl Fn(f32, f32) -> Result<f32, ComponentError>,
+    operation: impl Fn(f64, f64) -> Result<f64, ComponentError>,
 ) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(format!(
@@ -655,7 +655,7 @@ fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> 
     }
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     match value {
         Value::Number(number) => {
             if number.is_finite() {
@@ -675,14 +675,14 @@ fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
     }
 }
 
-fn optional_number(value: Option<&Value>, context: &str) -> Result<Option<f32>, ComponentError> {
+fn optional_number(value: Option<&Value>, context: &str) -> Result<Option<f64>, ComponentError> {
     match value {
         Some(value) => coerce_number(value, context).map(Some),
         None => Ok(None),
     }
 }
 
-fn to_optional_number(value: Option<&Value>) -> Result<Option<f32>, ComponentError> {
+fn to_optional_number(value: Option<&Value>) -> Result<Option<f64>, ComponentError> {
     match value {
         Some(Value::Number(number)) if number.is_finite() => Ok(Some(*number)),
         Some(Value::Boolean(boolean)) => Ok(Some(if *boolean { 1.0 } else { 0.0 })),
@@ -692,7 +692,7 @@ fn to_optional_number(value: Option<&Value>) -> Result<Option<f32>, ComponentErr
     }
 }
 
-fn to_vector(value: &Value) -> Option<[f32; 3]> {
+fn to_vector(value: &Value) -> Option<[f64; 3]> {
     match value {
         Value::Point(point) | Value::Vector(point) => Some(*point),
         Value::List(values) if values.len() == 1 => to_vector(&values[0]),
@@ -705,16 +705,16 @@ struct MathValue(MathValueKind);
 
 #[derive(Debug, Clone, Copy)]
 enum MathValueKind {
-    Scalar(f32),
-    Vector([f32; 3]),
+    Scalar(f64),
+    Vector([f64; 3]),
 }
 
 impl MathValue {
-    fn scalar(value: f32) -> Self {
+    fn scalar(value: f64) -> Self {
         Self(MathValueKind::Scalar(value))
     }
 
-    fn vector(value: [f32; 3]) -> Self {
+    fn vector(value: [f64; 3]) -> Self {
         Self(MathValueKind::Vector(value))
     }
 
@@ -756,13 +756,13 @@ fn collect_math_values_recursive(value: &Value, result: &mut Vec<MathValue>) {
     }
 }
 
-fn collect_number_list(value: &Value) -> Vec<f32> {
+fn collect_number_list(value: &Value) -> Vec<f64> {
     let mut result = Vec::new();
     collect_numbers_recursive(value, &mut result);
     result
 }
 
-fn collect_numbers_recursive(value: &Value, result: &mut Vec<f32>) {
+fn collect_numbers_recursive(value: &Value, result: &mut Vec<f64>) {
     match value {
         Value::List(values) => {
             for entry in values {

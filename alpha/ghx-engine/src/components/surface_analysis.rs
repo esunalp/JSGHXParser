@@ -51,7 +51,7 @@ const PIN_OUTPUT_FACE_FACE: &str = "FF";
 const PIN_OUTPUT_FACE_EDGE: &str = "FE";
 const PIN_OUTPUT_EDGE_FACE: &str = "EF";
 
-const EPSILON: f32 = 1e-9;
+const EPSILON: f64 = 1e-9;
 
 /// Beschikbare componentvarianten binnen Surface → Analysis.
 #[derive(Debug, Default, Clone, Copy)]
@@ -414,12 +414,12 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
                 point_values.push(Value::Point(*point));
                 weights.push(Value::Number(1.0));
                 let u = if u_count > 1 {
-                    u_index as f32 / (u_count - 1) as f32
+                    u_index as f64 / (u_count - 1) as f64
                 } else {
                     0.0
                 };
                 let v = if v_count > 1 {
-                    v_index as f32 / (v_count - 1) as f32
+                    v_index as f64 / (v_count - 1) as f64
                 } else {
                     0.0
                 };
@@ -432,11 +432,11 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
         outputs.insert(PIN_OUTPUT_GREVILLE.to_owned(), Value::List(greville));
         outputs.insert(
             PIN_OUTPUT_U_COUNT.to_owned(),
-            Value::Number(u_count as f32),
+            Value::Number(u_count as f64),
         );
         outputs.insert(
             PIN_OUTPUT_V_COUNT.to_owned(),
-            Value::Number(v_count as f32),
+            Value::Number(v_count as f64),
         );
         Ok(outputs)
     } else {
@@ -453,7 +453,7 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
         let greville = (0..metrics.points.len())
             .map(|index| {
                 let u = if metrics.points.len() > 1 {
-                    index as f32 / (metrics.points.len() - 1) as f32
+                    index as f64 / (metrics.points.len() - 1) as f64
                 } else {
                     0.0
                 };
@@ -464,7 +464,7 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
         outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(points));
         outputs.insert(PIN_OUTPUT_WEIGHTS.to_owned(), Value::List(weight_list));
         outputs.insert(PIN_OUTPUT_GREVILLE.to_owned(), Value::List(greville));
-        outputs.insert(PIN_OUTPUT_U_COUNT.to_owned(), Value::Number(metrics.points.len() as f32));
+        outputs.insert(PIN_OUTPUT_U_COUNT.to_owned(), Value::Number(metrics.points.len() as f64));
         outputs.insert(PIN_OUTPUT_V_COUNT.to_owned(), Value::Number(1.0));
         Ok(outputs)
     }
@@ -528,7 +528,7 @@ fn evaluate_shape_in_brep(inputs: &[Value]) -> ComponentResult {
     };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_RELATION.to_owned(), Value::Number(relation as f32));
+    outputs.insert(PIN_OUTPUT_RELATION.to_owned(), Value::Number(relation as f64));
     Ok(outputs)
 }
 
@@ -729,21 +729,21 @@ fn evaluate_point_in_breps(inputs: &[Value]) -> ComponentResult {
     let inside = inside_index >= 0;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_INSIDE.to_owned(), Value::Boolean(inside));
-    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(inside_index as f32));
+    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(inside_index as f64));
     Ok(outputs)
 }
 
 fn evaluate_brep_topology() -> ComponentResult {
     let face_face = (0..6)
         .map(|index| {
-            Value::List(vec![Value::Number(((index + 1) % 6) as f32)])
+            Value::List(vec![Value::Number(((index + 1) % 6) as f64)])
         })
         .collect();
     let face_edge = (0..6)
-        .map(|index| Value::List(vec![Value::Number(index as f32)]))
+        .map(|index| Value::List(vec![Value::Number(index as f64)]))
         .collect();
     let edge_face = (0..12)
-        .map(|index| Value::List(vec![Value::Number((index % 6) as f32)]))
+        .map(|index| Value::List(vec![Value::Number((index % 6) as f64)]))
         .collect();
 
     let mut outputs = BTreeMap::new();
@@ -815,7 +815,7 @@ fn evaluate_box_properties(inputs: &[Value]) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_VOLUME.to_owned(), Value::Number(metrics.volume()));
     outputs.insert(
         "d".to_owned(),
-        Value::Number(degeneracy as f32),
+        Value::Number(degeneracy as f64),
     );
     Ok(outputs)
 }
@@ -914,7 +914,7 @@ fn evaluate_point_in_trim(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
@@ -957,7 +957,7 @@ fn coerce_boolean(value: Option<&Value>, default: bool) -> Result<bool, Componen
     }
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => Ok(*point),
         Some(Value::List(values)) if values.len() >= 3 => {
@@ -979,7 +979,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compon
     }
 }
 
-fn coerce_uv(value: Option<&Value>) -> Option<(f32, f32)> {
+fn coerce_uv(value: Option<&Value>) -> Option<(f64, f64)> {
     match value {
         Some(Value::Point([u, v, _])) => Some((*u, *v)),
         Some(Value::Vector([u, v, _])) => Some((*u, *v)),
@@ -994,19 +994,19 @@ fn coerce_uv(value: Option<&Value>) -> Option<(f32, f32)> {
     }
 }
 
-fn to_number_list(values: &[f32; 3]) -> Value {
+fn to_number_list(values: &[f64; 3]) -> Value {
     Value::List(values.iter().copied().map(Value::Number).collect())
 }
 
-fn distance(a: &[f32; 3], b: &[f32; 3]) -> f32 {
+fn distance(a: &[f64; 3], b: &[f64; 3]) -> f64 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
 #[derive(Debug, Clone)]
 struct ShapeMetrics {
-    points: Vec<[f32; 3]>,
-    min: [f32; 3],
-    max: [f32; 3],
+    points: Vec<[f64; 3]>,
+    min: [f64; 3],
+    max: [f64; 3],
 }
 
 impl ShapeMetrics {
@@ -1019,7 +1019,7 @@ impl ShapeMetrics {
         Some(Self { points, min, max })
     }
 
-    fn center(&self) -> [f32; 3] {
+    fn center(&self) -> [f64; 3] {
         [
             (self.min[0] + self.max[0]) * 0.5,
             (self.min[1] + self.max[1]) * 0.5,
@@ -1027,7 +1027,7 @@ impl ShapeMetrics {
         ]
     }
 
-    fn size(&self) -> [f32; 3] {
+    fn size(&self) -> [f64; 3] {
         [
             self.max[0] - self.min[0],
             self.max[1] - self.min[1],
@@ -1035,12 +1035,12 @@ impl ShapeMetrics {
         ]
     }
 
-    fn volume(&self) -> f32 {
+    fn volume(&self) -> f64 {
         let size = self.size();
         size[0].abs() * size[1].abs() * size[2].abs()
     }
 
-    fn area(&self) -> f32 {
+    fn area(&self) -> f64 {
         let size = self.size();
         let xy = size[0].abs() * size[1].abs();
         let yz = size[1].abs() * size[2].abs();
@@ -1052,7 +1052,7 @@ impl ShapeMetrics {
         }
     }
 
-    fn sample_point(&self, uv: (f32, f32)) -> [f32; 3] {
+    fn sample_point(&self, uv: (f64, f64)) -> [f64; 3] {
         [
             self.min[0] + self.size()[0] * uv.0,
             self.min[1] + self.size()[1] * uv.1,
@@ -1061,7 +1061,7 @@ impl ShapeMetrics {
     }
 }
 
-fn simple_inertia(size: [f32; 3], mass: f32) -> [f32; 3] {
+fn simple_inertia(size: [f64; 3], mass: f64) -> [f64; 3] {
     if mass.abs() <= EPSILON {
         return [0.0; 3];
     }
@@ -1072,7 +1072,7 @@ fn simple_inertia(size: [f32; 3], mass: f32) -> [f32; 3] {
     ]
 }
 
-fn simple_secondary(size: [f32; 3], mass: f32) -> [f32; 3] {
+fn simple_secondary(size: [f64; 3], mass: f64) -> [f64; 3] {
     if mass.abs() <= EPSILON {
         return [0.0; 3];
     }
@@ -1083,7 +1083,7 @@ fn simple_secondary(size: [f32; 3], mass: f32) -> [f32; 3] {
     ]
 }
 
-fn simple_gyration(inertia: [f32; 3], mass: f32) -> [f32; 3] {
+fn simple_gyration(inertia: [f64; 3], mass: f64) -> [f64; 3] {
     if mass.abs() <= EPSILON {
         return [0.0; 3];
     }
@@ -1094,7 +1094,7 @@ fn simple_gyration(inertia: [f32; 3], mass: f32) -> [f32; 3] {
     ]
 }
 
-fn plane_from_point(origin: [f32; 3]) -> Value {
+fn plane_from_point(origin: [f64; 3]) -> Value {
     Value::List(vec![
         Value::Point(origin),
         Value::Point([origin[0] + 1.0, origin[1], origin[2]]),
@@ -1102,7 +1102,7 @@ fn plane_from_point(origin: [f32; 3]) -> Value {
     ])
 }
 
-fn clamp_to_metrics(metrics: &ShapeMetrics, target: [f32; 3]) -> [f32; 3] {
+fn clamp_to_metrics(metrics: &ShapeMetrics, target: [f64; 3]) -> [f64; 3] {
     [
         target[0].clamp(metrics.min[0], metrics.max[0]),
         target[1].clamp(metrics.min[1], metrics.max[1]),
@@ -1110,7 +1110,7 @@ fn clamp_to_metrics(metrics: &ShapeMetrics, target: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn uv_from_point(metrics: &ShapeMetrics, point: [f32; 3]) -> (f32, f32) {
+fn uv_from_point(metrics: &ShapeMetrics, point: [f64; 3]) -> (f64, f64) {
     let size = metrics.size();
     let u = if size[0].abs() <= EPSILON {
         0.0
@@ -1125,7 +1125,7 @@ fn uv_from_point(metrics: &ShapeMetrics, point: [f32; 3]) -> (f32, f32) {
     (u.clamp(0.0, 1.0), v.clamp(0.0, 1.0))
 }
 
-fn point_in_metrics(metrics: &ShapeMetrics, point: [f32; 3], strict: bool) -> bool {
+fn point_in_metrics(metrics: &ShapeMetrics, point: [f64; 3], strict: bool) -> bool {
     let tolerance = if strict { EPSILON } else { -EPSILON };
     point[0] >= metrics.min[0] - tolerance
         && point[0] <= metrics.max[0] + tolerance
@@ -1144,7 +1144,7 @@ fn boxes_overlap(a: &ShapeMetrics, b: &ShapeMetrics) -> bool {
         || a.min[2] > b.max[2])
 }
 
-fn collect_point_grid(value: Option<&Value>) -> Option<Vec<Vec<[f32; 3]>>> {
+fn collect_point_grid(value: Option<&Value>) -> Option<Vec<Vec<[f64; 3]>>> {
     match value {
         Some(Value::List(rows)) if rows.iter().all(|row| matches!(row, Value::List(_))) => {
             let mut result = Vec::new();
@@ -1167,7 +1167,7 @@ fn collect_point_grid(value: Option<&Value>) -> Option<Vec<Vec<[f32; 3]>>> {
     }
 }
 
-fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
+fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
@@ -1180,7 +1180,7 @@ fn collect_points(value: Option<&Value>) -> Vec<[f32; 3]> {
     }
 }
 
-fn try_point(value: &Value) -> Option<[f32; 3]> {
+fn try_point(value: &Value) -> Option<[f64; 3]> {
     match value {
         Value::Point(point) | Value::Vector(point) => Some(*point),
         Value::List(values) if values.len() >= 3 => {
@@ -1194,7 +1194,7 @@ fn try_point(value: &Value) -> Option<[f32; 3]> {
     }
 }
 
-fn create_wireframe(metrics: &ShapeMetrics) -> Vec<([f32; 3], [f32; 3])> {
+fn create_wireframe(metrics: &ShapeMetrics) -> Vec<([f64; 3], [f64; 3])> {
     let corners = create_box_corners_points(metrics);
     let pairs = [
         (0, 1),
@@ -1216,7 +1216,7 @@ fn create_wireframe(metrics: &ShapeMetrics) -> Vec<([f32; 3], [f32; 3])> {
         .collect()
 }
 
-fn create_box_corners_points(metrics: &ShapeMetrics) -> Vec<[f32; 3]> {
+fn create_box_corners_points(metrics: &ShapeMetrics) -> Vec<[f64; 3]> {
     let mut corners = Vec::with_capacity(8);
     for &z in &[metrics.min[2], metrics.max[2]] {
         for &y in &[metrics.min[1], metrics.max[1]] {
@@ -1228,7 +1228,7 @@ fn create_box_corners_points(metrics: &ShapeMetrics) -> Vec<[f32; 3]> {
     corners
 }
 
-fn create_box_faces(corners: &[[f32; 3]]) -> Vec<Vec<[f32; 3]>> {
+fn create_box_faces(corners: &[[f64; 3]]) -> Vec<Vec<[f64; 3]>> {
     vec![
         vec![corners[0], corners[1], corners[2], corners[3]],
         vec![corners[4], corners[5], corners[6], corners[7]],
@@ -1239,9 +1239,9 @@ fn create_box_faces(corners: &[[f32; 3]]) -> Vec<Vec<[f32; 3]>> {
     ]
 }
 
-fn bounding_box(points: &[[f32; 3]]) -> ([f32; 3], [f32; 3]) {
-    let mut min = [f32::INFINITY; 3];
-    let mut max = [f32::NEG_INFINITY; 3];
+fn bounding_box(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
+    let mut min = [f64::INFINITY; 3];
+    let mut max = [f64::NEG_INFINITY; 3];
     for point in points {
         for axis in 0..3 {
             min[axis] = min[axis].min(point[axis]);

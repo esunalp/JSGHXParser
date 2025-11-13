@@ -131,7 +131,7 @@ impl AsValue for MetaValue {
     fn as_value(&self) -> Option<Value> {
         match self {
             MetaValue::Number(n) => Some(Value::Number(*n)),
-            MetaValue::Integer(i) => Some(Value::Number(*i as f32)),
+            MetaValue::Integer(i) => Some(Value::Number(*i as f64)),
             MetaValue::Boolean(b) => Some(Value::Boolean(*b)),
             MetaValue::Text(t) => Some(Value::Text(t.clone())),
             MetaValue::List(l) => {
@@ -179,12 +179,12 @@ impl Component for NumberSliderComponent {
             ));
         }
 
-        let min = meta_number(meta, "min")?.unwrap_or(f32::NEG_INFINITY);
+        let min = meta_number(meta, "min")?.unwrap_or(f64::NEG_INFINITY);
         if min.is_nan() {
             return Err(ComponentError::new("Number Slider minimum is ongeldig"));
         }
 
-        let max = meta_number(meta, "max")?.unwrap_or(f32::INFINITY);
+        let max = meta_number(meta, "max")?.unwrap_or(f64::INFINITY);
         if max.is_nan() {
             return Err(ComponentError::new("Number Slider maximum is ongeldig"));
         }
@@ -214,18 +214,18 @@ impl Component for NumberSliderComponent {
     }
 }
 
-fn required_meta_number(meta: &MetaMap, key: &str) -> Result<f32, ComponentError> {
+fn required_meta_number(meta: &MetaMap, key: &str) -> Result<f64, ComponentError> {
     meta_number(meta, key)?
         .ok_or_else(|| ComponentError::new(format!("Number Slider mist meta sleutel `{key}`")))
 }
 
-fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f32>, ComponentError> {
+fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f64>, ComponentError> {
     match meta.get_normalized(key) {
         Some(MetaValue::Number(value)) => Ok(Some(*value)),
-        Some(MetaValue::Integer(value)) => Ok(Some(*value as f32)),
+        Some(MetaValue::Integer(value)) => Ok(Some(*value as f64)),
         Some(MetaValue::List(list)) if list.len() == 1 => match &list[0] {
             MetaValue::Number(value) => Ok(Some(*value)),
-            MetaValue::Integer(value) => Ok(Some(*value as f32)),
+            MetaValue::Integer(value) => Ok(Some(*value as f64)),
             _ => Err(ComponentError::new(format!(
                 "meta sleutel `{key}` bevat geen numerieke waarde"
             ))),
@@ -237,7 +237,7 @@ fn meta_number(meta: &MetaMap, key: &str) -> Result<Option<f32>, ComponentError>
     }
 }
 
-fn clamp(value: f32, min: f32, max: f32) -> f32 {
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value.max(min).min(max)
 }
 
@@ -269,7 +269,7 @@ impl Component for PanelComponent {
 
         let trimmed = output_value.trim();
         let output_value = if !trimmed.is_empty() {
-            match trimmed.parse::<f32>() {
+            match trimmed.parse::<f64>() {
                 Ok(number) => Value::Number(number),
                 Err(_) => Value::Text(output_value),
             }
@@ -359,7 +359,7 @@ impl Component for DigitScrollerComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         let val = meta.get_normalized("Value").and_then(|v| match v {
             MetaValue::Number(n) => Some(*n),
-            MetaValue::Integer(i) => Some(*i as f32),
+            MetaValue::Integer(i) => Some(*i as f64),
             _ => None
         }).unwrap_or(0.0);
         let mut outputs = BTreeMap::new();
@@ -526,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_number_slider_component() {
-        fn meta_with_values(value: f32, min: f32, max: f32, step: f32) -> MetaMap {
+        fn meta_with_values(value: f64, min: f64, max: f64, step: f64) -> MetaMap {
             let mut meta = MetaMap::new();
             meta.insert("value".to_string(), MetaValue::Number(value));
             meta.insert("min".to_string(), MetaValue::Number(min));
@@ -547,7 +547,7 @@ mod tests {
 
     #[test]
     fn clamps_to_bounds() {
-        fn meta_with_values(value: f32, min: f32, max: f32, step: f32) -> MetaMap {
+        fn meta_with_values(value: f64, min: f64, max: f64, step: f64) -> MetaMap {
             let mut meta = MetaMap::new();
             meta.insert("value".to_string(), MetaValue::Number(value));
             meta.insert("min".to_string(), MetaValue::Number(min));
@@ -566,7 +566,7 @@ mod tests {
 
     #[test]
     fn quantises_to_step_size() {
-        fn meta_with_values(value: f32, min: f32, max: f32, step: f32) -> MetaMap {
+        fn meta_with_values(value: f64, min: f64, max: f64, step: f64) -> MetaMap {
             let mut meta = MetaMap::new();
             meta.insert("value".to_string(), MetaValue::Number(value));
             meta.insert("min".to_string(), MetaValue::Number(min));
@@ -587,7 +587,7 @@ mod tests {
 
     #[test]
     fn rejects_nan_value() {
-        fn meta_with_values(value: f32, min: f32, max: f32, step: f32) -> MetaMap {
+        fn meta_with_values(value: f64, min: f64, max: f64, step: f64) -> MetaMap {
             let mut meta = MetaMap::new();
             meta.insert("value".to_string(), MetaValue::Number(value));
             meta.insert("min".to_string(), MetaValue::Number(min));
@@ -596,14 +596,14 @@ mod tests {
             meta
         }
         let component = NumberSliderComponent;
-        let meta = meta_with_values(f32::NAN, 0.0, 1.0, 0.1);
+        let meta = meta_with_values(f64::NAN, 0.0, 1.0, 0.1);
         let err = component.evaluate(&[], &meta).unwrap_err();
         assert!(err.message().contains("geen geldig"));
     }
 
     #[test]
     fn errors_on_unexpected_inputs() {
-        fn meta_with_values(value: f32, min: f32, max: f32, step: f32) -> MetaMap {
+        fn meta_with_values(value: f64, min: f64, max: f64, step: f64) -> MetaMap {
             let mut meta = MetaMap::new();
             meta.insert("value".to_string(), MetaValue::Number(value));
             meta.insert("min".to_string(), MetaValue::Number(min));

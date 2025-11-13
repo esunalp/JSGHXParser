@@ -24,7 +24,7 @@ const PIN_OUTPUT_FLOOR: &str = "F";
 const PIN_OUTPUT_CEILING: &str = "C";
 const PIN_OUTPUT_VALUE: &str = "V";
 
-const GOLDEN_RATIO: f32 = 1.618_033_988_749_895;
+const GOLDEN_RATIO: f64 = 1.618_033_988_749_895;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -161,7 +161,7 @@ impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
             Self::Maximum => evaluate_maximum(inputs),
-            Self::Pi => evaluate_constant(inputs, std::f32::consts::PI, "Pi"),
+            Self::Pi => evaluate_constant(inputs, std::f64::consts::PI, "Pi"),
             Self::ComplexComponents => evaluate_complex_components(inputs),
             Self::WeightedAverage => evaluate_weighted_average(inputs),
             Self::Extremes => evaluate_extremes(inputs),
@@ -174,12 +174,12 @@ impl Component for ComponentKind {
             Self::ComplexModulus => evaluate_complex_modulus(inputs),
             Self::Round => evaluate_round(inputs),
             Self::NaturalNumber => {
-                evaluate_constant(inputs, std::f32::consts::E, "Natural logarithm")
+                evaluate_constant(inputs, std::f64::consts::E, "Natural logarithm")
             }
             Self::Truncate => evaluate_truncate(inputs),
             Self::ComplexArgument => evaluate_complex_argument(inputs),
             Self::GoldenRatio => evaluate_constant(inputs, GOLDEN_RATIO, "Golden Ratio"),
-            Self::Epsilon => evaluate_constant(inputs, f32::EPSILON, "Epsilon"),
+            Self::Epsilon => evaluate_constant(inputs, f64::EPSILON, "Epsilon"),
             Self::InterpolateData => evaluate_interpolate_data(inputs),
         }
     }
@@ -240,7 +240,7 @@ fn evaluate_extremes(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn evaluate_constant(inputs: &[Value], constant: f32, context: &str) -> ComponentResult {
+fn evaluate_constant(inputs: &[Value], constant: f64, context: &str) -> ComponentResult {
     let factor = coerce_optional_number(inputs.get(0), 1.0, context)?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(constant * factor));
@@ -271,7 +271,7 @@ fn evaluate_weighted_average(inputs: &[Value]) -> ComponentResult {
         weight_total += weight;
     }
 
-    if weight_total.abs() < f32::EPSILON {
+    if weight_total.abs() < f64::EPSILON {
         return Err(ComponentError::new(
             "Som van gewichten mag niet nul zijn voor Weighted Average",
         ));
@@ -289,8 +289,8 @@ fn evaluate_average(inputs: &[Value]) -> ComponentResult {
     if values.is_empty() {
         return Err(ComponentError::new("Average vereist ten minste één waarde"));
     }
-    let sum: f32 = values.iter().sum();
-    let mean = sum / values.len() as f32;
+    let sum: f64 = values.iter().sum();
+    let mean = sum / values.len() as f64;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_MEAN.to_owned(), Value::Number(mean));
     Ok(outputs)
@@ -476,7 +476,7 @@ fn evaluate_truncate(inputs: &[Value]) -> ComponentResult {
     let mut sorted = values.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let remove_count = ((sorted.len() as f32) * factor).round() as usize;
+    let remove_count = ((sorted.len() as f64) * factor).round() as usize;
     let retain = sorted
         .into_iter()
         .skip(remove_count)
@@ -510,7 +510,7 @@ fn evaluate_interpolate_data(inputs: &[Value]) -> ComponentResult {
     }
 
     let clamped_t = t.clamp(0.0, 1.0);
-    let position = clamped_t * ((values.len() - 1) as f32);
+    let position = clamped_t * ((values.len() - 1) as f64);
     let lower_index = position.floor() as usize;
     let upper_index = position.ceil() as usize;
 
@@ -518,7 +518,7 @@ fn evaluate_interpolate_data(inputs: &[Value]) -> ComponentResult {
         return map_with_number(PIN_OUTPUT_VALUE, values[lower_index]);
     }
 
-    let ratio = position - lower_index as f32;
+    let ratio = position - lower_index as f64;
     let lower = values[lower_index];
     let upper = values[upper_index];
     let interpolated = lower + (upper - lower) * ratio;
@@ -539,7 +539,7 @@ fn ensure_input_count(
     }
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     match value {
         Value::Number(number) if number.is_finite() => Ok(*number),
         Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
@@ -553,9 +553,9 @@ fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
 
 fn coerce_optional_number(
     value: Option<&Value>,
-    default: f32,
+    default: f64,
     context: &str,
-) -> Result<f32, ComponentError> {
+) -> Result<f64, ComponentError> {
     match value {
         Some(value) => coerce_number(value, context),
         None => Ok(default),
@@ -564,11 +564,11 @@ fn coerce_optional_number(
 
 fn coerce_clamped_number(
     value: Option<&Value>,
-    default: f32,
-    min: f32,
-    max: f32,
+    default: f64,
+    min: f64,
+    max: f64,
     context: &str,
-) -> Result<f32, ComponentError> {
+) -> Result<f64, ComponentError> {
     let number = coerce_optional_number(value, default, context)?;
     if number.is_nan() {
         return Err(ComponentError::new(format!("{context} resulteert in NaN")));
@@ -583,14 +583,14 @@ fn coerce_integer_with_default(
     max: i64,
     context: &str,
 ) -> Result<usize, ComponentError> {
-    let number = coerce_optional_number(value, default as f32, context)?;
+    let number = coerce_optional_number(value, default as f64, context)?;
     if !number.is_finite() {
         return Err(ComponentError::new(format!(
             "{context} verwacht een eindig geheel getal"
         )));
     }
     let rounded = number.round();
-    let clamped = rounded.clamp(min as f32, max as f32);
+    let clamped = rounded.clamp(min as f64, max as f64);
     Ok(clamped as usize)
 }
 
@@ -621,7 +621,7 @@ fn coerce_boolean_with_default(
     }
 }
 
-fn coerce_number_list(value: Option<&Value>, context: &str) -> Result<Vec<f32>, ComponentError> {
+fn coerce_number_list(value: Option<&Value>, context: &str) -> Result<Vec<f64>, ComponentError> {
     let value = value
         .ok_or_else(|| ComponentError::new(format!("{context} vereist een lijst met waarden")))?;
     match value {
@@ -661,7 +661,7 @@ fn map_with_list(pin: &str, values: Vec<Value>) -> ComponentResult {
     Ok(outputs)
 }
 
-fn map_with_number(pin: &str, value: f32) -> ComponentResult {
+fn map_with_number(pin: &str, value: f64) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), Value::Number(value));
     Ok(outputs)
@@ -758,7 +758,7 @@ mod tests {
 
         assert!(matches!(
             argument.get(PIN_OUTPUT_ARGUMENT),
-            Some(Value::Number(value)) if (*value - std::f32::consts::FRAC_PI_2).abs() < 1e-9
+            Some(Value::Number(value)) if (*value - std::f64::consts::FRAC_PI_2).abs() < 1e-9
         ));
         assert_eq!(modulus.get(PIN_OUTPUT_MODULUS), Some(&Value::Number(5.0)));
     }

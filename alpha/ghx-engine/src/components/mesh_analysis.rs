@@ -206,7 +206,7 @@ impl Component for MeshClosestPoint {
         };
         let surface = coerce_surface(&inputs[1])?;
 
-        let mut min_dist_sq = f32::INFINITY;
+        let mut min_dist_sq = f64::INFINITY;
         let mut closest_point = [0.0, 0.0, 0.0];
         let mut closest_face_index = 0;
         let mut closest_params = [0.0, 0.0, 0.0];
@@ -233,7 +233,7 @@ impl Component for MeshClosestPoint {
 
         let mut outputs = BTreeMap::new();
         outputs.insert("P".to_owned(), Value::Point(closest_point));
-        outputs.insert("I".to_owned(), Value::Number(closest_face_index as f32));
+        outputs.insert("I".to_owned(), Value::Number(closest_face_index as f64));
         outputs.insert("Parameter".to_owned(), Value::List(vec![
             Value::Number(closest_params[0]),
             Value::Number(closest_params[1]),
@@ -244,7 +244,7 @@ impl Component for MeshClosestPoint {
     }
 }
 
-fn closest_point_on_triangle(p: [f32; 3], a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> (f32, [f32; 3], [f32; 3]) {
+fn closest_point_on_triangle(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> (f64, [f64; 3], [f64; 3]) {
     let ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
     let ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     let ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
@@ -283,11 +283,11 @@ fn closest_point_on_triangle(p: [f32; 3], a: [f32; 3], b: [f32; 3], c: [f32; 3])
     (dist_sq, closest_point, [u, v, w])
 }
 
-fn dot(u: [f32; 3], v: [f32; 3]) -> f32 {
+fn dot(u: [f64; 3], v: [f64; 3]) -> f64 {
     u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
 }
 
-fn dist_sq(p1: [f32; 3], p2: [f32; 3]) -> f32 {
+fn dist_sq(p1: [f64; 3], p2: [f64; 3]) -> f64 {
     (p1[0] - p2[0]).powi(2) + (p1[1] - p2[1]).powi(2) + (p1[2] - p2[2]).powi(2)
 }
 
@@ -297,7 +297,7 @@ impl Component for MeshEval {
             return Err(ComponentError::new("Inputs 'Mesh' and 'Parameter' are required."));
         }
         let surface = coerce_surface(&inputs[0])?;
-        let (face_index_f32, u, v) = match &inputs[1] {
+        let (face_index_f64, u, v) = match &inputs[1] {
             Value::List(list) if list.len() == 3 => {
                 let face_idx = match list[0] { Value::Number(n) => n, _ => return Err(ComponentError::new("Invalid parameter format.")) };
                 let u_coord = match list[1] { Value::Number(n) => n, _ => return Err(ComponentError::new("Invalid parameter format.")) };
@@ -307,7 +307,7 @@ impl Component for MeshEval {
             _ => return Err(ComponentError::new("Input 'Parameter' must be a list of three numbers [face_idx, u, v]."))
         };
 
-        let face_index = face_index_f32.round() as usize;
+        let face_index = face_index_f64.round() as usize;
         if face_index >= surface.faces.len() {
             return Err(ComponentError::new(format!("Face index {} is out of bounds.", face_index)));
         }
@@ -451,7 +451,7 @@ impl Component for DeconstructMesh {
             })
             .collect();
 
-        let face_normals: Vec<[f32; 3]> = faces
+        let face_normals: Vec<[f64; 3]> = faces
             .iter()
             .map(|face| {
                 if face.len() < 3 {
@@ -532,7 +532,7 @@ impl Component for FaceNormals {
                 center[1] += v[1];
                 center[2] += v[2];
             }
-            let len = face.len() as f32;
+            let len = face.len() as f64;
             center[0] /= len;
             center[1] /= len;
             center[2] /= len;
@@ -573,11 +573,11 @@ impl Component for DeconstructFace {
             return Err(ComponentError::new("Input 'Face' is missing."));
         }
         let face_str = coerce_text(&inputs[0])?;
-        let parts: Vec<Result<f32, _>> = face_str.split(';').map(|s| s.parse()).collect();
+        let parts: Vec<Result<f64, _>> = face_str.split(';').map(|s| s.parse()).collect();
         if parts.iter().any(|p| p.is_err()) {
             return Err(ComponentError::new("Invalid face format."));
         }
-        let indices: Vec<f32> = parts.into_iter().map(|p| p.unwrap()).collect();
+        let indices: Vec<f64> = parts.into_iter().map(|p| p.unwrap()).collect();
 
         let a = indices.get(1).map(|&v| Value::Number(v)).unwrap_or(Value::Null);
         let b = indices.get(2).map(|&v| Value::Number(v)).unwrap_or(Value::Null);

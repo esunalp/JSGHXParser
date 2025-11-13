@@ -118,7 +118,7 @@ impl Component for ComponentKind {
                 }
             }),
             Self::PowerOfTen => {
-                evaluate_unary(inputs, "Power of 10", PIN_RESULT_Y, |x| Ok(10_f32.powf(x)))
+                evaluate_unary(inputs, "Power of 10", PIN_RESULT_Y, |x| Ok(10_f64.powf(x)))
             }
             Self::CubeRoot => evaluate_unary(inputs, "Cube Root", PIN_RESULT_Y, |x| Ok(x.cbrt())),
             Self::OneOverX => evaluate_unary(inputs, "One Over X", PIN_RESULT_Y, |x| {
@@ -129,7 +129,7 @@ impl Component for ComponentKind {
                 }
             }),
             Self::PowerOfTwo => {
-                evaluate_unary(inputs, "Power of 2", PIN_RESULT_Y, |x| Ok(2_f32.powf(x)))
+                evaluate_unary(inputs, "Power of 2", PIN_RESULT_Y, |x| Ok(2_f64.powf(x)))
             }
             Self::LogN => evaluate_log_n(inputs),
             Self::Cube => evaluate_unary(inputs, "Cube", PIN_RESULT_Y, |x| Ok(x * x * x)),
@@ -170,7 +170,7 @@ fn evaluate_unary(
     inputs: &[Value],
     context: &str,
     output_pin: &str,
-    operation: impl Fn(f32) -> Result<f32, ComponentError>,
+    operation: impl Fn(f64) -> Result<f64, ComponentError>,
 ) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new(format!(
@@ -196,7 +196,7 @@ fn evaluate_log_n(inputs: &[Value]) -> ComponentResult {
     if value <= 0.0 {
         return Err(ComponentError::new("Log N vereist een positieve waarde"));
     }
-    if base <= 0.0 || (base - 1.0).abs() < f32::EPSILON {
+    if base <= 0.0 || (base - 1.0).abs() < f64::EPSILON {
         return Err(ComponentError::new(
             "Log N vereist een positieve basis ongelijk aan 1",
         ));
@@ -208,7 +208,7 @@ fn evaluate_log_n(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn ensure_finite(value: f32, context: &str) -> Result<(), ComponentError> {
+fn ensure_finite(value: f64, context: &str) -> Result<(), ComponentError> {
     if value.is_finite() {
         Ok(())
     } else {
@@ -218,7 +218,7 @@ fn ensure_finite(value: f32, context: &str) -> Result<(), ComponentError> {
     }
 }
 
-fn coerce_number(value: &Value, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     match value {
         Value::Number(number) => {
             if number.is_finite() {

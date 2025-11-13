@@ -9,7 +9,7 @@ use num_complex::Complex;
 use time::PrimitiveDateTime;
 
 /// Een complex getal, aliased van `num_complex::Complex`.
-pub type ComplexValue = Complex<f32>;
+pub type ComplexValue = Complex<f64>;
 
 /// Beschikbare waardetypes binnen de evaluator.
 #[derive(Debug, Clone, PartialEq)]
@@ -17,20 +17,20 @@ pub enum Value {
     /// Een null-waarde, vergelijkbaar met `null` in andere talen.
     Null,
     /// Een enkele numerieke waarde.
-    Number(f32),
+    Number(f64),
     /// Een booleaanse waarde.
     Boolean(bool),
     /// Een complex getal.
     Complex(ComplexValue),
     /// Een 3D-punt.
-    Point([f32; 3]),
+    Point([f64; 3]),
     /// Een 3D-vector.
-    Vector([f32; 3]),
+    Vector([f64; 3]),
     /// Een lijnsegment, beschreven door twee punten.
-    CurveLine { p1: [f32; 3], p2: [f32; 3] },
+    CurveLine { p1: [f64; 3], p2: [f64; 3] },
     /// Een (prismatische) mesh representatie.
     Surface {
-        vertices: Vec<[f32; 3]>,
+        vertices: Vec<[f64; 3]>,
         faces: Vec<Vec<u32>>,
     },
     /// Een numeriek domein (1D of 2D).
@@ -171,8 +171,8 @@ impl Value {
         }
     }
 
-    /// Verwacht een `Number` en retourneert de f32-waarde.
-    pub fn expect_number(&self) -> Result<f32, ValueError> {
+    /// Verwacht een `Number` en retourneert de f64-waarde.
+    pub fn expect_number(&self) -> Result<f64, ValueError> {
         match self {
             Self::Number(value) => Ok(*value),
             _ => Err(ValueError::type_mismatch("Number", self.kind())),
@@ -196,7 +196,7 @@ impl Value {
     }
 
     /// Verwacht een `Point` en retourneert de coördinaten.
-    pub fn expect_point(&self) -> Result<[f32; 3], ValueError> {
+    pub fn expect_point(&self) -> Result<[f64; 3], ValueError> {
         match self {
             Self::Point(point) => Ok(*point),
             _ => Err(ValueError::type_mismatch("Point", self.kind())),
@@ -204,7 +204,7 @@ impl Value {
     }
 
     /// Verwacht een `Vector` en retourneert de componenten.
-    pub fn expect_vector(&self) -> Result<[f32; 3], ValueError> {
+    pub fn expect_vector(&self) -> Result<[f64; 3], ValueError> {
         match self {
             Self::Vector(vector) => Ok(*vector),
             _ => Err(ValueError::type_mismatch("Vector", self.kind())),
@@ -212,7 +212,7 @@ impl Value {
     }
 
     /// Verwacht een `CurveLine` en retourneert de eindpunten.
-    pub fn expect_curve_line(&self) -> Result<([f32; 3], [f32; 3]), ValueError> {
+    pub fn expect_curve_line(&self) -> Result<([f64; 3], [f64; 3]), ValueError> {
         match self {
             Self::CurveLine { p1, p2 } => Ok((*p1, *p2)),
             _ => Err(ValueError::type_mismatch("CurveLine", self.kind())),
@@ -220,7 +220,7 @@ impl Value {
     }
 
     /// Verwacht een `Surface` en retourneert de mesh-data.
-    pub fn expect_surface(&self) -> Result<(&[[f32; 3]], &[Vec<u32>]), ValueError> {
+    pub fn expect_surface(&self) -> Result<(&[[f64; 3]], &[Vec<u32>]), ValueError> {
         match self {
             Self::Surface { vertices, faces } => Ok((vertices, faces)),
             _ => Err(ValueError::type_mismatch("Surface", self.kind())),
@@ -359,36 +359,36 @@ pub struct MaterialValue {
     pub diffuse: ColorValue,
     pub specular: ColorValue,
     pub emission: ColorValue,
-    pub transparency: f32,
-    pub shine: f32,
+    pub transparency: f64,
+    pub shine: f64,
 }
 
 /// Beschrijving van een weergavesymbool.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SymbolValue {
     pub style: String,
-    pub size_primary: f32,
-    pub size_secondary: Option<f32>,
-    pub rotation: f32,
+    pub size_primary: f64,
+    pub size_secondary: Option<f64>,
+    pub rotation: f64,
     pub fill: ColorValue,
     pub edge: Option<ColorValue>,
-    pub width: f32,
+    pub width: f64,
     pub adjust: bool,
 }
 
 /// Beschrijving van een vlak in de ruimte.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlaneValue {
-    pub origin: [f32; 3],
-    pub x_axis: [f32; 3],
-    pub y_axis: [f32; 3],
-    pub z_axis: [f32; 3],
+    pub origin: [f64; 3],
+    pub x_axis: [f64; 3],
+    pub y_axis: [f64; 3],
+    pub z_axis: [f64; 3],
 }
 
 impl PlaneValue {
     /// Maak een nieuw vlak met opgegeven basisvectoren.
     #[must_use]
-    pub fn new(origin: [f32; 3], x_axis: [f32; 3], y_axis: [f32; 3], z_axis: [f32; 3]) -> Self {
+    pub fn new(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Self {
         Self {
             origin,
             x_axis,
@@ -412,15 +412,15 @@ impl PlaneValue {
 /// RGB kleurwaarden genormaliseerd tussen 0 en 1.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ColorValue {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
+    pub r: f64,
+    pub g: f64,
+    pub b: f64,
 }
 
 impl ColorValue {
     /// Maak een nieuwe kleur aan en klem componenten binnen [0, 1].
     #[must_use]
-    pub fn new(r: f32, g: f32, b: f32) -> Self {
+    pub fn new(r: f64, g: f64, b: f64) -> Self {
         Self {
             r: clamp01(r),
             g: clamp01(g),
@@ -430,13 +430,13 @@ impl ColorValue {
 
     /// Maak een kleur uit waarden in het bereik [0, 255].
     #[must_use]
-    pub fn from_rgb255(r: f32, g: f32, b: f32) -> Self {
+    pub fn from_rgb255(r: f64, g: f64, b: f64) -> Self {
         Self::new(r / 255.0, g / 255.0, b / 255.0)
     }
 
     /// Maak een grijstint op basis van een scalar.
     #[must_use]
-    pub fn grayscale(value: f32) -> Self {
+    pub fn grayscale(value: f64) -> Self {
         if value <= 1.0 {
             Self::new(value, value, value)
         } else {
@@ -445,7 +445,7 @@ impl ColorValue {
     }
 }
 
-fn clamp01(value: f32) -> f32 {
+fn clamp01(value: f64) -> f64 {
     if !value.is_finite() {
         return 0.0;
     }
@@ -463,7 +463,7 @@ fn clamp01(value: f32) -> f32 {
 pub struct TextTagValue {
     pub plane: PlaneValue,
     pub text: String,
-    pub size: f32,
+    pub size: f64,
     pub color: Option<ColorValue>,
 }
 
@@ -473,7 +473,7 @@ impl TextTagValue {
     pub fn new(
         plane: PlaneValue,
         text: impl Into<String>,
-        size: f32,
+        size: f64,
         color: Option<ColorValue>,
     ) -> Self {
         Self {
@@ -510,13 +510,13 @@ impl DateTimeValue {
 pub struct Matrix {
     pub rows: usize,
     pub columns: usize,
-    pub values: Vec<f32>,
+    pub values: Vec<f64>,
 }
 
 impl Matrix {
     /// Maakt een matrix aan wanneer de afmetingen en waarden overeenkomen.
     #[must_use]
-    pub fn new(rows: usize, columns: usize, values: Vec<f32>) -> Option<Self> {
+    pub fn new(rows: usize, columns: usize, values: Vec<f64>) -> Option<Self> {
         if rows == 0 || columns == 0 || values.len() != rows * columns {
             return None;
         }
@@ -531,13 +531,13 @@ impl Matrix {
 /// Een één-dimensionaal numeriek domein.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Domain1D {
-    pub start: f32,
-    pub end: f32,
-    pub min: f32,
-    pub max: f32,
-    pub span: f32,
-    pub length: f32,
-    pub center: f32,
+    pub start: f64,
+    pub end: f64,
+    pub min: f64,
+    pub max: f64,
+    pub span: f64,
+    pub length: f64,
+    pub center: f64,
 }
 
 /// Een twee-dimensionaal domein opgebouwd uit twee 1D-domeinen.
@@ -599,7 +599,7 @@ mod tests {
         let complex = ComplexValue::new(3.0, 4.0);
         assert_eq!(complex.norm(), 5.0);
         assert_eq!(complex.conj(), Complex::new(3.0, -4.0));
-        assert!((complex.arg() - (4.0f32).atan2(3.0)).abs() < 1e-12);
+        assert!((complex.arg() - (4.0f64).atan2(3.0)).abs() < 1e-12);
     }
 
     #[test]

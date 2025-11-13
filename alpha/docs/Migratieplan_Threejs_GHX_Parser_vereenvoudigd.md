@@ -121,7 +121,7 @@ Focus op een kleine subset (+ basis Input):
 **Evaluatie-voorbeelden (pseudocode)**:
 
 ```rust
-fn eval_number_slider(default_val: f32) -> NodeResult {
+fn eval_number_slider(default_val: f64) -> NodeResult {
   NodeResult::Value(Value::Number(default_val))
 }
 
@@ -205,7 +205,7 @@ start();
 
 - `Engine.load_ghx(xml_string: &str)`: parse en bouwt de interne graph.
 - `Engine.get_sliders() -> JsValue`: lijst slider-specificaties ({name, value, min, max, step}).
-- `Engine.set_slider_value(name: &str, value: f32)`: update sliderwaarde en markeer dirty state.
+- `Engine.set_slider_value(name: &str, value: f64)`: update sliderwaarde en markeer dirty state.
 - `Engine.evaluate()`: evalueer de graph.
 - `Engine.get_geometry() -> JsValue`: retourneer geometrie-resultaten (JSON-achtig object).
 
@@ -351,7 +351,7 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 ## 1) Datamodellen & Component Registry
 
-- [x] `Value`-enum: `Number(f32)`, `Point([f32;3])`, `Vector([f32;3])`, `CurveLine{p1,p2}`, `Surface{vertices,faces}`, `List(Vec<Value>)`.
+- [x] `Value`-enum: `Number(f64)`, `Point([f64;3])`, `Vector([f64;3])`, `CurveLine{p1,p2}`, `Surface{vertices,faces}`, `List(Vec<Value>)`.
 - [x] `Node`-struct met `id`, `guid`, `name`, `inputs`, `outputs`, `meta`.
 - [x] `Wire`-struct (from_node, from_pin, to_node, to_pin).
 - [x] `Graph`-container met indexen voor snelle lookup.
@@ -399,7 +399,7 @@ Met deze vereenvoudigde aanpak migreren we de Three.js GHX Parser naar Rust/WASM
 
 - [x] `Engine.load_ghx(xml: &str) -> Result<(), JsValue>`
 - [x] `Engine.get_sliders() -> JsValue` (array van `{id,name,min,max,step,value}`).
-- [x] `Engine.set_slider_value(id_or_name: &str, value: f32) -> Result<(), JsValue>`
+- [x] `Engine.set_slider_value(id_or_name: &str, value: f64) -> Result<(), JsValue>`
 - [x] `Engine.evaluate() -> Result<(), JsValue>`
 - [x] `Engine.get_geometry() -> JsValue` (JSON-achtig; efficiënte arrays later).
 
@@ -471,7 +471,7 @@ CODE REQUIREMENTS
 - Provide `Engine` with methods:
   - `load_ghx(xml: &str)`
   - `get_sliders() -> JsValue`
-  - `set_slider_value(id_or_name: &str, value: f32)`
+  - `set_slider_value(id_or_name: &str, value: f64)`
   - `evaluate()`
   - `get_geometry() -> JsValue`
 - Use strict types: a `Value` enum; clear error messages on mismatches.
@@ -488,7 +488,7 @@ EVALUATION
 - Components to implement precisely:
   - Number Slider: outputs `Value::Number` clamped to {min,max}.
   - Add: sum of two numbers.
-  - Construct Point: (x,y,z) → `Value::Point([f32;3])`.
+  - Construct Point: (x,y,z) → `Value::Point([f64;3])`.
   - Line (2pt): `Point,Point` → `Value::CurveLine { p1, p2 }`.
   - Extrude (simple): `CurveLine` + height (number or vector) → `Value::Surface { vertices, faces }`.
     * A minimal prism mesh is acceptable; normals computed client-side in Three.js.

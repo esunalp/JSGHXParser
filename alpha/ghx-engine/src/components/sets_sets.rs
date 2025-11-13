@@ -67,7 +67,7 @@ impl Component for CreateSetWithMapComponent {
                 set.push(value.clone());
                 index
             });
-            map.push(Value::Number(index as f32));
+            map.push(Value::Number(index as f64));
         }
         let mut outputs = BTreeMap::new();
         outputs.insert("Set".to_owned(), Value::List(set));
@@ -158,10 +158,10 @@ impl Component for MemberIndexComponent {
         let mut indices = Vec::new();
         for (i, value) in set.iter().enumerate() {
             if value == member {
-                indices.push(Value::Number(i as f32));
+                indices.push(Value::Number(i as f64));
             }
         }
-        let count = Value::Number(indices.len() as f32);
+        let count = Value::Number(indices.len() as f64);
         let mut outputs = BTreeMap::new();
         outputs.insert("Index".to_owned(), Value::List(indices));
         outputs.insert("Count".to_owned(), count);
@@ -246,7 +246,7 @@ impl Component for DeleteConsecutiveComponent {
         }
         let mut outputs = BTreeMap::new();
         outputs.insert("Set".to_owned(), Value::List(result_set));
-        outputs.insert("Count".to_owned(),Value::Number(removed_count as f32));
+        outputs.insert("Count".to_owned(),Value::Number(removed_count as f64));
         Ok(outputs)
     }
 }
@@ -333,7 +333,7 @@ impl Component for FindSimilarMemberComponent {
             return Ok(outputs);
         }
 
-        let mut min_dist = f32::MAX;
+        let mut min_dist = f64::MAX;
         let mut best_index = 0;
 
         for (i, member) in set.iter().enumerate() {
@@ -352,7 +352,7 @@ impl Component for FindSimilarMemberComponent {
                     (dx * dx + dy * dy + dz * dz).sqrt()
                 }
                 _ if data == member => 0.0,
-                _ => f32::MAX,
+                _ => f64::MAX,
             };
 
             if dist < min_dist {
@@ -363,7 +363,7 @@ impl Component for FindSimilarMemberComponent {
 
         let mut outputs = BTreeMap::new();
         outputs.insert("Hit".to_owned(), set[best_index].clone());
-        outputs.insert("Index".to_owned(), Value::Number(best_index as f32));
+        outputs.insert("Index".to_owned(), Value::Number(best_index as f64));
         Ok(outputs)
     }
 }

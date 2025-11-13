@@ -180,9 +180,9 @@ impl Component for Range {
         };
         let steps = coerce_integer(&inputs[1])? as usize;
         let mut numbers = Vec::with_capacity(steps + 1);
-        let step_size = (domain.end - domain.start) / steps as f32;
+        let step_size = (domain.end - domain.start) / steps as f64;
         for i in 0..=steps {
-            numbers.push(Value::Number(domain.start + i as f32 * step_size));
+            numbers.push(Value::Number(domain.start + i as f64 * step_size));
         }
         let mut outputs = BTreeMap::new();
         outputs.insert("R".to_owned(), Value::List(numbers));
@@ -202,7 +202,7 @@ impl Component for Series {
         let count = coerce_integer(&inputs[2])? as usize;
         let mut numbers = Vec::with_capacity(count);
         for i in 0..count {
-            numbers.push(Value::Number(start + i as f32 * step));
+            numbers.push(Value::Number(start + i as f64 * step));
         }
         let mut outputs = BTreeMap::new();
         outputs.insert("S".to_owned(), Value::List(numbers));
@@ -412,7 +412,7 @@ impl Component for Random {
         for _ in 0..number {
             let value = if integers {
                 let val = rng.gen_range(range.start.round() as i64..=range.end.round() as i64);
-                Value::Number(val as f32)
+                Value::Number(val as f64)
             } else {
                 let val = rng.gen_range(range.start..=range.end);
                 Value::Number(val)
@@ -575,7 +575,7 @@ impl Component for Jitter {
         let mut rng: rand::prelude::StdRng = rand::SeedableRng::seed_from_u64(seed as u64);
         let mut shuffled_list = list.clone();
         if jitter > 0.0 {
-            let k = (list.len() as f32 * jitter).round() as usize;
+            let k = (list.len() as f64 * jitter).round() as usize;
             // Partial Fisher-Yates shuffle
             for i in 0..k.min(list.len()) {
                 let j = rng.gen_range(i..list.len());
@@ -589,7 +589,7 @@ impl Component for Jitter {
         let mut indices_map: Vec<Value> = Vec::with_capacity(list.len());
         for item in list.iter() {
             if let Some(pos) = shuffled_list.iter().position(|r| r == item) {
-                indices_map.push(Value::Number(pos as f32));
+                indices_map.push(Value::Number(pos as f64));
             }
         }
         outputs.insert("I".to_owned(), Value::List(indices_map));
@@ -604,7 +604,7 @@ mod tests {
     use super::*;
     use crate::graph::value::{Domain, Domain1D, Value};
 
-    fn create_domain(start: f32, end: f32) -> Option<Domain1D> {
+    fn create_domain(start: f64, end: f64) -> Option<Domain1D> {
         if !start.is_finite() || !end.is_finite() {
             return None;
         }

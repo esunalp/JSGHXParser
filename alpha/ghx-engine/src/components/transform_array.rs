@@ -125,13 +125,13 @@ fn evaluate_box_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     for z in 0..z_count {
         for y in 0..y_count {
             for x in 0..x_count {
-                let translation_x = scale(x_axis, x as f32);
-                let translation_y = scale(y_axis, y as f32);
-                let translation_z = scale(z_axis, z as f32);
+                let translation_x = scale(x_axis, x as f64);
+                let translation_y = scale(y_axis, y as f64);
+                let translation_z = scale(z_axis, z as f64);
                 let translation = add(add(translation_x, translation_y), translation_z);
 
-                let mut point_fn = |point: [f32; 3]| add(point, translation);
-                let mut vector_fn = |vector: [f32; 3]| vector;
+                let mut point_fn = |point: [f64; 3]| add(point, translation);
+                let mut vector_fn = |vector: [f64; 3]| vector;
                 geometries.push(map_geometry(&geometry, &mut point_fn, &mut vector_fn));
                 transforms.push(Value::List(vec![
                     Value::Text("Move".into()),
@@ -162,14 +162,14 @@ fn evaluate_kaleidoscope(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let plane = coerce_plane(inputs.get(1), "Kaleidoscope vlak")?;
     let segments = coerce_number(inputs.get(2), "Kaleidoscope segmenten")? as usize;
 
-    let angle_step = 2.0 * std::f32::consts::PI / segments as f32;
+    let angle_step = 2.0 * std::f64::consts::PI / segments as f64;
     let mut geometries = Vec::with_capacity(segments);
     let mut transforms = Vec::with_capacity(segments);
 
     for i in 0..segments {
-        let current_angle = i as f32 * angle_step;
+        let current_angle = i as f64 * angle_step;
 
-        let mut final_point_fn = |point: [f32; 3]| {
+        let mut final_point_fn = |point: [f64; 3]| {
             let mut transformed_point = point;
 
             if i % 2 == 1 {
@@ -183,7 +183,7 @@ fn evaluate_kaleidoscope(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
             add(rotated, plane.origin)
         };
 
-        let mut final_vector_fn = |vector: [f32; 3]| {
+        let mut final_vector_fn = |vector: [f64; 3]| {
             let mut transformed_vector = vector;
 
             if i % 2 == 1 {
@@ -198,7 +198,7 @@ fn evaluate_kaleidoscope(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         geometries.push(map_geometry(&geometry, &mut final_point_fn, &mut final_vector_fn));
         transforms.push(Value::List(vec![
             Value::Text("Kaleidoscope".into()),
-            Value::Number(i as f32),
+            Value::Number(i as f64),
         ]));
     }
 
@@ -227,16 +227,16 @@ fn evaluate_curve_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut transforms = Vec::with_capacity(count);
 
     for i in 0..count {
-        let t = if count > 1 { i as f32 / (count - 1) as f32 } else { 0.0 };
+        let t = if count > 1 { i as f64 / (count - 1) as f64 } else { 0.0 };
         let point = curve.point_at(t);
         let tangent = curve.tangent_at(t);
         let plane = Plane::from_origin_and_normal(point, tangent);
 
-        let mut point_fn = |p: [f32; 3]| {
+        let mut point_fn = |p: [f64; 3]| {
             let local = Plane::default().to_local(p);
             plane.from_local(local)
         };
-        let mut vector_fn = |v: [f32; 3]| {
+        let mut vector_fn = |v: [f64; 3]| {
             let local = Plane::default().vector_to_local(v);
             plane.vector_from_local(local)
         };
@@ -287,12 +287,12 @@ fn evaluate_rectangular_array(inputs: &[Value], _meta: &MetaMap) -> ComponentRes
 
     for y in 0..y_count {
         for x in 0..x_count {
-            let translation_x = scale(x_axis, x as f32);
-            let translation_y = scale(y_axis, y as f32);
+            let translation_x = scale(x_axis, x as f64);
+            let translation_y = scale(y_axis, y as f64);
             let translation = add(translation_x, translation_y);
 
-            let mut point_fn = |point: [f32; 3]| add(point, translation);
-            let mut vector_fn = |vector: [f32; 3]| vector;
+            let mut point_fn = |point: [f64; 3]| add(point, translation);
+            let mut vector_fn = |vector: [f64; 3]| vector;
             geometries.push(map_geometry(&geometry, &mut point_fn, &mut vector_fn));
             transforms.push(Value::List(vec![
                 Value::Text("Move".into()),
@@ -326,9 +326,9 @@ fn evaluate_linear_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut transforms = Vec::with_capacity(count);
 
     for i in 0..count {
-        let translation = scale(direction, i as f32);
-        let mut point_fn = |point: [f32; 3]| add(point, translation);
-        let mut vector_fn = |vector: [f32; 3]| vector;
+        let translation = scale(direction, i as f64);
+        let mut point_fn = |point: [f64; 3]| add(point, translation);
+        let mut vector_fn = |vector: [f64; 3]| vector;
         geometries.push(map_geometry(&geometry, &mut point_fn, &mut vector_fn));
         transforms.push(Value::List(vec![
             Value::Text("Move".into()),
@@ -362,13 +362,13 @@ fn evaluate_polar_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut transforms = Vec::with_capacity(count);
 
     for i in 0..count {
-        let current_angle = if count > 1 { angle * (i as f32 / (count - 1) as f32) } else { 0.0 };
-        let mut point_fn = |point: [f32; 3]| {
+        let current_angle = if count > 1 { angle * (i as f64 / (count - 1) as f64) } else { 0.0 };
+        let mut point_fn = |point: [f64; 3]| {
             let translated = subtract(point, plane.origin);
             let rotated = rotate_vector(translated, plane.z_axis, current_angle);
             add(rotated, plane.origin)
         };
-        let mut vector_fn = |vector: [f32; 3]| rotate_vector(vector, plane.z_axis, current_angle);
+        let mut vector_fn = |vector: [f64; 3]| rotate_vector(vector, plane.z_axis, current_angle);
         geometries.push(map_geometry(&geometry, &mut point_fn, &mut vector_fn));
         transforms.push(Value::List(vec![
             Value::Text("Rotate".into()),
@@ -391,8 +391,8 @@ fn map_geometry<FPoint, FVector>(
     vector_fn: &mut FVector,
 ) -> Value
 where
-    FPoint: FnMut([f32; 3]) -> [f32; 3],
-    FVector: FnMut([f32; 3]) -> [f32; 3],
+    FPoint: FnMut([f64; 3]) -> [f64; 3],
+    FVector: FnMut([f64; 3]) -> [f64; 3],
 {
     match value {
         Value::Point(point) => Value::Point(point_fn(*point)),
@@ -418,10 +418,10 @@ where
 
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f32; 3],
-    x_axis: [f32; 3],
-    y_axis: [f32; 3],
-    z_axis: [f32; 3],
+    origin: [f64; 3],
+    x_axis: [f64; 3],
+    y_axis: [f64; 3],
+    z_axis: [f64; 3],
 }
 
 impl Plane {
@@ -434,7 +434,7 @@ impl Plane {
         }
     }
 
-    fn from_points(a: [f32; 3], b: [f32; 3], c: [f32; 3]) -> Self {
+    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
         let x_axis = safe_normalize(subtract(b, a))
             .map(|(axis, _)| axis)
             .unwrap_or([1.0, 0.0, 0.0]);
@@ -447,24 +447,24 @@ impl Plane {
         Self::normalize_axes(a, x_axis, y_axis, z_axis)
     }
 
-    fn from_origin(origin: [f32; 3]) -> Self {
+    fn from_origin(origin: [f64; 3]) -> Self {
         Self {
             origin,
             ..Self::default()
         }
     }
 
-    fn from_origin_and_normal(origin: [f32; 3], normal: [f32; 3]) -> Self {
+    fn from_origin_and_normal(origin: [f64; 3], normal: [f64; 3]) -> Self {
         let x_axis = orthogonal_vector(normal);
         let y_axis = normalize(cross(normal, x_axis));
         Self::normalize_axes(origin, x_axis, y_axis, normal)
     }
 
     fn normalize_axes(
-        origin: [f32; 3],
-        x_axis: [f32; 3],
-        y_axis: [f32; 3],
-        z_axis: [f32; 3],
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
     ) -> Self {
         let x_axis = normalize(x_axis);
         let mut y_axis = subtract(y_axis, scale(x_axis, dot(y_axis, x_axis)));
@@ -481,7 +481,7 @@ impl Plane {
         }
     }
 
-    fn to_local(&self, point: [f32; 3]) -> [f32; 3] {
+    fn to_local(&self, point: [f64; 3]) -> [f64; 3] {
         let delta = subtract(point, self.origin);
         [
             dot(delta, self.x_axis),
@@ -490,7 +490,7 @@ impl Plane {
         ]
     }
 
-    fn from_local(&self, coords: [f32; 3]) -> [f32; 3] {
+    fn from_local(&self, coords: [f64; 3]) -> [f64; 3] {
         add(
             add(
                 add(self.origin, scale(self.x_axis, coords[0])),
@@ -500,7 +500,7 @@ impl Plane {
         )
     }
 
-    fn vector_to_local(&self, vector: [f32; 3]) -> [f32; 3] {
+    fn vector_to_local(&self, vector: [f64; 3]) -> [f64; 3] {
         [
             dot(vector, self.x_axis),
             dot(vector, self.y_axis),
@@ -508,7 +508,7 @@ impl Plane {
         ]
     }
 
-    fn vector_from_local(&self, coords: [f32; 3]) -> [f32; 3] {
+    fn vector_from_local(&self, coords: [f64; 3]) -> [f64; 3] {
         add(
             add(scale(self.x_axis, coords[0]), scale(self.y_axis, coords[1])),
             scale(self.z_axis, coords[2]),
@@ -517,21 +517,21 @@ impl Plane {
 }
 
 trait Curve {
-    fn point_at(&self, t: f32) -> [f32; 3];
-    fn tangent_at(&self, t: f32) -> [f32; 3];
+    fn point_at(&self, t: f64) -> [f64; 3];
+    fn tangent_at(&self, t: f64) -> [f64; 3];
 }
 
 struct LineCurve {
-    p1: [f32; 3],
-    p2: [f32; 3],
+    p1: [f64; 3],
+    p2: [f64; 3],
 }
 
 impl Curve for LineCurve {
-    fn point_at(&self, t: f32) -> [f32; 3] {
+    fn point_at(&self, t: f64) -> [f64; 3] {
         add(scale(self.p1, 1.0 - t), scale(self.p2, t))
     }
 
-    fn tangent_at(&self, _t: f32) -> [f32; 3] {
+    fn tangent_at(&self, _t: f64) -> [f64; 3] {
         normalize(subtract(self.p2, self.p1))
     }
 }
@@ -594,7 +594,7 @@ fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, Component
     }
 }
 
-fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(Value::Point(point)) => Ok(*point),
         Some(Value::Vector(vector)) => Ok(*vector),
@@ -614,7 +614,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compon
     }
 }
 
-fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], ComponentError> {
+fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(Value::Vector(vector)) => Ok(*vector),
         Some(Value::Point(point)) => Ok(*point),
@@ -637,7 +637,7 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f32; 3], Compo
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentError> {
+fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
         Some(Value::Number(number)) => Ok(*number),
         Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
@@ -654,23 +654,23 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f32, ComponentE
     }
 }
 
-fn add(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn subtract(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn scale(vector: [f32; 3], factor: f32) -> [f32; 3] {
+fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
 }
 
-fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
@@ -678,21 +678,21 @@ fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-fn length_squared(vector: [f32; 3]) -> f32 {
+fn length_squared(vector: [f64; 3]) -> f64 {
     dot(vector, vector)
 }
 
-fn length(vector: [f32; 3]) -> f32 {
+fn length(vector: [f64; 3]) -> f64 {
     length_squared(vector).sqrt()
 }
 
-fn normalize(vector: [f32; 3]) -> [f32; 3] {
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
     safe_normalize(vector)
         .map(|(unit, _)| unit)
         .unwrap_or([1.0, 0.0, 0.0])
 }
 
-fn safe_normalize(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
+fn safe_normalize(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     let length = length(vector);
     if length < 1e-9 {
         None
@@ -704,7 +704,7 @@ fn safe_normalize(vector: [f32; 3]) -> Option<([f32; 3], f32)> {
     }
 }
 
-fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
     if vector[0].abs() < vector[1].abs() && vector[0].abs() < vector[2].abs() {
         normalize([0.0, -vector[2], vector[1]])
     } else if vector[1].abs() < vector[2].abs() {
@@ -714,7 +714,7 @@ fn orthogonal_vector(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
-fn rotate_vector(vector: [f32; 3], axis: [f32; 3], angle: f32) -> [f32; 3] {
+fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     if angle.abs() < 1e-9 {
         return vector;
     }
@@ -811,7 +811,7 @@ mod tests {
                         Value::Point([0.0, 1.0, 0.0]),
                     ]),
                     Value::Number(3.0),
-                    Value::Number(std::f32::consts::PI),
+                    Value::Number(std::f64::consts::PI),
                 ],
                 &MetaMap::new(),
             )
