@@ -86,6 +86,7 @@ fn parse_simple_document(input: &str) -> ParseResult<Graph> {
 
         if let Some(inputs) = object.inputs {
             for input in inputs.inputs {
+                node.add_input_pin(input.name.clone());
                 if let Some(value) = input.as_value() {
                     node.set_input(input.name.clone(), value);
                 }
