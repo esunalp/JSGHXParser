@@ -5,17 +5,17 @@ pub mod components;
 pub mod graph;
 pub mod parse;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
 use components::{ComponentKind, ComponentRegistry};
-use graph::Graph;
 use graph::evaluator::{self, EvaluationPlan, EvaluationResult};
 use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
 use graph::value::Value;
+use graph::Graph;
 use serde::Serialize;
-use wasm_bindgen::JsError;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsError;
 
 cfg_if::cfg_if! {
     if #[cfg(all(feature = "console_error_panic_hook", target_arch = "wasm32"))] {
@@ -130,6 +130,8 @@ pub struct Engine {
     last_result: Option<EvaluationResult>,
     slider_bindings: Vec<SliderBinding>,
     evaluation_plan: Option<EvaluationPlan>,
+    dirty_nodes: HashSet<NodeId>,
+    result_dirty: bool,
 }
 
 #[wasm_bindgen]
@@ -143,6 +145,8 @@ impl Engine {
             last_result: None,
             slider_bindings: Vec::new(),
             evaluation_plan: None,
+            dirty_nodes: HashSet::new(),
+            result_dirty: false,
         }
     }
 
@@ -158,11 +162,15 @@ impl Engine {
         let graph = parse::ghx_xml::parse_str(xml).map_err(to_js_error)?;
         let slider_bindings = collect_slider_bindings(&graph, &self.registry);
         let evaluation_plan = evaluator::EvaluationPlan::new(&graph).map_err(to_js_error)?;
+        let node_ids: Vec<NodeId> = graph.nodes().iter().map(|node| node.id).collect();
 
         self.graph = Some(graph);
         self.slider_bindings = slider_bindings;
         self.last_result = None;
         self.evaluation_plan = Some(evaluation_plan);
+        self.dirty_nodes.clear();
+        self.dirty_nodes.extend(node_ids);
+        self.result_dirty = true;
 
         Ok(())
     }
@@ -243,32 +251,67 @@ impl Engine {
         node.insert_meta("value", clamped);
         node.set_output(binding.output_pin, Value::Number(clamped));
 
-        self.last_result = None;
+        self.dirty_nodes.insert(binding.node_id);
+        self.result_dirty = true;
         Ok(())
     }
 
     /// Evalueer de geladen graph.
     #[wasm_bindgen]
     pub fn evaluate(&mut self) -> Result<(), JsValue> {
+        if !self.result_dirty && self.dirty_nodes.is_empty() {
+            return Ok(());
+        }
+
+        let mut dirty_nodes = std::mem::take(&mut self.dirty_nodes);
+
         let graph = match self.graph.as_ref() {
             Some(graph) => graph,
-            None => return Err(js_error("er is geen GHX-bestand geladen")),
+            None => {
+                self.dirty_nodes = dirty_nodes;
+                return Err(js_error("er is geen GHX-bestand geladen"));
+            }
         };
 
-        let plan = self
-            .evaluation_plan
-            .as_ref()
-            .ok_or_else(|| js_error("graph is niet voorbereid voor evaluatie"))?;
+        let plan = match self.evaluation_plan.as_ref() {
+            Some(plan) => plan,
+            None => {
+                self.dirty_nodes = dirty_nodes;
+                return Err(js_error("graph is niet voorbereid voor evaluatie"));
+            }
+        };
 
-        let result =
-            evaluator::evaluate_with_plan(graph, &self.registry, plan).map_err(to_js_error)?;
-        self.last_result = Some(result);
+        let previous = self.last_result.as_ref();
+        let evaluation = evaluator::evaluate_with_plan_incremental(
+            graph,
+            &self.registry,
+            plan,
+            previous,
+            &dirty_nodes,
+        );
+
+        match evaluation {
+            Ok((result, _changed)) => {
+                self.last_result = Some(result);
+                self.result_dirty = false;
+            }
+            Err(error) => {
+                self.dirty_nodes = dirty_nodes;
+                return Err(to_js_error(error));
+            }
+        }
+
+        dirty_nodes.clear();
         Ok(())
     }
 
     /// Haal de geometrie van de laatst uitgevoerde evaluatie op.
     #[wasm_bindgen]
     pub fn get_geometry(&self) -> Result<JsValue, JsValue> {
+        if self.result_dirty {
+            return Err(js_error("graph is nog niet geëvalueerd"));
+        }
+
         let result = match self.last_result.as_ref() {
             Some(result) => result,
             None => return Err(js_error("graph is nog niet geëvalueerd")),
@@ -312,7 +355,11 @@ impl Engine {
             .as_ref()
             .ok_or_else(|| js_error("er is geen GHX-bestand geladen"))?;
 
-        let result = self.last_result.as_ref();
+        let result = if self.result_dirty {
+            None
+        } else {
+            self.last_result.as_ref()
+        };
 
         let mut nodes_info = Vec::new();
 
