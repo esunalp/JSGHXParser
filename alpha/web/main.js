@@ -153,6 +153,10 @@ async function init() {
     }
 
     ui.showLoading(true);
+
+    await new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
     try {
       engine.load_ghx(contents);
       syncSliders({ replace: true });
@@ -200,11 +204,18 @@ async function init() {
     }
   }
 
-  function handleSliderChange(sliderId, value) {
+  async function handleSliderChange(sliderId, value) {
     if (!sliderId) {
       return;
     }
+
+    ui.showLoading(true);
+
     try {
+      await new Promise((resolve) => {
+        requestAnimationFrame(() => resolve());
+      });
+
       engine.set_slider_value(sliderId, value);
       syncSliders();
       evaluateAndRender();
@@ -212,6 +223,8 @@ async function init() {
       console.error('Slider-update mislukt:', error);
       syncSliders({ replace: true });
       ui.setStatus('Kon slider niet aanpassen: ' + (error?.message ?? String(error)));
+    } finally {
+      ui.showLoading(false);
     }
   }
 
