@@ -244,6 +244,14 @@ impl ComponentKind {
             Self::ParamsInput(component) => component.name(),
         }
     }
+
+    #[must_use]
+    pub fn optional_input_pins(&self) -> &'static [&'static str] {
+        match self {
+            Self::SurfaceUtil(component) => component.optional_input_pins(),
+            _ => &[],
+        }
+    }
 }
 
 /// Registry die componentimplementaties opzoekt op GUID of naam.
