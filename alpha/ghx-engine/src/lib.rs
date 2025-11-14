@@ -46,6 +46,23 @@ fn init_logger() {
     // no-op fallback when debug logs are disabled
 }
 
+#[cfg(all(feature = "parallel", target_arch = "wasm32"))]
+#[wasm_bindgen]
+pub async fn initialize_parallel(worker_count: Option<u32>) -> Result<(), JsError> {
+    let threads = worker_count
+        .map(|count| count.max(1) as usize)
+        .or_else(|| {
+            std::thread::available_parallelism()
+                .map(|value| value.get())
+                .ok()
+        })
+        .unwrap_or(1);
+
+    wasm_bindgen_rayon::init_thread_pool(threads)
+        .await
+        .map_err(|err| JsError::new(&format!("kon rayon threadpool niet initialiseren: {err}")))
+}
+
 #[macro_export]
 macro_rules! debug_log {
     ($($t:tt)*) => {{

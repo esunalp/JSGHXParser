@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 debug_logs = ["dep:wasm-bindgen-console-logger"]
+parallel = ["dep:rayon", "dep:wasm-bindgen-rayon"]
 
 [dependencies]
 log = "0.4"
@@ -33,3 +34,5 @@ time = { version = "0.3", features = ["macros"] }
 num-complex = "0.4"
 delaunator = "1.0.2"
 voronoice = "0.2.0"
+rayon = { version = "1.10", optional = true }
+wasm-bindgen-rayon = { version = "1.2", optional = true }
