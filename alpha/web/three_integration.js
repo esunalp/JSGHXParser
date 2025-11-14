@@ -611,8 +611,9 @@ export function createThreeApp(canvas) {
 
   const geometryObjects = new Map();
 
-  function updateGeometry(diff) {
+  function updateGeometry(diff, options = {}) {
       const { added = [], updated = [], removed = [] } = diff ?? {};
+      const { preserveCamera = false, refitCamera = false } = options;
 
       removed.forEach(id => {
           const existing = geometryObjects.get(id);
@@ -678,16 +679,24 @@ export function createThreeApp(canvas) {
 
       rebuildOverlayGroup();
 
-      const fitTarget = new THREE.Group();
-      geometryObjects.forEach(obj => fitTarget.add(obj.clone()));
-      const sphere = computeWorldBoundingSphere(fitTarget);
-      if (sphere && (needsFit || updated.length > 0 || added.length > 0)) {
+      const shouldPreserveView = preserveCamera && !refitCamera && !needsFit;
+
+      let sphere = null;
+      if (!shouldPreserveView && geometryObjects.size > 0) {
+          const fitTarget = new THREE.Group();
+          geometryObjects.forEach(obj => fitTarget.add(obj.clone()));
+          sphere = computeWorldBoundingSphere(fitTarget);
+      }
+
+      if (sphere && (refitCamera || needsFit)) {
           fitCameraToSphere(sphere);
           needsFit = false;
       } else if (geometryObjects.size === 0) {
           controls.target.copy(DEFAULT_CAMERA_TARGET);
           camera.position.copy(DEFAULT_CAMERA_POSITION);
           controls.update();
+          needsFit = true;
+      } else if (refitCamera && !sphere) {
           needsFit = true;
       }
   }
