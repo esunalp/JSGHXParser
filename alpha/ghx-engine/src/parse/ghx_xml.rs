@@ -264,6 +264,12 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     });
     node.nickname = nickname;
 
+    if let Some(hidden_value) = container.item_value("Hidden") {
+        if hidden_value.eq_ignore_ascii_case("true") {
+            node.insert_meta("hidden", true);
+        }
+    }
+
     let is_slider = component_guid_norm.as_deref().map_or(false, |guid| {
         guid == "57da07bd-ecab-415d-9d86-af36d7073abc"
             || guid == "5e0b22ab-f3aa-4cc2-8329-7e548bb9a58b"
