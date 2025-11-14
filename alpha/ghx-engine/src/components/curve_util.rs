@@ -311,7 +311,9 @@ fn evaluate_flip_curve(inputs: &[Value]) -> ComponentResult {
 
     if !closed {
         if let Some(guide_value) = inputs.get(1) {
-            if let Ok(guide_points) = coerce_polyline(Some(guide_value), "Flip Curve Guide") {
+            if !is_effectively_empty_value(guide_value)
+                && let Ok(guide_points) = coerce_polyline(Some(guide_value), "Flip Curve Guide")
+            {
                 if guide_points.len() >= 2 {
                     let start = points.first().copied().unwrap();
                     let guide_start = guide_points.first().copied().unwrap();
@@ -935,6 +937,14 @@ fn polylines_to_value(polylines: Vec<Vec<[f64; 3]>>) -> Value {
     Value::List(polylines.into_iter().map(polyline_to_value).collect())
 }
 
+fn is_effectively_empty_value(value: &Value) -> bool {
+    match value {
+        Value::Null => true,
+        Value::List(values) => values.is_empty() || values.iter().all(is_effectively_empty_value),
+        _ => false,
+    }
+}
+
 fn is_closed_polyline(points: &[[f64; 3]]) -> bool {
     if points.len() < 3 {
         return false;
@@ -1004,12 +1014,20 @@ fn compute_polyline_normals(coords: &[[f64; 3]], closed: bool) -> Vec<[f64; 3]> 
         let length = (normal[0] * normal[0] + normal[1] * normal[1]).sqrt();
         if length < EPSILON {
             let prev_index = if index == 0 {
-                if closed { count - 1 } else { 0 }
+                if closed {
+                    count - 1
+                } else {
+                    0
+                }
             } else {
                 index - 1
             };
             let next_index = if index + 1 >= count {
-                if closed { 0 } else { count - 1 }
+                if closed {
+                    0
+                } else {
+                    count - 1
+                }
             } else {
                 index + 1
             };
@@ -1791,9 +1809,9 @@ const EPSILON: f64 = 1e-9;
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_PARAMETER, PIN_OUTPUT_PARAMETERS,
-        PIN_OUTPUT_POINTS, PIN_OUTPUT_POLYLINE, PIN_OUTPUT_SEGMENTS, PIN_OUTPUT_SIMPLIFIED,
-        PIN_OUTPUT_TANGENTS, coerce_polyline,
+        coerce_polyline, Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_FLAG,
+        PIN_OUTPUT_PARAMETER, PIN_OUTPUT_PARAMETERS, PIN_OUTPUT_POINTS, PIN_OUTPUT_POLYLINE,
+        PIN_OUTPUT_SEGMENTS, PIN_OUTPUT_SIMPLIFIED, PIN_OUTPUT_TANGENTS,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1817,6 +1835,60 @@ mod tests {
             .and_then(|value| value.expect_list().ok())
             .expect("curve list");
         assert_eq!(curves.len(), 1);
+    }
+
+    #[test]
+    fn flip_curve_allows_missing_guide_input() {
+        let component = ComponentKind::FlipCurve;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([2.0, 0.0, 0.0]),
+            ]),
+            Value::Null,
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("flip without guide");
+
+        let curve = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("curve output");
+        let flipped: Vec<Value> = curve.to_vec();
+        assert_eq!(
+            flipped,
+            vec![Value::Point([2.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 0.0]),]
+        );
+        assert_eq!(outputs.get(PIN_OUTPUT_FLAG), Some(&Value::Boolean(true)));
+    }
+
+    #[test]
+    fn flip_curve_treats_empty_guide_as_missing() {
+        let component = ComponentKind::FlipCurve;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([3.0, 0.0, 0.0]),
+            ]),
+            Value::List(vec![]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("flip with empty guide");
+
+        let curve = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("curve output");
+        let flipped: Vec<Value> = curve.to_vec();
+        assert_eq!(
+            flipped,
+            vec![Value::Point([3.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 0.0]),]
+        );
+        assert_eq!(outputs.get(PIN_OUTPUT_FLAG), Some(&Value::Boolean(true)));
     }
 
     #[test]
