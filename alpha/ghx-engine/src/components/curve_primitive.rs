@@ -16,7 +16,7 @@ const PIN_OUTPUT_POLYGON: &str = "P";
 const PIN_OUTPUT_ARC: &str = "A";
 
 /// Aantal segmenten dat we minimaal gebruiken om een volledige cirkel te benaderen.
-const DEFAULT_CIRCLE_SEGMENTS: usize = 128;
+const DEFAULT_CIRCLE_SEGMENTS: usize = 256;
 /// Maximale hoek (in radialen) per segment om vloeiende boogbenaderingen te garanderen.
 const MAX_ARC_SEGMENT_ANGLE: f64 = TAU / DEFAULT_CIRCLE_SEGMENTS as f64;
 
