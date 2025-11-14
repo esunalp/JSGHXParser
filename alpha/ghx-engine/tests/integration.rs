@@ -1,7 +1,9 @@
 use ghx_engine::Engine;
 use ghx_engine::components::ComponentRegistry;
 use ghx_engine::graph::evaluator::{self, EvaluationResult};
+use ghx_engine::graph::node::{Node, NodeId};
 use ghx_engine::graph::value::Value;
+use ghx_engine::graph::Graph;
 use ghx_engine::parse::ghx_xml;
 
 #[test]
@@ -119,6 +121,39 @@ fn line_sample_matches_expected_snapshot() {
     };
 
     assert_value_close(&curve_entry.value, &expected, 1e-9);
+}
+
+#[test]
+fn flip_surface_evaluates_without_guide_input() {
+    let mut graph = Graph::new();
+    let mut node = Node::new(NodeId::new(0));
+    node.guid = Some("{c3d1f2b8-8596-4e8d-8861-c28ba8ffb4f4}".to_owned());
+    node.nickname = Some("Flip".to_owned());
+    node.add_input_pin("S");
+    node.add_input_pin("G");
+    node.set_input(
+        "S",
+        Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0_u32, 1, 2, 3]],
+        },
+    );
+
+    let node_id = graph.add_node(node).expect("node added");
+    let registry = ComponentRegistry::default();
+    let result = evaluator::evaluate(&graph, &registry).expect("flip evaluates");
+
+    let outputs = result
+        .node_outputs
+        .get(&node_id)
+        .expect("flip outputs present");
+    let flip_result = outputs.get("R").expect("result pin present");
+    assert!(matches!(flip_result, Value::Boolean(true)));
 }
 
 fn evaluate_sample(xml: &str) -> EvaluationResult {

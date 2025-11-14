@@ -223,6 +223,7 @@ pub fn evaluate_with_plan(
         })?;
 
         let pins = plan.pins(node_id);
+        let optional_inputs = component.optional_input_pins();
         let mut input_values = Vec::with_capacity(pins.len());
 
         for pin in pins {
@@ -254,6 +255,11 @@ pub fn evaluate_with_plan(
                 }
             } else if let Some(default) = node.inputs.get(pin) {
                 default.clone()
+            } else if optional_inputs
+                .iter()
+                .any(|candidate| pin.eq_ignore_ascii_case(candidate))
+            {
+                Value::Null
             } else {
                 return Err(EvaluationError::MissingInput {
                     node_id,
@@ -310,6 +316,7 @@ pub fn evaluate_with_plan_incremental(
         })?;
 
         let pins = plan.pins(node_id);
+        let optional_inputs = component.optional_input_pins();
         let mut input_values = Vec::with_capacity(pins.len());
         let mut dependency_changed = false;
 
@@ -347,6 +354,11 @@ pub fn evaluate_with_plan_incremental(
                 }
             } else if let Some(default) = node.inputs.get(pin) {
                 default.clone()
+            } else if optional_inputs
+                .iter()
+                .any(|candidate| pin.eq_ignore_ascii_case(candidate))
+            {
+                Value::Null
             } else {
                 return Err(EvaluationError::MissingInput {
                     node_id,

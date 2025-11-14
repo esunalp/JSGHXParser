@@ -245,6 +245,14 @@ impl ComponentKind {
             Self::EdgesFromLength => "Edges from Length",
         }
     }
+
+    #[must_use]
+    pub fn optional_input_pins(&self) -> &'static [&'static str] {
+        match self {
+            Self::Flip => &["G", "Guide"],
+            _ => &[],
+        }
+    }
 }
 
 fn evaluate_divide_surface(inputs: &[Value], component: &str) -> ComponentResult {
