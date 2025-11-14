@@ -101,9 +101,17 @@ struct SliderExport {
     value: f64,
 }
 
+#[derive(Debug, Default, Serialize)]
+struct GeometryDiff<'a> {
+    added: Vec<GeometryDiffItem<'a>>,
+    updated: Vec<GeometryDiffItem<'a>>,
+    removed: Vec<usize>,
+}
+
 #[derive(Debug, Serialize)]
-struct GeometryResponse {
-    items: Vec<GeometryItem>,
+struct GeometryDiffItem<'a> {
+    id: usize,
+    items: Vec<GeometryItem<'a>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -119,7 +127,7 @@ struct NodeInfoResponse {
     nodes: Vec<NodeInfo>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 struct MaterialExport {
     diffuse: [f64; 3],
     specular: [f64; 3],
@@ -128,9 +136,9 @@ struct MaterialExport {
     shine: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(tag = "type")]
-enum GeometryItem {
+enum GeometryItem<'a> {
     Point {
         coordinates: [f64; 3],
     },
@@ -142,11 +150,37 @@ enum GeometryItem {
         points: Vec<[f64; 3]>,
     },
     Mesh {
-        vertices: Vec<[f64; 3]>,
-        faces: Vec<Vec<u32>>,
+        vertices: &'a [[f64; 3]],
+        faces: &'a [Vec<u32>],
         #[serde(skip_serializing_if = "Option::is_none")]
         material: Option<MaterialExport>,
     },
+}
+
+impl<'a> GeometryItem<'a> {
+    fn deep_clone(&self) -> GeometryItem<'static> {
+        match self {
+            GeometryItem::Point { coordinates } => GeometryItem::Point {
+                coordinates: *coordinates,
+            },
+            GeometryItem::Line { start, end } => GeometryItem::Line {
+                start: *start,
+                end: *end,
+            },
+            GeometryItem::Polyline { points } => GeometryItem::Polyline {
+                points: points.clone(),
+            },
+            GeometryItem::Mesh {
+                vertices,
+                faces,
+                material,
+            } => GeometryItem::Mesh {
+                vertices: Box::leak(vertices.to_vec().into_boxed_slice()),
+                faces: Box::leak(faces.to_vec().into_boxed_slice()),
+                material: material.clone(),
+            },
+        }
+    }
 }
 
 impl From<MaterialValue> for MaterialExport {
@@ -176,6 +210,7 @@ pub struct Engine {
     evaluation_plan: Option<EvaluationPlan>,
     dirty_nodes: HashSet<NodeId>,
     result_dirty: bool,
+    geometry_map: BTreeMap<NodeId, Vec<GeometryItem<'static>>>,
 }
 
 #[wasm_bindgen]
@@ -191,6 +226,7 @@ impl Engine {
             evaluation_plan: None,
             dirty_nodes: HashSet::new(),
             result_dirty: false,
+            geometry_map: BTreeMap::new(),
         }
     }
 
@@ -349,25 +385,69 @@ impl Engine {
         Ok(())
     }
 
-    /// Haal de geometrie van de laatst uitgevoerde evaluatie op.
+    /// Haalt de geometrie op van de laatste evaluatie in een "diff" formaat.
     #[wasm_bindgen]
-    pub fn get_geometry(&self) -> Result<JsValue, JsValue> {
+    pub fn get_geometry(&mut self) -> Result<JsValue, JsValue> {
         if self.result_dirty {
             return Err(js_error("graph is nog niet geëvalueerd"));
         }
 
         let result = match self.last_result.as_ref() {
             Some(result) => result,
-            None => return Err(js_error("graph is nog niet geëvalueerd")),
+            None => {
+                // Geen resultaat, dus een lege diff is correct.
+                return serde_wasm_bindgen::to_value(&GeometryDiff::default())
+                    .map_err(|err| JsError::new(&err.to_string()).into());
+            }
         };
 
-        let mut items = Vec::new();
-        for entry in &result.geometry {
-            append_geometry_items(entry, &mut items);
+        let mut diff = GeometryDiff::default();
+        let mut next_geometry_map = BTreeMap::new();
+
+        let new_geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> =
+            result
+                .geometry
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, entry| {
+                    acc.entry(entry.source_node).or_default().push(entry.clone());
+                    acc
+                });
+
+        for (node_id, entries) in new_geometry_by_node {
+            let mut items = Vec::new();
+            for entry in &entries {
+                append_geometry_items(entry, &mut items);
+            }
+            let items: Vec<GeometryItem<'static>> = items.into_iter().map(|item| item.deep_clone()).collect();
+
+            if let Some(existing_items) = self.geometry_map.get(&node_id) {
+                if existing_items.iter().eq(items.iter()) {
+                    // Items are the same, no update needed
+                    next_geometry_map.insert(node_id, items);
+                    continue;
+                }
+                diff.updated.push(GeometryDiffItem {
+                    id: node_id.0,
+                    items: items.clone(),
+                });
+            } else {
+                diff.added.push(GeometryDiffItem {
+                    id: node_id.0,
+                    items: items.clone(),
+                });
+            }
+            next_geometry_map.insert(node_id, items);
         }
 
-        serde_wasm_bindgen::to_value(&GeometryResponse { items })
-            .map_err(|err| JsError::new(&err.to_string()).into())
+        for node_id in self.geometry_map.keys() {
+            if !next_geometry_map.contains_key(node_id) {
+                diff.removed.push(node_id.0);
+            }
+        }
+
+        self.geometry_map = next_geometry_map;
+
+        serde_wasm_bindgen::to_value(&diff).map_err(|err| JsError::new(&err.to_string()).into())
     }
 
     /// Haalt een tekstuele weergave op van de topologisch gesorteerde graaf.
@@ -509,14 +589,14 @@ fn slider_state(graph: &Graph, binding: &SliderBinding) -> Result<SliderExport, 
     })
 }
 
-fn append_geometry_items(entry: &GeometryEntry, items: &mut Vec<GeometryItem>) {
+fn append_geometry_items<'a>(entry: &'a GeometryEntry, items: &mut Vec<GeometryItem<'a>>) {
     append_geometry_value(&entry.value, entry.material, items);
 }
 
-fn append_geometry_value(
-    value: &Value,
+fn append_geometry_value<'a>(
+    value: &'a Value,
     material: Option<MaterialValue>,
-    items: &mut Vec<GeometryItem>,
+    items: &mut Vec<GeometryItem<'a>>,
 ) {
     match value {
         Value::Point(point) => {
@@ -532,8 +612,8 @@ fn append_geometry_value(
         }
         Value::Surface { vertices, faces } => {
             items.push(GeometryItem::Mesh {
-                vertices: vertices.clone(),
-                faces: faces.clone(),
+                vertices,
+                faces,
                 material: material.map(MaterialExport::from),
             });
         }
@@ -581,6 +661,7 @@ fn list_as_polyline(values: &[Value]) -> Option<Vec<[f64; 3]>> {
 #[cfg(test)]
 mod tests {
     use super::{GeometryEntry, GeometryItem, append_geometry_items, list_as_polyline};
+    use crate::graph::node::NodeId;
     use crate::graph::value::Value;
 
     #[test]
@@ -593,6 +674,7 @@ mod tests {
         ]);
 
         let entry = GeometryEntry {
+            source_node: NodeId::new(0),
             value: list,
             material: None,
         };
@@ -626,6 +708,7 @@ mod tests {
         ]);
 
         let entry = GeometryEntry {
+            source_node: NodeId::new(0),
             value,
             material: None,
         };

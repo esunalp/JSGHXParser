@@ -24,6 +24,7 @@ pub struct EvaluationResult {
 /// Een geometrie-item dat optioneel van materiaalinformatie is voorzien.
 #[derive(Debug, Clone)]
 pub struct GeometryEntry {
+    pub source_node: NodeId,
     pub value: Value,
     pub material: Option<MaterialValue>,
 }
@@ -272,7 +273,7 @@ pub fn evaluate_with_plan(
             })?;
 
         let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
-        collect_geometry(&stored_outputs, &mut result.geometry);
+        collect_geometry(node_id, &stored_outputs, &mut result.geometry);
         result.node_outputs.insert(node_id, stored_outputs);
     }
 
@@ -364,7 +365,7 @@ pub fn evaluate_with_plan_incremental(
                 previous.and_then(|prev| prev.node_outputs.get(&node_id))
             {
                 let stored_outputs = previous_outputs.clone();
-                collect_geometry(&stored_outputs, &mut result.geometry);
+                collect_geometry(node_id, &stored_outputs, &mut result.geometry);
                 result.node_outputs.insert(node_id, stored_outputs);
                 continue;
             }
@@ -385,7 +386,7 @@ pub fn evaluate_with_plan_incremental(
             changed_nodes.insert(node_id);
         }
 
-        collect_geometry(&stored_outputs, &mut result.geometry);
+        collect_geometry(node_id, &stored_outputs, &mut result.geometry);
         result.node_outputs.insert(node_id, stored_outputs);
     }
 
@@ -403,7 +404,11 @@ fn merge_outputs(
 }
 
 #[cfg(feature = "parallel")]
-fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<GeometryEntry>) {
+fn collect_geometry(
+    node_id: NodeId,
+    outputs: &BTreeMap<String, Value>,
+    geometry: &mut Vec<GeometryEntry>,
+) {
     let material = outputs.values().find_map(extract_material_value);
 
     let mut collected = outputs
@@ -411,7 +416,7 @@ fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<Geomet
         .par_iter()
         .map(|value| {
             let mut local = Vec::new();
-            collect_value_geometry(value, material, &mut local);
+            collect_value_geometry(node_id, value, material, &mut local);
             local
         })
         .reduce(Vec::new, |mut acc, mut next| {
@@ -423,15 +428,20 @@ fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<Geomet
 }
 
 #[cfg(not(feature = "parallel"))]
-fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<GeometryEntry>) {
+fn collect_geometry(
+    node_id: NodeId,
+    outputs: &BTreeMap<String, Value>,
+    geometry: &mut Vec<GeometryEntry>,
+) {
     let material = outputs.values().find_map(extract_material_value);
 
     for value in outputs.values() {
-        collect_value_geometry(value, material, geometry);
+        collect_value_geometry(node_id, value, material, geometry);
     }
 }
 
 fn collect_value_geometry(
+    node_id: NodeId,
     value: &Value,
     material: Option<MaterialValue>,
     geometry: &mut Vec<GeometryEntry>,
@@ -439,13 +449,14 @@ fn collect_value_geometry(
     match value {
         Value::Point(_) | Value::CurveLine { .. } | Value::Surface { .. } => {
             geometry.push(GeometryEntry {
+                source_node: node_id,
                 value: value.clone(),
                 material,
             });
         }
         Value::List(values) => {
             for value in values {
-                collect_value_geometry(value, material, geometry);
+                collect_value_geometry(node_id, value, material, geometry);
             }
         }
         Value::Material(_) => {}
@@ -505,7 +516,7 @@ mod tests {
         );
 
         let mut geometry = Vec::<GeometryEntry>::new();
-        collect_geometry(&outputs, &mut geometry);
+        collect_geometry(NodeId::new(0), &outputs, &mut geometry);
 
         assert_eq!(geometry.len(), 1);
         assert!(geometry[0].material.is_some());

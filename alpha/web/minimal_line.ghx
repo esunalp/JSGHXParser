@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ghx version="alpha-0.1">
+  <objects>
+    <object id="0">
+      <guid>{5E0B22AB-F3AA-4CC2-8329-7E548BB9A58B}</guid>
+      <name>Number Slider</name>
+      <nickname>Length</nickname>
+      <slider min="0" max="10" value="3" step="0.5" />
+      <outputs>
+        <output name="OUT" />
+      </outputs>
+    </object>
+    <object id="1">
+      <guid>{3581F42A-9592-4549-BD6B-1C0FC39D067B}</guid>
+      <name>Construct Point</name>
+      <nickname>Start Point</nickname>
+      <inputs>
+        <input name="X" value="0" />
+        <input name="Y" value="0" />
+        <input name="Z" value="0" />
+      </inputs>
+      <outputs>
+        <output name="P" />
+      </outputs>
+    </object>
+    <object id="2">
+      <guid>{3581F42A-9592-4549-BD6B-1C0FC39D067B}</guid>
+      <name>Construct Point</name>
+      <nickname>End Point</nickname>
+      <inputs>
+        <input name="X" />
+        <input name="Y" value="0" />
+        <input name="Z" value="0" />
+      </inputs>
+      <outputs>
+        <output name="P" />
+      </outputs>
+    </object>
+    <object id="3">
+      <guid>{4C4E56EB-2F04-43F9-95A3-CC46A14F495A}</guid>
+      <name>Line</name>
+      <nickname>Result Line</nickname>
+      <inputs>
+        <input name="A" />
+        <input name="B" />
+      </inputs>
+      <outputs>
+        <output name="L" />
+      </outputs>
+    </object>
+  </objects>
+  <wires>
+    <wire from="0:OUT" to="2:X" />
+    <wire from="1:P" to="3:A" />
+    <wire from="2:P" to="3:B" />
+  </wires>
+</ghx>

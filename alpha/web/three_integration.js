@@ -605,65 +605,93 @@ export function createThreeApp(canvas) {
     });
   }
 
-  function updateGeometry(items) {
-      if (currentObject) {
-          scene.remove(currentObject);
-          disposeSceneObject(currentObject);
-          currentObject = null;
-      }
-      const geometryGroup = new THREE.Group();
-      geometryGroup.name = 'ghx-geometry';
+  const geometryObjects = new Map();
 
-      const safeItems = Array.isArray(items) ? items : [];
-      lastOverlayItems = safeItems.filter(item => item && (item.type === 'Line' || item.type === 'Polyline' || item.type === 'Point'));
+  function updateGeometry(diff) {
+      const { added = [], updated = [], removed = [] } = diff ?? {};
 
-      safeItems.forEach(item => {
-          if (!item) return;
+      removed.forEach(id => {
+          const existing = geometryObjects.get(id);
+          if (existing) {
+              scene.remove(existing);
+              disposeSceneObject(existing);
+              geometryObjects.delete(id);
+          }
+      });
+
+      const processItem = (item) => {
+          if (!item || !item.type) return null;
 
           if (item.type === 'Mesh') {
-              const mesh = createMeshObject(item);
-              if (mesh) {
-                  geometryGroup.add(mesh);
-              }
-          } else if (item.type === 'Line') {
+              return createMeshObject(item);
+          }
+          if (item.type === 'Line') {
               const points = [item.start, item.end]
                   .filter(Array.isArray)
                   .map(p => new THREE.Vector3(p[0], p[1], p[2]));
               const segmentObject = createSegmentsObject(points);
-              if (segmentObject) {
-                  geometryGroup.add(segmentObject.object);
-              }
-          } else if (item.type === 'Polyline') {
+              return segmentObject ? segmentObject.object : null;
+          }
+          if (item.type === 'Polyline') {
               const points = Array.isArray(item.points)
                   ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
                   : [];
               const segmentObject = createSegmentsObject(points);
-              if (segmentObject) {
-                  geometryGroup.add(segmentObject.object);
-              }
-          } else if (item.type === 'Point') {
+              return segmentObject ? segmentObject.object : null;
+          }
+          if (item.type === 'Point') {
               const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
               const pointObject = createPointsObject([point]);
-              if (pointObject) {
-                  geometryGroup.add(pointObject.object);
+              return pointObject ? pointObject.object : null;
+          }
+          return null;
+      };
+
+      const createGroupFromItems = (items) => {
+          if (!Array.isArray(items) || items.length === 0) {
+              return null;
+          }
+          const group = new THREE.Group();
+          items.forEach(geometryItem => {
+              const obj = processItem(geometryItem);
+              if (obj) {
+                  group.add(obj);
               }
+          });
+          return group.children.length > 0 ? group : null;
+      };
+
+      updated.forEach(nodeOutput => {
+          const existing = geometryObjects.get(nodeOutput.id);
+          if (existing) {
+              scene.remove(existing);
+              disposeSceneObject(existing);
+              geometryObjects.delete(nodeOutput.id);
+          }
+          const newGroup = createGroupFromItems(nodeOutput.items);
+          if (newGroup) {
+              geometryObjects.set(nodeOutput.id, newGroup);
+              scene.add(newGroup);
           }
       });
 
-      if (geometryGroup.children.length > 0) {
-          currentObject = geometryGroup;
-          applyShadowDefaults(currentObject);
-          scene.add(currentObject);
-      }
+      added.forEach(nodeOutput => {
+          const newGroup = createGroupFromItems(nodeOutput.items);
+          if (newGroup) {
+              geometryObjects.set(nodeOutput.id, newGroup);
+              scene.add(newGroup);
+          }
+      });
 
       rebuildOverlayGroup();
 
-      const fitTarget = currentObject || (overlayEnabled ? currentOverlayGroup : null);
+      const fitTarget = new THREE.Group();
+      geometryObjects.forEach(obj => fitTarget.add(obj.clone()));
       const sphere = computeWorldBoundingSphere(fitTarget);
-      if (sphere && needsFit) {
+      if (sphere && (needsFit || updated.length > 0 || added.length > 0)) {
           fitCameraToSphere(sphere);
           needsFit = false;
-      } else if (!fitTarget) {
+      } else if (geometryObjects.size === 0) {
           controls.target.copy(DEFAULT_CAMERA_TARGET);
           camera.position.copy(DEFAULT_CAMERA_POSITION);
           controls.update();
