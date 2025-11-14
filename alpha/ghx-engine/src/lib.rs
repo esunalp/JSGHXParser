@@ -404,14 +404,22 @@ impl Engine {
         let mut diff = GeometryDiff::default();
         let mut next_geometry_map = BTreeMap::new();
 
-        let new_geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> =
-            result
-                .geometry
-                .iter()
-                .fold(BTreeMap::new(), |mut acc, entry| {
-                    acc.entry(entry.source_node).or_default().push(entry.clone());
-                    acc
-                });
+        let graph = self.graph.as_ref().unwrap();
+        let new_geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> = result
+            .geometry
+            .iter()
+            .filter(|entry| {
+                if let Some(node) = graph.node(entry.source_node) {
+                    if let Some(MetaValue::Boolean(true)) = node.meta("hidden") {
+                        return false;
+                    }
+                }
+                true
+            })
+            .fold(BTreeMap::new(), |mut acc, entry| {
+                acc.entry(entry.source_node).or_default().push(entry.clone());
+                acc
+            });
 
         for (node_id, entries) in new_geometry_by_node {
             let mut items = Vec::new();
