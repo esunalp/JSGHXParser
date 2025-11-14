@@ -144,7 +144,9 @@ async function init() {
     return sliders;
   }
 
-  function evaluateAndRender({ announce } = {}) {
+  function evaluateAndRender({ announce, refitCamera = false } = {}) {
+    const preserveCamera = preserveCameraOnNextRender;
+    preserveCameraOnNextRender = false;
     ui.showLoading(true);
     try {
       performEvaluation();
@@ -159,7 +161,10 @@ async function init() {
         return;
       }
 
-      three.updateGeometry(geometry);
+      three.updateGeometry(geometry, {
+        preserveCamera,
+        refitCamera,
+      });
 
       if (announce) {
         ui.setStatus(announce);
@@ -187,7 +192,10 @@ async function init() {
     try {
       loadGhxIntoEngine(contents);
       syncSliders({ replace: true });
-      evaluateAndRender({ announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.' });
+      evaluateAndRender({
+        announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.',
+        refitCamera: true,
+      });
     } catch (error) {
       console.error('Fout bij het laden van GHX:', error);
       ui.renderSliders([]);
@@ -232,6 +240,7 @@ async function init() {
   }
 
   let evaluationPending = false;
+  let preserveCameraOnNextRender = false;
 
   function scheduleEvaluation() {
     if (evaluationPending) {
@@ -252,6 +261,7 @@ async function init() {
     try {
       applySliderValue(sliderId, value);
       syncSliders();
+      preserveCameraOnNextRender = true;
       scheduleEvaluation();
     } catch (error) {
       console.error('Slider-update mislukt:', error);
