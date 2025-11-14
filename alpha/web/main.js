@@ -1,14 +1,6 @@
 import { setupUi } from './ui.js';
 import { createThreeApp } from './three_integration.js';
 
-function normalizeGeometryItems(value) {
-  if (!value || typeof value !== 'object') {
-    return [];
-  }
-  const items = value.items;
-  return Array.isArray(items) ? items : [];
-}
-
 function toNumericOrNull(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
@@ -119,30 +111,31 @@ async function init() {
   }
 
   function evaluateAndRender({ announce } = {}) {
+    ui.showLoading(true);
     try {
       engine.evaluate();
+
+      let geometry;
+      try {
+        geometry = engine.get_geometry();
+      } catch (error) {
+        console.error('Kon geometrie niet ophalen:', error);
+        three.updateGeometry([]);
+        ui.setStatus('Geometrie ophalen mislukt: ' + (error?.message ?? String(error)));
+        return;
+      }
+
+      three.updateGeometry(geometry);
+
+      if (announce) {
+        ui.setStatus(announce);
+      }
     } catch (error) {
       console.error('Evaluatiefout:', error);
       three.updateGeometry([]);
       ui.setStatus('Evaluatie mislukt: ' + (error?.message ?? String(error)));
-      return;
-    }
-
-    let geometry;
-    try {
-      geometry = engine.get_geometry();
-    } catch (error) {
-      console.error('Kon geometrie niet ophalen:', error);
-      three.updateGeometry([]);
-      ui.setStatus('Geometrie ophalen mislukt: ' + (error?.message ?? String(error)));
-      return;
-    }
-
-    const items = normalizeGeometryItems(geometry);
-    three.updateGeometry(items);
-
-    if (announce) {
-      ui.setStatus(announce);
+    } finally {
+      ui.showLoading(false);
     }
   }
 
@@ -175,7 +168,7 @@ async function init() {
   async function loadDefaultSample() {
     const sampleName = 'minimal_line.ghx';
     try {
-      const response = await fetch(`../tools/ghx-samples/${sampleName}`, { cache: 'no-store' });
+      const response = await fetch(`./${sampleName}`, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`Kon ${sampleName} niet ophalen (status ${response.status}).`);
       }
@@ -204,27 +197,32 @@ async function init() {
     }
   }
 
+  let evaluationPending = false;
+
+  function scheduleEvaluation() {
+    if (evaluationPending) {
+      return;
+    }
+    evaluationPending = true;
+    requestAnimationFrame(() => {
+      evaluateAndRender();
+      evaluationPending = false;
+    });
+  }
+
   async function handleSliderChange(sliderId, value) {
     if (!sliderId) {
       return;
     }
 
-    ui.showLoading(true);
-
     try {
-      await new Promise((resolve) => {
-        requestAnimationFrame(() => resolve());
-      });
-
       engine.set_slider_value(sliderId, value);
       syncSliders();
-      evaluateAndRender();
+      scheduleEvaluation();
     } catch (error) {
       console.error('Slider-update mislukt:', error);
       syncSliders({ replace: true });
       ui.setStatus('Kon slider niet aanpassen: ' + (error?.message ?? String(error)));
-    } finally {
-      ui.showLoading(false);
     }
   }
 
