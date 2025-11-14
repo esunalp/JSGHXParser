@@ -211,6 +211,7 @@ pub struct Engine {
     dirty_nodes: HashSet<NodeId>,
     result_dirty: bool,
     geometry_map: BTreeMap<NodeId, Vec<GeometryItem<'static>>>,
+    changed_nodes_since_geometry_update: HashSet<NodeId>,
 }
 
 #[wasm_bindgen]
@@ -227,6 +228,7 @@ impl Engine {
             dirty_nodes: HashSet::new(),
             result_dirty: false,
             geometry_map: BTreeMap::new(),
+            changed_nodes_since_geometry_update: HashSet::new(),
         }
     }
 
@@ -251,6 +253,8 @@ impl Engine {
         self.dirty_nodes.clear();
         self.dirty_nodes.extend(node_ids);
         self.result_dirty = true;
+        self.geometry_map.clear();
+        self.changed_nodes_since_geometry_update.clear();
 
         Ok(())
     }
@@ -371,9 +375,10 @@ impl Engine {
         );
 
         match evaluation {
-            Ok((result, _changed)) => {
+            Ok((result, changed)) => {
                 self.last_result = Some(result);
                 self.result_dirty = false;
+                self.changed_nodes_since_geometry_update.extend(changed);
             }
             Err(error) => {
                 self.dirty_nodes = dirty_nodes;
@@ -395,65 +400,69 @@ impl Engine {
         let result = match self.last_result.as_ref() {
             Some(result) => result,
             None => {
-                // Geen resultaat, dus een lege diff is correct.
-                return serde_wasm_bindgen::to_value(&GeometryDiff::default())
+                let diff = GeometryDiff {
+                    removed: self.geometry_map.keys().map(|id| id.0).collect(),
+                    ..Default::default()
+                };
+                self.geometry_map.clear();
+                self.changed_nodes_since_geometry_update.clear();
+                return serde_wasm_bindgen::to_value(&diff)
                     .map_err(|err| JsError::new(&err.to_string()).into());
             }
         };
 
         let mut diff = GeometryDiff::default();
-        let mut next_geometry_map = BTreeMap::new();
-
         let graph = self.graph.as_ref().unwrap();
-        let new_geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> = result
-            .geometry
-            .iter()
-            .filter(|entry| {
-                if let Some(node) = graph.node(entry.source_node) {
-                    if let Some(MetaValue::Boolean(true)) = node.meta("hidden") {
-                        return false;
-                    }
-                }
-                true
-            })
-            .fold(BTreeMap::new(), |mut acc, entry| {
+
+        let geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> =
+            result.geometry.iter().fold(BTreeMap::new(), |mut acc, entry| {
                 acc.entry(entry.source_node).or_default().push(entry.clone());
                 acc
             });
 
-        for (node_id, entries) in new_geometry_by_node {
-            let mut items = Vec::new();
-            for entry in &entries {
-                append_geometry_items(entry, &mut items);
-            }
-            let items: Vec<GeometryItem<'static>> = items.into_iter().map(|item| item.deep_clone()).collect();
+        let changed_nodes = std::mem::take(&mut self.changed_nodes_since_geometry_update);
 
-            if let Some(existing_items) = self.geometry_map.get(&node_id) {
-                if existing_items.iter().eq(items.iter()) {
-                    // Items are the same, no update needed
-                    next_geometry_map.insert(node_id, items);
-                    continue;
-                }
-                diff.updated.push(GeometryDiffItem {
-                    id: node_id.0,
-                    items: items.clone(),
-                });
+        for node_id in &changed_nodes {
+            let is_hidden = graph
+                .node(*node_id)
+                .and_then(|node| node.meta("hidden"))
+                .and_then(MetaValue::as_boolean)
+                .unwrap_or(false);
+
+            let new_items: Vec<GeometryItem<'static>> = if is_hidden {
+                Vec::new()
             } else {
+                geometry_by_node
+                    .get(node_id)
+                    .map(|entries| {
+                        let mut items = Vec::new();
+                        for entry in entries {
+                            append_geometry_items(entry, &mut items);
+                        }
+                        items.into_iter().map(|item| item.deep_clone()).collect()
+                    })
+                    .unwrap_or_default()
+            };
+
+            if let Some(existing_items) = self.geometry_map.get(node_id) {
+                if new_items.is_empty() {
+                    diff.removed.push(node_id.0);
+                    self.geometry_map.remove(node_id);
+                } else if existing_items.iter().ne(new_items.iter()) {
+                    diff.updated.push(GeometryDiffItem {
+                        id: node_id.0,
+                        items: new_items.clone(),
+                    });
+                    self.geometry_map.insert(*node_id, new_items);
+                }
+            } else if !new_items.is_empty() {
                 diff.added.push(GeometryDiffItem {
                     id: node_id.0,
-                    items: items.clone(),
+                    items: new_items.clone(),
                 });
-            }
-            next_geometry_map.insert(node_id, items);
-        }
-
-        for node_id in self.geometry_map.keys() {
-            if !next_geometry_map.contains_key(node_id) {
-                diff.removed.push(node_id.0);
+                self.geometry_map.insert(*node_id, new_items);
             }
         }
-
-        self.geometry_map = next_geometry_map;
 
         serde_wasm_bindgen::to_value(&diff).map_err(|err| JsError::new(&err.to_string()).into())
     }

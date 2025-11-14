@@ -31,6 +31,17 @@ pub enum MetaValue {
     List(Vec<MetaValue>),
 }
 
+impl MetaValue {
+    #[must_use]
+    pub fn as_boolean(&self) -> Option<bool> {
+        if let Self::Boolean(v) = self {
+            Some(*v)
+        } else {
+            None
+        }
+    }
+}
+
 impl From<f64> for MetaValue {
     fn from(value: f64) -> Self {
         Self::Number(value)
