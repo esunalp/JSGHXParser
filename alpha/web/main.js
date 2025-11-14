@@ -76,10 +76,44 @@ async function init() {
 
   const engine = new Engine();
 
+  const wasmApi = Object.freeze({
+    loadGhx: engine.load_ghx.bind(engine),
+    getSliders: engine.get_sliders.bind(engine),
+    setSliderValue: engine.set_slider_value.bind(engine),
+    evaluate: engine.evaluate.bind(engine),
+    getGeometry: engine.get_geometry.bind(engine),
+  });
+
+  const invokeLoadGhx = wasmApi.loadGhx;
+  const invokeGetSliders = wasmApi.getSliders;
+  const invokeSetSliderValue = wasmApi.setSliderValue;
+  const invokeEvaluate = wasmApi.evaluate;
+  const invokeGetGeometry = wasmApi.getGeometry;
+
+  function fetchSliderSnapshot() {
+    return invokeGetSliders();
+  }
+
+  function performEvaluation() {
+    invokeEvaluate();
+  }
+
+  function fetchGeometrySnapshot() {
+    return invokeGetGeometry();
+  }
+
+  function applySliderValue(sliderId, value) {
+    invokeSetSliderValue(sliderId, value);
+  }
+
+  function loadGhxIntoEngine(contents) {
+    invokeLoadGhx(contents);
+  }
+
   function syncSliders({ replace = false } = {}) {
     let sliderData;
     try {
-      sliderData = engine.get_sliders();
+      sliderData = fetchSliderSnapshot();
     } catch (error) {
       if (replace) {
         ui.renderSliders([]);
@@ -113,11 +147,11 @@ async function init() {
   function evaluateAndRender({ announce } = {}) {
     ui.showLoading(true);
     try {
-      engine.evaluate();
+      performEvaluation();
 
       let geometry;
       try {
-        geometry = engine.get_geometry();
+        geometry = fetchGeometrySnapshot();
       } catch (error) {
         console.error('Kon geometrie niet ophalen:', error);
         three.updateGeometry([]);
@@ -151,7 +185,7 @@ async function init() {
       requestAnimationFrame(() => resolve());
     });
     try {
-      engine.load_ghx(contents);
+      loadGhxIntoEngine(contents);
       syncSliders({ replace: true });
       evaluateAndRender({ announce: label ? `GHX geladen (${label})` : 'GHX-bestand geladen.' });
     } catch (error) {
@@ -216,7 +250,7 @@ async function init() {
     }
 
     try {
-      engine.set_slider_value(sliderId, value);
+      applySliderValue(sliderId, value);
       syncSliders();
       scheduleEvaluation();
     } catch (error) {
