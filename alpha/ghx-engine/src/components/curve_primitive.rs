@@ -15,6 +15,11 @@ const PIN_OUTPUT_LINE: &str = "L";
 const PIN_OUTPUT_POLYGON: &str = "P";
 const PIN_OUTPUT_ARC: &str = "A";
 
+/// Aantal segmenten dat we minimaal gebruiken om een volledige cirkel te benaderen.
+const DEFAULT_CIRCLE_SEGMENTS: usize = 128;
+/// Maximale hoek (in radialen) per segment om vloeiende boogbenaderingen te garanderen.
+const MAX_ARC_SEGMENT_ANGLE: f64 = TAU / DEFAULT_CIRCLE_SEGMENTS as f64;
+
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
@@ -300,9 +305,7 @@ fn not_implemented(name: &str) -> ComponentResult {
 
 fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 3 {
-        return Err(ComponentError::new(
-            "Arc 3Pt component vereist drie punten",
-        ));
+        return Err(ComponentError::new("Arc 3Pt component vereist drie punten"));
     }
 
     let p1_res = coerce_point(inputs.get(0).unwrap(), "Arc 3Pt");
@@ -429,7 +432,7 @@ fn evaluate_circle_cnr(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = Plane::from_origin_and_normal(center, normal);
-    let points = sample_circle_points(&plane, radius, 64);
+    let points = sample_circle_points(&plane, radius, DEFAULT_CIRCLE_SEGMENTS);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -462,9 +465,7 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_line(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Line component vereist twee punten",
-        ));
+        return Err(ComponentError::new("Line component vereist twee punten"));
     }
 
     let starts = extract_points(inputs.get(0).unwrap(), "Line start")?;
@@ -547,6 +548,11 @@ fn create_arc_points(plane: &Plane, radius: f64, angle: f64) -> (Vec<[f64; 3]>, 
     create_arc_points_from_angles(plane, radius, 0.0, angle)
 }
 
+fn segments_for_angle(angle: f64) -> usize {
+    let segments = (angle.abs() / MAX_ARC_SEGMENT_ANGLE).ceil() as usize;
+    segments.max(1)
+}
+
 fn create_arc_points_from_angles(
     plane: &Plane,
     radius: f64,
@@ -555,9 +561,12 @@ fn create_arc_points_from_angles(
 ) -> (Vec<[f64; 3]>, f64) {
     let total_angle = end_angle - start_angle;
     let mut points = Vec::new();
-    let segments = (total_angle.abs() * 32.0 / TAU).ceil() as usize;
-    let segments = segments.max(1);
-    let angle_step = total_angle / segments as f64;
+    let segments = segments_for_angle(total_angle);
+    let angle_step = if segments == 0 {
+        0.0
+    } else {
+        total_angle / segments as f64
+    };
 
     for i in 0..=segments {
         let current_angle = start_angle + i as f64 * angle_step;
@@ -739,7 +748,7 @@ fn create_rectangle_points(
         points.push(plane.apply(half_x, -half_y));
         length = 2.0 * x_size + 2.0 * y_size;
     } else {
-        let segments_per_corner = 8;
+        let segments_per_corner = segments_for_angle(TAU / 4.0);
 
         // Corner centers in UV coordinates
         let c_tr_uv = (half_x - radius, half_y - radius);
@@ -809,7 +818,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let points = sample_circle_points(&plane, radius, 64);
+    let points = sample_circle_points(&plane, radius, DEFAULT_CIRCLE_SEGMENTS);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -820,6 +829,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
 }
 
 fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64; 3]> {
+    let segments = segments.max(3);
     let mut points = Vec::with_capacity(segments + 1);
     let step = TAU / segments as f64;
     for i in 0..segments {
@@ -1193,8 +1203,9 @@ fn orthogonal_vector(reference: [f64; 3]) -> [f64; 3] {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE, PIN_OUTPUT_LENGTH,
-        PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
+        Component, ComponentKind, DEFAULT_CIRCLE_SEGMENTS, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
+        PIN_OUTPUT_LENGTH, PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
+        segments_for_angle,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1243,7 +1254,8 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), 34);
+        let segments_per_corner = segments_for_angle(std::f64::consts::TAU / 4.0);
+        assert_eq!(points.len(), 4 * segments_per_corner + 2);
 
         let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
             panic!("expected length");
@@ -1277,7 +1289,8 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), 34);
+        let segments_per_corner = segments_for_angle(std::f64::consts::TAU / 4.0);
+        assert_eq!(points.len(), 4 * segments_per_corner + 2);
     }
 
     #[test]
@@ -1348,7 +1361,8 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_ARC) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), 17);
+        let expected_points = segments_for_angle(std::f64::consts::PI) + 1;
+        assert_eq!(points.len(), expected_points);
 
         let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
             panic!("expected length");
@@ -1401,7 +1415,7 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_CIRCLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), 65);
+        assert_eq!(points.len(), DEFAULT_CIRCLE_SEGMENTS + 1);
         assert!(matches!(points[0], Value::Point(_)));
         assert!(matches!(points.last(), Some(Value::Point(_))));
     }
@@ -1447,7 +1461,7 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_CIRCLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), 65);
+        assert_eq!(points.len(), DEFAULT_CIRCLE_SEGMENTS + 1);
     }
 
     #[test]
@@ -1552,7 +1566,11 @@ mod tests {
             panic!("expected line list");
         };
         assert_eq!(lines.len(), 3);
-        assert!(lines.iter().all(|value| matches!(value, Value::CurveLine { .. })));
+        assert!(
+            lines
+                .iter()
+                .all(|value| matches!(value, Value::CurveLine { .. }))
+        );
     }
 
     #[test]
@@ -1572,7 +1590,11 @@ mod tests {
             panic!("expected line list");
         };
         assert_eq!(lines.len(), 2);
-        assert!(lines.iter().all(|value| matches!(value, Value::CurveLine { .. })));
+        assert!(
+            lines
+                .iter()
+                .all(|value| matches!(value, Value::CurveLine { .. }))
+        );
     }
 
     #[test]
