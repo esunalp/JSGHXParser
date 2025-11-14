@@ -35,6 +35,9 @@ const DEFAULT_MESH_SIDE = ENABLE_DOUBLE_SIDED_MESHES ? THREE.DoubleSide : THREE.
 
 const AXES_LENGTH_MM = 5000;
 const MAX_DRAW_DISTANCE_MM = 100000;
+const SCRATCH_BOUNDING_BOX = new THREE.Box3();
+const SCRATCH_BOUNDING_BOX_TEMP = new THREE.Box3();
+const SCRATCH_BOUNDING_SPHERE = new THREE.Sphere();
 
 function getViewportSize(canvas) {
   const width = canvas.clientWidth || canvas.parentElement?.clientWidth || window.innerWidth || 1;
@@ -426,32 +429,36 @@ export function createThreeApp(canvas) {
     rebuildOverlayGroup();
   }
 
-  function computeWorldBoundingSphere(object) {
-    if (!object) {
-      return null;
-    }
-    if (object.geometry) {
-      if (typeof object.geometry.computeBoundingSphere === 'function') {
-        object.geometry.computeBoundingSphere();
+  function computeGeometryBounds(objects, boxTarget, sphereTarget) {
+    boxTarget.makeEmpty();
+    let hasBounds = false;
+    for (const object of objects) {
+      if (!object?.isObject3D) {
+        continue;
       }
-      if (object.geometry.boundingSphere) {
-        const sphere = object.geometry.boundingSphere.clone();
-        object.updateWorldMatrix(true, false);
-        sphere.center.applyMatrix4(object.matrixWorld);
-        const scale = new THREE.Vector3();
-        object.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), scale);
-        const maxScale = Math.max(scale.x, scale.y, scale.z);
-        if (Number.isFinite(maxScale) && maxScale > 0) {
-          sphere.radius *= maxScale;
-        }
-        return sphere;
+      object.updateWorldMatrix(true, false);
+      SCRATCH_BOUNDING_BOX_TEMP.setFromObject(object);
+      if (SCRATCH_BOUNDING_BOX_TEMP.isEmpty()) {
+        continue;
+      }
+      if (!hasBounds) {
+        boxTarget.copy(SCRATCH_BOUNDING_BOX_TEMP);
+        hasBounds = true;
+      } else {
+        boxTarget.union(SCRATCH_BOUNDING_BOX_TEMP);
       }
     }
-    const box = new THREE.Box3().setFromObject(object);
-    if (box.isEmpty()) return null;
-    const sphere = new THREE.Sphere();
-    box.getBoundingSphere(sphere);
-    return sphere;
+    if (!hasBounds) {
+      if (sphereTarget) {
+        sphereTarget.center.set(0, 0, 0);
+        sphereTarget.radius = 0;
+      }
+      return false;
+    }
+    if (sphereTarget) {
+      boxTarget.getBoundingSphere(sphereTarget);
+    }
+    return true;
   }
 
   function fitCameraToSphere(sphere) {
@@ -681,17 +688,18 @@ export function createThreeApp(canvas) {
 
       const shouldPreserveView = preserveCamera && !refitCamera && !needsFit;
 
+      const hasBounds = computeGeometryBounds(geometryObjects.values(), SCRATCH_BOUNDING_BOX, SCRATCH_BOUNDING_SPHERE);
+      sunSky.updateShadowBounds(hasBounds ? SCRATCH_BOUNDING_BOX : null);
+
       let sphere = null;
-      if (!shouldPreserveView && geometryObjects.size > 0) {
-          const fitTarget = new THREE.Group();
-          geometryObjects.forEach(obj => fitTarget.add(obj.clone()));
-          sphere = computeWorldBoundingSphere(fitTarget);
+      if (!shouldPreserveView && hasBounds) {
+          sphere = SCRATCH_BOUNDING_SPHERE;
       }
 
       if (sphere && (refitCamera || needsFit)) {
           fitCameraToSphere(sphere);
           needsFit = false;
-      } else if (geometryObjects.size === 0) {
+      } else if (!hasBounds) {
           controls.target.copy(DEFAULT_CAMERA_TARGET);
           camera.position.copy(DEFAULT_CAMERA_POSITION);
           controls.update();
