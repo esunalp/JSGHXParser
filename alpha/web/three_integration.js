@@ -367,7 +367,7 @@ export function createThreeApp(canvas) {
   let needsFit = true;
   let overlayEnabled = false;
   let currentOverlayGroup = null;
-  let lastOverlayItems = [];
+  const overlayItemsByNode = new Map();
 
   function rebuildOverlayGroup() {
       if (currentOverlayGroup) {
@@ -375,36 +375,40 @@ export function createThreeApp(canvas) {
           disposeSceneObject(currentOverlayGroup);
           currentOverlayGroup = null;
       }
-      if (!overlayEnabled || !lastOverlayItems) {
+      if (!overlayEnabled || overlayItemsByNode.size === 0) {
           return;
       }
       const group = new THREE.Group();
       group.name = 'GHXCurveOverlay';
-      lastOverlayItems.forEach(item => {
-          if (item.type === 'Line') {
-              const points = [item.start, item.end]
-                  .filter(Array.isArray)
-                  .map(p => new THREE.Vector3(p[0], p[1], p[2]));
-              const segmentObject = createSegmentsObject(points);
-              if (segmentObject) {
-                  group.add(segmentObject.object);
+
+      for (const items of overlayItemsByNode.values()) {
+          items.forEach(item => {
+              if (item.type === 'Line') {
+                  const points = [item.start, item.end]
+                      .filter(Array.isArray)
+                      .map(p => new THREE.Vector3(p[0], p[1], p[2]));
+                  const segmentObject = createSegmentsObject(points);
+                  if (segmentObject) {
+                      group.add(segmentObject.object);
+                  }
+              } else if (item.type === 'Polyline') {
+                  const points = Array.isArray(item.points)
+                      ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
+                      : [];
+                  const segmentObject = createSegmentsObject(points);
+                  if (segmentObject) {
+                      group.add(segmentObject.object);
+                  }
+              } else if (item.type === 'Point') {
+                  const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
+                  const pointObject = createPointsObject([point]);
+                  if (pointObject) {
+                      group.add(pointObject.object);
+                  }
               }
-          } else if (item.type === 'Polyline') {
-              const points = Array.isArray(item.points)
-                  ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
-                  : [];
-              const segmentObject = createSegmentsObject(points);
-              if (segmentObject) {
-                  group.add(segmentObject.object);
-              }
-          } else if (item.type === 'Point') {
-              const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
-              const pointObject = createPointsObject([point]);
-              if (pointObject) {
-                  group.add(pointObject.object);
-              }
-          }
-      });
+          });
+      }
+
       if (group.children.length > 0) {
           group.traverse(child => {
               if (child.geometry) {
@@ -617,6 +621,7 @@ export function createThreeApp(canvas) {
               disposeSceneObject(existing);
               geometryObjects.delete(id);
           }
+          overlayItemsByNode.delete(id);
       });
 
       const processItem = (item) => {
@@ -625,25 +630,7 @@ export function createThreeApp(canvas) {
           if (item.type === 'Mesh') {
               return createMeshObject(item);
           }
-          if (item.type === 'Line') {
-              const points = [item.start, item.end]
-                  .filter(Array.isArray)
-                  .map(p => new THREE.Vector3(p[0], p[1], p[2]));
-              const segmentObject = createSegmentsObject(points);
-              return segmentObject ? segmentObject.object : null;
-          }
-          if (item.type === 'Polyline') {
-              const points = Array.isArray(item.points)
-                  ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
-                  : [];
-              const segmentObject = createSegmentsObject(points);
-              return segmentObject ? segmentObject.object : null;
-          }
-          if (item.type === 'Point') {
-              const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
-              const pointObject = createPointsObject([point]);
-              return pointObject ? pointObject.object : null;
-          }
+          // Non-mesh items are handled by the overlay group.
           return null;
       };
 
@@ -661,27 +648,33 @@ export function createThreeApp(canvas) {
           return group.children.length > 0 ? group : null;
       };
 
-      updated.forEach(nodeOutput => {
-          const existing = geometryObjects.get(nodeOutput.id);
+      const updateNode = (nodeOutput) => {
+          const { id, items = [] } = nodeOutput;
+          const existing = geometryObjects.get(id);
           if (existing) {
               scene.remove(existing);
               disposeSceneObject(existing);
-              geometryObjects.delete(nodeOutput.id);
+              geometryObjects.delete(id);
           }
-          const newGroup = createGroupFromItems(nodeOutput.items);
-          if (newGroup) {
-              geometryObjects.set(nodeOutput.id, newGroup);
-              scene.add(newGroup);
-          }
-      });
 
-      added.forEach(nodeOutput => {
-          const newGroup = createGroupFromItems(nodeOutput.items);
+          const meshItems = items.filter(item => item.type === 'Mesh');
+          const overlayItems = items.filter(item => item.type !== 'Mesh');
+
+          const newGroup = createGroupFromItems(meshItems);
           if (newGroup) {
-              geometryObjects.set(nodeOutput.id, newGroup);
+              geometryObjects.set(id, newGroup);
               scene.add(newGroup);
           }
-      });
+
+          if (overlayItems.length > 0) {
+              overlayItemsByNode.set(id, overlayItems);
+          } else {
+              overlayItemsByNode.delete(id);
+          }
+      };
+
+      updated.forEach(updateNode);
+      added.forEach(updateNode);
 
       rebuildOverlayGroup();
 
