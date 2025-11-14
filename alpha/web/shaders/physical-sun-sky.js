@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
+import { TileShadowNode } from 'three/addons/tsl/shadows/TileShadowNode.js';
 
 const DEG2RAD = Math.PI / 180;
 const RAD2DEG = 180 / Math.PI;
@@ -231,6 +232,16 @@ export class PhysicalSunSky {
     this.pmremGenerator = null;
     this.environmentTarget = null;
     this.needsEnvironmentUpdate = true;
+    this.tileShadowNode = null;
+    this.defaultShadowBounds = {
+      left: shadowCamera?.left ?? -30000,
+      right: shadowCamera?.right ?? 30000,
+      top: shadowCamera?.top ?? 30000,
+      bottom: shadowCamera?.bottom ?? -30000,
+      near: shadowCamera?.near ?? 1,
+      far: shadowCamera?.far ?? SUN_DISTANCE,
+    };
+    this._shadowBoundsCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
 
     this.update();
   }
@@ -271,6 +282,21 @@ export class PhysicalSunSky {
     this.needsEnvironmentUpdate = true;
     this.applyExposure();
     this.updateEnvironment();
+    this.ensureTileShadowNode();
+  }
+
+  ensureTileShadowNode() {
+    if (!this.sunLight || this.tileShadowNode) {
+      return this.tileShadowNode;
+    }
+
+    this.tileShadowNode = new TileShadowNode(this.sunLight, {
+      tilesX: 2,
+      tilesY: 2,
+      resolution: this.sunLight.shadow?.mapSize,
+    });
+    this.sunLight.shadowNode = this.tileShadowNode;
+    return this.tileShadowNode;
   }
 
   applyExposure(illumination = null) {
@@ -337,6 +363,92 @@ export class PhysicalSunSky {
     this.sunLight.shadow?.camera?.updateMatrixWorld?.();
   }
 
+  updateShadowBounds(box) {
+    const shadow = this.sunLight?.shadow;
+    const camera = shadow?.camera;
+    if (!shadow || !camera?.isOrthographicCamera) {
+      return;
+    }
+
+    const defaults = this.defaultShadowBounds;
+
+    if (!box || box.isEmpty()) {
+      camera.left = defaults.left;
+      camera.right = defaults.right;
+      camera.top = defaults.top;
+      camera.bottom = defaults.bottom;
+      camera.near = defaults.near;
+      camera.far = defaults.far;
+      camera.updateProjectionMatrix();
+      shadow.needsUpdate = true;
+      return;
+    }
+
+    this.ensureTileShadowNode();
+
+    this.sunLight.updateMatrixWorld(true);
+    this.sunTarget.updateMatrixWorld(true);
+    shadow.updateMatrices(this.sunLight);
+
+    const corners = this._shadowBoundsCorners;
+    const { min, max } = box;
+    corners[0].set(min.x, min.y, min.z);
+    corners[1].set(min.x, min.y, max.z);
+    corners[2].set(min.x, max.y, min.z);
+    corners[3].set(min.x, max.y, max.z);
+    corners[4].set(max.x, min.y, min.z);
+    corners[5].set(max.x, min.y, max.z);
+    corners[6].set(max.x, max.y, min.z);
+    corners[7].set(max.x, max.y, max.z);
+
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+
+    for (const corner of corners) {
+      corner.applyMatrix4(camera.matrixWorldInverse);
+      if (!Number.isFinite(corner.x) || !Number.isFinite(corner.y) || !Number.isFinite(corner.z)) {
+        continue;
+      }
+      if (corner.x < minX) minX = corner.x;
+      if (corner.x > maxX) maxX = corner.x;
+      if (corner.y < minY) minY = corner.y;
+      if (corner.y > maxY) maxY = corner.y;
+      if (corner.z < minZ) minZ = corner.z;
+      if (corner.z > maxZ) maxZ = corner.z;
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY) || !Number.isFinite(minZ) || !Number.isFinite(maxZ)) {
+      return;
+    }
+
+    const width = Math.max(maxX - minX, 1e-3);
+    const height = Math.max(maxY - minY, 1e-3);
+    const depthNear = Math.max(0.1, -maxZ);
+    const depthFar = Math.max(depthNear + 1, -minZ);
+    const margin = 0.15;
+    const expandX = Math.max(width * margin, 1);
+    const expandY = Math.max(height * margin, 1);
+    const expandZ = Math.max((depthFar - depthNear) * margin, 1);
+
+    camera.left = minX - expandX;
+    camera.right = maxX + expandX;
+    camera.bottom = minY - expandY;
+    camera.top = maxY + expandY;
+    camera.near = Math.max(0.1, depthNear - expandZ);
+    camera.far = Math.max(camera.near + 1, depthFar + expandZ);
+    camera.updateProjectionMatrix();
+    shadow.updateMatrices(this.sunLight);
+    shadow.needsUpdate = true;
+
+    if (this.tileShadowNode) {
+      this.tileShadowNode.shadow.needsUpdate = true;
+    }
+  }
+
   updateEnvironment() {
     if (!this.needsEnvironmentUpdate) {
       return;
@@ -370,6 +482,11 @@ export class PhysicalSunSky {
     this.scene.remove(this.sunLight);
     this.scene.remove(this.sunTarget);
     this.scene.remove(this.fillLight);
+    if (this.sunLight) {
+      this.sunLight.shadowNode = null;
+    }
+    this.tileShadowNode?.dispose?.();
+    this.tileShadowNode = null;
     this.environmentTarget?.dispose?.();
     this.pmremGenerator?.dispose?.();
     this.sky.material.dispose?.();
