@@ -1575,19 +1575,106 @@ fn extend_polyline(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
     }
 
     let mut result = points.to_vec();
-    let start_length = start.max(0.0);
-    if start_length > EPSILON {
-        let direction = normalize(subtract(points[1], points[0]));
-        result.insert(0, subtract(points[0], scale(direction, start_length)));
+
+    if start < -EPSILON {
+        result = trim_polyline_start(&result, -start);
+    } else {
+        let start_length = start.max(0.0);
+        if start_length > EPSILON && result.len() >= 2 {
+            let direction = normalize(subtract(result[1], result[0]));
+            let new_point = subtract(result[0], scale(direction, start_length));
+            result.insert(0, new_point);
+        }
     }
 
-    let end_length = end.max(0.0);
-    if end_length > EPSILON {
-        let direction = normalize(subtract(*points.last().unwrap(), points[points.len() - 2]));
-        result.push(add(*points.last().unwrap(), scale(direction, end_length)));
+    if result.len() < 2 {
+        return result;
+    }
+
+    if end < -EPSILON {
+        result = trim_polyline_end(&result, -end);
+    } else {
+        let end_length = end.max(0.0);
+        if end_length > EPSILON && result.len() >= 2 {
+            let direction = normalize(subtract(*result.last().unwrap(), result[result.len() - 2]));
+            let new_point = add(*result.last().unwrap(), scale(direction, end_length));
+            result.push(new_point);
+        }
     }
 
     deduplicate_polyline(result)
+}
+
+fn trim_polyline_start(points: &[[f64; 3]], trim_length: f64) -> Vec<[f64; 3]> {
+    if points.len() < 2 || trim_length <= EPSILON {
+        return points.to_vec();
+    }
+
+    let total_length = polyline_length(points);
+    if total_length <= EPSILON {
+        return points.to_vec();
+    }
+
+    let trim = trim_length.min(total_length);
+    let segments = polyline_segments(points);
+    let mut accumulated = 0.0;
+
+    for (index, segment) in segments.iter().enumerate() {
+        if trim - accumulated >= segment.length - EPSILON {
+            accumulated += segment.length;
+            continue;
+        }
+
+        let remaining = (trim - accumulated).max(0.0);
+        let t = if segment.length < EPSILON {
+            0.0
+        } else {
+            (remaining / segment.length).clamp(0.0, 1.0)
+        };
+        let new_start = lerp(segment.start, segment.end, t);
+        let mut result = Vec::with_capacity(points.len() - index);
+        result.push(new_start);
+        result.extend(points.iter().skip(index + 1).copied());
+        return deduplicate_polyline(result);
+    }
+
+    vec![*points.last().unwrap()]
+}
+
+fn trim_polyline_end(points: &[[f64; 3]], trim_length: f64) -> Vec<[f64; 3]> {
+    if points.len() < 2 || trim_length <= EPSILON {
+        return points.to_vec();
+    }
+
+    let total_length = polyline_length(points);
+    if total_length <= EPSILON {
+        return points.to_vec();
+    }
+
+    let trim = trim_length.min(total_length);
+    let segments = polyline_segments(points);
+    let mut accumulated = 0.0;
+
+    for (index, segment) in segments.iter().enumerate().rev() {
+        if trim - accumulated >= segment.length - EPSILON {
+            accumulated += segment.length;
+            continue;
+        }
+
+        let remaining = (trim - accumulated).max(0.0);
+        let t = if segment.length < EPSILON {
+            1.0
+        } else {
+            1.0 - (remaining / segment.length).clamp(0.0, 1.0)
+        };
+        let new_end = lerp(segment.start, segment.end, t);
+        let mut result = Vec::with_capacity(index + 2);
+        result.extend(points.iter().take(index + 1).copied());
+        result.push(new_end);
+        return deduplicate_polyline(result);
+    }
+
+    vec![points[0]]
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1850,6 +1937,58 @@ mod tests {
             .and_then(|value| value.expect_list().ok())
             .expect("extended polyline");
         assert!(result.len() >= 3);
+    }
+
+    #[test]
+    fn extend_curve_trims_start_for_negative_values() {
+        let component = ComponentKind::ExtendCurve;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([2.0, 0.0, 0.0]),
+            ]),
+            Value::Number(0.0),
+            Value::Number(-0.5),
+            Value::Number(0.0),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("extend succeed");
+        let result = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("trimmed polyline");
+        match result.first() {
+            Some(Value::Point(point)) => assert!((point[0] - 0.5).abs() < 1e-6),
+            other => panic!("unexpected first point: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extend_curve_trims_end_for_negative_values() {
+        let component = ComponentKind::ExtendCurve;
+        let inputs = vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([2.0, 0.0, 0.0]),
+            ]),
+            Value::Number(0.0),
+            Value::Number(0.0),
+            Value::Number(-0.75),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("extend succeed");
+        let result = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("trimmed polyline");
+        match result.last() {
+            Some(Value::Point(point)) => assert!((point[0] - 1.25).abs() < 1e-6),
+            other => panic!("unexpected last point: {other:?}"),
+        }
     }
 
     #[test]
