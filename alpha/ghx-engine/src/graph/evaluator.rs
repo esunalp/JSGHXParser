@@ -9,6 +9,9 @@ use crate::graph::node::NodeId;
 use crate::graph::topo::{Topology, TopologyError};
 use crate::graph::value::{MaterialValue, Value};
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
 /// Resultaat van een evaluatie-run.
 #[derive(Debug, Default, Clone)]
 pub struct EvaluationResult {
@@ -399,6 +402,27 @@ fn merge_outputs(
     existing
 }
 
+#[cfg(feature = "parallel")]
+fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<GeometryEntry>) {
+    let material = outputs.values().find_map(extract_material_value);
+
+    let mut collected = outputs
+        .values()
+        .par_iter()
+        .map(|value| {
+            let mut local = Vec::new();
+            collect_value_geometry(value, material, &mut local);
+            local
+        })
+        .reduce(Vec::new, |mut acc, mut next| {
+            acc.append(&mut next);
+            acc
+        });
+
+    geometry.append(&mut collected);
+}
+
+#[cfg(not(feature = "parallel"))]
 fn collect_geometry(outputs: &BTreeMap<String, Value>, geometry: &mut Vec<GeometryEntry>) {
     let material = outputs.values().find_map(extract_material_value);
 

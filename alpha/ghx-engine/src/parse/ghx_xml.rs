@@ -12,6 +12,9 @@ use quick_xml::de::from_str;
 use serde::Deserialize;
 use thiserror::Error;
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
 /// Result type voor parsing van GHX-bestanden.
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -67,60 +70,79 @@ fn strip_xml_preamble(input: &str) -> &str {
 fn parse_simple_document(input: &str) -> ParseResult<Graph> {
     log::debug!("Start parsing vereenvoudigd GHX document");
     let document: SimpleGhxDocument = from_str(input)?;
+    let object_count = document.objects.objects.len();
+    log::debug!("Found {} objects", object_count);
+
+    let SimpleGhxDocument { objects, wires } = document;
+
     let mut graph = Graph::new();
     let mut nodes_by_id: BTreeMap<usize, NodeId> = BTreeMap::new();
 
-    log::debug!("Found {} objects", document.objects.objects.len());
-    for object in document.objects.objects {
-        let node_id = NodeId::new(object.id);
-        log::debug!(
-            "Processing object ID: {}, GUID: {:?}, Name: {:?}",
-            object.id,
-            object.guid,
-            object.name
-        );
-        let mut node = Node::new(node_id);
-        node.guid = object.guid;
-        node.name = object.name;
-        node.nickname = object.nickname;
-
-        if let Some(inputs) = object.inputs {
-            for input in inputs.inputs {
-                node.add_input_pin(input.name.clone());
-                if let Some(value) = input.as_value() {
-                    node.set_input(input.name.clone(), value);
-                }
-            }
-        }
-
-        if let Some(outputs) = object.outputs {
-            for output in outputs.outputs {
-                if let Some(value) = output.as_value() {
-                    node.set_output(output.name.clone(), value);
-                }
-            }
-        }
-
-        if let Some(slider) = object.slider {
-            node.insert_meta("min", slider.min);
-            node.insert_meta("max", slider.max);
-            node.insert_meta("step", slider.step);
-            node.insert_meta("value", slider.value);
-            let output_pin = slider.output_pin().unwrap_or_else(|| "OUT".to_string());
-            node.set_output(output_pin, Value::Number(slider.value));
-        }
-
-        graph.add_node(node)?;
-        nodes_by_id.insert(object.id, node_id);
+    let built_nodes = build_simple_nodes(objects.objects);
+    for (object_id, node) in built_nodes {
+        let node_id = graph.add_node(node)?;
+        nodes_by_id.insert(object_id, node_id);
     }
 
-    for wire in document.wires.wires {
+    for wire in wires.wires {
         let (from_node, from_pin) = parse_endpoint(&wire.from, &nodes_by_id)?;
         let (to_node, to_pin) = parse_endpoint(&wire.to, &nodes_by_id)?;
         graph.add_wire(Wire::new(from_node, from_pin, to_node, to_pin))?;
     }
 
     Ok(graph)
+}
+
+fn build_simple_node(object: GhxObject) -> (usize, Node) {
+    let node_id = NodeId::new(object.id);
+    log::debug!(
+        "Processing object ID: {}, GUID: {:?}, Name: {:?}",
+        object.id,
+        object.guid,
+        object.name
+    );
+    let mut node = Node::new(node_id);
+    node.guid = object.guid;
+    node.name = object.name;
+    node.nickname = object.nickname;
+
+    if let Some(inputs) = object.inputs {
+        for input in inputs.inputs {
+            node.add_input_pin(input.name.clone());
+            if let Some(value) = input.as_value() {
+                node.set_input(input.name.clone(), value);
+            }
+        }
+    }
+
+    if let Some(outputs) = object.outputs {
+        for output in outputs.outputs {
+            if let Some(value) = output.as_value() {
+                node.set_output(output.name.clone(), value);
+            }
+        }
+    }
+
+    if let Some(slider) = object.slider {
+        node.insert_meta("min", slider.min);
+        node.insert_meta("max", slider.max);
+        node.insert_meta("step", slider.step);
+        node.insert_meta("value", slider.value);
+        let output_pin = slider.output_pin().unwrap_or_else(|| "OUT".to_string());
+        node.set_output(output_pin, Value::Number(slider.value));
+    }
+
+    (object.id, node)
+}
+
+#[cfg(feature = "parallel")]
+fn build_simple_nodes(objects: Vec<GhxObject>) -> Vec<(usize, Node)> {
+    objects.into_par_iter().map(build_simple_node).collect()
+}
+
+#[cfg(not(feature = "parallel"))]
+fn build_simple_nodes(objects: Vec<GhxObject>) -> Vec<(usize, Node)> {
+    objects.into_iter().map(build_simple_node).collect()
 }
 
 fn parse_archive_document(input: &str) -> ParseResult<Graph> {
@@ -144,8 +166,9 @@ fn parse_archive_document(input: &str) -> ParseResult<Graph> {
     let mut output_lookup: HashMap<String, (NodeId, String)> = HashMap::new();
     let mut pending_wires: Vec<PendingWire> = Vec::new();
 
-    for (idx, chunk) in object_chunks.into_iter().enumerate() {
-        let parsed = parse_archive_object(chunk, idx)?;
+    let parsed_objects = collect_archive_objects(object_chunks)?;
+
+    for parsed in parsed_objects {
         let node_id = graph.add_node(parsed.node)?;
 
         if let Some(instance_guid) = parsed.instance_guid.as_ref() {
@@ -185,6 +208,28 @@ fn parse_archive_document(input: &str) -> ParseResult<Graph> {
     }
 
     Ok(graph)
+}
+
+#[cfg(feature = "parallel")]
+fn collect_archive_objects(
+    chunks: Vec<&RawChunk>,
+) -> Result<Vec<ArchiveObjectParseResult>, ParseError> {
+    chunks
+        .into_par_iter()
+        .enumerate()
+        .map(|(idx, chunk)| parse_archive_object(chunk, idx))
+        .collect()
+}
+
+#[cfg(not(feature = "parallel"))]
+fn collect_archive_objects(
+    chunks: Vec<&RawChunk>,
+) -> Result<Vec<ArchiveObjectParseResult>, ParseError> {
+    chunks
+        .into_iter()
+        .enumerate()
+        .map(|(idx, chunk)| parse_archive_object(chunk, idx))
+        .collect()
 }
 
 fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveObjectParseResult> {
