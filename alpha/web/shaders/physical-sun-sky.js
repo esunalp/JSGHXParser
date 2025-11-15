@@ -445,7 +445,13 @@ export class PhysicalSunSky {
     shadow.needsUpdate = true;
 
     if (this.tileShadowNode) {
-      this.tileShadowNode.shadow.needsUpdate = true;
+      const { lights = [], originalLight } = this.tileShadowNode;
+      if (originalLight?.shadow) {
+        originalLight.shadow.needsUpdate = true;
+      }
+      for (const tileLight of lights) {
+        tileLight?.shadow && (tileLight.shadow.needsUpdate = true);
+      }
     }
   }
 
