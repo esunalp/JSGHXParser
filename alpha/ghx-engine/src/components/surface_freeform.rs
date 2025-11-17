@@ -1,7 +1,7 @@
 //! Implementaties van Grasshopper "Surface → Freeform" componenten.
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Value};
@@ -1218,6 +1218,78 @@ fn polyline_length(polyline: &[[f64; 3]]) -> f64 {
         .sum()
 }
 
+fn find_boundary_polylines(surface: &coerce::Surface<'_>) -> Vec<Vec<u32>> {
+    let mut edge_counts = HashMap::new();
+    for face in surface.faces {
+        if face.len() < 2 {
+            continue;
+        }
+        for i in 0..face.len() {
+            let p1_idx = face[i];
+            let p2_idx = face[(i + 1) % face.len()];
+
+            // Normaliseer de edge door de kleinste index eerst te plaatsen
+            let edge = if p1_idx < p2_idx {
+                (p1_idx, p2_idx)
+            } else {
+                (p2_idx, p1_idx)
+            };
+            *edge_counts.entry(edge).or_insert(0) += 1;
+        }
+    }
+
+    let boundary_edges: Vec<_> = edge_counts
+        .into_iter()
+        .filter(|(_, count)| *count == 1)
+        .map(|(edge, _)| edge)
+        .collect();
+
+    if boundary_edges.is_empty() {
+        return Vec::new();
+    }
+
+    let mut adj_list: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (p1, p2) in boundary_edges {
+        adj_list.entry(p1).or_default().push(p2);
+        adj_list.entry(p2).or_default().push(p1);
+    }
+
+    let mut polylines = Vec::new();
+    let mut visited = std::collections::HashSet::new();
+
+    for start_node in adj_list.keys() {
+        if visited.contains(start_node) {
+            continue;
+        }
+
+        let mut current_polyline_indices = Vec::new();
+        let mut current_node = *start_node;
+
+        while !visited.contains(&current_node) {
+            visited.insert(current_node);
+            current_polyline_indices.push(current_node);
+
+            let next_node = adj_list
+                .get(&current_node)
+                .unwrap()
+                .iter()
+                .find(|&node| !visited.contains(node));
+
+            if let Some(node) = next_node {
+                current_node = *node;
+            } else {
+                // Einde van een open polyline
+                break;
+            }
+        }
+        if current_polyline_indices.len() > 1 {
+            polylines.push(current_polyline_indices);
+        }
+    }
+
+    polylines
+}
+
 fn sweep_surface_along_polyline(
     surface: coerce::Surface<'_>,
     rail_polyline: &[[f64; 3]],
@@ -1239,6 +1311,8 @@ fn sweep_surface_along_polyline(
         )));
     }
 
+    let boundary_polylines_indices = find_boundary_polylines(&surface);
+
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
     let mut faces = surface.faces.clone();
 
@@ -1259,20 +1333,19 @@ fn sweep_surface_along_polyline(
             .collect();
         vertices.extend(new_layer_vertices.iter());
 
-        for face in &base_faces {
-            if face.len() < 2 {
+        for polyline in &boundary_polylines_indices {
+            let n = polyline.len();
+            if n < 2 {
                 continue;
             }
+            for i in 0..n {
+                let current = polyline[i];
+                let next = polyline[(i + 1) % n];
 
-            for (current, next) in face
-                .iter()
-                .zip(face.iter().cycle().skip(1))
-                .take(face.len())
-            {
-                let v1 = last_layer_start + *current;
-                let v2 = last_layer_start + *next;
-                let v3 = new_layer_start + *next;
-                let v4 = new_layer_start + *current;
+                let v1 = last_layer_start + current;
+                let v2 = last_layer_start + next;
+                let v3 = new_layer_start + next;
+                let v4 = new_layer_start + current;
                 faces.push(vec![v1, v3, v2]);
                 faces.push(vec![v1, v4, v3]);
             }
