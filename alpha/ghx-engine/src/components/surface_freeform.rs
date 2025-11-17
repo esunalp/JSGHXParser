@@ -1170,6 +1170,28 @@ fn subtract_points(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
+fn cross_product(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+#[allow(dead_code)]
+fn dot_product(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn normalize(v: [f64; 3]) -> [f64; 3] {
+    let mag = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+    if mag > EPSILON {
+        [v[0] / mag, v[1] / mag, v[2] / mag]
+    } else {
+        [0.0, 0.0, 0.0]
+    }
+}
+
 fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
     let delta = subtract_points(a, b);
     (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]).sqrt()
@@ -1290,6 +1312,22 @@ fn find_boundary_polylines(surface: &coerce::Surface<'_>) -> Vec<Vec<u32>> {
     polylines
 }
 
+fn calculate_surface_normal(surface: &coerce::Surface<'_>) -> [f64; 3] {
+    if surface.faces.is_empty() || surface.faces[0].len() < 3 {
+        return [0.0, 0.0, 1.0]; // Standaard normaal als het oppervlak niet goed gedefinieerd is
+    }
+
+    let first_face_indices = &surface.faces[0];
+    let p1 = surface.vertices[first_face_indices[0] as usize];
+    let p2 = surface.vertices[first_face_indices[1] as usize];
+    let p3 = surface.vertices[first_face_indices[2] as usize];
+
+    let v1 = subtract_points(p2, p1);
+    let v2 = subtract_points(p3, p1);
+
+    normalize(cross_product(v1, v2))
+}
+
 fn sweep_surface_along_polyline(
     surface: coerce::Surface<'_>,
     rail_polyline: &[[f64; 3]],
@@ -1311,6 +1349,7 @@ fn sweep_surface_along_polyline(
         )));
     }
 
+    let surface_normal = calculate_surface_normal(&surface);
     let boundary_polylines_indices = find_boundary_polylines(&surface);
 
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
@@ -1333,21 +1372,43 @@ fn sweep_surface_along_polyline(
             .collect();
         vertices.extend(new_layer_vertices.iter());
 
-        for polyline in &boundary_polylines_indices {
-            let n = polyline.len();
+        for polyline_indices in &boundary_polylines_indices {
+            let polyline_vertices: Vec<[f64; 3]> = polyline_indices
+                .iter()
+                .map(|&i| vertices[i as usize])
+                .collect();
+
+            // Bereken de normaal van de polyline
+            let p1 = polyline_vertices[0];
+            let p2 = polyline_vertices[1];
+            let p3 = *polyline_vertices.get(2).unwrap_or(&p1);
+            let v1 = subtract_points(p2, p1);
+            let v2 = subtract_points(p3, p1);
+            let polyline_normal = normalize(cross_product(v1, v2));
+
+            let mut corrected_indices = polyline_indices.clone();
+            // Keer de polyline om als de normaal in de tegenovergestelde richting van de oppervlaknormaal wijst
+            if dot_product(polyline_normal, surface_normal) < 0.0 {
+                corrected_indices.reverse();
+            }
+
+            let n = corrected_indices.len();
             if n < 2 {
                 continue;
             }
-            for i in 0..n {
-                let current = polyline[i];
-                let next = polyline[(i + 1) % n];
 
-                let v1 = last_layer_start + current;
-                let v2 = last_layer_start + next;
-                let v3 = new_layer_start + next;
-                let v4 = new_layer_start + current;
-                faces.push(vec![v1, v3, v2]);
-                faces.push(vec![v1, v4, v3]);
+            for i in 0..n {
+                let current_idx = corrected_indices[i];
+                let next_idx = corrected_indices[(i + 1) % n];
+
+                let v1 = last_layer_start + current_idx;
+                let v2 = last_layer_start + next_idx;
+                let v3 = new_layer_start + next_idx;
+                let v4 = new_layer_start + current_idx;
+
+                // Gebruik een consistente winding order voor de vlakken
+                faces.push(vec![v1, v4, v2]);
+                faces.push(vec![v2, v4, v3]);
             }
         }
 
