@@ -125,7 +125,7 @@ function createMeshObject(item) {
   }
 
   const positions = new Float32Array(item.vertices.flat());
-  const geometry = new THREE.BufferGeometry();
+  let geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
   if (Array.isArray(item.faces) && item.faces.length) {
