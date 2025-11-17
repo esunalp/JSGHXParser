@@ -1239,14 +1239,7 @@ fn sweep_surface_along_polyline(
         )));
     }
 
-    let rail_start = rail_polyline[0];
-    let translation = subtract_points(rail_start, surface.vertices[0]);
-
-    let mut vertices: Vec<[f64; 3]> = surface
-        .vertices
-        .iter()
-        .map(|vertex| add_vector(*vertex, translation))
-        .collect();
+    let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
     let mut faces = surface.faces.clone();
 
     let mut last_layer_start = 0u32;
@@ -1276,12 +1269,12 @@ fn sweep_surface_along_polyline(
                 .zip(face.iter().cycle().skip(1))
                 .take(face.len())
             {
-                faces.push(vec![
-                    last_layer_start + *current,
-                    last_layer_start + *next,
-                    new_layer_start + *next,
-                    new_layer_start + *current,
-                ]);
+                let v1 = last_layer_start + *current;
+                let v2 = last_layer_start + *next;
+                let v3 = new_layer_start + *next;
+                let v4 = new_layer_start + *current;
+                faces.push(vec![v1, v2, v3]);
+                faces.push(vec![v1, v3, v4]);
             }
         }
 
@@ -1440,8 +1433,8 @@ fn extrude_surface_along_vector(
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT, PIN_OUTPUT_OPTIONS,
-        PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE,
+        add_vector, Component, ComponentKind, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT,
+        PIN_OUTPUT_OPTIONS, PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1468,6 +1461,66 @@ mod tests {
         };
         assert_eq!(vertices.len(), 4);
         assert_eq!(faces.len(), 2);
+    }
+
+    #[test]
+    fn sweep_one_with_curved_rail_and_surface_section() {
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            // Rail: Polyline with 2 segments, starts at the same position as the section
+            Value::List(vec![
+                Value::CurveLine {
+                    p1: [0.0, 0.0, 0.0],
+                    p2: [0.0, 0.0, 10.0],
+                },
+                Value::CurveLine {
+                    p1: [0.0, 0.0, 10.0],
+                    p2: [5.0, 0.0, 10.0],
+                },
+            ]),
+            // Section: A rectangular surface at the origin
+            Value::Surface {
+                vertices: vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                faces: vec![vec![0, 1, 2, 3]],
+            },
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep with curved rail");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface solid");
+        };
+
+        // Vertices: 4 (base) + 4 (middle) + 4 (end) = 12
+        assert_eq!(vertices.len(), 12, "expected vertices for each rail point");
+
+        // Faces:
+        // - 1 base face (quad)
+        // - 1 top face (quad)
+        // - 4 side faces for the first segment (4 * 2 triangles = 8)
+        // - 4 side faces for the second segment (4 * 2 triangles = 8)
+        // Total = 1 + 1 + 8 + 8 = 18
+        assert_eq!(faces.len(), 18, "expected caps and triangulated side faces");
+
+        // Check if the final vertices are at the correct translated position
+        let final_position = [5.0, 0.0, 10.0];
+        assert_eq!(vertices[8], add_vector([0.0, 0.0, 0.0], final_position));
+        assert_eq!(vertices[9], add_vector([1.0, 0.0, 0.0], final_position));
+        assert_eq!(
+            vertices[10],
+            add_vector([1.0, 1.0, 0.0], final_position)
+        );
+        assert_eq!(vertices[11], add_vector([0.0, 1.0, 0.0], final_position));
     }
 
     #[test]
