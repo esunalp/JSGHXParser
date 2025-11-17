@@ -1,5 +1,6 @@
 import * as THREE from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   pass,
   mrt,
@@ -155,7 +156,11 @@ function createMeshObject(item) {
     geometry.setIndex(new THREE.BufferAttribute(typedArray, 1));
   }
 
-  geometry.computeVertexNormals();
+  if (geometry.hasAttribute('position') && geometry.getIndex()) {
+    geometry = BufferGeometryUtils.toCreasedNormals(geometry, Math.PI * 40 / 180);
+  } else {
+    geometry.computeVertexNormals();
+  }
   geometry.computeBoundingSphere();
 
   const createPreviewMaterial = (materialData) => {
