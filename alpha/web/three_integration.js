@@ -197,7 +197,7 @@ function createMeshObject(item) {
     const transparency = Number.isFinite(materialData.transparency) ? THREE.MathUtils.clamp(materialData.transparency, 0, 1) : 0;
     const shininess = Number.isFinite(materialData.shine) ? materialData.shine : 30;
 
-    const SHINE_REFLECTIVITY_THRESHOLD = 150.0;
+    const SHINE_REFLECTIVITY_THRESHOLD = 50.0;
     if (shininess > SHINE_REFLECTIVITY_THRESHOLD) {
       const safeShine = THREE.MathUtils.clamp(shininess, 0, 512);
       const roughness = Math.sqrt(2 / (safeShine + 2));
