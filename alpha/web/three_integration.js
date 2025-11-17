@@ -194,18 +194,35 @@ function createMeshObject(item) {
       return fallback;
     };
 
-    const transparency = Number(materialData.transparency);
-    const shininess = Number(materialData.shine);
+    const transparency = Number.isFinite(materialData.transparency) ? THREE.MathUtils.clamp(materialData.transparency, 0, 1) : 0;
+    const shininess = Number.isFinite(materialData.shine) ? materialData.shine : 30;
+
+    const SHINE_REFLECTIVITY_THRESHOLD = 150.0;
+    if (shininess > SHINE_REFLECTIVITY_THRESHOLD) {
+      const safeShine = THREE.MathUtils.clamp(shininess, 0, 512);
+      const roughness = Math.sqrt(2 / (safeShine + 2));
+      const clampedRoughness = THREE.MathUtils.clamp(roughness, 0.02, 1);
+
+      return createStandardSurfaceMaterial(
+        {
+          color: toColorLike(materialData.diffuse, [0.6, 0.65, 0.69]),
+          emissive: toColorLike(materialData.emission, [0, 0, 0]),
+          metalness: 0.9,
+          roughness: clampedRoughness,
+          transparent: transparency > 0,
+          opacity: 1.0 - transparency,
+        },
+        { side: DEFAULT_MESH_SIDE },
+      );
+    }
 
     return createTlsMaterial(
       {
         diffuse: toColorLike(materialData.diffuse, [0.6, 0.65, 0.69]),
         specular: toColorLike(materialData.specular, [0.2, 0.2, 0.2]),
         emissive: toColorLike(materialData.emission, [0, 0, 0]),
-        transparency: Number.isFinite(transparency)
-          ? THREE.MathUtils.clamp(transparency, 0, 1)
-          : 0,
-        shininess: Number.isFinite(shininess) ? shininess : 30,
+        transparency: transparency,
+        shininess: shininess,
       },
       { side: DEFAULT_MESH_SIDE },
     );
