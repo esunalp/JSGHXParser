@@ -1351,9 +1351,9 @@ fn sweep_polyline_along_rail(
             let next = (i + 1) % layer_size;
             faces.push(vec![
                 last_layer_start + i as u32,
-                last_layer_start + next as u32,
-                new_layer_start + next as u32,
                 new_layer_start + i as u32,
+                new_layer_start + next as u32,
+                last_layer_start + next as u32,
             ]);
         }
 
