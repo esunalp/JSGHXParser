@@ -1273,8 +1273,8 @@ fn sweep_surface_along_polyline(
                 let v2 = last_layer_start + *next;
                 let v3 = new_layer_start + *next;
                 let v4 = new_layer_start + *current;
-                faces.push(vec![v1, v2, v3]);
-                faces.push(vec![v1, v3, v4]);
+                faces.push(vec![v1, v3, v2]);
+                faces.push(vec![v1, v4, v3]);
             }
         }
 
@@ -1351,9 +1351,9 @@ fn sweep_polyline_along_rail(
             let next = (i + 1) % layer_size;
             faces.push(vec![
                 last_layer_start + i as u32,
-                new_layer_start + i as u32,
-                new_layer_start + next as u32,
                 last_layer_start + next as u32,
+                new_layer_start + next as u32,
+                new_layer_start + i as u32,
             ]);
         }
 
