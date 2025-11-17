@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Value};
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const PIN_OUTPUT_SURFACE: &str = "S";
 const PIN_OUTPUT_EXTRUSION: &str = "E";
@@ -182,7 +182,9 @@ impl Component for ComponentKind {
             Self::LoftOptions => evaluate_loft_options(inputs),
             Self::SurfaceFromPoints => evaluate_surface_from_points(inputs, "Surface From Points"),
             Self::Patch => evaluate_patch(inputs),
-            Self::ControlPointLoft => evaluate_loft(inputs, "Control Point Loft", PIN_OUTPUT_SURFACE),
+            Self::ControlPointLoft => {
+                evaluate_loft(inputs, "Control Point Loft", PIN_OUTPUT_SURFACE)
+            }
             Self::SumSurface => evaluate_sum_surface(inputs),
             Self::RuledSurface => evaluate_ruled_surface(inputs),
             Self::NetworkSurface => evaluate_network_surface(inputs),
@@ -399,9 +401,7 @@ fn evaluate_patch(inputs: &[Value]) -> ComponentResult {
 fn evaluate_sum_surface(inputs: &[Value]) -> ComponentResult {
     let component = "Sum Surface";
     if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Sum Surface vereist twee invoercurves",
-        ));
+        return Err(ComponentError::new("Sum Surface vereist twee invoercurves"));
     }
 
     let mut points = Vec::new();
@@ -435,10 +435,7 @@ fn collect_ruled_surface_curves(value: &Value) -> Result<Vec<Vec<[f64; 3]>>, Com
                 return Ok(Vec::new());
             }
 
-            if values
-                .iter()
-                .all(|entry| matches!(entry, Value::Point(_)))
-            {
+            if values.iter().all(|entry| matches!(entry, Value::Point(_))) {
                 let polyline = values
                     .iter()
                     .filter_map(|entry| match entry {
@@ -477,9 +474,7 @@ fn collect_ruled_surface_curves(value: &Value) -> Result<Vec<Vec<[f64; 3]>>, Com
     }
 }
 
-fn group_segments_into_polylines(
-    segments: Vec<([f64; 3], [f64; 3])>,
-) -> Vec<Vec<[f64; 3]>> {
+fn group_segments_into_polylines(segments: Vec<([f64; 3], [f64; 3])>) -> Vec<Vec<[f64; 3]>> {
     if segments.is_empty() {
         return Vec::new();
     }
@@ -633,9 +628,7 @@ fn evaluate_network_surface(inputs: &[Value]) -> ComponentResult {
 fn evaluate_sweep_two(inputs: &[Value]) -> ComponentResult {
     let component = "Sweep2";
     if inputs.len() < 3 {
-        return Err(ComponentError::new(
-            "Sweep2 vereist twee rails en secties",
-        ));
+        return Err(ComponentError::new("Sweep2 vereist twee rails en secties"));
     }
 
     let mut points = Vec::new();
@@ -687,8 +680,7 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
         coerce_number(value, component, "Caps")?;
     }
 
-    let average_radius = radii.iter().map(|value| value.abs()).sum::<f64>()
-        / radii.len() as f64;
+    let average_radius = radii.iter().map(|value| value.abs()).sum::<f64>() / radii.len() as f64;
 
     let mut points = Vec::new();
     for (start, end) in segments {
@@ -766,17 +758,32 @@ fn evaluate_extrude_angled(inputs: &[Value]) -> ComponentResult {
 fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     let component = "Sweep1";
     if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Sweep1 vereist een rail en secties",
-        ));
+        return Err(ComponentError::new("Sweep1 vereist een rail en secties"));
+    }
+
+    let rail_segments = coerce::coerce_curve_segments(&inputs[0])?;
+    let Some((rail_start, rail_end)) = rail_segments.first() else {
+        return Err(ComponentError::new("Sweep1 kon de railcurve niet lezen"));
+    };
+    let rail_direction = subtract_points(*rail_end, *rail_start);
+    if is_zero_vector(rail_direction) {
+        return Err(ComponentError::new("Sweep1 vereist een rail met lengte"));
+    }
+
+    if let Some(surface) = extract_first_surface(&inputs[1])? {
+        if let Some(value) = inputs.get(2) {
+            coerce_number(value, component, "Miter")?;
+        }
+
+        let solid = extrude_surface_along_vector(surface, rail_direction, component)?;
+        return into_output(PIN_OUTPUT_SURFACE, Value::List(vec![solid]));
     }
 
     let mut points = Vec::new();
-    points.extend(
-        coerce::coerce_curve_segments(&inputs[0])?
-            .into_iter()
-            .flat_map(|(a, b)| [a, b]),
-    );
+    for (start, end) in rail_segments {
+        points.push(start);
+        points.push(end);
+    }
     points.extend(
         coerce::coerce_curve_segments(&inputs[1])?
             .into_iter()
@@ -827,9 +834,7 @@ fn evaluate_pipe(inputs: &[Value]) -> ComponentResult {
 
     let segments = coerce::coerce_curve_segments(&inputs[0])?;
     if segments.is_empty() {
-        return Err(ComponentError::new(
-            "Pipe kon de railcurve niet lezen",
-        ));
+        return Err(ComponentError::new("Pipe kon de railcurve niet lezen"));
     }
     let radius = coerce_number(&inputs[1], component, "Radius")?.abs();
     if let Some(value) = inputs.get(2) {
@@ -974,7 +979,11 @@ fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, Compo
     }
 }
 
-fn coerce_direction(value: &Value, component: &str, name: &str) -> Result<[f64; 3], ComponentError> {
+fn coerce_direction(
+    value: &Value,
+    component: &str,
+    name: &str,
+) -> Result<[f64; 3], ComponentError> {
     match value {
         Value::Vector(vector) => Ok(*vector),
         Value::CurveLine { p1, p2 } => Ok(subtract_points(*p2, *p1)),
@@ -1046,9 +1055,7 @@ fn coerce_angle_domain(value: &Value, component: &str) -> Result<f64, ComponentE
     match value {
         Value::Number(number) => Ok(*number),
         Value::Domain(Domain::One(domain)) => Ok(domain.length.abs()),
-        Value::Domain(Domain::Two(domain)) => {
-            Ok(domain.u.length.abs().max(domain.v.length.abs()))
-        }
+        Value::Domain(Domain::Two(domain)) => Ok(domain.u.length.abs().max(domain.v.length.abs())),
         Value::List(values) if values.len() == 1 => coerce_angle_domain(&values[0], component),
         other => Err(ComponentError::new(format!(
             "{component} verwacht een hoek of domein, kreeg {}",
@@ -1097,11 +1104,13 @@ fn create_surface_from_points_with_padding(
     ];
 
     let mut sorted = spans;
-    sorted.sort_by(|a, b| match (a.0.partial_cmp(&b.0), b.0.partial_cmp(&a.0)) {
-        (Some(order), _) => order.reverse(),
-        (None, Some(order)) => order,
-        _ => Ordering::Equal,
-    });
+    sorted.sort_by(
+        |a, b| match (a.0.partial_cmp(&b.0), b.0.partial_cmp(&a.0)) {
+            (Some(order), _) => order.reverse(),
+            (None, Some(order)) => order,
+            _ => Ordering::Equal,
+        },
+    );
 
     let (primary_span, primary_axis) = sorted[0];
     if primary_span.abs() <= EPSILON {
@@ -1151,9 +1160,7 @@ fn expect_input<'a>(
     description: &str,
 ) -> Result<&'a Value, ComponentError> {
     inputs.get(index).ok_or_else(|| {
-        ComponentError::new(format!(
-            "{component} vereist een invoer voor {description}"
-        ))
+        ComponentError::new(format!("{component} vereist een invoer voor {description}"))
     })
 }
 
@@ -1177,6 +1184,78 @@ fn into_output(pin: &str, value: Value) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), value);
     Ok(outputs)
+}
+
+fn extract_first_surface(value: &Value) -> Result<Option<coerce::Surface<'_>>, ComponentError> {
+    match value {
+        Value::Surface { .. } => Ok(Some(coerce::coerce_surface(value)?)),
+        Value::List(values) => {
+            for entry in values {
+                if let Some(surface) = extract_first_surface(entry)? {
+                    return Ok(Some(surface));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
+fn extrude_surface_along_vector(
+    surface: coerce::Surface<'_>,
+    direction: [f64; 3],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    if surface.vertices.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één vertex"
+        )));
+    }
+    if surface.faces.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één face"
+        )));
+    }
+    if is_zero_vector(direction) {
+        return Err(ComponentError::new(format!(
+            "{component} kan niet extruderen zonder railrichting"
+        )));
+    }
+
+    let offset = surface.vertices.len() as u32;
+
+    let mut vertices = surface.vertices.clone();
+    vertices.extend(
+        surface
+            .vertices
+            .iter()
+            .map(|vertex| add_vector(*vertex, direction)),
+    );
+
+    let mut faces = Vec::new();
+    for face in surface.faces.iter() {
+        if face.len() < 2 {
+            continue;
+        }
+
+        faces.push(face.clone());
+
+        let mut top_face = Vec::with_capacity(face.len());
+        for &index in face.iter().rev() {
+            top_face.push(index + offset);
+        }
+        faces.push(top_face);
+
+        for (current, next) in face
+            .iter()
+            .zip(face.iter().cycle().skip(1))
+            .take(face.len())
+        {
+            faces.push(vec![*current, *next, *next + offset, *current + offset]);
+        }
+    }
+
+    Ok(Value::Surface { vertices, faces })
 }
 
 #[cfg(test)]
@@ -1326,7 +1405,45 @@ mod tests {
             .evaluate(&inputs, &MetaMap::new())
             .expect("loft surface");
 
-        assert!(matches!(outputs.get(PIN_OUTPUT_LOFT), Some(Value::Surface { .. })));
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_LOFT),
+            Some(Value::Surface { .. })
+        ));
+    }
+
+    #[test]
+    fn sweep_one_extrudes_surface_along_rail() {
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [0.0, 0.0, 2.0],
+            },
+            Value::Surface {
+                vertices: vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                faces: vec![vec![0, 1, 2, 3]],
+            },
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep solid");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface solid");
+        };
+
+        assert_eq!(vertices.len(), 8, "should duplicate vertices for extrusion");
+        assert!(vertices.iter().any(|vertex| (vertex[2] - 2.0).abs() < 1e-9));
+        assert!(faces.len() >= 6, "solid should include caps and side faces");
     }
 
     #[test]
