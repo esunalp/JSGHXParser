@@ -1239,11 +1239,18 @@ fn sweep_surface_along_polyline(
         )));
     }
 
-    let mut vertices = surface.vertices.clone();
+    let rail_start = rail_polyline[0];
+    let translation = subtract_points(rail_start, surface.vertices[0]);
+
+    let mut vertices: Vec<[f64; 3]> = surface
+        .vertices
+        .iter()
+        .map(|vertex| add_vector(*vertex, translation))
+        .collect();
     let mut faces = surface.faces.clone();
 
     let mut last_layer_start = 0u32;
-    let mut last_layer_vertices = surface.vertices.clone();
+    let mut last_layer_vertices = vertices.clone();
     let base_faces = surface.faces.clone();
 
     for window in rail_polyline.windows(2) {
@@ -1315,6 +1322,11 @@ fn sweep_polyline_along_rail(
         return Err(ComponentError::new(format!(
             "{component} vereist een rail met minstens twee punten",
         )));
+    }
+
+    let translation = subtract_points(rail_polyline[0], profile[0]);
+    for point in &mut profile {
+        *point = add_vector(*point, translation);
     }
 
     let layer_size = profile.len();
