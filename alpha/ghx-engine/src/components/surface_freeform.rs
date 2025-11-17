@@ -762,11 +762,9 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     }
 
     let rail_segments = coerce::coerce_curve_segments(&inputs[0])?;
-    let Some((rail_start, rail_end)) = rail_segments.first() else {
-        return Err(ComponentError::new("Sweep1 kon de railcurve niet lezen"));
-    };
-    let rail_direction = subtract_points(*rail_end, *rail_start);
-    if is_zero_vector(rail_direction) {
+    let rail_polyline = pick_longest_polyline(group_segments_into_polylines(rail_segments))
+        .ok_or_else(|| ComponentError::new("Sweep1 kon de railcurve niet lezen"))?;
+    if rail_polyline.len() < 2 {
         return Err(ComponentError::new("Sweep1 vereist een rail met lengte"));
     }
 
@@ -775,26 +773,22 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
             coerce_number(value, component, "Miter")?;
         }
 
-        let solid = extrude_surface_along_vector(surface, rail_direction, component)?;
+        let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
         return into_output(PIN_OUTPUT_SURFACE, Value::List(vec![solid]));
     }
 
-    let mut points = Vec::new();
-    for (start, end) in rail_segments {
-        points.push(start);
-        points.push(end);
-    }
-    points.extend(
-        coerce::coerce_curve_segments(&inputs[1])?
-            .into_iter()
-            .flat_map(|(a, b)| [a, b]),
-    );
+    let sections = collect_ruled_surface_curves(&inputs[1])?;
+    let Some(profile) = pick_longest_polyline(sections) else {
+        return Err(ComponentError::new(
+            "Sweep1 verwacht minstens één sectiepolyline",
+        ));
+    };
 
     if let Some(value) = inputs.get(2) {
         coerce_number(value, component, "Miter")?;
     }
 
-    let surface = create_surface_from_points(&points, component)?;
+    let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
     into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]))
 }
 
@@ -1176,6 +1170,11 @@ fn subtract_points(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
+fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
+    let delta = subtract_points(a, b);
+    (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]).sqrt()
+}
+
 fn is_zero_vector(vector: [f64; 3]) -> bool {
     vector.iter().all(|component| component.abs() < EPSILON)
 }
@@ -1201,6 +1200,174 @@ fn extract_first_surface(value: &Value) -> Result<Option<coerce::Surface<'_>>, C
     }
 }
 
+fn pick_longest_polyline(polylines: Vec<Vec<[f64; 3]>>) -> Option<Vec<[f64; 3]>> {
+    polylines
+        .into_iter()
+        .max_by(|a, b| match (polyline_length(&a), polyline_length(&b)) {
+            (x, y) if x.is_finite() && y.is_finite() => {
+                x.partial_cmp(&y).unwrap_or(Ordering::Equal)
+            }
+            _ => Ordering::Equal,
+        })
+}
+
+fn polyline_length(polyline: &[[f64; 3]]) -> f64 {
+    polyline
+        .windows(2)
+        .map(|pair| distance(pair[0], pair[1]))
+        .sum()
+}
+
+fn sweep_surface_along_polyline(
+    surface: coerce::Surface<'_>,
+    rail_polyline: &[[f64; 3]],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    if surface.vertices.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één vertex",
+        )));
+    }
+    if surface.faces.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één face",
+        )));
+    }
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee punten",
+        )));
+    }
+
+    let mut vertices = surface.vertices.clone();
+    let mut faces = surface.faces.clone();
+
+    let mut last_layer_start = 0u32;
+    let mut last_layer_vertices = surface.vertices.clone();
+    let base_faces = surface.faces.clone();
+
+    for window in rail_polyline.windows(2) {
+        let direction = subtract_points(window[1], window[0]);
+        if is_zero_vector(direction) {
+            continue;
+        }
+
+        let new_layer_start = vertices.len() as u32;
+        let new_layer_vertices: Vec<[f64; 3]> = last_layer_vertices
+            .iter()
+            .map(|vertex| add_vector(*vertex, direction))
+            .collect();
+        vertices.extend(new_layer_vertices.iter());
+
+        for face in &base_faces {
+            if face.len() < 2 {
+                continue;
+            }
+
+            for (current, next) in face
+                .iter()
+                .zip(face.iter().cycle().skip(1))
+                .take(face.len())
+            {
+                faces.push(vec![
+                    last_layer_start + *current,
+                    last_layer_start + *next,
+                    new_layer_start + *next,
+                    new_layer_start + *current,
+                ]);
+            }
+        }
+
+        last_layer_start = new_layer_start;
+        last_layer_vertices = new_layer_vertices;
+    }
+
+    for face in &base_faces {
+        if face.len() < 2 {
+            continue;
+        }
+        let mut top_face = Vec::with_capacity(face.len());
+        for &index in face.iter().rev() {
+            top_face.push(last_layer_start + index);
+        }
+        faces.push(top_face);
+    }
+
+    Ok(Value::Surface { vertices, faces })
+}
+
+fn sweep_polyline_along_rail(
+    profile: &[[f64; 3]],
+    rail_polyline: &[[f64; 3]],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    let mut profile = profile.to_vec();
+    if profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()) {
+        profile.pop();
+    }
+
+    if profile.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een sectiepolyline met minstens twee punten",
+        )));
+    }
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee punten",
+        )));
+    }
+
+    let layer_size = profile.len();
+    let mut vertices = profile.clone();
+    let mut faces: Vec<Vec<u32>> = Vec::new();
+
+    if layer_size >= 3 {
+        faces.push((0..layer_size as u32).collect());
+    }
+
+    let mut last_layer_start = 0u32;
+    let mut last_layer_vertices = profile;
+
+    for window in rail_polyline.windows(2) {
+        let direction = subtract_points(window[1], window[0]);
+        if is_zero_vector(direction) {
+            continue;
+        }
+
+        let new_layer_start = vertices.len() as u32;
+        let new_layer_vertices: Vec<[f64; 3]> = last_layer_vertices
+            .iter()
+            .map(|vertex| add_vector(*vertex, direction))
+            .collect();
+
+        vertices.extend(new_layer_vertices.iter());
+
+        for i in 0..layer_size {
+            let next = (i + 1) % layer_size;
+            faces.push(vec![
+                last_layer_start + i as u32,
+                last_layer_start + next as u32,
+                new_layer_start + next as u32,
+                new_layer_start + i as u32,
+            ]);
+        }
+
+        last_layer_start = new_layer_start;
+        last_layer_vertices = new_layer_vertices;
+    }
+
+    if layer_size >= 3 {
+        let mut top_face = Vec::with_capacity(layer_size);
+        for i in (0..layer_size).rev() {
+            top_face.push(last_layer_start + i as u32);
+        }
+        faces.push(top_face);
+    }
+
+    Ok(Value::Surface { vertices, faces })
+}
+
+#[allow(dead_code)]
 fn extrude_surface_along_vector(
     surface: coerce::Surface<'_>,
     direction: [f64; 3],
@@ -1444,6 +1611,49 @@ mod tests {
         assert_eq!(vertices.len(), 8, "should duplicate vertices for extrusion");
         assert!(vertices.iter().any(|vertex| (vertex[2] - 2.0).abs() < 1e-9));
         assert!(faces.len() >= 6, "solid should include caps and side faces");
+    }
+
+    #[test]
+    fn sweep_one_follows_polyline_rail() {
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            Value::List(vec![
+                Value::CurveLine {
+                    p1: [0.0, 0.0, 0.0],
+                    p2: [0.0, 0.0, 1.0],
+                },
+                Value::CurveLine {
+                    p1: [0.0, 0.0, 1.0],
+                    p2: [1.0, 0.0, 1.0],
+                },
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep polyline rail");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface solid");
+        };
+
+        assert_eq!(vertices.len(), 12, "expected a layer per rail segment");
+        assert!(
+            vertices
+                .iter()
+                .any(|vertex| (vertex[0] - 1.0).abs() < 1e-9 && (vertex[2] - 1.0).abs() < 1e-9),
+            "sweep should reach end of second segment",
+        );
+        assert!(faces.len() >= 10, "caps and side faces should be present");
     }
 
     #[test]
