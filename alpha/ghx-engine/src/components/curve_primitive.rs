@@ -1,7 +1,6 @@
 //! Implementaties van Grasshopper "Curve → Primitive" componenten.
 
 use std::collections::BTreeMap;
-use std::f64::consts::TAU;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Value, ValueKind};
@@ -15,10 +14,8 @@ const PIN_OUTPUT_LINE: &str = "L";
 const PIN_OUTPUT_POLYGON: &str = "P";
 const PIN_OUTPUT_ARC: &str = "A";
 
-/// Aantal segmenten dat we minimaal gebruiken om een volledige cirkel te benaderen.
-const DEFAULT_CIRCLE_SEGMENTS: usize = 256;
-/// Maximale hoek (in radialen) per segment om vloeiende boogbenaderingen te garanderen.
-const MAX_ARC_SEGMENT_ANGLE: f64 = TAU / DEFAULT_CIRCLE_SEGMENTS as f64;
+/// Vast aantal segmenten voor alle curves.
+const CURVE_SEGMENTS: usize = 32;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -362,12 +359,12 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
     let mut angle1 = v1.atan2(u1);
     let mut angle2 = unwrap_angle(v2.atan2(u2), angle1);
     if angle2 < angle1 {
-        angle2 += TAU;
+        angle2 += std::f64::consts::TAU;
     }
 
     let mut angle3 = unwrap_angle(v3.atan2(u3), angle2);
     if angle3 < angle2 {
-        angle3 += TAU;
+        angle3 += std::f64::consts::TAU;
     }
 
     angle1 = unwrap_angle(angle1, 0.0);
@@ -432,7 +429,7 @@ fn evaluate_circle_cnr(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = Plane::from_origin_and_normal(center, normal);
-    let points = sample_circle_points(&plane, radius, DEFAULT_CIRCLE_SEGMENTS);
+    let points = sample_circle_points(&plane, radius, CURVE_SEGMENTS);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -548,9 +545,8 @@ fn create_arc_points(plane: &Plane, radius: f64, angle: f64) -> (Vec<[f64; 3]>, 
     create_arc_points_from_angles(plane, radius, 0.0, angle)
 }
 
-fn segments_for_angle(angle: f64) -> usize {
-    let segments = (angle.abs() / MAX_ARC_SEGMENT_ANGLE).ceil() as usize;
-    segments.max(1)
+fn segments_for_angle(_angle: f64) -> usize {
+    CURVE_SEGMENTS
 }
 
 fn create_arc_points_from_angles(
@@ -619,7 +615,7 @@ fn create_polygon_points(
     _fillet_radius: f64,
 ) -> (Vec<[f64; 3]>, f64) {
     let mut points = Vec::new();
-    let angle_step = TAU / segments as f64;
+    let angle_step = std::f64::consts::TAU / segments as f64;
 
     for i in 0..segments {
         let angle = i as f64 * angle_step;
@@ -630,7 +626,10 @@ fn create_polygon_points(
         points.push(first);
     }
 
-    let length = segments as f64 * 2.0 * radius * (TAU / (2.0 * segments as f64)).sin();
+    let length = segments as f64
+        * 2.0
+        * radius
+        * (std::f64::consts::TAU / (2.0 * segments as f64)).sin();
 
     (points, length)
 }
@@ -748,7 +747,7 @@ fn create_rectangle_points(
         points.push(plane.apply(half_x, -half_y));
         length = 2.0 * x_size + 2.0 * y_size;
     } else {
-        let segments_per_corner = segments_for_angle(TAU / 4.0);
+        let segments_per_corner = segments_for_angle(std::f64::consts::TAU / 4.0);
 
         // Corner centers in UV coordinates
         let c_tr_uv = (half_x - radius, half_y - radius);
@@ -758,7 +757,8 @@ fn create_rectangle_points(
 
         // Arc for top-right corner (from 0 to PI/2)
         for i in 0..=segments_per_corner {
-            let angle = 0.0 + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle =
+                0.0 + (std::f64::consts::TAU / 4.0) * (i as f64 / segments_per_corner as f64);
             points.push(plane.apply(
                 c_tr_uv.0 + radius * angle.cos(),
                 c_tr_uv.1 + radius * angle.sin(),
@@ -767,7 +767,8 @@ fn create_rectangle_points(
 
         // Arc for top-left corner (from PI/2 to PI)
         for i in 1..=segments_per_corner {
-            let angle = (TAU / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (std::f64::consts::TAU / 4.0)
+                + (std::f64::consts::TAU / 4.0) * (i as f64 / segments_per_corner as f64);
             points.push(plane.apply(
                 c_tl_uv.0 + radius * angle.cos(),
                 c_tl_uv.1 + radius * angle.sin(),
@@ -776,7 +777,8 @@ fn create_rectangle_points(
 
         // Arc for bottom-left corner (from PI to 3*PI/2)
         for i in 1..=segments_per_corner {
-            let angle = (TAU / 2.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (std::f64::consts::TAU / 2.0)
+                + (std::f64::consts::TAU / 4.0) * (i as f64 / segments_per_corner as f64);
             points.push(plane.apply(
                 c_bl_uv.0 + radius * angle.cos(),
                 c_bl_uv.1 + radius * angle.sin(),
@@ -785,14 +787,17 @@ fn create_rectangle_points(
 
         // Arc for bottom-right corner (from 3*PI/2 to 2*PI)
         for i in 1..=segments_per_corner {
-            let angle = (TAU * 3.0 / 4.0) + (TAU / 4.0) * (i as f64 / segments_per_corner as f64);
+            let angle = (std::f64::consts::TAU * 3.0 / 4.0)
+                + (std::f64::consts::TAU / 4.0) * (i as f64 / segments_per_corner as f64);
             points.push(plane.apply(
                 c_br_uv.0 + radius * angle.cos(),
                 c_br_uv.1 + radius * angle.sin(),
             ));
         }
 
-        length = 2.0 * (x_size - 2.0 * radius) + 2.0 * (y_size - 2.0 * radius) + TAU * radius;
+        length = 2.0 * (x_size - 2.0 * radius)
+            + 2.0 * (y_size - 2.0 * radius)
+            + std::f64::consts::TAU * radius;
     }
 
     if !points.is_empty() {
@@ -818,7 +823,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let points = sample_circle_points(&plane, radius, DEFAULT_CIRCLE_SEGMENTS);
+    let points = sample_circle_points(&plane, radius, CURVE_SEGMENTS);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -831,7 +836,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
 fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64; 3]> {
     let segments = segments.max(3);
     let mut points = Vec::with_capacity(segments + 1);
-    let step = TAU / segments as f64;
+    let step = std::f64::consts::TAU / segments as f64;
     for i in 0..segments {
         let angle = i as f64 * step;
         let point = plane.apply(radius * angle.cos(), radius * angle.sin());
@@ -1083,10 +1088,10 @@ const EPSILON: f64 = 1e-9;
 fn unwrap_angle(angle: f64, reference: f64) -> f64 {
     let mut result = angle;
     while result < reference - std::f64::consts::PI {
-        result += TAU;
+        result += std::f64::consts::TAU;
     }
     while result > reference + std::f64::consts::PI {
-        result -= TAU;
+        result -= std::f64::consts::TAU;
     }
     result
 }
@@ -1203,7 +1208,7 @@ fn orthogonal_vector(reference: [f64; 3]) -> [f64; 3] {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, DEFAULT_CIRCLE_SEGMENTS, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
+        Component, ComponentKind, CURVE_SEGMENTS, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
         PIN_OUTPUT_LENGTH, PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
         segments_for_angle,
     };
@@ -1415,7 +1420,7 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_CIRCLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), DEFAULT_CIRCLE_SEGMENTS + 1);
+        assert_eq!(points.len(), CURVE_SEGMENTS + 1);
         assert!(matches!(points[0], Value::Point(_)));
         assert!(matches!(points.last(), Some(Value::Point(_))));
     }
@@ -1461,7 +1466,7 @@ mod tests {
         let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_CIRCLE) else {
             panic!("expected list of points");
         };
-        assert_eq!(points.len(), DEFAULT_CIRCLE_SEGMENTS + 1);
+        assert_eq!(points.len(), CURVE_SEGMENTS + 1);
     }
 
     #[test]
