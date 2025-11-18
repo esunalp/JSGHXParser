@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{ColorValue, PlaneValue, TextTagValue, Value};
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const PIN_OUTPUT_POINT: &str = "P";
 const PIN_OUTPUT_POINTS: &str = "P";
@@ -349,16 +349,8 @@ fn evaluate_points_to_numbers(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_distance(inputs: &[Value]) -> ComponentResult {
-    let context = "Point Distance";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{} vereist twee punten",
-            context
-        )));
-    }
-
-    let a = coerce_point(&inputs[0], context)?;
-    let b = coerce_point(&inputs[1], context)?;
+    let a = coerce::coerce_point_with_default(inputs.get(0));
+    let b = coerce::coerce_point_with_default(inputs.get(1));
     let distance = ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
 
     let mut outputs = BTreeMap::new();
@@ -367,19 +359,19 @@ fn evaluate_distance(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_deconstruct(inputs: &[Value]) -> ComponentResult {
-    if inputs.is_empty() {
-        return Err(ComponentError::new(
-            "Deconstruct Point vereist een punt als invoer",
-        ));
-    }
+    let point = coerce::coerce_point_with_default(inputs.get(0));
 
-    let point = coerce_point(&inputs[0], "Deconstruct Point")?;
     let coords = if let Some(system) = inputs.get(1) {
-        let plane = coerce_plane(system, "Deconstruct Point")?;
-        plane_coordinates(point, &plane)
+        if let Value::Null = system {
+            point
+        } else {
+            let plane = coerce_plane(system, "Deconstruct Point")?;
+            plane_coordinates(point, &plane)
+        }
     } else {
         point
     };
+
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_X.to_owned(), Value::Number(coords[0]));
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(coords[1]));
@@ -389,14 +381,7 @@ fn evaluate_deconstruct(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_closest_point(inputs: &[Value]) -> ComponentResult {
     let context = "Closest Point";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{} vereist een doelpunt en een puntenwolk",
-            context
-        )));
-    }
-
-    let target = coerce_point(&inputs[0], context)?;
+    let target = coerce::coerce_point_with_default(inputs.get(0));
     let candidates = collect_points(inputs.get(1), context)?;
     if candidates.is_empty() {
         return Err(ComponentError::new(
@@ -435,14 +420,7 @@ fn evaluate_closest_point(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_closest_points(inputs: &[Value]) -> ComponentResult {
     let context = "Closest Points";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{} vereist een doelpunt en een puntenwolk",
-            context
-        )));
-    }
-
-    let target = coerce_point(&inputs[0], context)?;
+    let target = coerce::coerce_point_with_default(inputs.get(0));
     let candidates = collect_points(inputs.get(1), context)?;
     if candidates.is_empty() {
         return Err(ComponentError::new(
@@ -563,23 +541,15 @@ fn evaluate_cull_duplicates(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_barycentric(inputs: &[Value]) -> ComponentResult {
-    let context = "Barycentric";
-    if inputs.len() < 6 {
-        return Err(ComponentError::new(format!(
-            "{} vereist drie punten en drie coördinaten",
-            context
-        )));
-    }
-
-    let a = coerce_point(&inputs[0], context)?;
-    let b = coerce_point(&inputs[1], context)?;
-    let c = coerce_point(&inputs[2], context)?;
-    let u = coerce_number(Some(&inputs[3]), context)?;
-    let v = coerce_number(Some(&inputs[4]), context)?;
-    let mut w = coerce_number(Some(&inputs[5]), context).unwrap_or(f64::NAN);
-    if !w.is_finite() {
-        w = 1.0 - u - v;
-    }
+    let a = coerce::coerce_point_with_default(inputs.get(0));
+    let b = coerce::coerce_point_with_default(inputs.get(1));
+    let c = coerce::coerce_point_with_default(inputs.get(2));
+    let u = coerce::coerce_number_with_default(inputs.get(3));
+    let v = coerce::coerce_number_with_default(inputs.get(4));
+    let w = match inputs.get(5) {
+        Some(&Value::Null) | None => 1.0 - u - v,
+        Some(value) => coerce::coerce_number(value).unwrap_or(1.0 - u - v),
+    };
 
     let point = [
         a[0] * u + b[0] * v + c[0] * w,
@@ -868,18 +838,9 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_construct_point(inputs: &[Value]) -> ComponentResult {
-    let context = "Construct Point";
-
-    let get_coord = |index: usize| -> f64 {
-        match inputs.get(index) {
-            Some(&Value::Null) | None => 0.0,
-            Some(value) => coerce_number(Some(value), context).unwrap_or(0.0),
-        }
-    };
-
-    let x = get_coord(0);
-    let y = get_coord(1);
-    let z = get_coord(2);
+    let x = coerce::coerce_number_with_default(inputs.get(0));
+    let y = coerce::coerce_number_with_default(inputs.get(1));
+    let z = coerce::coerce_number_with_default(inputs.get(2));
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point([x, y, z]));
@@ -888,19 +849,9 @@ fn evaluate_construct_point(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_pull_point(inputs: &[Value]) -> ComponentResult {
     let context = "Pull Point";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{} vereist een punt en geometrie",
-            context
-        )));
-    }
+    let point = coerce::coerce_point_with_default(inputs.get(0));
+    let prefer_closest = coerce::coerce_boolean_with_default(inputs.get(2));
 
-    let point = coerce_point(&inputs[0], context)?;
-    let prefer_closest = if let Some(value) = inputs.get(2) {
-        coerce_boolean(Some(value), context)?
-    } else {
-        true
-    };
     let planes = collect_planes(inputs.get(1), context)?;
     let point_candidates = collect_points(inputs.get(1), context)?;
 
@@ -2470,3 +2421,100 @@ mod tests {
         ));
     }
 }
+
+    #[test]
+    fn construct_point_defaults_to_origin() {
+        let component = ComponentKind::ConstructPoint;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("construct with no inputs succeeds");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_POINT),
+            Some(Value::Point(coords)) if *coords == [0.0, 0.0, 0.0]
+        ));
+    }
+
+    #[test]
+    fn distance_defaults_to_zero() {
+        let component = ComponentKind::Distance;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("distance with no inputs succeeds");
+        let distance = outputs
+            .get(PIN_OUTPUT_DISTANCE)
+            .and_then(|value| value.expect_number().ok())
+            .expect("distance output present");
+        assert!(distance.abs() < 1e-9);
+    }
+
+    #[test]
+    fn deconstruct_defaults_to_origin() {
+        let component = ComponentKind::Deconstruct;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("deconstruct with no inputs succeeds");
+        let x = outputs.get(PIN_OUTPUT_X).and_then(|v| v.expect_number().ok()).unwrap();
+        let y = outputs.get(PIN_OUTPUT_Y).and_then(|v| v.expect_number().ok()).unwrap();
+        let z = outputs.get(PIN_OUTPUT_Z).and_then(|v| v.expect_number().ok()).unwrap();
+        assert!(x.abs() < 1e-9);
+        assert!(y.abs() < 1e-9);
+        assert!(z.abs() < 1e-9);
+    }
+
+    #[test]
+    fn closest_point_defaults_to_origin_target() {
+        let component = ComponentKind::ClosestPoint;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Null, // Missing target point
+                    Value::List(vec![
+                        Value::Point([2.0, 0.0, 0.0]),
+                        Value::Point([1.0, 0.0, 0.0]),
+                    ]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("closest point with default target succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .expect("point output present");
+        assert_eq!(point, [1.0, 0.0, 0.0]); // Closest to origin
+        let index = outputs
+            .get(PIN_OUTPUT_INDEX)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        assert_eq!(index, 1.0);
+    }
+
+    #[test]
+    fn barycentric_defaults_to_origin() {
+        let component = ComponentKind::Barycentric;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("barycentric with no inputs succeeds");
+        let point = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert_eq!(point, [0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn pull_point_defaults_to_origin() {
+        let component = ComponentKind::PullPoint;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("pull point with no inputs succeeds");
+        let pulled = outputs
+            .get(PIN_OUTPUT_POINT)
+            .and_then(|value| value.expect_point().ok())
+            .unwrap();
+        assert_eq!(pulled, [0.0, 0.0, 0.0]);
+        let distance = outputs
+            .get(PIN_OUTPUT_DISTANCE)
+            .and_then(|value| value.expect_number().ok())
+            .unwrap();
+        assert!((distance).abs() < 1e-9);
+    }

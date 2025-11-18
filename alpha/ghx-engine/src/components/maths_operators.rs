@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const EPSILON: f64 = 1e-9;
 
@@ -605,13 +605,8 @@ fn evaluate_binary_gate(
     inputs: &[Value],
     operation: impl Fn(bool, bool) -> bool,
 ) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Booleaanse gate component vereist twee invoerwaarden",
-        ));
-    }
-    let a = coerce_boolean(&inputs[0], "Boolean gate")?;
-    let b = coerce_boolean(&inputs[1], "Boolean gate")?;
+    let a = coerce::coerce_boolean_with_default(inputs.get(0));
+    let b = coerce::coerce_boolean_with_default(inputs.get(1));
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(operation(a, b)));
     Ok(outputs)
@@ -622,13 +617,8 @@ fn evaluate_binary_arithmetic(
     context: &str,
     operation: impl Fn(f64, f64) -> Result<f64, ComponentError>,
 ) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{context} component vereist twee invoerwaarden"
-        )));
-    }
-    let a = coerce_number(&inputs[0], context)?;
-    let b = coerce_number(&inputs[1], context)?;
+    let a = coerce::coerce_number_with_default(inputs.get(0));
+    let b = coerce::coerce_number_with_default(inputs.get(1));
     let result = operation(a, b)?;
     let mut outputs = BTreeMap::new();
     outputs.insert("R".to_owned(), Value::Number(result));
@@ -931,3 +921,21 @@ mod tests {
         assert!(matches!(outputs.get(PIN_EQUAL), Some(Value::Boolean(true))));
     }
 }
+
+    #[test]
+    fn subtraction_defaults_to_zero() {
+        let component = ComponentKind::Subtraction;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("subtraction with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
+    }
+
+    #[test]
+    fn gate_and_defaults_to_true() {
+        let component = ComponentKind::GateAnd;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("gate and with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Boolean(true))));
+    }

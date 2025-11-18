@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const EPSILON: f64 = 1e-9;
 
@@ -204,12 +204,8 @@ impl ComponentKind {
 }
 
 fn evaluate_degrees(inputs: &[Value]) -> ComponentResult {
-    let radians = coerce_number_any(inputs.get(0));
-    let degrees = if let Some(value) = radians.filter(|value| value.is_finite()) {
-        value * 180.0 / std::f64::consts::PI
-    } else {
-        0.0
-    };
+    let radians = coerce::coerce_number_with_default(inputs.get(0));
+    let degrees = radians * 180.0 / std::f64::consts::PI;
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_DEGREES.to_owned(), Value::Number(degrees));
@@ -217,12 +213,8 @@ fn evaluate_degrees(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_radians(inputs: &[Value]) -> ComponentResult {
-    let degrees = coerce_number_any(inputs.get(0));
-    let radians = if let Some(value) = degrees.filter(|value| value.is_finite()) {
-        value * std::f64::consts::PI / 180.0
-    } else {
-        0.0
-    };
+    let degrees = coerce::coerce_number_with_default(inputs.get(0));
+    let radians = degrees * std::f64::consts::PI / 180.0;
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RADIANS.to_owned(), Value::Number(radians));
@@ -230,12 +222,8 @@ fn evaluate_radians(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_simple_trig(inputs: &[Value], compute: fn(f64) -> f64) -> ComponentResult {
-    let numeric = coerce_number_any(inputs.get(0));
-    let result = if let Some(value) = numeric.filter(|value| value.is_finite()) {
-        compute(value)
-    } else {
-        0.0
-    };
+    let numeric = coerce::coerce_number_with_default(inputs.get(0));
+    let result = compute(numeric);
 
     Ok(single_result(result))
 }
@@ -1346,3 +1334,21 @@ mod tests {
         assert_eq!(coerce_number_any(Some(&Value::Boolean(false))), Some(0.0));
     }
 }
+
+    #[test]
+    fn sine_defaults_to_zero() {
+        let component = ComponentKind::Sine;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("sine with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
+    }
+
+    #[test]
+    fn degrees_defaults_to_zero() {
+        let component = ComponentKind::Degrees;
+        let outputs = component
+            .evaluate(&[], &MetaMap::new())
+            .expect("degrees with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_DEGREES), Some(Value::Number(d)) if d.abs() < 1e-9));
+    }
