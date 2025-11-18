@@ -528,7 +528,8 @@
         "name": "Plane",
         "nickname": "P",
         "access": "item",
-        "description": "Rectangle base plane"
+        "description": "Rectangle base plane",
+        "optional": true
       },
       {
         "name": "Point A",

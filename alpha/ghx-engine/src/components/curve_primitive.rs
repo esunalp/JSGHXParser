@@ -695,7 +695,12 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane = parse_plane(inputs.get(0), "Rectangle")?;
+    let plane_input = inputs.get(0).unwrap_or(&Value::Null);
+    let plane = if matches!(plane_input, Value::Null) {
+        Plane::default()
+    } else {
+        parse_plane(Some(plane_input), "Rectangle")?
+    };
     let x_size = coerce_number(inputs.get(1), "Rectangle")?;
     let y_size = coerce_number(inputs.get(2), "Rectangle")?;
     let radius = coerce_number(inputs.get(3), "Rectangle").unwrap_or(0.0);
