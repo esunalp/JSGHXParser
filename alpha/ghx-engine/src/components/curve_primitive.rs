@@ -691,9 +691,9 @@ fn find_farthest_points(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
 }
 
 fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 3 {
+    if inputs.len() < 2 {
         return Err(ComponentError::new(
-            "Rectangle component vereist een vlak, x-grootte en y-grootte",
+            "Rectangle component vereist een x-grootte en y-grootte",
         ));
     }
 
@@ -878,6 +878,7 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
         return Ok(Plane::default());
     };
     match value {
+        Value::Null => return Ok(Plane::default()),
         Value::List(values) if values.len() >= 3 => {
             let origin = coerce_point(&values[0], context)?;
             let point_x = coerce_point(&values[1], context)?;
@@ -1296,6 +1297,38 @@ mod tests {
         };
         let segments_per_corner = segments_for_angle(std::f64::consts::TAU / 4.0);
         assert_eq!(points.len(), 4 * segments_per_corner + 2);
+    }
+
+    #[test]
+    fn rectangle_without_plane_uses_default() {
+        let component = ComponentKind::Rectangle;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Null,
+                    Value::Number(10.0),
+                    Value::Number(20.0),
+                    Value::Number(0.0),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        assert_eq!(points.len(), 5); // 4 corners + closed loop point
+
+        let Some(Value::Point(p)) = points.get(0) else {
+            panic!("expected point");
+        };
+        // Expect a point on the XY plane
+        assert!((p[2] - 0.0).abs() < 1e-9);
+
+        let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected length");
+        };
+        assert!((length - 60.0).abs() < 1e-9);
     }
 
     #[test]
