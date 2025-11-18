@@ -626,10 +626,8 @@ fn create_polygon_points(
         points.push(first);
     }
 
-    let length = segments as f64
-        * 2.0
-        * radius
-        * (std::f64::consts::TAU / (2.0 * segments as f64)).sin();
+    let length =
+        segments as f64 * 2.0 * radius * (std::f64::consts::TAU / (2.0 * segments as f64)).sin();
 
     (points, length)
 }
@@ -879,6 +877,7 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
     };
     match value {
         Value::Null => return Ok(Plane::default()),
+        Value::List(values) if values.is_empty() => return Ok(Plane::default()),
         Value::List(values) if values.len() >= 3 => {
             let origin = coerce_point(&values[0], context)?;
             let point_x = coerce_point(&values[1], context)?;
@@ -1209,7 +1208,7 @@ fn orthogonal_vector(reference: [f64; 3]) -> [f64; 3] {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, CURVE_SEGMENTS, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
+        CURVE_SEGMENTS, Component, ComponentKind, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
         PIN_OUTPUT_LENGTH, PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
         segments_for_angle,
     };
@@ -1329,6 +1328,27 @@ mod tests {
             panic!("expected length");
         };
         assert!((length - 60.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_with_empty_plane_input_uses_default() {
+        let component = ComponentKind::Rectangle;
+        let outputs = component
+            .evaluate(
+                &[Value::List(vec![]), Value::Number(5.0), Value::Number(7.0)],
+                &MetaMap::new(),
+            )
+            .expect("rectangle generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        assert_eq!(points.len(), 5);
+
+        let Some(Value::Point(point)) = points.get(0) else {
+            panic!("expected point");
+        };
+        assert!((point[2] - 0.0).abs() < 1e-9);
     }
 
     #[test]
