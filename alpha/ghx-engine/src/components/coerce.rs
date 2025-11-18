@@ -1,6 +1,6 @@
 //! Hulpfuncties voor het converteren van `Value`-types.
 
-use crate::graph::value::Value;
+use crate::graph::value::{PlaneValue, Value};
 
 use super::ComponentError;
 
@@ -129,4 +129,62 @@ pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>,
             value.kind()
         ))),
     }
+}
+
+pub fn coerce_number_with_default(value: Option<&Value>) -> f64 {
+    match value {
+        Some(Value::Null) => 0.0,
+        Some(v) => coerce_number(v).unwrap_or(0.0),
+        None => 0.0,
+    }
+}
+
+pub fn coerce_boolean_with_default(value: Option<&Value>) -> bool {
+    match value {
+        Some(Value::Null) => true,
+        Some(v) => coerce_boolean(v).unwrap_or(true),
+        None => true,
+    }
+}
+
+pub fn coerce_point_with_default(value: Option<&Value>) -> [f64; 3] {
+    match value {
+        Some(Value::Null) => [0.0, 0.0, 0.0],
+        Some(v) => coerce_point(v).unwrap_or([0.0, 0.0, 0.0]),
+        None => [0.0, 0.0, 0.0],
+    }
+}
+
+pub fn coerce_vector_with_default(value: Option<&Value>) -> [f64; 3] {
+    match value {
+        Some(Value::Vector(v)) => *v,
+        Some(Value::Point(p)) => *p,
+        _ => [0.0, 0.0, 1.0],
+    }
+}
+
+pub fn coerce_plane_with_default(value: Option<&Value>) -> PlaneValue {
+    if let Some(value) = value {
+        if let Value::List(l) = value {
+            if l.len() >= 3 {
+                if let (Ok(p1), Ok(p2), Ok(p3)) = (coerce_point(&l[0]), coerce_point(&l[1]), coerce_point(&l[2])) {
+                    let ab = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
+                    let ac = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]];
+                    let z_axis = [
+                        ab[1] * ac[2] - ab[2] * ac[1],
+                        ab[2] * ac[0] - ab[0] * ac[2],
+                        ab[0] * ac[1] - ab[1] * ac[0],
+                    ];
+                    let x_axis = ab;
+                    let y_axis = [
+                        z_axis[1] * x_axis[2] - z_axis[2] * x_axis[1],
+                        z_axis[2] * x_axis[0] - z_axis[0] * x_axis[2],
+                        z_axis[0] * x_axis[1] - z_axis[1] * x_axis[0],
+                    ];
+                    return PlaneValue::new(p1, x_axis, y_axis, z_axis);
+                }
+            }
+        }
+    }
+    PlaneValue::new([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
 }

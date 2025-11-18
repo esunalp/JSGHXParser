@@ -255,16 +255,8 @@ pub fn evaluate_with_plan(
                 }
             } else if let Some(default) = node.inputs.get(pin) {
                 default.clone()
-            } else if optional_inputs
-                .iter()
-                .any(|candidate| pin.eq_ignore_ascii_case(candidate))
-            {
-                Value::Null
             } else {
-                return Err(EvaluationError::MissingInput {
-                    node_id,
-                    pin: pin.clone(),
-                });
+                Value::Null
             };
 
             input_values.push(value);
@@ -354,16 +346,8 @@ pub fn evaluate_with_plan_incremental(
                 }
             } else if let Some(default) = node.inputs.get(pin) {
                 default.clone()
-            } else if optional_inputs
-                .iter()
-                .any(|candidate| pin.eq_ignore_ascii_case(candidate))
-            {
-                Value::Null
             } else {
-                return Err(EvaluationError::MissingInput {
-                    node_id,
-                    pin: pin.clone(),
-                });
+                Value::Null
             };
 
             input_values.push(value);

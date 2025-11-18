@@ -226,14 +226,8 @@ impl ComponentKind {
 }
 
 fn evaluate_angle(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Vector Angle vereist twee vectorinvoeren",
-        ));
-    }
-
-    let a = coerce_vector(&inputs[0], "Vector Angle")?;
-    let b = coerce_vector(&inputs[1], "Vector Angle")?;
+    let a = coerce::coerce_vector_with_default(inputs.get(0));
+    let b = coerce::coerce_vector_with_default(inputs.get(1));
     let (angle, reflex) = compute_angle_3d(a, b);
 
     let mut outputs = BTreeMap::new();
@@ -243,19 +237,12 @@ fn evaluate_angle(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_angle_plane(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Vector Angle (Plane) vereist minimaal twee vectoren",
-        ));
-    }
-
-    let a = coerce_vector(&inputs[0], "Vector Angle (Plane)")?;
-    let b = coerce_vector(&inputs[1], "Vector Angle (Plane)")?;
-    let plane = inputs
-        .get(2)
-        .map(|value| coerce_plane(value, "Vector Angle (Plane)"))
-        .transpose()?
-        .unwrap_or_default();
+    let a = coerce::coerce_vector_with_default(inputs.get(0));
+    let b = coerce::coerce_vector_with_default(inputs.get(1));
+    let plane = match inputs.get(2) {
+        Some(&Value::Null) | None => Plane::default(),
+        Some(value) => coerce_plane(value, "Vector Angle (Plane)")?,
+    };
     let (angle, reflex) = compute_angle_on_plane(a, b, &plane);
 
     let mut outputs = BTreeMap::new();
@@ -265,17 +252,9 @@ fn evaluate_angle_plane(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_cross_product(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new("Cross Product vereist twee vectoren"));
-    }
-
-    let a = coerce_vector(&inputs[0], "Cross Product")?;
-    let b = coerce_vector(&inputs[1], "Cross Product")?;
-    let unitize = inputs
-        .get(2)
-        .map(|value| coerce_boolean(value, "Cross Product"))
-        .transpose()?
-        .unwrap_or(false);
+    let a = coerce::coerce_vector_with_default(inputs.get(0));
+    let b = coerce::coerce_vector_with_default(inputs.get(1));
+    let unitize = coerce::coerce_boolean_with_default(inputs.get(2));
 
     let mut cross = cross(a, b);
     let length = vector_length(cross);
@@ -602,27 +581,19 @@ fn evaluate_reverse(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
-    if inputs.len() < 2 {
-        return Err(ComponentError::new("Vector Addition vereist twee vectoren"));
-    }
-
-    let a = coerce_vector(&inputs[0], "Vector Addition")?;
-    let b = coerce_vector(&inputs[1], "Vector Addition")?;
-    let unitize = inputs
-        .get(2)
-        .map(|value| coerce_boolean(value, "Vector Addition"))
-        .transpose()?
-        .unwrap_or(false);
+    let a = coerce::coerce_vector_with_default(inputs.get(0));
+    let b = coerce::coerce_vector_with_default(inputs.get(1));
+    let unitize = coerce::coerce_boolean_with_default(inputs.get(2));
 
     let mut vector = add(a, b);
-    let length = vector_length(vector);
     if unitize {
-        if length > EPSILON {
-            vector = scale(vector, 1.0 / length);
+        if let Some((normalized, _)) = safe_normalized(vector) {
+            vector = normalized;
         } else {
             vector = [0.0, 0.0, 0.0];
         }
     }
+    let length = vector_length(vector);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_VECTOR.to_owned(), Value::Vector(vector));
@@ -1365,3 +1336,15 @@ mod tests {
         assert!(horizon == (elevation > 0.0));
     }
 }
+
+    #[test]
+    fn addition_defaults_to_double_z_axis() {
+        let outputs = evaluate_addition(&[Value::Null, Value::Null, Value::Boolean(false)]).expect("addition with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_OUTPUT_VECTOR), Some(Value::Vector(v)) if (v[0]).abs() < 1e-9 && (v[1]).abs() < 1e-9 && (v[2] - 2.0).abs() < 1e-9));
+    }
+
+    #[test]
+    fn angle_defaults_to_zero() {
+        let outputs = evaluate_angle(&[]).expect("angle with no inputs succeeds");
+        assert!(matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if angle.abs() < 1e-9));
+    }

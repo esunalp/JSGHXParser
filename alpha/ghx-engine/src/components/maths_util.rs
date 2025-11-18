@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{ComplexValue, Value};
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const PIN_RESULT: &str = "R";
 const PIN_OUTPUT_Y: &str = "y";

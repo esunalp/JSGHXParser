@@ -694,19 +694,17 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_extrude_linear(inputs: &[Value]) -> ComponentResult {
     let component = "Extrude Linear";
-    if inputs.len() < 3 {
-        return Err(ComponentError::new(
-            "Extrude Linear vereist een profiel en een as",
-        ));
-    }
-
-    let profile_segments = coerce::coerce_curve_segments(&inputs[0])?;
+    let profile_segments = coerce::coerce_curve_segments(
+        inputs
+            .get(0)
+            .unwrap_or(&Value::Null),
+    )?;
     if profile_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Linear kon geen profielcurve herkennen",
         ));
     }
-    let axis_direction = coerce_direction(&inputs[2], component, "Axis")?;
+    let axis_direction = coerce::coerce_vector_with_default(inputs.get(2));
     if is_zero_vector(axis_direction) {
         return Err(ComponentError::new(
             "Extrude Linear vereist een as met lengte",
@@ -794,19 +792,17 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
     let component = "Extrude Point";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Extrude Point vereist een basis en een doelpunt",
-        ));
-    }
-
-    let base_segments = coerce::coerce_curve_segments(&inputs[0])?;
+    let base_segments = coerce::coerce_curve_segments(
+        inputs
+            .get(0)
+            .unwrap_or(&Value::Null),
+    )?;
     if base_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Point kon de basiscurve niet lezen",
         ));
     }
-    let tip = coerce_point(&inputs[1], component, "Point")?;
+    let tip = coerce::coerce_point_with_default(inputs.get(1));
 
     let mut points = vec![tip];
     for (start, end) in base_segments {
@@ -820,17 +816,15 @@ fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_pipe(inputs: &[Value]) -> ComponentResult {
     let component = "Pipe";
-    if inputs.len() < 2 {
-        return Err(ComponentError::new(
-            "Pipe vereist minimaal een curve en een straal",
-        ));
-    }
-
-    let segments = coerce::coerce_curve_segments(&inputs[0])?;
+    let segments = coerce::coerce_curve_segments(
+        inputs
+            .get(0)
+            .unwrap_or(&Value::Null),
+    )?;
     if segments.is_empty() {
         return Err(ComponentError::new("Pipe kon de railcurve niet lezen"));
     }
-    let radius = coerce_number(&inputs[1], component, "Radius")?.abs();
+    let radius = coerce::coerce_number_with_default(inputs.get(1)).abs();
     if let Some(value) = inputs.get(2) {
         coerce_number(value, component, "Caps")?;
     }
@@ -849,8 +843,8 @@ fn evaluate_four_point_surface(inputs: &[Value]) -> ComponentResult {
     let component = "4Point Surface";
     let mut points = Vec::new();
 
-    for index in 0..inputs.len().min(4) {
-        points.extend(collect_points(&inputs[index], component)?);
+    for index in 0..4 {
+        points.push(coerce::coerce_point_with_default(inputs.get(index)));
     }
 
     if points.len() < 3 {
@@ -879,19 +873,25 @@ fn evaluate_fragment_patch(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_revolution(inputs: &[Value]) -> ComponentResult {
     let component = "Revolution";
-    if inputs.len() < 3 {
-        return Err(ComponentError::new(
-            "Revolution vereist profiel, as en domein",
-        ));
-    }
-    let profile_segments = coerce::coerce_curve_segments(&inputs[0])?;
-    let axis_segments = coerce::coerce_curve_segments(&inputs[1])?;
+    let profile_segments = coerce::coerce_curve_segments(
+        inputs
+            .get(0)
+            .unwrap_or(&Value::Null),
+    )?;
+    let axis_segments = coerce::coerce_curve_segments(
+        inputs
+            .get(1)
+            .unwrap_or(&Value::Null),
+    )?;
     if profile_segments.is_empty() || axis_segments.is_empty() {
         return Err(ComponentError::new(
             "Revolution kon profiel of as niet lezen",
         ));
     }
-    let angle = coerce_angle_domain(&inputs[2], component)?;
+    let angle = match inputs.get(2) {
+        Some(value) => coerce_angle_domain(value, component)?,
+        None => 2.0 * std::f64::consts::PI,
+    };
 
     let mut points = Vec::new();
     for (start, end) in profile_segments.into_iter().chain(axis_segments) {
