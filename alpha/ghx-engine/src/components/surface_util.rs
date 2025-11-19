@@ -785,41 +785,62 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
         return Ok(outputs);
     }
 
-    // 2. Group naked edges into contiguous loops
+    // 2. Group naked edges into contiguous loops using a more robust graph traversal.
     let mut loops = Vec::new();
-    let mut remaining_edges_mut = naked_edges;
-    while let Some(first_edge) = remaining_edges_mut.pop() {
-        let mut current_loop_indices = vec![first_edge.0, first_edge.1];
-        let start_node = first_edge.0;
-        let mut current_end_node = first_edge.1;
-
-        'loop_building: loop {
-            // Find the next connecting edge
-            if let Some(pos) = remaining_edges_mut
-                .iter()
-                .position(|(u, v)| *u == current_end_node || *v == current_end_node)
-            {
-                let (u, v) = remaining_edges_mut.remove(pos);
-                if u == current_end_node {
-                    current_loop_indices.push(v);
-                    current_end_node = v;
-                } else {
-                    current_loop_indices.push(u);
-                    current_end_node = u;
-                }
-            } else {
-                break 'loop_building; // Path ended
-            }
-
-            if current_end_node == start_node {
-                break 'loop_building; // Loop is closed
-            }
+    if !naked_edges.is_empty() {
+        let mut adj: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+        for (u, v) in naked_edges {
+            adj.entry(u).or_default().push(v);
+            adj.entry(v).or_default().push(u);
         }
 
-        // A valid hole is a closed loop.
-        if *current_loop_indices.first().unwrap() == *current_loop_indices.last().unwrap() {
-            current_loop_indices.pop(); // Remove duplicate end node
-            loops.push(current_loop_indices);
+        let mut visited: BTreeSet<u32> = BTreeSet::new();
+        let all_nodes: Vec<u32> = adj.keys().cloned().collect();
+
+        for start_node in all_nodes {
+            if visited.contains(&start_node) {
+                continue;
+            }
+
+            // Start a new path from an unvisited node
+            let mut path = vec![start_node];
+            visited.insert(start_node);
+            let mut current_node = start_node;
+
+            'path_building: loop {
+                let neighbors = adj.get(&current_node).unwrap();
+                let mut next_node = None;
+                for neighbor in neighbors {
+                    // Find an unvisited neighbor, or the start_node to close the loop
+                    if !visited.contains(neighbor) {
+                        next_node = Some(*neighbor);
+                        break;
+                    } else if *neighbor == start_node && path.len() > 2 {
+                        // Found the start node, loop is closed
+                        next_node = Some(*neighbor);
+                        break;
+                    }
+                }
+
+                match next_node {
+                    Some(node) => {
+                        if node == start_node {
+                            // Closed the loop
+                            loops.push(path);
+                            break 'path_building;
+                        } else {
+                            // Continue the path
+                            path.push(node);
+                            visited.insert(node);
+                            current_node = node;
+                        }
+                    }
+                    None => {
+                        // Dead end, not a closed loop.
+                        break 'path_building;
+                    }
+                }
+            }
         }
     }
 
@@ -1921,5 +1942,64 @@ mod tests {
             "Expected two new faces for the capped quad"
         );
         assert!(solid, "The capped mesh should be solid");
+    }
+
+    #[test]
+    fn cap_holes_fills_two_disjoint_holes() {
+        // A tube/prism mesh with open top and bottom faces.
+        let vertices = vec![
+            // Bottom ring
+            [0.0, 0.0, 0.0], // 0
+            [1.0, 0.0, 0.0], // 1
+            [1.0, 1.0, 0.0], // 2
+            [0.0, 1.0, 0.0], // 3
+            // Top ring
+            [0.0, 0.0, 1.0], // 4
+            [1.0, 0.0, 1.0], // 5
+            [1.0, 1.0, 1.0], // 6
+            [0.0, 1.0, 1.0], // 7
+        ];
+        let faces = vec![
+            // Side faces
+            vec![0, 1, 5], vec![0, 5, 4], // Front
+            vec![1, 2, 6], vec![1, 6, 5], // Right
+            vec![2, 3, 7], vec![2, 7, 6], // Back
+            vec![3, 0, 4], vec![3, 4, 7], // Left
+        ];
+        let initial_face_count = faces.len();
+        let surface_with_holes = Value::Surface { vertices, faces };
+
+        let component = ComponentKind::CapHolesEx;
+        let outputs = component
+            .evaluate(&[surface_with_holes], &MetaMap::new())
+            .expect("cap holes ex failed");
+
+        let caps_created = outputs
+            .get(super::PIN_OUTPUT_CAPS)
+            .and_then(|v| v.expect_number().ok())
+            .expect("missing caps output");
+
+        let solid = outputs
+            .get(super::PIN_OUTPUT_SOLID)
+            .and_then(|v| v.expect_boolean().ok())
+            .expect("missing solid output");
+
+        let capped_surface = outputs
+            .get(super::PIN_OUTPUT_BREPS)
+            .expect("missing brep output");
+
+        let final_face_count = if let Value::Surface { faces, .. } = capped_surface {
+            faces.len()
+        } else {
+            0
+        };
+
+        assert_eq!(caps_created, 2.0, "Should have found 2 separate holes");
+        assert!(solid, "The capped mesh should be solid");
+        assert_eq!(
+            final_face_count,
+            initial_face_count + 4, // 2 new faces (triangles) for each of the 2 quad holes
+            "Should have added 4 new faces total"
+        );
     }
 }
