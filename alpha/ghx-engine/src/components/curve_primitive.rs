@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::{Value, ValueKind};
+use crate::graph::value::{Domain, Value, ValueKind};
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -688,6 +688,30 @@ fn find_farthest_points(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
     (p1, p2)
 }
 
+fn coerce_size_from_domain_or_number(
+    value: Option<&Value>,
+    context: &str,
+) -> Result<f64, ComponentError> {
+    match value {
+        None => Err(ComponentError::new(format!(
+            "{} vereist een numerieke waarde of een domein",
+            context
+        ))),
+        Some(value) => match value {
+            Value::Domain(Domain::One(d)) => Ok(d.length),
+            Value::Number(n) => Ok(*n),
+            Value::List(values) if values.len() == 1 => {
+                coerce_size_from_domain_or_number(values.get(0), context)
+            }
+            other => Err(ComponentError::new(format!(
+                "{} verwacht een getal of domein, kreeg {}",
+                context,
+                other.kind()
+            ))),
+        },
+    }
+}
+
 fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(
@@ -701,8 +725,8 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
     } else {
         parse_plane(Some(plane_input), "Rectangle")?
     };
-    let x_size = coerce_number(inputs.get(1), "Rectangle")?;
-    let y_size = coerce_number(inputs.get(2), "Rectangle")?;
+    let x_size = coerce_size_from_domain_or_number(inputs.get(1), "Rectangle X")?;
+    let y_size = coerce_size_from_domain_or_number(inputs.get(2), "Rectangle Y")?;
     let radius = coerce_number(inputs.get(3), "Rectangle").unwrap_or(0.0);
 
     if x_size <= 0.0 || y_size <= 0.0 {

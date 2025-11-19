@@ -236,23 +236,136 @@ impl ComponentKind {
     }
 }
 
+fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
+    if polylines.len() < 2 {
+        return;
+    }
+
+    // Stap 1: Classificeer curves en vind gesloten curves
+    let closed_indices: Vec<usize> = polylines
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| is_closed(p))
+        .map(|(i, _)| i)
+        .collect();
+
+    // Stap 2: Als er gesloten curves zijn, standaardiseer hun richting
+    if !closed_indices.is_empty() {
+        // Neem de eerste gesloten curve als referentie.
+        let first_closed_idx = closed_indices[0];
+        let reference_normal = polyline_normal(&polylines[first_closed_idx]);
+        let reference_winding =
+            polyline_winding_direction(&polylines[first_closed_idx], reference_normal);
+
+        // Streef naar een positieve winding (CCW). Als de referentie zelf CW is, keer de normaal om.
+        let target_normal = if reference_winding < 0.0 {
+            [-reference_normal[0], -reference_normal[1], -reference_normal[2]]
+        } else {
+            reference_normal
+        };
+
+        // Keer elke gesloten curve om die niet overeenkomt met de doelrichting.
+        for &i in &closed_indices {
+            let winding = polyline_winding_direction(&polylines[i], target_normal);
+            if winding < 0.0 {
+                polylines[i].reverse();
+            }
+        }
+    }
+
+    // Stap 3: Oriënteer open curves ten opzichte van hun voorganger voor een vloeiende overgang
+    for i in 1..polylines.len() {
+        let (prev_curves, current_slice) = polylines.split_at_mut(i);
+        let prev = &prev_curves[i - 1];
+        let current = &mut current_slice[0];
+
+        if prev.is_empty() || current.is_empty() {
+            continue;
+        }
+
+        // Alleen open curves uitlijnen ten opzichte van een vorige open curve.
+        // Gesloten curves hebben al een vaste oriëntatie en een arbitrair start-/eindpunt,
+        // dus een op afstand gebaseerde uitlijning is onbetrouwbaar.
+        if !is_closed(current) && !is_closed(prev) {
+            let p_end = prev.last().unwrap();
+            let c_start = current.first().unwrap();
+            let c_end = current.last().unwrap();
+
+            let dist_as_is = distance(*p_end, *c_start);
+            let dist_reversed = distance(*p_end, *c_end);
+
+            if dist_reversed < dist_as_is {
+                current.reverse();
+            }
+        }
+    }
+}
+
 fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let segments = coerce::coerce_curve_segments(curves_value)?;
-    if segments.len() < 2 {
+    let mut polylines = collect_ruled_surface_curves(curves_value)?;
+    if polylines.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} vereist minimaal twee sectiecurves"
         )));
     }
 
-    let mut points = Vec::new();
-    for (start, end) in segments {
-        points.push(start);
-        points.push(end);
+    unify_curve_directions(&mut polylines);
+
+    // Bepaal het doelaantal punten door het maximum van alle polylines te nemen.
+    let target_count = polylines
+        .iter()
+        .map(|p| p.len())
+        .max()
+        .unwrap_or(0);
+
+    if target_count < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} kon geen curves met voldoende punten vinden"
+        )));
     }
 
-    let surface = create_surface_from_points(&points, component)?;
-    into_output(output, surface)
+    // Hersample alle polylines naar het doelaantal.
+    let resampled_polylines: Vec<Vec<[f64; 3]>> = polylines
+        .iter()
+        .map(|p| {
+            // Maak een dummy polyline met het doelaantal punten om de resample-functie te gebruiken.
+            let dummy_target = vec![[0.0; 3]; target_count];
+            super::curve_sampler::resample_polylines(p, &dummy_target).0
+        })
+        .collect();
+
+    let mut vertices = Vec::new();
+    let mut faces: Vec<Vec<u32>> = Vec::new();
+
+    for polyline in &resampled_polylines {
+        vertices.extend_from_slice(polyline);
+    }
+
+    let num_curves = resampled_polylines.len();
+    let num_points_per_curve = target_count;
+
+    for i in 0..(num_curves - 1) {
+        for j in 0..(num_points_per_curve - 1) {
+            let base_idx = (i * num_points_per_curve + j) as u32;
+            let next_in_row_idx = base_idx + 1;
+            let base_in_next_curve_idx = ((i + 1) * num_points_per_curve + j) as u32;
+            let next_in_next_curve_idx = base_in_next_curve_idx + 1;
+
+            faces.push(vec![
+                base_idx,
+                next_in_next_curve_idx,
+                next_in_row_idx,
+            ]);
+            faces.push(vec![
+                base_idx,
+                base_in_next_curve_idx,
+                next_in_next_curve_idx,
+            ]);
+        }
+    }
+
+    into_output(output, Value::Surface { vertices, faces })
 }
 
 fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
@@ -1564,11 +1677,63 @@ fn extrude_surface_along_vector(
     Ok(Value::Surface { vertices, faces })
 }
 
+/// Bepaalt of een polyline gesloten is door het eerste en laatste punt te vergelijken.
+fn is_closed(polyline: &[[f64; 3]]) -> bool {
+    if polyline.len() < 3 {
+        return false;
+    }
+    points_equal(*polyline.first().unwrap(), *polyline.last().unwrap())
+}
+
+/// Berekent de gemiddelde normaal van een polyline.
+/// Dit wordt gedaan door de normaal te berekenen voor elk segment ten opzichte van het centroïde
+/// en deze te middelen. Dit geeft een robuuste normaal, zelfs voor niet-vlakke polylines.
+fn polyline_normal(polyline: &[[f64; 3]]) -> [f64; 3] {
+    if polyline.len() < 3 {
+        return [0.0, 0.0, 1.0]; // Standaard Z-as voor onvoldoende punten
+    }
+
+    let centroid = polyline.iter().fold([0.0; 3], |acc, p| add_vector(acc, *p));
+    let n = polyline.len() as f64;
+    let centroid = [centroid[0] / n, centroid[1] / n, centroid[2] / n];
+
+    let mut normal = [0.0; 3];
+    for i in 0..polyline.len() {
+        let p1 = polyline[i];
+        let p2 = polyline[(i + 1) % polyline.len()];
+        let v1 = subtract_points(p1, centroid);
+        let v2 = subtract_points(p2, centroid);
+        normal = add_vector(normal, cross_product(v1, v2));
+    }
+
+    normalize(normal)
+}
+
+/// Bepaalt de oriëntatie (winding direction) van een gesloten, vlakke polyline.
+/// Retourneert een positieve waarde voor tegen de klok in (CCW), negatief voor met de klok mee (CW),
+/// en nul als de oriëntatie niet bepaald kan worden.
+fn polyline_winding_direction(polyline: &[[f64; 3]], normal: [f64; 3]) -> f64 {
+    if polyline.len() < 3 {
+        return 0.0;
+    }
+
+    let mut area_sum = 0.0;
+    for i in 0..polyline.len() {
+        let p1 = polyline[i];
+        let p2 = polyline[(i + 1) % polyline.len()];
+        let cross = cross_product(p1, p2);
+        area_sum += dot_product(cross, normal);
+    }
+
+    area_sum
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        add_vector, Component, ComponentKind, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT,
-        PIN_OUTPUT_OPTIONS, PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE,
+        add_vector, Component, ComponentKind, is_closed, polyline_normal,
+        polyline_winding_direction, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT, PIN_OUTPUT_OPTIONS,
+        PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE, EPSILON,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1994,5 +2159,177 @@ mod tests {
             assert!((span.0 - min_x).abs() < 1e-9, "unexpected minimum span");
             assert!((span.1 - max_x).abs() < 1e-9, "unexpected maximum span");
         }
+    }
+
+    #[test]
+    fn loft_with_three_curves() {
+        let component = ComponentKind::Loft;
+        let inputs = [Value::List(vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 1.0, 1.0]),
+                Value::Point([1.0, 1.0, 1.0]),
+                Value::Point([2.0, 1.0, 1.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 2.0]),
+                Value::Point([1.0, 0.0, 2.0]),
+            ]),
+        ])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft with three curves");
+
+        let Value::Surface { vertices, faces } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // 3 curves, resampled to 3 points each = 9 vertices
+        assert_eq!(vertices.len(), 9, "Expected 9 vertices");
+        // 2 sections between 3 curves, each section is (3-1) * 2 = 4 triangles
+        // Total faces = 2 * 4 = 8
+        assert_eq!(faces.len(), 8, "Expected 8 faces");
+
+        // Controleer of de middelste curve correct geïnterpoleerd is
+        assert_eq!(vertices[3], [0.0, 1.0, 1.0]);
+        assert_eq!(vertices[4], [1.0, 1.0, 1.0]);
+        assert_eq!(vertices[5], [2.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn test_is_closed() {
+        let closed_poly = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]];
+        assert!(is_closed(&closed_poly));
+        let open_poly = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        assert!(!is_closed(&open_poly));
+        let short_poly = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
+        assert!(!is_closed(&short_poly));
+    }
+
+    #[test]
+    fn test_polyline_normal_and_winding() {
+        // CCW square on XY plane
+        let poly_ccw = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]];
+        let normal_ccw = polyline_normal(&poly_ccw);
+        assert!((normal_ccw[2] - 1.0).abs() < EPSILON, "Expected normal to be Z-axis for CCW");
+        assert!(polyline_winding_direction(&poly_ccw, [0.0, 0.0, 1.0]) > 0.0, "Expected positive (CCW) winding");
+
+
+        // CW square on XY plane
+        let mut poly_cw = poly_ccw.clone();
+        poly_cw.reverse();
+        let normal_cw = polyline_normal(&poly_cw);
+        assert!((normal_cw[2] + 1.0).abs() < EPSILON, "Expected normal to be negative Z-axis for CW");
+        assert!(polyline_winding_direction(&poly_cw, [0.0, 0.0, 1.0]) < 0.0, "Expected negative (CW) winding");
+    }
+
+    #[test]
+    fn loft_aligns_two_reversed_closed_curves() {
+        let component = ComponentKind::Loft;
+        let inputs = [Value::List(vec![
+            // First rectangle, CCW
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]),
+            ]),
+            // Second rectangle, CW, shifted in Z
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 1.0]),
+                Value::Point([0.0, 1.0, 1.0]),
+                Value::Point([1.0, 1.0, 1.0]),
+                Value::Point([1.0, 0.0, 1.0]),
+                Value::Point([0.0, 0.0, 1.0]),
+            ]),
+        ])];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // After unify, the second curve (originally CW) should be reversed to match the first (CCW).
+        let first_curve_second_pt = vertices[1];
+        let second_curve_second_pt = vertices[6]; // 5 points per curve, so 5+1=6
+
+        assert_eq!(first_curve_second_pt, [1.0, 0.0, 0.0]);
+        // The original second point of the second curve was [0.0, 1.0, 1.0].
+        // After reversal, the new second point should be [1.0, 0.0, 1.0].
+        assert_eq!(second_curve_second_pt, [1.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn loft_aligns_mixed_open_and_closed_curves() {
+        let component = ComponentKind::Loft;
+        let inputs = [Value::List(vec![
+            // Closed rectangle, CW
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]),
+            ]),
+            // Open line that should NOT be reversed
+            Value::List(vec![
+                Value::Point([1.0, 0.0, 1.0]),
+                Value::Point([0.0, 0.0, 1.0]),
+            ]),
+        ])];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // The closed polyline (CW) will be reversed. Its last non-closing point is [1,0,0].
+        // The open line starts at [1,0,1] and ends at [0,0,1].
+        // distance([1,0,0], start [1,0,1]) = 1
+        // distance([1,0,0], end [0,0,1]) = sqrt(2)
+        // Since 1 < sqrt(2), the line should NOT be reversed.
+        let second_resampled_start = vertices[5];
+        let second_resampled_end = vertices[9];
+
+        assert_eq!(second_resampled_start, [1.0, 0.0, 1.0]);
+        assert_eq!(second_resampled_end, [0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn loft_aligns_open_curves_by_distance() {
+        let component = ComponentKind::Loft;
+        let inputs = [Value::List(vec![
+            // First line
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+            ]),
+            // Second line, whose end is closer to the previous' end
+            Value::List(vec![
+                Value::Point([0.0, 1.0, 1.0]), // This start is far
+                Value::Point([1.0, 1.0, 1.0]), // This end is near
+            ]),
+        ])];
+
+        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // End of first line is [1,0,0].
+        // Start of second is [0,1,1], distance = sqrt(3).
+        // End of second is [1,1,1], distance = sqrt(2).
+        // Since sqrt(2) < sqrt(3), the second line should be reversed.
+        let second_curve_start = vertices[2];
+        let second_curve_end = vertices[3];
+
+        // Original was [0,1,1] -> [1,1,1]. Reversed is [1,1,1] -> [0,1,1]
+        assert_eq!(second_curve_start, [1.0, 1.0, 1.0]);
+        assert_eq!(second_curve_end, [0.0, 1.0, 1.0]);
     }
 }

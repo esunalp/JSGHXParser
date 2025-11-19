@@ -1,6 +1,8 @@
 //! Implementaties van Grasshopper "Surface → Util" componenten.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+
+use delaunator;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Domain1D, Domain2D, Value};
@@ -708,45 +710,219 @@ fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult
 }
 
 fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
-    let brep_value = inputs
+    let mut brep_input = inputs
         .get(0)
         .cloned()
         .ok_or_else(|| ComponentError::new("Cap Holes vereist een brep"))?;
 
-    let mut brep = collect_brep_data(Some(&brep_value));
-    let naked_edges = brep.get_naked_edges();
-    let loops = brep.find_loops(&naked_edges);
+    // Handle lists by taking the first valid surface.
+    let mut brep_value_storage;
+    let mut brep_value = if let Value::List(values) = &brep_input {
+        brep_value_storage = values
+            .iter()
+            .find(|v| matches!(v, Value::Surface { .. }))
+            .cloned()
+            .unwrap_or(brep_input.clone());
+        &mut brep_value_storage
+    } else {
+        &mut brep_input
+    };
 
-    let mut caps_count = 0;
-    for loop_points in loops {
-        if loop_points.len() >= 3 {
-            // Eenvoudige implementatie: maak een face van de loop punten
-            // In een productie-omgeving zou je hier een triangulatie of planar surface fit willen doen.
-            // Voor nu nemen we aan dat de loop een enkele face vormt (n-gon).
-            let face_index = brep.faces.len();
-            brep.faces.push(Face {
-                vertices: loop_points.clone(),
-            });
-
-            // Update de edges met de nieuwe face
-            let len = loop_points.len();
-            for i in 0..len {
-                let start = loop_points[i];
-                let end = loop_points[(i + 1) % len];
-                brep.add_edge(start, end, Some(face_index));
+    let (vertices, faces) = match brep_value {
+        Value::Surface { vertices, faces } => (vertices, faces),
+        _ => {
+            // Not a surface, just return it as is.
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), brep_input);
+            if extended {
+                outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
+                outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(false));
             }
-            caps_count += 1;
+            return Ok(outputs);
+        }
+    };
+
+    if vertices.is_empty() || faces.is_empty() {
+        // Empty mesh, nothing to cap.
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), brep_value.clone());
+        if extended {
+            outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
+            outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(false));
+        }
+        return Ok(outputs);
+    }
+
+    // 1. Find naked edges
+    let mut edge_counts: BTreeMap<(u32, u32), usize> = BTreeMap::new();
+    for face in faces.iter() {
+        for i in 0..face.len() {
+            let v1_idx = face[i];
+            let v2_idx = face[(i + 1) % face.len()];
+            // Ensure consistent edge representation (smaller index first)
+            let edge = if v1_idx < v2_idx {
+                (v1_idx, v2_idx)
+            } else {
+                (v2_idx, v1_idx)
+            };
+            *edge_counts.entry(edge).or_insert(0) += 1;
         }
     }
 
-    let result = brep.to_value();
+    let naked_edges: Vec<(u32, u32)> = edge_counts
+        .into_iter()
+        .filter(|(_, count)| *count == 1)
+        .map(|(edge, _)| edge)
+        .collect();
+
+    if naked_edges.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), brep_value.clone());
+        if extended {
+            outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
+            outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(true)); // Already solid
+        }
+        return Ok(outputs);
+    }
+
+    // 2. Group naked edges into contiguous loops
+    let mut loops = Vec::new();
+    let mut remaining_edges_mut = naked_edges;
+    while let Some(first_edge) = remaining_edges_mut.pop() {
+        let mut current_loop_indices = vec![first_edge.0, first_edge.1];
+        let start_node = first_edge.0;
+        let mut current_end_node = first_edge.1;
+
+        'loop_building: loop {
+            // Find the next connecting edge
+            if let Some(pos) = remaining_edges_mut
+                .iter()
+                .position(|(u, v)| *u == current_end_node || *v == current_end_node)
+            {
+                let (u, v) = remaining_edges_mut.remove(pos);
+                if u == current_end_node {
+                    current_loop_indices.push(v);
+                    current_end_node = v;
+                } else {
+                    current_loop_indices.push(u);
+                    current_end_node = u;
+                }
+            } else {
+                break 'loop_building; // Path ended
+            }
+
+            if current_end_node == start_node {
+                break 'loop_building; // Loop is closed
+            }
+        }
+
+        // A valid hole is a closed loop.
+        if *current_loop_indices.first().unwrap() == *current_loop_indices.last().unwrap() {
+            current_loop_indices.pop(); // Remove duplicate end node
+            loops.push(current_loop_indices);
+        }
+    }
+
+    let caps_created = loops.len();
+    let mut new_faces_count = 0;
+
+    // 3. Triangulate each loop to create new faces
+    for hole_indices in loops {
+        if hole_indices.len() < 3 {
+            continue; // Not a valid polygon to triangulate
+        }
+
+        let hole_vertices: Vec<[f64; 3]> = hole_indices
+            .iter()
+            .map(|&i| vertices[i as usize])
+            .collect();
+
+        // Project 3D points to a 2D plane for triangulation.
+        // a. Calculate the average normal of the polygon using Newell's method.
+        let mut normal = [0.0, 0.0, 0.0];
+        for i in 0..hole_vertices.len() {
+            let p1 = hole_vertices[i];
+            let p2 = hole_vertices[(i + 1) % hole_vertices.len()];
+            normal[0] += (p1[1] - p2[1]) * (p1[2] + p2[2]);
+            normal[1] += (p1[2] - p2[2]) * (p1[0] + p2[0]);
+            normal[2] += (p1[0] - p2[0]) * (p1[1] + p2[1]);
+        }
+
+        let norm_mag = (normal[0].powi(2) + normal[1].powi(2) + normal[2].powi(2)).sqrt();
+        if norm_mag < EPSILON {
+            continue; // Degenerate polygon
+        }
+        let normal = [
+            normal[0] / norm_mag,
+            normal[1] / norm_mag,
+            normal[2] / norm_mag,
+        ];
+
+        // b. Create an orthonormal basis (u_axis, v_axis) for the 2D plane.
+        let u_axis_candidate = if normal[0].abs() > 0.9 {
+            [0.0, 1.0, 0.0]
+        } else {
+            [1.0, 0.0, 0.0]
+        };
+        let mut u_axis = cross(u_axis_candidate, normal);
+        u_axis = normalize(u_axis).map_or([1.0, 0.0, 0.0], |(v, _)| v);
+        let v_axis = cross(normal, u_axis);
+
+        // c. Project the 3D vertices onto the 2D plane.
+        let points_2d: Vec<delaunator::Point> = hole_vertices
+            .iter()
+            .map(|p| {
+                let p_vec = [p[0], p[1], p[2]];
+                delaunator::Point {
+                    x: dot(p_vec, u_axis),
+                    y: dot(p_vec, v_axis),
+                }
+            })
+            .collect();
+
+        // d. Triangulate the 2D points.
+        let triangulation = delaunator::triangulate(&points_2d);
+        if triangulation.triangles.is_empty() {
+            continue;
+        }
+
+        // e. Convert triangulation results back into new faces using original vertex indices.
+        for i in (0..triangulation.triangles.len()).step_by(3) {
+            let i1 = hole_indices[triangulation.triangles[i]];
+            let i2 = hole_indices[triangulation.triangles[i + 1]];
+            let i3 = hole_indices[triangulation.triangles[i + 2]];
+            faces.push(vec![i1, i2, i3]);
+            new_faces_count += 1;
+        }
+    }
+
+    // 4. Check if the resulting mesh is solid (has no naked edges).
+    let is_solid = if new_faces_count > 0 {
+        let mut final_edge_counts: BTreeMap<(u32, u32), usize> = BTreeMap::new();
+        for face in faces.iter() {
+            for i in 0..face.len() {
+                let v1_idx = face[i];
+                let v2_idx = face[(i + 1) % face.len()];
+                let edge = if v1_idx < v2_idx {
+                    (v1_idx, v2_idx)
+                } else {
+                    (v2_idx, v1_idx)
+                };
+                *final_edge_counts.entry(edge).or_insert(0) += 1;
+            }
+        }
+        final_edge_counts.values().all(|&count| count > 1)
+    } else {
+        caps_created == 0 // if we didn't add faces, it's solid only if there were no holes to begin with.
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), result);
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), brep_value.clone());
     if extended {
-        outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(caps_count as f64));
-        // Solid als er geen naked edges meer zijn (zou 0 moeten zijn na cappen als alles goed ging)
-        let is_solid = brep.get_naked_edges().is_empty();
+        outputs.insert(
+            PIN_OUTPUT_CAPS.to_owned(),
+            Value::Number(caps_created as f64),
+        );
         outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(is_solid));
     }
     Ok(outputs)
@@ -1397,6 +1573,14 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
 fn clamp(value: f64, min: f64, max: f64) -> f64 {
     value.max(min).min(max)
 }
@@ -1652,42 +1836,67 @@ mod tests {
     }
 
     #[test]
-    fn cap_holes_fills_open_box() {
-        // Create an open box (cube without top face)
+    fn cap_holes_fills_missing_face() {
         let vertices = vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0],
-            [1.0, 0.0, 1.0],
-            [1.0, 1.0, 1.0],
-            [0.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0], // 0
+            [1.0, 0.0, 0.0], // 1
+            [1.0, 1.0, 0.0], // 2
+            [0.0, 1.0, 0.0], // 3
+            [0.0, 0.0, 1.0], // 4
+            [1.0, 0.0, 1.0], // 5
+            [1.0, 1.0, 1.0], // 6
+            [0.0, 1.0, 1.0], // 7
         ];
-        // Bottom, Front, Right, Back, Left (no Top)
+        // Cube with the top face missing (indices 4, 5, 6, 7)
         let faces = vec![
-            vec![0, 3, 2, 1], // Bottom
-            vec![0, 1, 5, 4], // Front
-            vec![1, 2, 6, 5], // Right
-            vec![2, 3, 7, 6], // Back
-            vec![3, 0, 4, 7], // Left
+            // Bottom
+            vec![0, 1, 2],
+            vec![0, 2, 3],
+            // Front
+            vec![0, 4, 7],
+            vec![0, 7, 3],
+            // Back
+            vec![1, 5, 6],
+            vec![1, 6, 2],
+            // Left
+            vec![0, 1, 5],
+            vec![0, 5, 4],
+            // Right
+            vec![3, 2, 6],
+            vec![3, 6, 7],
         ];
-        let open_box = Value::Surface { vertices, faces };
+        let initial_face_count = faces.len();
+        let surface_with_hole = Value::Surface { vertices, faces };
 
-        let component = ComponentKind::CapHoles;
+        let component = ComponentKind::CapHolesEx;
         let outputs = component
-            .evaluate(&[open_box], &MetaMap::new())
-            .expect("cap holes");
-        
-        let result = outputs
+            .evaluate(&[surface_with_hole], &MetaMap::new())
+            .expect("cap holes ex failed");
+
+        let capped_surface = outputs
             .get(super::PIN_OUTPUT_BREPS)
-            .cloned()
-            .expect("result brep");
-            
-        if let Value::Surface { faces, .. } = result {
-            assert_eq!(faces.len(), 6, "Should have 6 faces after capping");
+            .expect("missing brep output");
+
+        let final_face_count = if let Value::Surface { faces, .. } = capped_surface {
+            faces.len()
         } else {
-            panic!("Expected surface result");
-        }
+            0
+        };
+
+        let solid = outputs
+            .get(super::PIN_OUTPUT_SOLID)
+            .and_then(|v| v.expect_boolean().ok())
+            .expect("missing solid output");
+
+        assert!(
+            final_face_count > initial_face_count,
+            "Face count should increase after capping"
+        );
+        assert_eq!(
+            final_face_count,
+            initial_face_count + 2,
+            "Expected two new faces for the capped quad"
+        );
+        assert!(solid, "The capped mesh should be solid");
     }
 }
