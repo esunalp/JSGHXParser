@@ -836,7 +836,7 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
             let vec1 = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
             let vec2 = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]];
             let new_face_normal = cross(vec1, vec2);
-            let flip_winding = dot(new_face_normal, normal) < 0.0;
+            let flip_winding = dot(new_face_normal, normal) >= 0.0;
 
             let faces = match &mut surface_value {
                 Value::Surface { faces, .. } => faces,
