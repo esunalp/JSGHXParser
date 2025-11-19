@@ -1,12 +1,59 @@
 //! Hulpfuncties voor het converteren van `Value`-types.
 
-use crate::graph::value::{PlaneValue, Value};
+use crate::graph::value::{Domain, Domain1D, Domain2D, PlaneValue, Value};
 
 use super::ComponentError;
 
 pub struct Surface<'a> {
     pub vertices: &'a Vec<[f64; 3]>,
     pub faces: &'a Vec<Vec<u32>>,
+}
+
+pub fn create_domain(start: f64, end: f64) -> Option<Domain1D> {
+    if !start.is_finite() || !end.is_finite() {
+        return None;
+    }
+    let min = start.min(end);
+    let max = start.max(end);
+    let span = end - start;
+    let length = max - min;
+    let center = (start + end) / 2.0;
+    Some(Domain1D {
+        start,
+        end,
+        min,
+        max,
+        span,
+        length,
+        center,
+    })
+}
+
+pub fn parse_domain1d(value: &Value) -> Option<Domain1D> {
+    match value {
+        Value::Domain(Domain::One(domain)) => Some(domain.clone()),
+        Value::Domain(Domain::Two(_)) => None,
+        Value::Number(number) => create_domain(*number, *number),
+        Value::List(values) => {
+            if values.len() >= 2 {
+                let start = coerce_number(values.get(0)?).ok();
+                let end = coerce_number(values.get(1)?).ok();
+                match (start, end) {
+                    (Some(start), Some(end)) => create_domain(start, end),
+                    _ => None,
+                }
+            } else if values.len() == 1 {
+                coerce_domain1d(values.get(0))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+pub fn coerce_domain1d(value: Option<&Value>) -> Option<Domain1D> {
+    value.and_then(parse_domain1d)
 }
 
 pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {

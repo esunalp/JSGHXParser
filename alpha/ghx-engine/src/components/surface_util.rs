@@ -708,23 +708,46 @@ fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult
 }
 
 fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
-    let brep = inputs
+    let brep_value = inputs
         .get(0)
         .cloned()
         .ok_or_else(|| ComponentError::new("Cap Holes vereist een brep"))?;
-    let metrics = ShapeMetrics::from_inputs(inputs.get(0));
+
+    let mut brep = collect_brep_data(Some(&brep_value));
+    let naked_edges = brep.get_naked_edges();
+    let loops = brep.find_loops(&naked_edges);
+
+    let mut caps_count = 0;
+    for loop_points in loops {
+        if loop_points.len() >= 3 {
+            // Eenvoudige implementatie: maak een face van de loop punten
+            // In een productie-omgeving zou je hier een triangulatie of planar surface fit willen doen.
+            // Voor nu nemen we aan dat de loop een enkele face vormt (n-gon).
+            let face_index = brep.faces.len();
+            brep.faces.push(Face {
+                vertices: loop_points.clone(),
+            });
+
+            // Update de edges met de nieuwe face
+            let len = loop_points.len();
+            for i in 0..len {
+                let start = loop_points[i];
+                let end = loop_points[(i + 1) % len];
+                brep.add_edge(start, end, Some(face_index));
+            }
+            caps_count += 1;
+        }
+    }
+
+    let result = brep.to_value();
+
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), brep);
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), result);
     if extended {
-        let has_geometry = metrics.is_some();
-        let caps = if has_geometry {
-            Value::Number(1.0)
-        } else {
-            Value::Number(0.0)
-        };
-        let solid = Value::Boolean(has_geometry);
-        outputs.insert(PIN_OUTPUT_CAPS.to_owned(), caps);
-        outputs.insert(PIN_OUTPUT_SOLID.to_owned(), solid);
+        outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(caps_count as f64));
+        // Solid als er geen naked edges meer zijn (zou 0 moeten zijn na cappen als alles goed ging)
+        let is_solid = brep.get_naked_edges().is_empty();
+        outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(is_solid));
     }
     Ok(outputs)
 }
@@ -926,6 +949,126 @@ impl BrepData {
         Self {
             faces: Vec::new(),
             edges: create_box_edges(metrics),
+        }
+    }
+
+    fn get_naked_edges(&self) -> Vec<usize> {
+        self.edges
+            .iter()
+            .enumerate()
+            .filter_map(|(i, edge)| {
+                if edge.face_count() == 1 {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn find_loops(&self, edge_indices: &[usize]) -> Vec<Vec<[f64; 3]>> {
+        let mut visited = vec![false; edge_indices.len()];
+        let mut loops = Vec::new();
+
+        // Bouw een map van start/end punten naar edge indices voor snelle lookup
+        // We gebruiken een eenvoudige aanpak met lineaire zoektochten voor nu,
+        // optimalisatie kan later indien nodig.
+        
+        for i in 0..edge_indices.len() {
+            if visited[i] {
+                continue;
+            }
+
+            let start_edge_idx = edge_indices[i];
+            let start_edge = &self.edges[start_edge_idx];
+            
+            // Begin een nieuwe loop
+            let mut current_loop = Vec::new();
+            current_loop.push(start_edge.start);
+            current_loop.push(start_edge.end);
+            
+            visited[i] = true;
+            let mut current_end = start_edge.end;
+            let mut loop_closed = false;
+
+            // Probeer de loop te sluiten
+            loop {
+                let mut found_next = false;
+                for j in 0..edge_indices.len() {
+                    if visited[j] {
+                        continue;
+                    }
+                    
+                    let next_edge_idx = edge_indices[j];
+                    let next_edge = &self.edges[next_edge_idx];
+
+                    if nearly_equal_points(&next_edge.start, &current_end) {
+                        current_loop.push(next_edge.end);
+                        current_end = next_edge.end;
+                        visited[j] = true;
+                        found_next = true;
+                    } else if nearly_equal_points(&next_edge.end, &current_end) {
+                        current_loop.push(next_edge.start);
+                        current_end = next_edge.start;
+                        visited[j] = true;
+                        found_next = true;
+                    }
+
+                    if found_next {
+                        break;
+                    }
+                }
+
+                if !found_next {
+                    // Check of we terug zijn bij het begin
+                    if nearly_equal_points(&current_end, &current_loop[0]) {
+                        loop_closed = true;
+                        // Het laatste punt is gelijk aan het eerste, verwijder het dubbele punt
+                        current_loop.pop();
+                    }
+                    break;
+                }
+                
+                if nearly_equal_points(&current_end, &current_loop[0]) {
+                    loop_closed = true;
+                    current_loop.pop();
+                    break;
+                }
+            }
+
+            if loop_closed && current_loop.len() >= 3 {
+                loops.push(current_loop);
+            }
+        }
+
+        loops
+    }
+
+    fn to_value(&self) -> Value {
+        // Verzamel alle unieke vertices
+        let mut vertices = Vec::new();
+        let mut faces_indices = Vec::new();
+
+        for face in &self.faces {
+            let mut face_indices = Vec::new();
+            for vertex in &face.vertices {
+                let index = if let Some(pos) = vertices
+                    .iter()
+                    .position(|v| nearly_equal_points(v, vertex))
+                {
+                    pos
+                } else {
+                    vertices.push(*vertex);
+                    vertices.len() - 1
+                };
+                face_indices.push(index as u32);
+            }
+            faces_indices.push(face_indices);
+        }
+
+        Value::Surface {
+            vertices,
+            faces: faces_indices,
         }
     }
 }
@@ -1506,5 +1649,45 @@ mod tests {
             .unwrap();
         assert!(before >= after);
         assert_eq!(after, 1.0);
+    }
+
+    #[test]
+    fn cap_holes_fills_open_box() {
+        // Create an open box (cube without top face)
+        let vertices = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 1.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ];
+        // Bottom, Front, Right, Back, Left (no Top)
+        let faces = vec![
+            vec![0, 3, 2, 1], // Bottom
+            vec![0, 1, 5, 4], // Front
+            vec![1, 2, 6, 5], // Right
+            vec![2, 3, 7, 6], // Back
+            vec![3, 0, 4, 7], // Left
+        ];
+        let open_box = Value::Surface { vertices, faces };
+
+        let component = ComponentKind::CapHoles;
+        let outputs = component
+            .evaluate(&[open_box], &MetaMap::new())
+            .expect("cap holes");
+        
+        let result = outputs
+            .get(super::PIN_OUTPUT_BREPS)
+            .cloned()
+            .expect("result brep");
+            
+        if let Value::Surface { faces, .. } = result {
+            assert_eq!(faces.len(), 6, "Should have 6 faces after capping");
+        } else {
+            panic!("Expected surface result");
+        }
     }
 }
