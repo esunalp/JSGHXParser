@@ -238,21 +238,67 @@ impl ComponentKind {
 
 fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let segments = coerce::coerce_curve_segments(curves_value)?;
-    if segments.len() < 2 {
+    let polylines = collect_ruled_surface_curves(curves_value)?;
+    if polylines.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} vereist minimaal twee sectiecurves"
         )));
     }
 
-    let mut points = Vec::new();
-    for (start, end) in segments {
-        points.push(start);
-        points.push(end);
+    // Bepaal het doelaantal punten door het maximum van alle polylines te nemen.
+    let target_count = polylines
+        .iter()
+        .map(|p| p.len())
+        .max()
+        .unwrap_or(0);
+
+    if target_count < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} kon geen curves met voldoende punten vinden"
+        )));
     }
 
-    let surface = create_surface_from_points(&points, component)?;
-    into_output(output, surface)
+    // Hersample alle polylines naar het doelaantal.
+    let resampled_polylines: Vec<Vec<[f64; 3]>> = polylines
+        .iter()
+        .map(|p| {
+            // Maak een dummy polyline met het doelaantal punten om de resample-functie te gebruiken.
+            let dummy_target = vec![[0.0; 3]; target_count];
+            super::curve_sampler::resample_polylines(p, &dummy_target).0
+        })
+        .collect();
+
+    let mut vertices = Vec::new();
+    let mut faces: Vec<Vec<u32>> = Vec::new();
+
+    for polyline in &resampled_polylines {
+        vertices.extend_from_slice(polyline);
+    }
+
+    let num_curves = resampled_polylines.len();
+    let num_points_per_curve = target_count;
+
+    for i in 0..(num_curves - 1) {
+        for j in 0..(num_points_per_curve - 1) {
+            let base_idx = (i * num_points_per_curve + j) as u32;
+            let next_in_row_idx = base_idx + 1;
+            let base_in_next_curve_idx = ((i + 1) * num_points_per_curve + j) as u32;
+            let next_in_next_curve_idx = base_in_next_curve_idx + 1;
+
+            faces.push(vec![
+                base_idx,
+                next_in_row_idx,
+                next_in_next_curve_idx,
+            ]);
+            faces.push(vec![
+                base_idx,
+                next_in_next_curve_idx,
+                base_in_next_curve_idx,
+            ]);
+        }
+    }
+
+    into_output(output, Value::Surface { vertices, faces })
 }
 
 fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
@@ -1994,5 +2040,44 @@ mod tests {
             assert!((span.0 - min_x).abs() < 1e-9, "unexpected minimum span");
             assert!((span.1 - max_x).abs() < 1e-9, "unexpected maximum span");
         }
+    }
+
+    #[test]
+    fn loft_with_three_curves() {
+        let component = ComponentKind::Loft;
+        let inputs = [Value::List(vec![
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 1.0, 1.0]),
+                Value::Point([1.0, 1.0, 1.0]),
+                Value::Point([2.0, 1.0, 1.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 2.0]),
+                Value::Point([1.0, 0.0, 2.0]),
+            ]),
+        ])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft with three curves");
+
+        let Value::Surface { vertices, faces } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        // 3 curves, resampled to 3 points each = 9 vertices
+        assert_eq!(vertices.len(), 9, "Expected 9 vertices");
+        // 2 sections between 3 curves, each section is (3-1) * 2 = 4 triangles
+        // Total faces = 2 * 4 = 8
+        assert_eq!(faces.len(), 8, "Expected 8 faces");
+
+        // Controleer of de middelste curve correct geïnterpoleerd is
+        assert_eq!(vertices[3], [0.0, 1.0, 1.0]);
+        assert_eq!(vertices[4], [1.0, 1.0, 1.0]);
+        assert_eq!(vertices[5], [2.0, 1.0, 1.0]);
     }
 }
