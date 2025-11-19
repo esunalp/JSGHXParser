@@ -717,7 +717,7 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
 
     // Handle lists by taking the first valid surface.
     let mut brep_value_storage;
-    let mut brep_value = if let Value::List(values) = &brep_input {
+    let brep_value = if let Value::List(values) = &brep_input {
         brep_value_storage = values
             .iter()
             .find(|v| matches!(v, Value::Surface { .. }))
@@ -785,61 +785,75 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
         return Ok(outputs);
     }
 
-    // 2. Group naked edges into contiguous loops using a more robust graph traversal.
+    // 2. Group naked edges into contiguous loops using edge-tracking.
     let mut loops = Vec::new();
     if !naked_edges.is_empty() {
         let mut adj: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+        let mut remaining_edges: BTreeSet<(u32, u32)> = BTreeSet::new();
+
         for (u, v) in naked_edges {
             adj.entry(u).or_default().push(v);
             adj.entry(v).or_default().push(u);
+            let normalized = if u < v { (u, v) } else { (v, u) };
+            remaining_edges.insert(normalized);
         }
 
-        let mut visited: BTreeSet<u32> = BTreeSet::new();
-        let all_nodes: Vec<u32> = adj.keys().cloned().collect();
+        while let Some(&edge) = remaining_edges.iter().next() {
+            remaining_edges.remove(&edge);
+            let start = edge.0;
+            let mut loop_vertices = vec![start];
+            let mut prev = start;
+            let mut current = edge.1;
+            let mut closed = false;
 
-        for start_node in all_nodes {
-            if visited.contains(&start_node) {
-                continue;
-            }
-
-            // Start a new path from an unvisited node
-            let mut path = vec![start_node];
-            visited.insert(start_node);
-            let mut current_node = start_node;
-
-            'path_building: loop {
-                let neighbors = adj.get(&current_node).unwrap();
-                let mut next_node = None;
-                for neighbor in neighbors {
-                    // Find an unvisited neighbor, or the start_node to close the loop
-                    if !visited.contains(neighbor) {
-                        next_node = Some(*neighbor);
-                        break;
-                    } else if *neighbor == start_node && path.len() > 2 {
-                        // Found the start node, loop is closed
-                        next_node = Some(*neighbor);
-                        break;
-                    }
+            loop {
+                if current == start {
+                    closed = true;
+                    break;
                 }
 
-                match next_node {
-                    Some(node) => {
-                        if node == start_node {
-                            // Closed the loop
-                            loops.push(path);
-                            break 'path_building;
+                loop_vertices.push(current);
+                let mut next_vertex = None;
+                if let Some(neighbors) = adj.get(&current) {
+                    for &neighbor in neighbors {
+                        if neighbor == prev {
+                            continue;
+                        }
+                        let normalized = if neighbor < current {
+                            (neighbor, current)
                         } else {
-                            // Continue the path
-                            path.push(node);
-                            visited.insert(node);
-                            current_node = node;
+                            (current, neighbor)
+                        };
+                        if remaining_edges.remove(&normalized) {
+                            next_vertex = Some(neighbor);
+                            break;
                         }
                     }
+                }
+
+                match next_vertex {
+                    Some(next) => {
+                        prev = current;
+                        current = next;
+                    }
                     None => {
-                        // Dead end, not a closed loop.
-                        break 'path_building;
+                        // Try closing directly back to the start if that edge is still unused.
+                        let closing_edge = if current < start {
+                            (current, start)
+                        } else {
+                            (start, current)
+                        };
+                        if start != prev && remaining_edges.remove(&closing_edge) {
+                            current = start;
+                            continue;
+                        }
+                        break;
                     }
                 }
+            }
+
+            if closed && loop_vertices.len() >= 3 {
+                loops.push(loop_vertices);
             }
         }
     }
