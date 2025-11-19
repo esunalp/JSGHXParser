@@ -1127,6 +1127,126 @@ impl BrepData {
             edges: create_box_edges(metrics),
         }
     }
+
+    fn get_naked_edges(&self) -> Vec<usize> {
+        self.edges
+            .iter()
+            .enumerate()
+            .filter_map(|(i, edge)| {
+                if edge.face_count() == 1 {
+                    Some(i)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn find_loops(&self, edge_indices: &[usize]) -> Vec<Vec<[f64; 3]>> {
+        let mut visited = vec![false; edge_indices.len()];
+        let mut loops = Vec::new();
+
+        // Bouw een map van start/end punten naar edge indices voor snelle lookup
+        // We gebruiken een eenvoudige aanpak met lineaire zoektochten voor nu,
+        // optimalisatie kan later indien nodig.
+        
+        for i in 0..edge_indices.len() {
+            if visited[i] {
+                continue;
+            }
+
+            let start_edge_idx = edge_indices[i];
+            let start_edge = &self.edges[start_edge_idx];
+            
+            // Begin een nieuwe loop
+            let mut current_loop = Vec::new();
+            current_loop.push(start_edge.start);
+            current_loop.push(start_edge.end);
+            
+            visited[i] = true;
+            let mut current_end = start_edge.end;
+            let mut loop_closed = false;
+
+            // Probeer de loop te sluiten
+            loop {
+                let mut found_next = false;
+                for j in 0..edge_indices.len() {
+                    if visited[j] {
+                        continue;
+                    }
+                    
+                    let next_edge_idx = edge_indices[j];
+                    let next_edge = &self.edges[next_edge_idx];
+
+                    if nearly_equal_points(&next_edge.start, &current_end) {
+                        current_loop.push(next_edge.end);
+                        current_end = next_edge.end;
+                        visited[j] = true;
+                        found_next = true;
+                    } else if nearly_equal_points(&next_edge.end, &current_end) {
+                        current_loop.push(next_edge.start);
+                        current_end = next_edge.start;
+                        visited[j] = true;
+                        found_next = true;
+                    }
+
+                    if found_next {
+                        break;
+                    }
+                }
+
+                if !found_next {
+                    // Check of we terug zijn bij het begin
+                    if nearly_equal_points(&current_end, &current_loop[0]) {
+                        loop_closed = true;
+                        // Het laatste punt is gelijk aan het eerste, verwijder het dubbele punt
+                        current_loop.pop();
+                    }
+                    break;
+                }
+                
+                if nearly_equal_points(&current_end, &current_loop[0]) {
+                    loop_closed = true;
+                    current_loop.pop();
+                    break;
+                }
+            }
+
+            if loop_closed && current_loop.len() >= 3 {
+                loops.push(current_loop);
+            }
+        }
+
+        loops
+    }
+
+    fn to_value(&self) -> Value {
+        // Verzamel alle unieke vertices
+        let mut vertices = Vec::new();
+        let mut faces_indices = Vec::new();
+
+        for face in &self.faces {
+            let mut face_indices = Vec::new();
+            for vertex in &face.vertices {
+                let index = if let Some(pos) = vertices
+                    .iter()
+                    .position(|v| nearly_equal_points(v, vertex))
+                {
+                    pos
+                } else {
+                    vertices.push(*vertex);
+                    vertices.len() - 1
+                };
+                face_indices.push(index as u32);
+            }
+            faces_indices.push(face_indices);
+        }
+
+        Value::Surface {
+            vertices,
+            faces: faces_indices,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
