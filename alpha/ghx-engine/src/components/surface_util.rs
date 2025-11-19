@@ -887,12 +887,35 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
         }
 
         // e. Convert triangulation results back into new faces using original vertex indices.
-        for i in (0..triangulation.triangles.len()).step_by(3) {
-            let i1 = hole_indices[triangulation.triangles[i]];
-            let i2 = hole_indices[triangulation.triangles[i + 1]];
-            let i3 = hole_indices[triangulation.triangles[i + 2]];
-            faces.push(vec![i1, i2, i3]);
-            new_faces_count += 1;
+        // Also, check the orientation of the new faces and flip if necessary.
+        if !triangulation.triangles.is_empty() {
+            let i1_idx = triangulation.triangles[0];
+            let i2_idx = triangulation.triangles[1];
+            let i3_idx = triangulation.triangles[2];
+
+            let p1 = vertices[hole_indices[i1_idx] as usize];
+            let p2 = vertices[hole_indices[i2_idx] as usize];
+            let p3 = vertices[hole_indices[i3_idx] as usize];
+
+            let vec1 = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
+            let vec2 = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]];
+            let new_face_normal = cross(vec1, vec2);
+
+            // If the new face normal is pointing away from the hole normal, flip the winding order.
+            let flip_winding = dot(new_face_normal, normal) < 0.0;
+
+            for i in (0..triangulation.triangles.len()).step_by(3) {
+                let i1 = hole_indices[triangulation.triangles[i]];
+                let i2 = hole_indices[triangulation.triangles[i + 1]];
+                let i3 = hole_indices[triangulation.triangles[i + 2]];
+
+                if flip_winding {
+                    faces.push(vec![i1, i3, i2]);
+                } else {
+                    faces.push(vec![i1, i2, i3]);
+                }
+                new_faces_count += 1;
+            }
         }
     }
 
