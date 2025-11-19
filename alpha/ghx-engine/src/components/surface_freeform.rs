@@ -354,13 +354,13 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
 
             faces.push(vec![
                 base_idx,
-                next_in_row_idx,
                 next_in_next_curve_idx,
+                next_in_row_idx,
             ]);
             faces.push(vec![
                 base_idx,
-                next_in_next_curve_idx,
                 base_in_next_curve_idx,
+                next_in_next_curve_idx,
             ]);
         }
     }
