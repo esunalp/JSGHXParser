@@ -372,15 +372,31 @@ impl Component for DigitScrollerComponent {
 pub struct ColourSwatchComponent;
 
 impl Component for ColourSwatchComponent {
-     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get_normalized("Value")
-            .and_then(|v| match v {
-                MetaValue::Text(t) => Some(t.clone()),
-                _ => None
-            })
-            .unwrap_or_else(|| "Color [A=255, R=180, G=0, B=0]".to_string());
+    fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
+        use crate::graph::value::ColorValue;
+
+        let output_value = if let Some(MetaValue::List(rgb)) = meta.get_normalized("SwatchColorRGB") {
+            if rgb.len() >= 3 {
+                let r = rgb[0].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
+                let g = rgb[1].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
+                let b = rgb[2].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
+                Value::Color(ColorValue::from_rgb255(r, g, b))
+            } else {
+                Value::Color(ColorValue::new(0.0, 0.0, 0.0))
+            }
+        } else {
+            let val = meta
+                .get_normalized("Value")
+                .and_then(|v| match v {
+                    MetaValue::Text(t) => Some(t.clone()),
+                    _ => None,
+                })
+                .unwrap_or_else(|| "Color [A=255, R=180, G=0, B=0]".to_string());
+            Value::Text(val)
+        };
+
         let mut outputs = BTreeMap::new();
-        outputs.insert("Output".to_string(), Value::Text(val));
+        outputs.insert("Output".to_string(), output_value);
         Ok(outputs)
     }
 }

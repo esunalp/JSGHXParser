@@ -280,6 +280,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     let is_value_list = component_guid_norm
         .as_deref()
         .map_or(false, |guid| guid == "00027467-0d24-4fa7-b178-8dc0ac5f42ec");
+    let is_colour_swatch = component_guid_norm
+        .as_deref()
+        .map_or(false, |guid| guid == "9c53bac0-ba66-40bd-8154-ce9829b9db1a");
 
     if is_slider {
         apply_slider_meta(container, &mut node);
@@ -296,6 +299,10 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
 
     if is_value_list {
         apply_value_list_meta(container, &mut node);
+    }
+
+    if is_colour_swatch {
+        apply_colour_swatch_meta(container, &mut node);
     }
 
     let mut outputs = Vec::new();
@@ -346,7 +353,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             node.set_output("OUT", Value::Null);
         }
         Some("OUT".to_owned())
-    } else if is_panel || is_value_list {
+    } else if is_panel || is_value_list || is_colour_swatch {
         Some("Output".to_owned())
     } else if let Some(param_name) = identify_floating_param(component_guid_norm.as_deref()) {
         if !node.outputs.contains_key(&param_name) {
@@ -523,6 +530,25 @@ fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
     node.insert_meta("ListItems", MetaValue::List(items));
     node.insert_meta("SelectedIndex", selected_index as f64);
     node.set_output("Output", current_output_value);
+}
+
+fn apply_colour_swatch_meta(container: &RawChunk, node: &mut Node) {
+    let argb_str = container.item_argb("SwatchColor").unwrap_or("255;0;0;0");
+    let parts: Vec<&str> = argb_str.split(';').collect();
+
+    // We expect 4 parts: A, R, G, B. Take indices 1, 2, 3 for R, G, B.
+    let rgb_values = if parts.len() == 4 {
+        let r = parts[1].parse::<f64>().unwrap_or(0.0);
+        let g = parts[2].parse::<f64>().unwrap_or(0.0);
+        let b = parts[3].parse::<f64>().unwrap_or(0.0);
+        vec![r, g, b]
+    } else {
+        vec![0.0, 0.0, 0.0]
+    };
+
+    let meta_list: Vec<MetaValue> = rgb_values.into_iter().map(MetaValue::Number).collect();
+    node.insert_meta("SwatchColorRGB", MetaValue::List(meta_list));
+    node.set_output("Output", Value::Null);
 }
 
 fn collect_param_chunks<'a>(root: &'a RawChunk, target_names: &[&str]) -> Vec<&'a RawChunk> {
@@ -860,6 +886,8 @@ struct RawItem {
     type_code: Option<String>,
     #[serde(rename = "$text")]
     text: Option<String>,
+    #[serde(rename = "ARGB", default)]
+    argb: Option<String>,
 }
 
 #[derive(Debug)]
@@ -938,6 +966,16 @@ impl RawChunk {
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .collect()
+    }
+
+    fn item_argb(&self, name: &str) -> Option<&str> {
+        self.items
+            .items
+            .iter()
+            .find(|item| item.name.eq_ignore_ascii_case(name))
+            .and_then(|item| item.argb.as_deref())
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
     }
 }
 
@@ -1075,6 +1113,56 @@ mod tests {
             _ => panic!("panel user text missing"),
         };
         assert!(!panel_text.is_empty());
+    }
+
+    #[test]
+    fn parses_colour_swatch_meta() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<Archive name="Root">
+  <chunks count="1">
+    <chunk name="Definition">
+      <chunks count="1">
+        <chunk name="DefinitionObjects">
+          <chunks count="1">
+            <chunk name="Object" index="0">
+              <items count="2">
+                <item name="GUID" type_name="gh_guid" type_code="9">9c53bac0-ba66-40bd-8154-ce9829b9db1a</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <items count="1">
+                     <item name="SwatchColor"><ARGB>255;100;50;25</ARGB></item>
+                  </items>
+                </chunk>
+              </chunks>
+            </chunk>
+          </chunks>
+        </chunk>
+      </chunks>
+    </chunk>
+  </chunks>
+</Archive>
+"#;
+        let graph = parse_str(xml).expect("parsed");
+        let node = graph
+            .nodes()
+            .iter()
+            .find(|n| n.guid.as_deref() == Some("{9c53bac0-ba66-40bd-8154-ce9829b9db1a}"))
+            .unwrap();
+
+        // Verify SwatchColorRGB meta
+        let rgb = match node.meta("SwatchColorRGB").unwrap() {
+            MetaValue::List(l) => l,
+            _ => panic!("Expected list"),
+        };
+        assert_eq!(rgb.len(), 3);
+        // Indices 1,2,3 of 255;100;50;25 -> 100, 50, 25
+        assert_eq!(rgb[0], MetaValue::Number(100.0));
+        assert_eq!(rgb[1], MetaValue::Number(50.0));
+        assert_eq!(rgb[2], MetaValue::Number(25.0));
+
+        // Verify Output pin exists
+        assert!(node.outputs.contains_key("Output"));
     }
 
     #[test]

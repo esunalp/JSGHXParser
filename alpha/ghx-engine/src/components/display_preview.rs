@@ -474,6 +474,13 @@ fn coerce_symbol(value: &Value) -> Result<SymbolValue, ComponentError> {
 fn coerce_material(value: &Value) -> Result<MaterialValue, ComponentError> {
     match value {
         Value::Material(m) => Ok(*m),
+        Value::Color(c) => Ok(MaterialValue {
+            diffuse: *c,
+            specular: ColorValue::new(1.0, 1.0, 1.0),
+            emission: ColorValue::new(0.0, 0.0, 0.0),
+            transparency: 0.0,
+            shine: 10.0,
+        }),
         other => Err(ComponentError::new(format!(
             "Expected a material, got {}",
             other.kind()
