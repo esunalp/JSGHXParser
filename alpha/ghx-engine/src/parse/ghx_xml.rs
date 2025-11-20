@@ -306,6 +306,22 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     }
 
     let mut outputs = Vec::new();
+    let mut pending_inputs = Vec::new();
+
+    // Generic: Check if the container itself has source items (used by Params and Relays).
+    let container_sources: Vec<String> = container
+        .item_values("Source")
+        .into_iter()
+        .filter_map(normalize_guid_str)
+        .collect();
+
+    if !container_sources.is_empty() {
+        node.add_input_pin("Input".to_owned());
+        pending_inputs.push(PendingInput {
+            pin: "Input".to_owned(),
+            sources: container_sources.clone(),
+        });
+    }
 
     let output_chunks = collect_param_chunks(container, &["param_output", "outputparam"]);
     for (output_index, output_chunk) in output_chunks.into_iter().enumerate() {
@@ -324,7 +340,6 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         });
     }
 
-    let mut pending_inputs = Vec::new();
     let input_chunks = collect_param_chunks(container, &["param_input", "inputparam"]);
     for (input_index, input_chunk) in input_chunks.into_iter().enumerate() {
         let info = parse_param_chunk(
@@ -360,6 +375,13 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             node.set_output(&param_name, Value::Null);
         }
         Some(param_name)
+    } else if !container_sources.is_empty() {
+        // Fallback for params/relays that have inputs (Sources) but no explicit output params.
+        // We assume they pass data through to a default "Output".
+        if !node.outputs.contains_key("Output") {
+            node.set_output("Output", Value::Null);
+        }
+        Some("Output".to_owned())
     } else {
         None
     };
@@ -1296,5 +1318,61 @@ mod tests {
         );
         assert_eq!(wire.from_pin.0, "S");
         assert_eq!(wire.to_pin.0, "I");
+    }
+
+    #[test]
+    fn parses_relay_component() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<Archive name="Root">
+  <chunks count="1">
+    <chunk name="Definition">
+      <chunks count="1">
+        <chunk name="DefinitionObjects">
+          <chunks count="2">
+             <chunk name="Object" index="0">
+              <items count="2">
+                <item name="GUID" type_name="gh_guid" type_code="9">b6236720-8d88-4289-93c3-ac4c99f9b97b</item>
+                <item name="Name" type_name="gh_string" type_code="10">Relay</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <items count="3">
+                    <item name="InstanceGuid" type_name="gh_guid" type_code="9">1bd8dfb0-1f87-4184-afb4-9b7c7d35d798</item>
+                    <item name="Name" type_name="gh_string" type_code="10">Relay</item>
+                    <item name="Source" index="0" type_name="gh_guid" type_code="9">e9a257a6-d913-49e0-ab91-f93c66a31867</item>
+                  </items>
+                </chunk>
+              </chunks>
+            </chunk>
+            <chunk name="Object" index="1">
+                <items count="1">
+                    <!-- Use Number Parameter GUID so it gets a default output -->
+                    <item name="GUID" type_name="gh_guid" type_code="9">3e8ca6be-fda8-4aaf-b5c0-3c54c8bb7312</item>
+                </items>
+                <chunks count="1">
+                    <chunk name="Container">
+                        <items count="1">
+                            <item name="InstanceGuid" type_name="gh_guid" type_code="9">e9a257a6-d913-49e0-ab91-f93c66a31867</item>
+                        </items>
+                    </chunk>
+                </chunks>
+            </chunk>
+          </chunks>
+        </chunk>
+      </chunks>
+    </chunk>
+  </chunks>
+</Archive>
+"#;
+
+        let graph = parse_str(xml).expect("parsed");
+        assert_eq!(graph.node_count(), 2);
+        // Should have 1 wire from Source to Relay
+        assert_eq!(graph.wire_count(), 1);
+
+        let relay_node = graph.nodes().iter().find(|n| n.name.as_deref() == Some("Relay")).unwrap();
+        assert!(relay_node.outputs.contains_key("Output"));
+        // `add_input_pin` adds to input_order, but doesn't necessarily populate the inputs map if no value is set.
+        assert!(relay_node.input_order().contains(&"Input".to_string()));
     }
 }
