@@ -63,11 +63,11 @@ impl ComponentKind {
             Self::Surface => SurfaceComponent.evaluate(inputs, meta),
             Self::Curve => CurveComponent.evaluate(inputs, meta),
             Self::MeshFace => MeshFaceComponent.evaluate(inputs, meta),
+            Self::Plane => PlaneComponent.evaluate(inputs, meta),
             // Placeholders
             Self::CircularArc => Err(ComponentError::NotYetImplemented(self.name().to_string())),
             Self::Transform => Err(ComponentError::NotYetImplemented(self.name().to_string())),
             Self::Field => Err(ComponentError::NotYetImplemented(self.name().to_string())),
-            Self::Plane => Err(ComponentError::NotYetImplemented(self.name().to_string())),
             Self::TwistedBox => Err(ComponentError::NotYetImplemented(self.name().to_string())),
             Self::Location => Err(ComponentError::NotYetImplemented(self.name().to_string())),
             Self::SubD => Err(ComponentError::NotYetImplemented(self.name().to_string())),
@@ -171,8 +171,26 @@ define_param_component!(MeshFaceComponent, "Face", ValueKind::Text);
 // define_param_component!(CircularArcComponent, "Arc", ValueKind::CircularArc);
 // define_param_component!(TransformComponent, "Transform", ValueKind::Transform);
 // define_param_component!(FieldComponent, "Field", ValueKind::Field);
-// define_param_component!(PlaneComponent, "Pln", ValueKind::Plane);
 // define_param_component!(TwistedBoxComponent, "TBox", ValueKind::TwistedBox);
+
+#[derive(Debug, Default, Clone, Copy)]
+struct PlaneComponent;
+
+impl Component for PlaneComponent {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            let mut outputs = BTreeMap::new();
+            outputs.insert("Pln".to_owned(), Value::Null);
+            return Ok(outputs);
+        }
+
+        // We simply pass through values since we don't have a dedicated Plane type yet.
+        // Validation logic is omitted for now.
+        let mut outputs = BTreeMap::new();
+        outputs.insert("Pln".to_owned(), inputs[0].clone());
+        Ok(outputs)
+    }
+}
 // define_param_component!(LocationComponent, "Loc", ValueKind::Location);
 // define_param_component!(SubDComponent, "SubD", ValueKind::SubD);
 // define_param_component!(BrepComponent, "Brep", ValueKind::Brep);
