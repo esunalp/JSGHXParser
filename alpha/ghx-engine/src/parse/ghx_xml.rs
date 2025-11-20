@@ -341,6 +341,11 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         Some("OUT".to_owned())
     } else if is_panel {
         Some("Output".to_owned())
+    } else if let Some(param_name) = identify_floating_param(component_guid_norm.as_deref()) {
+        if !node.outputs.contains_key(&param_name) {
+            node.set_output(&param_name, Value::Null);
+        }
+        Some(param_name)
     } else {
         None
     };
@@ -352,6 +357,56 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         default_output_pin,
         pending_inputs,
     })
+}
+
+fn identify_floating_param(guid: Option<&str>) -> Option<String> {
+    let guid = guid?;
+    match guid {
+        // Primitive Types
+        "2e3ab970-8545-46bb-836c-1c11e5610bce" => Some("Int".to_owned()),
+        "3e8ca6be-fda8-4aaf-b5c0-3c54c8bb7312" => Some("Num".to_owned()),
+        "3ede854e-c753-40eb-84cb-b48008f14fd4" => Some("Txt".to_owned()),
+        "cb95db89-6165-43b6-9c41-5702bc5bf137" => Some("Bool".to_owned()),
+        "15b7afe5-d0d0-43e1-b894-34fcfe3be384" => Some("Domain".to_owned()),
+        "90744326-eb53-4a0e-b7ef-4b45f5473d6e" => Some("Domain²".to_owned()),
+        "fa36c19d-b108-440c-b33d-a0a4642b45cc" => Some("Domain²".to_owned()),
+        "476c0cf8-bc3c-4f1c-a61a-6e91e1f8b91e" => Some("C".to_owned()),
+        "81dfff08-0c83-4f1b-a358-14791d642d9e" => Some("Time".to_owned()),
+        "203a91c3-287a-43b6-a9c5-ebb96240a650" => Some("Col".to_owned()),
+        "bd4a8a18-a3cc-40ba-965b-3be91fee563b" => Some("Matrix".to_owned()),
+        "06953bda-1d37-4d58-9b38-4b3c74e54c8f" => Some("Path".to_owned()),
+        "56c9c942-791f-4eeb-a4f0-82b93f1c0909" => Some("Path".to_owned()),
+        "faf6e3bb-4c84-4cbf-bd88-6d6a0db5667a" => Some("ID".to_owned()),
+
+        // Geometry Types
+        "fbac3e32-f100-4292-8692-77240a42fd1a" => Some("Pt".to_owned()),
+        "16ef3e75-e315-4899-b531-d3166b42dac9" => Some("Vec".to_owned()),
+        "8529dbdf-9b6f-42e9-8e1f-c7a2bde56a70" => Some("Line".to_owned()),
+        "1e936df3-0eea-4246-8549-514cb8862b7a" => Some("Mesh".to_owned()),
+        "deaf8653-5528-4286-807c-3de8b8dad781" => Some("Srf".to_owned()),
+        "d5967b9f-e8ee-436b-a8ad-29fdcecf32d5" => Some("Crv".to_owned()),
+        "e02b3da5-543a-46ac-a867-0ba6b0a524de" => Some("Face".to_owned()),
+        "04d3eace-deaa-475e-9e69-8f804d687998" => Some("Arc".to_owned()),
+        "28f40e48-e739-4211-91bd-f4aefa5965f8" => Some("Transform".to_owned()),
+        "3175e3eb-1ae0-4d0b-9395-53fd3e8f8a28" => Some("Field".to_owned()),
+        "4f8984c4-7c7a-4d69-b0a2-183cbb330d20" => Some("Pln".to_owned()),
+        "6db039c4-cad1-4549-bd45-e31cb0f71692" => Some("TBox".to_owned()),
+        "87391af3-35fe-4a40-b001-2bd4547ccd45" => Some("Loc".to_owned()),
+        "89cd1a12-0007-4581-99ba-66578665e610" => Some("SubD".to_owned()),
+        "919e146f-30ae-4aae-be34-4d72f555e7da" => Some("Brep".to_owned()),
+        "a80395af-f134-4d6a-9b89-15edf3161619" => Some("Atom".to_owned()),
+        "abf9c670-5462-4cd8-acb3-f1ab0256dbf3" => Some("Rec".to_owned()),
+        "ac2bc2cb-70fb-4dd5-9c78-7e1ea97fe278" => Some("Geo".to_owned()),
+        "b0851fc0-ab55-47d8-bdda-cc6306a40176" => Some("Grp".to_owned()),
+        "b341e2e5-c4b3-49a3-b3a4-b4e6e2054516" => Some("Pipeline".to_owned()),
+        "c3407fda-b505-4686-9165-38fe7a9274cf" => Some("Mesh".to_owned()),
+        "c9482db6-bea9-448d-98ff-fed6d69a8efc" => Some("Box".to_owned()),
+        "d1028c72-ff86-4057-9eb0-36c687a4d98c" => Some("Circle".to_owned()),
+        "f91778ca-2700-42fc-8ee6-74049a2292b5" => Some("Geometry Cache".to_owned()),
+        "fa20fe95-5775-417b-92ff-b77c13cbf40c" => Some("MPoint".to_owned()),
+
+        _ => None,
+    }
 }
 
 fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
