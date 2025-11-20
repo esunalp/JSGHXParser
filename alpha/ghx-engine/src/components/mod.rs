@@ -50,6 +50,7 @@ pub mod display_preview;
 pub mod params_geometry;
 pub mod params_primitive;
 pub mod params_input;
+pub mod params_util;
 pub mod coerce;
 
 /// Output-map van een component: pinnickname → waarde.
@@ -144,6 +145,7 @@ pub enum ComponentKind {
     ParamsGeometry(params_geometry::ComponentKind),
     ParamsPrimitive(params_primitive::ComponentKind),
     ParamsInput(params_input::ComponentKind),
+    ParamsUtil(params_util::ComponentKind),
 }
 
 impl ComponentKind {
@@ -193,6 +195,7 @@ impl ComponentKind {
             Self::ParamsGeometry(component) => component.evaluate(inputs, meta),
             Self::ParamsPrimitive(component) => component.evaluate(inputs, meta),
             Self::ParamsInput(component) => component.evaluate(inputs, meta),
+            Self::ParamsUtil(component) => component.evaluate(inputs, meta),
         }
     }
 
@@ -242,6 +245,7 @@ impl ComponentKind {
             Self::ParamsGeometry(component) => component.name(),
             Self::ParamsPrimitive(component) => component.name(),
             Self::ParamsInput(component) => component.name(),
+            Self::ParamsUtil(component) => component.name(),
         }
     }
 
@@ -602,6 +606,14 @@ impl Default for ComponentRegistry {
 
         for registration in params_input::REGISTRATIONS {
             let kind = ComponentKind::ParamsInput(registration.kind);
+            for guid in registration.guids {
+                registry.register_guid(guid, kind);
+            }
+            registry.register_names(registration.names, kind);
+        }
+
+        for registration in params_util::REGISTRATIONS {
+            let kind = ComponentKind::ParamsUtil(registration.kind);
             for guid in registration.guids {
                 registry.register_guid(guid, kind);
             }
