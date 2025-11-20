@@ -72,8 +72,10 @@ impl Component for RelayComponent {
 }
 
 // --- Registrations ---
+pub const RELAY_GUID: &str = "b6236720-8d88-4289-93c3-ac4c99f9b97b";
+
 pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
-    Registration::new(ComponentKind::Relay, &["b6236720-8d88-4289-93c3-ac4c99f9b97b"], &["Relay"]),
+    Registration::new(ComponentKind::Relay, &[RELAY_GUID], &["Relay"]),
 ];
 
 #[cfg(test)]
