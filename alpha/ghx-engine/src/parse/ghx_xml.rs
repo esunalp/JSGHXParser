@@ -3,7 +3,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::num::{ParseFloatError, ParseIntError};
 
-use crate::graph::node::{Node, NodeId};
+use crate::graph::node::{MetaValue, Node, NodeId};
 use crate::graph::value::Value;
 use crate::graph::wire::Wire;
 use crate::graph::{Graph, GraphError};
@@ -277,6 +277,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     let is_panel = component_guid_norm
         .as_deref()
         .map_or(false, |guid| guid == "59e0b89a-e487-49f8-bab8-b5bab16be14c");
+    let is_value_list = component_guid_norm
+        .as_deref()
+        .map_or(false, |guid| guid == "00027467-0d24-4fa7-b178-8dc0ac5f42ec");
 
     if is_slider {
         apply_slider_meta(container, &mut node);
@@ -289,6 +292,10 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         } else {
             node.set_output("Output", Value::Null);
         }
+    }
+
+    if is_value_list {
+        apply_value_list_meta(container, &mut node);
     }
 
     let mut outputs = Vec::new();
@@ -339,7 +346,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             node.set_output("OUT", Value::Null);
         }
         Some("OUT".to_owned())
-    } else if is_panel {
+    } else if is_panel || is_value_list {
         Some("Output".to_owned())
     } else if let Some(param_name) = identify_floating_param(component_guid_norm.as_deref()) {
         if !node.outputs.contains_key(&param_name) {
@@ -464,6 +471,58 @@ fn apply_slider_meta(container: &RawChunk, node: &mut Node) {
         node.insert_meta("step", step);
     }
     node.set_output("OUT", Value::Number(value));
+}
+
+fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
+    let mut items = Vec::new();
+    let mut selected_index = 0;
+    let mut current_output_value = Value::Null;
+
+    // Iterate over ListItem chunks.
+    // Note: The exact chunk name for items might need to be checked.
+    // In the provided example it's <chunk name="ListItem" index="...">
+    let list_items: Vec<&RawChunk> = container
+        .children()
+        .filter(|c| c.name.eq_ignore_ascii_case("ListItem"))
+        .collect();
+
+    for (idx, item_chunk) in list_items.iter().enumerate() {
+        let name = item_chunk.item_value("Name").unwrap_or("").to_string();
+        let expression = item_chunk.item_value("Expression").unwrap_or("").to_string();
+        let selected = item_chunk
+            .item_value("Selected")
+            .map(|s| s.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+
+        // Store item info.
+        // We store the expression as the value, but we try to parse it as a number if possible.
+        // However, ValueList usually outputs the expression value.
+        // If expression is "0", it could be number or text. Let's match how parse_persistent_value does it roughly,
+        // or just keep it simple.
+        let value = if let Some(num) = parse_f64(&expression) {
+             Value::Number(num)
+        } else {
+             Value::Text(expression.clone())
+        };
+
+        if selected {
+            selected_index = idx;
+            current_output_value = value.clone();
+        }
+
+        // For metadata, we probably want to store the values so the component can use them if needed (e.g. to change selection).
+        // But ValueListComponent currently just picks one based on index.
+        items.push(match value {
+            Value::Number(n) => MetaValue::Number(n),
+            Value::Text(t) => MetaValue::Text(t),
+            Value::Boolean(b) => MetaValue::Boolean(b),
+            _ => MetaValue::Text(expression), // Fallback
+        });
+    }
+
+    node.insert_meta("ListItems", MetaValue::List(items));
+    node.insert_meta("SelectedIndex", selected_index as f64);
+    node.set_output("Output", current_output_value);
 }
 
 fn collect_param_chunks<'a>(root: &'a RawChunk, target_names: &[&str]) -> Vec<&'a RawChunk> {
