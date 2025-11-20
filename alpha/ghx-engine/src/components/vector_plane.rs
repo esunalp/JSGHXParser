@@ -2,6 +2,7 @@
 
 use std::collections::BTreeMap;
 
+use crate::components::coerce::coerce_point_with_default;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
@@ -209,11 +210,7 @@ impl ComponentKind {
 }
 
 fn evaluate_xy_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = inputs
-        .get(0)
-        .map(|value| coerce_point(value, "XY Plane"))
-        .transpose()?
-        .unwrap_or([0.0, 0.0, 0.0]);
+    let origin = coerce_point_with_default(inputs.get(0));
     let plane = Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
     Ok(single_plane_output(plane))
 }
@@ -330,11 +327,7 @@ fn evaluate_plane_origin(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_xz_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = inputs
-        .get(0)
-        .map(|value| coerce_point(value, "XZ Plane"))
-        .transpose()?
-        .unwrap_or([0.0, 0.0, 0.0]);
+    let origin = coerce_point_with_default(inputs.get(0));
     let plane = Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]);
     Ok(single_plane_output(plane))
 }
@@ -400,13 +393,7 @@ fn evaluate_plane_closest_point(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_construct_plane(inputs: &[Value]) -> ComponentResult {
-    if inputs.is_empty() {
-        return Err(ComponentError::new(
-            "Construct Plane vereist minimaal een oorsprong",
-        ));
-    }
-
-    let origin = coerce_point(&inputs[0], "Construct Plane")?;
+    let origin = coerce_point_with_default(inputs.get(0));
     let mut x_axis = inputs
         .get(1)
         .map(|value| coerce_vector(value, "Construct Plane"))
@@ -497,13 +484,7 @@ fn evaluate_line_point(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_plane_normal(inputs: &[Value]) -> ComponentResult {
-    if inputs.is_empty() {
-        return Err(ComponentError::new(
-            "Plane Normal vereist minimaal een oorsprong",
-        ));
-    }
-
-    let origin = coerce_point(&inputs[0], "Plane Normal")?;
+    let origin = coerce_point_with_default(inputs.get(0));
     let mut normal = inputs
         .get(1)
         .map(|value| coerce_vector(value, "Plane Normal"))
@@ -588,11 +569,7 @@ fn evaluate_rotate_plane(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_yz_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = inputs
-        .get(0)
-        .map(|value| coerce_point(value, "YZ Plane"))
-        .transpose()?
-        .unwrap_or([0.0, 0.0, 0.0]);
+    let origin = coerce_point_with_default(inputs.get(0));
     let plane = Plane::normalize_axes(origin, [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
     Ok(single_plane_output(plane))
 }
