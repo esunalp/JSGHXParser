@@ -55,6 +55,7 @@ pub enum ComponentKind {
     ImageSampler,
     FlagFields,
     RobotsLibrary,
+    Scribble,
 }
 
 impl ComponentKind {
@@ -87,6 +88,7 @@ impl ComponentKind {
             Self::ImageSampler => ImageSamplerComponent.evaluate(inputs, meta),
             Self::FlagFields => FlagFieldsComponent.evaluate(inputs, meta),
             Self::RobotsLibrary => RobotsLibraryComponent.evaluate(inputs, meta),
+            Self::Scribble => ScribbleComponent.evaluate(inputs, meta),
         }
     }
 
@@ -119,6 +121,7 @@ impl ComponentKind {
             Self::ImageSampler => "Image Sampler",
             Self::FlagFields => "Flag fields",
             Self::RobotsLibrary => "Robots library",
+            Self::Scribble => "Scribble",
         }
     }
 }
@@ -469,6 +472,7 @@ define_placeholder_component!(CalendarComponent, "Output");
 define_placeholder_component!(GraphMapperComponent, "Output");
 define_placeholder_component!(ControlKnobComponent, "Output");
 define_placeholder_component!(ClockComponent, "Output");
+define_placeholder_component!(ScribbleComponent, "Output");
 
 macro_rules! define_not_implemented_component {
     ($struct_name:ident, $component_name:expr) => {
@@ -524,6 +528,7 @@ pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
     Registration::new(ComponentKind::ObjectDetails, &["c7b5c66a-6360-4f5f-aa17-a918d0b1c314"], &["Object Details", "ObjDet"]),
     Registration::new(ComponentKind::ImageSampler, &["d69a3494-785b-4beb-969b-d2373f65abfd"], &["Image Sampler", "Image"]),
     Registration::new(ComponentKind::Clock, &["f8a94819-1e2b-4d67-9100-9e983ac493cc"], &["Clock"]),
+    Registration::new(ComponentKind::Scribble, &["7f5c6c55-f846-4a08-9c9a-cfdc285cc6fe"], &["Scribble"]),
 ];
 
 #[cfg(test)]
@@ -697,5 +702,13 @@ mod tests {
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
         let expected_color = format!("Color [A=255, R=127, G=127, B=0]");
         assert_eq!(outputs.get("Colour"), Some(&Value::Text(expected_color)));
+    }
+
+    #[test]
+    fn test_scribble_component() {
+        let component = ScribbleComponent;
+        let meta = MetaMap::new();
+        let outputs = component.evaluate(&[], &meta).unwrap();
+        assert_eq!(outputs.get("Output"), Some(&Value::Null));
     }
 }
