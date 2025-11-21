@@ -356,7 +356,7 @@ impl Component for FindSimilarMemberComponent {
                     // Try string comparison for loose equality (e.g. Bool "True" vs Text "True")
                     let s1 = data.to_string().to_lowercase();
                     let s2 = member.to_string().to_lowercase();
-                    if s1 == s2 {
+                    if s1.trim() == s2.trim() {
                         0.0
                     } else {
                         f64::MAX
@@ -371,8 +371,13 @@ impl Component for FindSimilarMemberComponent {
         }
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("Hit".to_owned(), set[best_index].clone());
-        outputs.insert("Index".to_owned(), Value::Number(best_index as f64));
+        if min_dist < f64::MAX {
+            outputs.insert("Hit".to_owned(), set[best_index].clone());
+            outputs.insert("Index".to_owned(), Value::Number(best_index as f64));
+        } else {
+            outputs.insert("Hit".to_owned(), Value::Null);
+            outputs.insert("Index".to_owned(), Value::Null);
+        }
         Ok(outputs)
     }
 }
@@ -867,8 +872,9 @@ mod tests {
             Value::Boolean(true),
         ];
         let result_mismatch = component.evaluate(inputs_mismatch, &MetaMap::new()).unwrap();
-        assert_eq!(result_mismatch.get("Hit").unwrap(), &Value::Boolean(true)); // Finds the only member
-        assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Number(0.0));
+        // This should now return Null as there is no good match
+        assert_eq!(result_mismatch.get("Hit").unwrap(), &Value::Null);
+        assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Null);
     }
 
     #[test]
@@ -885,5 +891,37 @@ mod tests {
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(result.get("Hit").unwrap(), &Value::Text("True".to_string()));
         assert_eq!(result.get("Index").unwrap(), &Value::Number(1.0));
+    }
+
+    #[test]
+    fn test_find_similar_member_user_case() {
+        let component = FindSimilarMemberComponent;
+        // Test user's specific case: Boolean(true) vs Text("True") as first item
+        let inputs = &[
+            Value::Boolean(true), // Data
+            Value::List(vec![     // Set
+                Value::Text("True".to_string()),
+                Value::Text("False".to_string()),
+            ]),
+        ];
+        let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert_eq!(result.get("Hit").unwrap(), &Value::Text("True".to_string()));
+        assert_eq!(result.get("Index").unwrap(), &Value::Number(0.0));
+    }
+
+    #[test]
+    fn test_find_similar_member_no_match() {
+        let component = FindSimilarMemberComponent;
+        // Test no match case
+        let inputs = &[
+            Value::Text("unrelated".to_string()), // Data
+            Value::List(vec![                     // Set
+                Value::Number(1.0),
+                Value::Number(2.0),
+            ]),
+        ];
+        let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert_eq!(result.get("Hit").unwrap(), &Value::Null);
+        assert_eq!(result.get("Index").unwrap(), &Value::Null);
     }
 }
