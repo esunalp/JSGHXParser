@@ -323,8 +323,8 @@ impl Component for CartesianProductComponent {
 struct FindSimilarMemberComponent;
 impl Component for FindSimilarMemberComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let data = &inputs[0];
-        let set = list(&inputs[1])?;
+        let set = list(&inputs[0])?;
+        let data = &inputs[1];
 
         if set.is_empty() {
             let mut outputs = BTreeMap::new();
@@ -827,12 +827,12 @@ mod tests {
     fn test_find_similar_member() {
         let component = FindSimilarMemberComponent;
         let inputs = &[
-            Value::Number(2.1),
             Value::List(vec![
                 Value::Number(1.0),
                 Value::Number(2.0),
                 Value::Number(3.0),
             ]),
+            Value::Number(2.1),
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(result.get("Hit").unwrap(), &Value::Number(2.0));
