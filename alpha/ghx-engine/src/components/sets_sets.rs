@@ -321,8 +321,10 @@ impl Component for CartesianProductComponent {
 struct FindSimilarMemberComponent;
 impl Component for FindSimilarMemberComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set = list(&inputs[0]);
-        let data = &inputs[1];
+        // Input 0 is Data (D), Input 1 is Set (S)
+        let data = inputs.get(0).unwrap_or(&Value::Null);
+        let set_value = inputs.get(1).unwrap_or(&Value::Null);
+        let set = list(set_value);
 
         if set.is_empty() {
             let mut outputs = BTreeMap::new();
@@ -350,7 +352,16 @@ impl Component for FindSimilarMemberComponent {
                     (dx * dx + dy * dy + dz * dz).sqrt()
                 }
                 _ if data == member => 0.0,
-                _ => f64::MAX,
+                _ => {
+                    // Try string comparison for loose equality (e.g. Bool "True" vs Text "True")
+                    let s1 = data.to_string().to_lowercase();
+                    let s2 = member.to_string().to_lowercase();
+                    if s1 == s2 {
+                        0.0
+                    } else {
+                        f64::MAX
+                    }
+                }
             };
 
             if dist < min_dist {
@@ -824,13 +835,14 @@ mod tests {
     #[test]
     fn test_find_similar_member() {
         let component = FindSimilarMemberComponent;
+        // Inputs: Data, Set
         let inputs = &[
+            Value::Number(2.1),
             Value::List(vec![
                 Value::Number(1.0),
                 Value::Number(2.0),
                 Value::Number(3.0),
             ]),
-            Value::Number(2.1),
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(result.get("Hit").unwrap(), &Value::Number(2.0));
@@ -841,6 +853,7 @@ mod tests {
     fn test_find_similar_member_single_input() {
         let component = FindSimilarMemberComponent;
         // Test with a single Boolean input instead of a list
+        // Inputs: Data, Set
         let inputs = &[
             Value::Boolean(true),
             Value::Boolean(true),
@@ -850,17 +863,27 @@ mod tests {
         assert_eq!(result.get("Index").unwrap(), &Value::Number(0.0));
 
         let inputs_mismatch = &[
-            Value::Boolean(true),
             Value::Boolean(false),
+            Value::Boolean(true),
         ];
         let result_mismatch = component.evaluate(inputs_mismatch, &MetaMap::new()).unwrap();
         assert_eq!(result_mismatch.get("Hit").unwrap(), &Value::Boolean(true)); // Finds the only member
-        assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Number(0.0)); // It is the best match (distance MAX)
-        // Wait, if distance is MAX, it still updates best_index?
-        // min_dist initialized to MAX. if dist < min_dist...
-        // If dist is MAX (mismatch), it is not < MAX.
-        // So best_index remains 0.
-        // And hit returns set[0].
-        // This is consistent with finding "closest" in a set of 1.
+        assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Number(0.0));
+    }
+
+    #[test]
+    fn test_find_similar_member_loose_equality() {
+        let component = FindSimilarMemberComponent;
+        // Test loose equality: Boolean(true) vs Text("True")
+        let inputs = &[
+            Value::Boolean(true), // Data
+            Value::List(vec![     // Set
+                Value::Text("False".to_string()),
+                Value::Text("True".to_string()),
+            ]),
+        ];
+        let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert_eq!(result.get("Hit").unwrap(), &Value::Text("True".to_string()));
+        assert_eq!(result.get("Index").unwrap(), &Value::Number(1.0));
     }
 }
