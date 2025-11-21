@@ -276,11 +276,6 @@ impl Component for PanelComponent {
         };
 
         if !multiline {
-            // If multiline is false, treat each line as a separate list item.
-            // The user specifically requested: "veranderd elke tekstregel dat in UserText staat ... in een list item output ... waarde (text)"
-            // We still attempt to parse numbers if possible, or stick to text.
-            // Actually, typical Grasshopper behavior for panels with Multiline=false:
-            // It splits the content by newlines and outputs a list of items.
             let items: Vec<Value> = output_value
                 .lines()
                 .map(|line| {
