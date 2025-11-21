@@ -283,6 +283,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     let is_colour_swatch = component_guid_norm
         .as_deref()
         .map_or(false, |guid| guid == "9c53bac0-ba66-40bd-8154-ce9829b9db1a");
+    let is_boolean_toggle = component_guid_norm
+        .as_deref()
+        .map_or(false, |guid| guid == "2e78987b-9dfb-42a2-8b76-3923ac8bd91a");
 
     if is_slider {
         apply_slider_meta(container, &mut node);
@@ -303,6 +306,17 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
 
     if is_colour_swatch {
         apply_colour_swatch_meta(container, &mut node);
+    }
+
+    if is_boolean_toggle {
+        if let Some(val_str) = container.item_value("ToggleValue") {
+            let val = val_str.eq_ignore_ascii_case("true");
+            node.insert_meta("Value", val);
+            node.set_output("Output", Value::Boolean(val));
+        } else {
+            node.insert_meta("Value", false);
+            node.set_output("Output", Value::Boolean(false));
+        }
     }
 
     let mut outputs = Vec::new();
@@ -368,7 +382,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             node.set_output("OUT", Value::Null);
         }
         Some("OUT".to_owned())
-    } else if is_panel || is_value_list || is_colour_swatch {
+    } else if is_panel || is_value_list || is_colour_swatch || is_boolean_toggle {
         Some("Output".to_owned())
     } else if let Some(param_name) = identify_floating_param(component_guid_norm.as_deref()) {
         if !node.outputs.contains_key(&param_name) {

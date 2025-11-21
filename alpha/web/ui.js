@@ -170,6 +170,55 @@ function createSliderElement(slider, handlers) {
   };
 }
 
+function createToggleElement(toggle, handlers) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'slider toggle-control'; // Use slider class for layout consistency
+    wrapper.dataset.sliderId = toggle.id;
+
+    const labelRow = document.createElement('div');
+    labelRow.className = 'slider-label';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = toggle.name ?? toggle.id ?? 'Toggle';
+    const valueSpan = document.createElement('span');
+    labelRow.append(nameSpan, valueSpan);
+
+    const inputsRow = document.createElement('div');
+    inputsRow.className = 'slider-inputs'; // Re-use slider layout
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = Boolean(toggle.value);
+    checkbox.setAttribute('aria-label', nameSpan.textContent);
+
+    const updateDisplay = (val) => {
+      valueSpan.textContent = val ? 'True' : 'False';
+      checkbox.checked = val;
+    };
+
+    updateDisplay(toggle.value);
+
+    checkbox.addEventListener('change', (event) => {
+      const isChecked = event.target.checked;
+      updateDisplay(isChecked);
+      if (typeof handlers.onSliderChange === 'function') {
+        handlers.onSliderChange(toggle.id, isChecked);
+      }
+    });
+
+    inputsRow.append(checkbox);
+    wrapper.append(labelRow, inputsRow);
+
+    return {
+      element: wrapper,
+      controller: {
+        update(value) {
+          updateDisplay(Boolean(value));
+        },
+      },
+    };
+  }
+
 export function setupUi() {
   const canvas = document.getElementById('viewport');
   const fileInput = document.getElementById('ghx-input');
@@ -236,13 +285,20 @@ export function setupUi() {
       return;
     }
 
-    for (const slider of sliders) {
-      if (!slider?.id) {
+    for (const control of sliders) {
+      if (!control?.id) {
         continue;
       }
-      const { element, controller } = createSliderElement(slider, handlers);
+      let result;
+      if (control.type === 'toggle') {
+        result = createToggleElement(control, handlers);
+      } else {
+        // Default to slider
+        result = createSliderElement(control, handlers);
+      }
+      const { element, controller } = result;
       sliderContainer.appendChild(element);
-      sliderElements.set(String(slider.id), controller);
+      sliderElements.set(String(control.id), controller);
     }
   };
 

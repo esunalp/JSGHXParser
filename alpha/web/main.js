@@ -12,19 +12,28 @@ function normalizeSliders(value) {
   }
   return value
     .filter((entry) => entry && typeof entry === 'object')
-    .map((entry) => ({
-      id: String(entry.id ?? ''),
-      name:
-        entry.name !== undefined && entry.name !== null
-          ? String(entry.name)
-          : entry.id !== undefined && entry.id !== null
-            ? String(entry.id)
-            : 'Slider',
-      min: toNumericOrNull(entry.min),
-      max: toNumericOrNull(entry.max),
-      step: toNumericOrNull(entry.step),
-      value: toNumericOrNull(entry.value) ?? 0,
-    }));
+    .map((entry) => {
+      const base = {
+        id: String(entry.id ?? ''),
+        name:
+          entry.name !== undefined && entry.name !== null
+            ? String(entry.name)
+            : entry.id !== undefined && entry.id !== null
+              ? String(entry.id)
+              : 'Control',
+        type: entry.type || 'slider',
+      };
+
+      if (entry.type === 'toggle') {
+        base.value = Boolean(entry.value);
+      } else {
+        base.min = toNumericOrNull(entry.min);
+        base.max = toNumericOrNull(entry.max);
+        base.step = toNumericOrNull(entry.step);
+        base.value = toNumericOrNull(entry.value) ?? 0;
+      }
+      return base;
+    });
 }
 
 function normalizeNodeInfo(value) {
