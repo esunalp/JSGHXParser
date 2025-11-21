@@ -1,22 +1,20 @@
 //! Grasshopper components for set operations.
 use crate::components::{Component, ComponentError, ComponentResult};
 use crate::graph::value::Value;
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 // --- Local Coercion Helpers ---
 
-fn list(value: &Value) -> Result<&[Value], ComponentError> {
+fn list(value: &Value) -> Cow<'_, [Value]> {
     match value {
-        Value::List(l) => Ok(l),
-        _ => Err(ComponentError::new(format!(
-            "Expected a list, got {}",
-            value.kind()
-        ))),
+        Value::List(l) => Cow::Borrowed(l.as_slice()),
+        _ => Cow::Owned(vec![value.clone()]),
     }
 }
 
-fn list_and_collect_into_hashset(value: &Value) -> Result<HashSet<Value>, ComponentError> {
-    list(value).map(|l| l.iter().cloned().collect())
+fn list_and_collect_into_hashset(value: &Value) -> HashSet<Value> {
+    list(value).iter().cloned().collect()
 }
 
 fn boolean(value: &Value) -> Result<bool, ComponentError> {
@@ -38,10 +36,10 @@ fn boolean(value: &Value) -> Result<bool, ComponentError> {
 struct CreateSetSimpleComponent;
 impl Component for CreateSetSimpleComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let values = list(&inputs[0])?;
+        let values = list(&inputs[0]);
         let mut unique_values = HashSet::new();
         let mut set = Vec::new();
-        for value in values {
+        for value in values.iter() {
             if unique_values.insert(value.clone()) {
                 set.push(value.clone());
             }
@@ -57,11 +55,11 @@ impl Component for CreateSetSimpleComponent {
 struct CreateSetWithMapComponent;
 impl Component for CreateSetWithMapComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let values = list(&inputs[0])?;
+        let values = list(&inputs[0]);
         let mut unique_values = HashMap::new();
         let mut set = Vec::new();
         let mut map = Vec::new();
-        for value in values {
+        for value in values.iter() {
             let index = *unique_values.entry(value.clone()).or_insert_with(|| {
                 let index = set.len();
                 set.push(value.clone());
@@ -81,8 +79,8 @@ impl Component for CreateSetWithMapComponent {
 struct SetUnionComponent;
 impl Component for SetUnionComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list(&inputs[0])?;
-        let set_b = list(&inputs[1])?;
+        let set_a = list(&inputs[0]);
+        let set_b = list(&inputs[1]);
         let mut unique_values = HashSet::new();
         let mut union = Vec::new();
         for value in set_a.iter().chain(set_b.iter()) {
@@ -101,10 +99,10 @@ impl Component for SetUnionComponent {
 struct SetIntersectionComponent;
 impl Component for SetIntersectionComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list_and_collect_into_hashset(&inputs[0])?;
-        let set_b = list(&inputs[1])?;
+        let set_a = list_and_collect_into_hashset(&inputs[0]);
+        let set_b = list(&inputs[1]);
         let mut intersection = Vec::new();
-        for value in set_b {
+        for value in set_b.iter() {
             if set_a.contains(value) {
                 intersection.push(value.clone());
             }
@@ -120,10 +118,10 @@ impl Component for SetIntersectionComponent {
 struct SetDifferenceComponent;
 impl Component for SetDifferenceComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list(&inputs[0])?;
-        let set_b_hs: HashSet<_> = list(&inputs[1])?.iter().cloned().collect();
+        let set_a = list(&inputs[0]);
+        let set_b_hs: HashSet<_> = list(&inputs[1]).iter().cloned().collect();
         let mut difference = Vec::new();
-        for value in set_a {
+        for value in set_a.iter() {
             if !set_b_hs.contains(value) {
                 difference.push(value.clone());
             }
@@ -139,8 +137,8 @@ impl Component for SetDifferenceComponent {
 struct SetDifferenceSymmetricComponent;
 impl Component for SetDifferenceSymmetricComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a: HashSet<_> = list(&inputs[0])?.iter().cloned().collect();
-        let set_b: HashSet<_> = list(&inputs[1])?.iter().cloned().collect();
+        let set_a: HashSet<_> = list(&inputs[0]).iter().cloned().collect();
+        let set_b: HashSet<_> = list(&inputs[1]).iter().cloned().collect();
         let difference: Vec<_> = set_a.symmetric_difference(&set_b).cloned().collect();
         let mut outputs = BTreeMap::new();
         outputs.insert("ExDifference".to_owned(), Value::List(difference));
@@ -153,7 +151,7 @@ impl Component for SetDifferenceSymmetricComponent {
 struct MemberIndexComponent;
 impl Component for MemberIndexComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set = list(&inputs[0])?;
+        let set = list(&inputs[0]);
         let member = &inputs[1];
         let mut indices = Vec::new();
         for (i, value) in set.iter().enumerate() {
@@ -174,8 +172,8 @@ impl Component for MemberIndexComponent {
 struct DisjointComponent;
 impl Component for DisjointComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list_and_collect_into_hashset(&inputs[0])?;
-        let set_b = list(&inputs[1])?;
+        let set_a = list_and_collect_into_hashset(&inputs[0]);
+        let set_b = list(&inputs[1]);
         let is_disjoint = set_b.iter().all(|v| !set_a.contains(v));
         let mut outputs = BTreeMap::new();
         outputs.insert("Result".to_owned(), Value::Boolean(is_disjoint));
@@ -188,8 +186,8 @@ impl Component for DisjointComponent {
 struct SubSetComponent;
 impl Component for SubSetComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list_and_collect_into_hashset(&inputs[0])?;
-        let set_b = list(&inputs[1])?;
+        let set_a = list_and_collect_into_hashset(&inputs[0]);
+        let set_b = list(&inputs[1]);
         let is_subset = set_b.iter().all(|v| set_a.contains(v));
         let mut outputs = BTreeMap::new();
         outputs.insert("Result".to_owned(), Value::Boolean(is_subset));
@@ -202,8 +200,8 @@ impl Component for SubSetComponent {
 struct KeyValueSearchComponent;
 impl Component for KeyValueSearchComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let keys = list(&inputs[0])?;
-        let values = list(&inputs[1])?;
+        let keys = list(&inputs[0]);
+        let values = list(&inputs[1]);
         let search_key = &inputs[2];
         if keys.len() != values.len() {
             return Err(ComponentError::new( "Keys and Values must have the same number of elements."));
@@ -224,7 +222,7 @@ impl Component for KeyValueSearchComponent {
 struct DeleteConsecutiveComponent;
 impl Component for DeleteConsecutiveComponent {
      fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set = list(&inputs[0])?;
+        let set = list(&inputs[0]);
         let wrap = boolean(&inputs[1]).unwrap_or(false);
         if set.is_empty() {
             let mut outputs = BTreeMap::new();
@@ -256,9 +254,9 @@ impl Component for DeleteConsecutiveComponent {
 struct ReplaceMembersComponent;
 impl Component for ReplaceMembersComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set = list(&inputs[0])?;
-        let find = list(&inputs[1])?;
-        let replace = list(&inputs[2])?;
+        let set = list(&inputs[0]);
+        let find = list(&inputs[1]);
+        let replace = list(&inputs[2]);
         let find_map: HashMap<_, _> = find.iter().zip(replace.iter().cycle()).collect();
         let result: Vec<_> = set
             .iter()
@@ -275,9 +273,9 @@ impl Component for ReplaceMembersComponent {
 struct SetMajorityComponent;
 impl Component for SetMajorityComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a: HashSet<_> = list(&inputs[0])?.iter().cloned().collect();
-        let set_b: HashSet<_> = list(&inputs[1])?.iter().cloned().collect();
-        let set_c: HashSet<_> = list(&inputs[2])?.iter().cloned().collect();
+        let set_a: HashSet<_> = list(&inputs[0]).iter().cloned().collect();
+        let set_b: HashSet<_> = list(&inputs[1]).iter().cloned().collect();
+        let set_c: HashSet<_> = list(&inputs[2]).iter().cloned().collect();
 
         let ab_intersect: HashSet<_> = set_a.intersection(&set_b).cloned().collect();
         let ac_intersect: HashSet<_> = set_a.intersection(&set_c).cloned().collect();
@@ -302,12 +300,12 @@ impl Component for SetMajorityComponent {
 struct CartesianProductComponent;
 impl Component for CartesianProductComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set_a = list(&inputs[0])?;
-        let set_b = list(&inputs[1])?;
+        let set_a = list(&inputs[0]);
+        let set_b = list(&inputs[1]);
         let mut product = Vec::new();
-        for _a in set_a {
+        for _a in set_a.iter() {
             let mut row = Vec::new();
-            for b in set_b {
+            for b in set_b.iter() {
                 row.push(b.clone());
             }
             product.push(Value::List(row));
@@ -323,7 +321,7 @@ impl Component for CartesianProductComponent {
 struct FindSimilarMemberComponent;
 impl Component for FindSimilarMemberComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
-        let set = list(&inputs[0])?;
+        let set = list(&inputs[0]);
         let data = &inputs[1];
 
         if set.is_empty() {
@@ -626,7 +624,7 @@ mod tests {
             Value::List(vec![Value::Number(2.0), Value::Number(3.0)]),
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
-        let mut difference: Vec<_> = list(result.get("ExDifference").unwrap()).unwrap().to_vec();
+        let mut difference: Vec<_> = list(result.get("ExDifference").unwrap()).to_vec();
         difference.sort_by(|a, b| a.partial_cmp(b).unwrap());
         assert_eq!(
             difference,
@@ -791,7 +789,7 @@ mod tests {
             Value::List(vec![Value::Number(3.0), Value::Number(4.0)]),
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
-        let mut majority: Vec<_> = list(result.get("Result").unwrap()).unwrap().to_vec();
+        let mut majority: Vec<_> = list(result.get("Result").unwrap()).to_vec();
         majority.sort_by(|a, b| a.partial_cmp(b).unwrap());
         assert_eq!(
             majority,
@@ -837,5 +835,32 @@ mod tests {
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(result.get("Hit").unwrap(), &Value::Number(2.0));
         assert_eq!(result.get("Index").unwrap(), &Value::Number(1.0));
+    }
+
+    #[test]
+    fn test_find_similar_member_single_input() {
+        let component = FindSimilarMemberComponent;
+        // Test with a single Boolean input instead of a list
+        let inputs = &[
+            Value::Boolean(true),
+            Value::Boolean(true),
+        ];
+        let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert_eq!(result.get("Hit").unwrap(), &Value::Boolean(true));
+        assert_eq!(result.get("Index").unwrap(), &Value::Number(0.0));
+
+        let inputs_mismatch = &[
+            Value::Boolean(true),
+            Value::Boolean(false),
+        ];
+        let result_mismatch = component.evaluate(inputs_mismatch, &MetaMap::new()).unwrap();
+        assert_eq!(result_mismatch.get("Hit").unwrap(), &Value::Boolean(true)); // Finds the only member
+        assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Number(0.0)); // It is the best match (distance MAX)
+        // Wait, if distance is MAX, it still updates best_index?
+        // min_dist initialized to MAX. if dist < min_dist...
+        // If dist is MAX (mismatch), it is not < MAX.
+        // So best_index remains 0.
+        // And hit returns set[0].
+        // This is consistent with finding "closest" in a set of 1.
     }
 }
