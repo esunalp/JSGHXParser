@@ -249,6 +249,11 @@ pub struct PanelComponent;
 
 impl Component for PanelComponent {
     fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
+        let multiline = meta
+            .get_normalized("Multiline")
+            .and_then(|v| v.as_boolean())
+            .unwrap_or(true);
+
         let output_value = if !inputs.is_empty() && inputs.iter().any(|v| !matches!(v, Value::Null)) {
             inputs
                 .iter()
@@ -269,6 +274,32 @@ impl Component for PanelComponent {
                 })
                 .unwrap_or_default()
         };
+
+        if !multiline {
+            // If multiline is false, treat each line as a separate list item.
+            // The user specifically requested: "veranderd elke tekstregel dat in UserText staat ... in een list item output ... waarde (text)"
+            // We still attempt to parse numbers if possible, or stick to text.
+            // Actually, typical Grasshopper behavior for panels with Multiline=false:
+            // It splits the content by newlines and outputs a list of items.
+            let items: Vec<Value> = output_value
+                .lines()
+                .map(|line| {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        match trimmed.parse::<f64>() {
+                            Ok(number) => Value::Number(number),
+                            Err(_) => Value::Text(line.to_string()),
+                        }
+                    } else {
+                        Value::Text(line.to_string())
+                    }
+                })
+                .collect();
+
+            let mut outputs = BTreeMap::new();
+            outputs.insert("Output".to_string(), Value::List(items));
+            return Ok(outputs);
+        }
 
         let trimmed = output_value.trim();
         let output_value = if !trimmed.is_empty() {

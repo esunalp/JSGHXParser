@@ -298,6 +298,13 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         } else {
             node.set_output("Output", Value::Null);
         }
+
+        if let Some(panel_props) = container.find_case_insensitive("PanelProperties") {
+            if let Some(multiline_str) = panel_props.item_value("Multiline") {
+                let multiline = multiline_str.eq_ignore_ascii_case("true");
+                node.insert_meta("Multiline", multiline);
+            }
+        }
     }
 
     if is_value_list {
