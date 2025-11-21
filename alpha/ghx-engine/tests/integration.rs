@@ -22,9 +22,33 @@ fn slider_updates_require_existing_identifier() {
     engine.load_ghx(xml).expect("load ghx");
 
     engine
-        .set_slider_value("Length", 4.5)
+        .update_input_value("Length", Value::Number(4.5))
         .expect("valid slider name");
-    assert!(engine.set_slider_value("onbekend", 1.0).is_err());
+    assert!(engine.update_input_value("onbekend", Value::Number(1.0)).is_err());
+}
+
+#[test]
+fn parses_brugtest_boolean_toggle() {
+    let xml = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../web/brugtest.ghx"
+    ));
+    let graph = ghx_xml::parse_str(xml).expect("parse brugtest");
+
+    // GUID for Boolean Toggle: 2e78987b-9dfb-42a2-8b76-3923ac8bd91a
+    let toggle = graph.nodes().iter().find(|n| n.guid.as_deref() == Some("{2e78987b-9dfb-42a2-8b76-3923ac8bd91a}"));
+    assert!(toggle.is_some(), "Boolean Toggle node should exist");
+
+    let toggle = toggle.unwrap();
+    let val = toggle.meta("Value").expect("Value meta should be present");
+    // Check if it's boolean true (as seen in the file)
+    match val {
+        ghx_engine::graph::node::MetaValue::Boolean(b) => assert!(*b, "Toggle should be true"),
+        _ => panic!("Expected Boolean meta value"),
+    }
+
+    // Check if "Output" pin exists (added by my fix)
+    assert!(toggle.outputs.contains_key("Output"), "Output pin should exist");
 }
 
 #[test]

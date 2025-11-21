@@ -81,24 +81,41 @@ macro_rules! debug_log {
 }
 
 #[derive(Debug, Clone)]
-struct SliderBinding {
+struct InputBinding {
     id: String,
     node_id: NodeId,
     output_pin: String,
     search_keys: Vec<String>,
+    kind: InputKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputKind {
+    Slider,
+    Toggle,
 }
 
 #[derive(Debug, Serialize)]
-struct SliderExport {
-    id: String,
-    name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    min: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    max: Option<f64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    step: Option<f64>,
-    value: f64,
+#[serde(tag = "type")]
+enum InputControl {
+    #[serde(rename = "slider")]
+    Slider {
+        id: String,
+        name: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        min: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max: Option<f64>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        step: Option<f64>,
+        value: f64,
+    },
+    #[serde(rename = "toggle")]
+    Toggle {
+        id: String,
+        name: String,
+        value: bool,
+    },
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -206,7 +223,7 @@ pub struct Engine {
     registry: ComponentRegistry,
     graph: Option<Graph>,
     last_result: Option<EvaluationResult>,
-    slider_bindings: Vec<SliderBinding>,
+    input_bindings: Vec<InputBinding>,
     evaluation_plan: Option<EvaluationPlan>,
     dirty_nodes: HashSet<NodeId>,
     result_dirty: bool,
@@ -223,7 +240,7 @@ impl Engine {
             registry: ComponentRegistry::default(),
             graph: None,
             last_result: None,
-            slider_bindings: Vec::new(),
+            input_bindings: Vec::new(),
             evaluation_plan: None,
             dirty_nodes: HashSet::new(),
             result_dirty: false,
@@ -242,12 +259,12 @@ impl Engine {
     #[wasm_bindgen]
     pub fn load_ghx(&mut self, xml: &str) -> Result<(), JsValue> {
         let graph = parse::ghx_xml::parse_str(xml).map_err(to_js_error)?;
-        let slider_bindings = collect_slider_bindings(&graph, &self.registry);
+        let input_bindings = collect_input_bindings(&graph, &self.registry);
         let evaluation_plan = evaluator::EvaluationPlan::new(&graph).map_err(to_js_error)?;
         let node_ids: Vec<NodeId> = graph.nodes().iter().map(|node| node.id).collect();
 
         self.graph = Some(graph);
-        self.slider_bindings = slider_bindings;
+        self.input_bindings = input_bindings;
         self.last_result = None;
         self.evaluation_plan = Some(evaluation_plan);
         self.dirty_nodes.clear();
@@ -259,7 +276,7 @@ impl Engine {
         Ok(())
     }
 
-    /// Haal slider-specificaties op voor UI-generatie.
+    /// Haal input controls (sliders, toggles) op voor UI-generatie.
     #[wasm_bindgen]
     pub fn get_sliders(&self) -> Result<JsValue, JsValue> {
         let graph = match self.graph.as_ref() {
@@ -267,77 +284,31 @@ impl Engine {
             None => return Err(js_error("er is geen GHX-bestand geladen")),
         };
 
-        let mut sliders = Vec::with_capacity(self.slider_bindings.len());
-        for binding in &self.slider_bindings {
-            let slider = match slider_state(graph, binding) {
-                Ok(slider) => slider,
+        let mut controls = Vec::with_capacity(self.input_bindings.len());
+        for binding in &self.input_bindings {
+            let control = match input_control_state(graph, binding) {
+                Ok(control) => control,
                 Err(err) => return Err(js_error(&err)),
             };
-            sliders.push(slider);
+            controls.push(control);
         }
 
-        serde_wasm_bindgen::to_value(&sliders).map_err(|err| JsError::new(&err.to_string()).into())
+        serde_wasm_bindgen::to_value(&controls).map_err(|err| JsError::new(&err.to_string()).into())
     }
 
-    /// Stel een sliderwaarde in op basis van id of naam.
+    /// Stel een slider- of togglewaarde in op basis van id of naam.
     #[wasm_bindgen]
-    pub fn set_slider_value(&mut self, id_or_name: &str, value: f64) -> Result<(), JsValue> {
-        if !value.is_finite() {
-            return Err(JsError::new("sliderwaarde moet een eindig getal zijn").into());
-        }
-
-        let slider_index = match self.find_slider_index(id_or_name) {
-            Some(index) => index,
-            None => return Err(js_error("onbekende sliderreferentie")),
+    pub fn set_slider_value(&mut self, id_or_name: &str, value: JsValue) -> Result<(), JsValue> {
+        let val = if let Some(n) = value.as_f64() {
+            Value::Number(n)
+        } else if let Some(b) = value.as_bool() {
+            Value::Boolean(b)
+        } else {
+            return Err(js_error("sliderwaarde moet een getal of boolean zijn"));
         };
 
-        let graph = match self.graph.as_mut() {
-            Some(graph) => graph,
-            None => return Err(js_error("er is geen GHX-bestand geladen")),
-        };
-
-        let binding = self.slider_bindings[slider_index].clone();
-        let node = match graph.node_mut(binding.node_id) {
-            Some(node) => node,
-            None => return Err(js_error("interne sliderreferentie is ongeldig")),
-        };
-
-        let min = match meta_number(&node.meta, "min") {
-            Ok(value) => value,
-            Err(err) => return Err(js_error(&err)),
-        };
-        let max = match meta_number(&node.meta, "max") {
-            Ok(value) => value,
-            Err(err) => return Err(js_error(&err)),
-        };
-        let step = match meta_number(&node.meta, "step") {
-            Ok(value) => value,
-            Err(err) => return Err(js_error(&err)),
-        };
-
-        let mut clamped = clamp(
-            value,
-            min.unwrap_or(f64::NEG_INFINITY),
-            max.unwrap_or(f64::INFINITY),
-        );
-
-        if let Some(step) = step.filter(|s| *s > 0.0) {
-            if let Some(min) = min {
-                clamped = min + ((clamped - min) / step).round() * step;
-            }
-            clamped = clamp(
-                clamped,
-                min.unwrap_or(f64::NEG_INFINITY),
-                max.unwrap_or(f64::INFINITY),
-            );
-        }
-
-        node.insert_meta("value", clamped);
-        node.set_output(binding.output_pin, Value::Number(clamped));
-
-        self.dirty_nodes.insert(binding.node_id);
-        self.result_dirty = true;
-        Ok(())
+        self.update_input_value(id_or_name, val)
+            .map_err(|e| js_error(&e))
     }
 
     /// Evalueer de geladen graph.
@@ -539,26 +510,33 @@ impl Engine {
     }
 }
 
-fn collect_slider_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<SliderBinding> {
+fn collect_input_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<InputBinding> {
     let mut bindings = Vec::new();
 
     for node in graph.nodes() {
-        if matches!(
-            registry.resolve(
-                node.guid.as_deref(),
-                node.name.as_deref(),
-                node.nickname.as_deref()
-            ),
+        let component = registry.resolve(
+            node.guid.as_deref(),
+            node.name.as_deref(),
+            node.nickname.as_deref(),
+        );
+
+        let kind = match component {
             Some(ComponentKind::ParamsInput(
                 components::params_input::ComponentKind::NumberSlider,
-            ))
-        ) {
+            )) => Some(InputKind::Slider),
+            Some(ComponentKind::ParamsInput(
+                components::params_input::ComponentKind::BooleanToggle,
+            )) => Some(InputKind::Toggle),
+            _ => None,
+        };
+
+        if let Some(kind) = kind {
             let output_pin = node
                 .outputs
                 .keys()
                 .next()
                 .cloned()
-                .unwrap_or_else(|| "OUT".to_string());
+                .unwrap_or_else(|| "Output".to_string());
 
             let mut search_keys = Vec::new();
             if let Some(name) = node.name.as_deref() {
@@ -568,11 +546,12 @@ fn collect_slider_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<S
                 search_keys.push(normalize_name(nickname));
             }
 
-            bindings.push(SliderBinding {
+            bindings.push(InputBinding {
                 id: node.id.0.to_string(),
                 node_id: node.id,
                 output_pin,
                 search_keys,
+                kind,
             });
         }
     }
@@ -580,30 +559,50 @@ fn collect_slider_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<S
     bindings
 }
 
-fn slider_state(graph: &Graph, binding: &SliderBinding) -> Result<SliderExport, String> {
+fn input_control_state(graph: &Graph, binding: &InputBinding) -> Result<InputControl, String> {
     let node = graph
         .node(binding.node_id)
-        .ok_or_else(|| "interne sliderreferentie is ongeldig".to_owned())?;
+        .ok_or_else(|| "interne inputreferentie is ongeldig".to_owned())?;
 
     let name = node
         .nickname
         .as_deref()
         .or(node.name.as_deref())
-        .unwrap_or(&binding.id);
+        .unwrap_or(&binding.id)
+        .to_owned();
 
-    let value = required_meta_number(&node.meta, "value")?;
-    let min = meta_number(&node.meta, "min")?;
-    let max = meta_number(&node.meta, "max")?;
-    let step = meta_number(&node.meta, "step")?;
+    match binding.kind {
+        InputKind::Slider => {
+            let value = required_meta_number(&node.meta, "value")?;
+            let min = meta_number(&node.meta, "min")?;
+            let max = meta_number(&node.meta, "max")?;
+            let step = meta_number(&node.meta, "step")?;
 
-    Ok(SliderExport {
-        id: binding.id.clone(),
-        name: name.to_owned(),
-        min,
-        max,
-        step,
-        value,
-    })
+            Ok(InputControl::Slider {
+                id: binding.id.clone(),
+                name,
+                min,
+                max,
+                step,
+                value,
+            })
+        }
+        InputKind::Toggle => {
+            let value = node
+                .meta("Value")
+                .and_then(|v| match v {
+                    MetaValue::Boolean(b) => Some(*b),
+                    _ => None,
+                })
+                .unwrap_or(false);
+
+            Ok(InputControl::Toggle {
+                id: binding.id.clone(),
+                name,
+                value,
+            })
+        }
+    }
 }
 
 fn append_geometry_items<'a>(entry: &'a GeometryEntry, items: &mut Vec<GeometryItem<'a>>) {
@@ -795,7 +794,76 @@ fn js_error(message: &str) -> JsValue {
 }
 
 impl Engine {
-    fn find_slider_index(&self, id_or_name: &str) -> Option<usize> {
+    /// Interne methode om input waarden bij te werken (niet blootgesteld via WASM).
+    pub fn update_input_value(&mut self, id_or_name: &str, value: Value) -> Result<(), String> {
+        let index = match self.find_input_index(id_or_name) {
+            Some(index) => index,
+            None => return Err("onbekende inputreferentie".to_string()),
+        };
+
+        let graph = match self.graph.as_mut() {
+            Some(graph) => graph,
+            None => return Err("er is geen GHX-bestand geladen".to_string()),
+        };
+
+        let binding = self.input_bindings[index].clone();
+        let node = match graph.node_mut(binding.node_id) {
+            Some(node) => node,
+            None => return Err("interne inputreferentie is ongeldig".to_string()),
+        };
+
+        match binding.kind {
+            InputKind::Slider => {
+                let value_f64 = match value {
+                    Value::Number(n) => n,
+                    _ => return Err("sliderwaarde moet een getal zijn".to_string()),
+                };
+
+                if !value_f64.is_finite() {
+                    return Err("sliderwaarde moet een eindig getal zijn".to_string());
+                }
+
+                let min = meta_number(&node.meta, "min")?;
+                let max = meta_number(&node.meta, "max")?;
+                let step = meta_number(&node.meta, "step")?;
+
+                let mut clamped = clamp(
+                    value_f64,
+                    min.unwrap_or(f64::NEG_INFINITY),
+                    max.unwrap_or(f64::INFINITY),
+                );
+
+                if let Some(step) = step.filter(|s| *s > 0.0) {
+                    if let Some(min) = min {
+                        clamped = min + ((clamped - min) / step).round() * step;
+                    }
+                    clamped = clamp(
+                        clamped,
+                        min.unwrap_or(f64::NEG_INFINITY),
+                        max.unwrap_or(f64::INFINITY),
+                    );
+                }
+
+                node.insert_meta("value", clamped);
+                node.set_output(binding.output_pin, Value::Number(clamped));
+            }
+            InputKind::Toggle => {
+                let value_bool = match value {
+                    Value::Boolean(b) => b,
+                    _ => return Err("togglewaarde moet een boolean zijn".to_string()),
+                };
+
+                node.insert_meta("Value", value_bool);
+                node.set_output(binding.output_pin, Value::Boolean(value_bool));
+            }
+        }
+
+        self.dirty_nodes.insert(binding.node_id);
+        self.result_dirty = true;
+        Ok(())
+    }
+
+    fn find_input_index(&self, id_or_name: &str) -> Option<usize> {
         let trimmed = id_or_name.trim();
         if trimmed.is_empty() {
             return None;
@@ -803,7 +871,7 @@ impl Engine {
 
         let normalized = normalize_name(trimmed);
 
-        self.slider_bindings
+        self.input_bindings
             .iter()
             .enumerate()
             .find_map(|(idx, binding)| {
