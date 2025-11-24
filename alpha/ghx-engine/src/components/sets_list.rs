@@ -1,5 +1,6 @@
 //! Implementaties van Grasshopper "Sets -> List" componenten.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
@@ -543,10 +544,13 @@ fn evaluate_split_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 }
 
 
-fn coerce_list<'a>(value: Option<&'a Value>, context: &str) -> Result<&'a [Value], ComponentError> {
+fn coerce_list<'a>(
+    value: Option<&'a Value>,
+    context: &str,
+) -> Result<Cow<'a, [Value]>, ComponentError> {
     match value {
-        Some(Value::List(list)) => Ok(list),
-        Some(other) => Err(ComponentError::new(format!("{} verwacht een lijst, kreeg {}", context, other.kind()))),
+        Some(Value::List(list)) => Ok(Cow::Borrowed(list)),
+        Some(other) => Ok(Cow::Owned(vec![other.clone()])),
         None => Err(ComponentError::new(format!("{} vereist een lijst", context))),
     }
 }
@@ -897,5 +901,27 @@ mod tests {
             outputs.get(super::PIN_OUTPUT_ELEMENT),
             Some(Value::Number(n)) if (*n - 9.0).abs() < 1e-9
         ));
+    }
+
+    #[test]
+    fn list_item_accepts_single_geometry_without_list_wrapper() {
+        let component = ComponentKind::ListItem;
+        let brep = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        let inputs = &[brep.clone(), Value::Number(0.0)];
+
+        let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
+
+        assert!(matches!(
+            outputs.get(super::PIN_OUTPUT_ELEMENT),
+            Some(Value::Surface { .. })
+        ));
+        // Ensure the geometry itself is passed through unchanged.
+        assert_eq!(
+            outputs.get(super::PIN_OUTPUT_ELEMENT),
+            Some(&brep)
+        );
     }
 }
