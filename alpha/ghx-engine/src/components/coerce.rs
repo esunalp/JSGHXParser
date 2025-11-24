@@ -91,6 +91,15 @@ pub fn coerce_integer(value: &Value) -> Result<i64, ComponentError> {
     match value {
         Value::Number(n) => Ok(n.round() as i64),
         Value::Boolean(b) => Ok(if *b { 1 } else { 0 }),
+        Value::Text(s) => match parse_boolean_text(s.as_str()) {
+            Some(boolean) => Ok(if boolean { 1 } else { 0 }),
+            None => s.parse::<f64>().map(|n| n.round() as i64).map_err(|_| {
+                ComponentError::new(format!(
+                    "Kon tekst '{}' niet naar een geheel getal converteren",
+                    s
+                ))
+            }),
+        },
         Value::List(l) if l.len() == 1 => coerce_integer(&l[0]),
         other => Err(ComponentError::new(format!(
             "Verwachtte een geheel getal, kreeg {}",
@@ -205,8 +214,8 @@ pub fn coerce_boolean_with_default(value: Option<&Value>) -> bool {
 
 pub fn parse_boolean_text(input: &str) -> Option<bool> {
     match input.trim().to_ascii_lowercase().as_str() {
-        "true" => Some(true),
-        "false" => Some(false),
+        "true" | "1" | "yes" | "y" | "on" => Some(true),
+        "false" | "0" | "no" | "n" | "off" => Some(false),
         _ => None,
     }
 }
@@ -216,6 +225,31 @@ pub fn coerce_point_with_default(value: Option<&Value>) -> [f64; 3] {
         Some(Value::Null) => [0.0, 0.0, 0.0],
         Some(v) => coerce_point(v).unwrap_or([0.0, 0.0, 0.0]),
         None => [0.0, 0.0, 0.0],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_boolean_text_accepts_numeric_forms() {
+        assert_eq!(parse_boolean_text("1"), Some(true));
+        assert_eq!(parse_boolean_text("0"), Some(false));
+        assert_eq!(parse_boolean_text(" true "), Some(true));
+    }
+
+    #[test]
+    fn coerce_boolean_accepts_numeric_strings() {
+        assert_eq!(coerce_boolean(&Value::Text("1".to_owned())).unwrap(), true);
+        assert_eq!(coerce_boolean(&Value::Text("0".to_owned())).unwrap(), false);
+    }
+
+    #[test]
+    fn coerce_integer_handles_text_booleans_and_numbers() {
+        assert_eq!(coerce_integer(&Value::Text("True".to_owned())).unwrap(), 1);
+        assert_eq!(coerce_integer(&Value::Text("0".to_owned())).unwrap(), 0);
+        assert_eq!(coerce_integer(&Value::Text("2.4".to_owned())).unwrap(), 2);
     }
 }
 

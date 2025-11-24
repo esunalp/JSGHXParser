@@ -8,6 +8,8 @@ use crate::graph::value::Value;
 use crate::graph::wire::Wire;
 use crate::graph::{Graph, GraphError};
 
+use crate::components::coerce::parse_boolean_text;
+
 use quick_xml::de::from_str;
 use serde::Deserialize;
 use thiserror::Error;
@@ -265,7 +267,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
     node.nickname = nickname;
 
     if let Some(hidden_value) = container.item_value("Hidden") {
-        if hidden_value.eq_ignore_ascii_case("true") {
+        if parse_boolean_text(hidden_value).unwrap_or(false) {
             node.insert_meta("hidden", true);
         }
     }
@@ -301,8 +303,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
 
         if let Some(panel_props) = container.find_case_insensitive("PanelProperties") {
             if let Some(multiline_str) = panel_props.item_value("Multiline") {
-                let multiline = multiline_str.eq_ignore_ascii_case("true");
-                node.insert_meta("Multiline", multiline);
+                if let Some(multiline) = parse_boolean_text(multiline_str) {
+                    node.insert_meta("Multiline", multiline);
+                }
             }
         }
     }
@@ -317,9 +320,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
 
     if is_boolean_toggle {
         if let Some(val_str) = container.item_value("ToggleValue") {
-            let val = val_str.eq_ignore_ascii_case("true");
-            node.insert_meta("Value", val);
-            node.set_output("Output", Value::Boolean(val));
+            let value = parse_boolean_text(val_str).unwrap_or(false);
+            node.insert_meta("Value", value);
+            node.set_output("Output", Value::Boolean(value));
         } else {
             node.insert_meta("Value", false);
             node.set_output("Output", Value::Boolean(false));
@@ -541,7 +544,7 @@ fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
         let expression = item_chunk.item_value("Expression").unwrap_or("").to_string();
         let selected = item_chunk
             .item_value("Selected")
-            .map(|s| s.eq_ignore_ascii_case("true"))
+            .and_then(parse_boolean_text)
             .unwrap_or(false);
 
         // Store item info.
