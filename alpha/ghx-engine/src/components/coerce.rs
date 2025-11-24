@@ -60,9 +60,12 @@ pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
     match value {
         Value::Number(n) => Ok(*n),
         Value::Boolean(b) => Ok(if *b { 1.0 } else { 0.0 }),
-        Value::Text(s) => s.parse().map_err(|_| {
-            ComponentError::new(format!("Kon tekst '{}' niet naar een getal converteren", s))
-        }),
+        Value::Text(s) => match parse_boolean_text(s.as_str()) {
+            Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
+            None => s.parse().map_err(|_| {
+                ComponentError::new(format!("Kon tekst '{}' niet naar een getal converteren", s))
+            }),
+        },
         Value::List(l) if l.len() == 1 => coerce_number(&l[0]),
         other => Err(ComponentError::new(format!(
             "Verwachtte een getal, kreeg {}",
@@ -100,6 +103,12 @@ pub fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
     match value {
         Value::Boolean(b) => Ok(*b),
         Value::Number(n) => Ok(n.abs() > 1e-9),
+        Value::Text(s) => parse_boolean_text(s.as_str()).ok_or_else(|| {
+            ComponentError::new(format!(
+                "Kon tekst '{}' niet naar een booleaanse waarde converteren",
+                s
+            ))
+        }),
         Value::List(l) if l.len() == 1 => coerce_boolean(&l[0]),
         other => Err(ComponentError::new(format!(
             "Verwachtte een booleaanse waarde, kreeg {}",
@@ -194,6 +203,14 @@ pub fn coerce_boolean_with_default(value: Option<&Value>) -> bool {
     }
 }
 
+pub fn parse_boolean_text(input: &str) -> Option<bool> {
+    match input.trim().to_ascii_lowercase().as_str() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
 pub fn coerce_point_with_default(value: Option<&Value>) -> [f64; 3] {
     match value {
         Some(Value::Null) => [0.0, 0.0, 0.0],
@@ -214,7 +231,11 @@ pub fn coerce_plane_with_default(value: Option<&Value>) -> PlaneValue {
     if let Some(value) = value {
         if let Value::List(l) = value {
             if l.len() >= 3 {
-                if let (Ok(p1), Ok(p2), Ok(p3)) = (coerce_point(&l[0]), coerce_point(&l[1]), coerce_point(&l[2])) {
+                if let (Ok(p1), Ok(p2), Ok(p3)) = (
+                    coerce_point(&l[0]),
+                    coerce_point(&l[1]),
+                    coerce_point(&l[2]),
+                ) {
                     let ab = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]];
                     let ac = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]];
                     let z_axis = [
@@ -233,5 +254,10 @@ pub fn coerce_plane_with_default(value: Option<&Value>) -> PlaneValue {
             }
         }
     }
-    PlaneValue::new([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
+    PlaneValue::new(
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 1.0],
+    )
 }
