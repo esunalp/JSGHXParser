@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const EPSILON: f64 = 1e-9;
 
@@ -637,6 +637,12 @@ fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> 
                 Ok(*number != 0.0)
             }
         }
+        Value::Text(text) => coerce::parse_boolean_text(text).ok_or_else(|| {
+            ComponentError::new(format!(
+                "{context} verwacht een booleaanse waarde, kreeg tekst '{}'",
+                text
+            ))
+        }),
         Value::List(values) if values.len() == 1 => coerce_boolean(&values[0], context),
         other => Err(ComponentError::new(format!(
             "{context} verwacht een booleaanse waarde, kreeg {}",
@@ -657,6 +663,13 @@ fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
             }
         }
         Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
+        Value::Text(text) => match coerce::parse_boolean_text(text) {
+            Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
+            None => Err(ComponentError::new(format!(
+                "{context} verwacht een numerieke waarde, kreeg tekst '{}'",
+                text
+            ))),
+        },
         Value::List(values) if values.len() == 1 => coerce_number(&values[0], context),
         other => Err(ComponentError::new(format!(
             "{context} verwacht een numerieke waarde, kreeg {}",
@@ -739,6 +752,11 @@ fn collect_math_values_recursive(value: &Value, result: &mut Vec<MathValue>) {
         Value::Boolean(boolean) => {
             result.push(MathValue::scalar(if *boolean { 1.0 } else { 0.0 }));
         }
+        Value::Text(text) => {
+            if let Some(boolean) = coerce::parse_boolean_text(text) {
+                result.push(MathValue::scalar(if boolean { 1.0 } else { 0.0 }));
+            }
+        }
         Value::Point(point) | Value::Vector(point) => {
             result.push(MathValue::vector(*point));
         }
@@ -765,6 +783,11 @@ fn collect_numbers_recursive(value: &Value, result: &mut Vec<f64>) {
             }
         }
         Value::Boolean(boolean) => result.push(if *boolean { 1.0 } else { 0.0 }),
+        Value::Text(text) => {
+            if let Some(boolean) = coerce::parse_boolean_text(text) {
+                result.push(if boolean { 1.0 } else { 0.0 });
+            }
+        }
         _ => {}
     }
 }
@@ -874,6 +897,25 @@ mod tests {
     }
 
     #[test]
+    fn gate_and_accepts_text_booleans() {
+        let component = ComponentKind::GateAnd;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Text("True".to_owned()),
+                    Value::Text("false".to_owned()),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("gate and with text succeeds");
+
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Boolean(false))
+        ));
+    }
+
+    #[test]
     fn relative_differences_compute_sequence() {
         let component = ComponentKind::RelativeDifferences;
         let inputs = [Value::List(vec![
@@ -887,6 +929,23 @@ mod tests {
         assert!(matches!(
             outputs.get(PIN_DIFFERENCES),
             Some(Value::List(values)) if values.len() == 2
+        ));
+    }
+
+    #[test]
+    fn mass_addition_coerces_text_booleans_to_numbers() {
+        let component = ComponentKind::MassAddition;
+        let inputs = [Value::List(vec![
+            Value::Text("True".to_owned()),
+            Value::Text("false".to_owned()),
+        ])];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("mass addition with text booleans succeeds");
+
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Number(total)) if (*total - 1.0).abs() < 1e-9
         ));
     }
 
@@ -922,20 +981,23 @@ mod tests {
     }
 }
 
-    #[test]
-    fn subtraction_defaults_to_zero() {
-        let component = ComponentKind::Subtraction;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("subtraction with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
-    }
+#[test]
+fn subtraction_defaults_to_zero() {
+    let component = ComponentKind::Subtraction;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("subtraction with no inputs succeeds");
+    assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
+}
 
-    #[test]
-    fn gate_and_defaults_to_true() {
-        let component = ComponentKind::GateAnd;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("gate and with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Boolean(true))));
-    }
+#[test]
+fn gate_and_defaults_to_true() {
+    let component = ComponentKind::GateAnd;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("gate and with no inputs succeeds");
+    assert!(matches!(
+        outputs.get(PIN_RESULT),
+        Some(Value::Boolean(true))
+    ));
+}
