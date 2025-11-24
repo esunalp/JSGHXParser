@@ -553,20 +553,35 @@ fn coerce_list<'a>(value: Option<&'a Value>, context: &str) -> Result<&'a [Value
 
 fn coerce_integer(value: Option<&Value>, context: &str) -> Result<i64, ComponentError> {
     match value {
-        Some(Value::Number(n)) => Ok(*n as i64),
         Some(Value::List(values)) if !values.is_empty() => coerce_integer(values.get(0), context),
-        Some(other) => Err(ComponentError::new(format!("{} verwacht een geheel getal, kreeg {}", context, other.kind()))),
-        None => Err(ComponentError::new(format!("{} vereist een geheel getal", context))),
+        Some(other) => super::coerce::coerce_integer(other).map_err(|_| {
+            ComponentError::new(format!(
+                "{} verwacht een geheel getal, kreeg {}",
+                context,
+                other.kind()
+            ))
+        }),
+        None => Err(ComponentError::new(format!(
+            "{} vereist een geheel getal",
+            context
+        ))),
     }
 }
 
 fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, ComponentError> {
     match value {
-        Some(Value::Boolean(b)) => Ok(*b),
-        Some(Value::Number(n)) => Ok(*n != 0.0),
         Some(Value::List(values)) if !values.is_empty() => coerce_boolean(values.get(0), context),
-        Some(other) => Err(ComponentError::new(format!("{} verwacht een boolean, kreeg {}", context, other.kind()))),
-        None => Err(ComponentError::new(format!("{} vereist een boolean", context))),
+        Some(other) => super::coerce::coerce_boolean(other).map_err(|_| {
+            ComponentError::new(format!(
+                "{} verwacht een boolean, kreeg {}",
+                context,
+                other.kind()
+            ))
+        }),
+        None => Err(ComponentError::new(format!(
+            "{} vereist een boolean",
+            context
+        ))),
     }
 }
 
@@ -868,5 +883,19 @@ mod tests {
         };
         assert_eq!(list_a.len(), 1);
         assert_eq!(list_b.len(), 2);
+    }
+
+    #[test]
+    fn list_item_accepts_boolean_index() {
+        let component = ComponentKind::ListItem;
+        let inputs = &[
+            Value::List(vec![Value::Number(5.0), Value::Number(9.0)]),
+            Value::Boolean(true), // coerces to index 1
+        ];
+        let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert!(matches!(
+            outputs.get(super::PIN_OUTPUT_ELEMENT),
+            Some(Value::Number(n)) if (*n - 9.0).abs() < 1e-9
+        ));
     }
 }
