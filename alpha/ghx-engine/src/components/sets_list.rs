@@ -196,6 +196,10 @@ fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let item = list[final_index].clone();
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_ELEMENT.to_owned(), item);
+    // Sommige GHX-bestanden gebruiken andere pinnamen (bijv. "Item"/"i") voor de List Item-output.
+    // Voeg aliases toe zodat verbindingen via die pinnamen ook een waarde ontvangen.
+    outputs.insert("Item".to_owned(), outputs.get(PIN_OUTPUT_ELEMENT).cloned().unwrap_or(Value::Null));
+    outputs.insert("i".to_owned(), outputs.get(PIN_OUTPUT_ELEMENT).cloned().unwrap_or(Value::Null));
 
     Ok(outputs)
 }
@@ -931,5 +935,24 @@ mod tests {
             outputs.get(super::PIN_OUTPUT_ELEMENT),
             Some(&brep)
         );
+    }
+
+    #[test]
+    fn list_item_exposes_item_alias_pins() {
+        let component = ComponentKind::ListItem;
+        let inputs = &[
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::Number(1.0),
+        ];
+
+        let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
+        assert!(matches!(
+            outputs.get("Item"),
+            Some(Value::Number(n)) if (*n - 2.0).abs() < 1e-9
+        ));
+        assert!(matches!(
+            outputs.get("i"),
+            Some(Value::Number(n)) if (*n - 2.0).abs() < 1e-9
+        ));
     }
 }
