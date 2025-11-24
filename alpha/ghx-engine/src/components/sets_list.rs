@@ -372,7 +372,11 @@ fn evaluate_pick_and_choose(inputs: &[Value], _meta: &MetaMap) -> ComponentResul
     }
 
     let pattern = coerce_list(inputs.get(0), "Pick'n'Choose P")?;
-    let streams: Vec<&[Value]> = inputs.iter().skip(1).map(|v| coerce_list(Some(v), "Pick'n'Choose Stream").unwrap_or(&[])).collect();
+    let streams: Vec<_> = inputs
+        .iter()
+        .skip(1)
+        .map(|v| coerce_list(Some(v), "Pick'n'Choose Stream"))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut result = Vec::new();
     for (i, p) in pattern.iter().enumerate() {
@@ -395,12 +399,16 @@ fn evaluate_weave(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     }
 
     let pattern = coerce_list(inputs.get(0), "Weave P")?;
-    let streams: Vec<&[Value]> = inputs.iter().skip(1).map(|v| coerce_list(Some(v), "Weave Stream").unwrap_or(&[])).collect();
+    let streams: Vec<_> = inputs
+        .iter()
+        .skip(1)
+        .map(|v| coerce_list(Some(v), "Weave Stream"))
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut stream_counters = vec![0; streams.len()];
     let mut result = Vec::new();
 
-    for p in pattern {
+    for p in pattern.iter() {
         let stream_index = coerce_integer(Some(p), "Weave P")? as usize;
         if let Some(stream) = streams.get(stream_index) {
             if let Some(item) = stream.get(stream_counters[stream_index]) {
@@ -460,8 +468,8 @@ fn evaluate_cross_reference(inputs: &[Value], _meta: &MetaMap) -> ComponentResul
     let mut new_a = Vec::new();
     let mut new_b = Vec::new();
 
-    for a in list_a {
-        for b in list_b {
+    for a in list_a.iter() {
+        for b in list_b.iter() {
             new_a.push(a.clone());
             new_b.push(b.clone());
         }
