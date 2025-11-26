@@ -816,7 +816,7 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 mod tests {
     use super::{
         ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL, PIN_OUTPUT_Y,
-        PIN_PARTIAL_RESULTS, PIN_RESULT, coerce_add_number,
+        PIN_PARTIAL_RESULTS, PIN_RESULT, coerce,
     };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn addition_rejects_multiple_values_in_list() {
-        let err = coerce_add_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)]))
+        let err = coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)]))
             .unwrap_err();
         assert!(matches!(err, crate::components::ComponentError::Message(_)));
     }

@@ -11,6 +11,9 @@ incremental = false
 codegen-units = 256
 rpath = false
 
+[build]
+target-dir = "../web/pkg"
+
 [package]
 name = "ghx-engine"
 version = "0.1.0"
