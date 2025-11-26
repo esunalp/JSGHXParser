@@ -285,8 +285,8 @@ fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let a = coerce_number(&inputs[0])?;
-    let b = coerce_number(&inputs[1])?;
+    let a = coerce_number(&inputs[0], "Addition A")?;
+    let b = coerce_number(&inputs[1], "Addition B")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Number(a + b));
     Ok(outputs)
