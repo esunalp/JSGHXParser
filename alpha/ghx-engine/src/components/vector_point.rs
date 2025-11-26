@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{ColorValue, PlaneValue, TextTagValue, Value};
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const PIN_OUTPUT_POINT: &str = "P";
 const PIN_OUTPUT_POINTS: &str = "P";
@@ -2422,99 +2422,108 @@ mod tests {
     }
 }
 
-    #[test]
-    fn construct_point_defaults_to_origin() {
-        let component = ComponentKind::ConstructPoint;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("construct with no inputs succeeds");
-        assert!(matches!(
-            outputs.get(PIN_OUTPUT_POINT),
-            Some(Value::Point(coords)) if *coords == [0.0, 0.0, 0.0]
-        ));
-    }
+#[test]
+fn construct_point_defaults_to_origin() {
+    let component = ComponentKind::ConstructPoint;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("construct with no inputs succeeds");
+    assert!(matches!(
+        outputs.get(PIN_OUTPUT_POINT),
+        Some(Value::Point(coords)) if *coords == [0.0, 0.0, 0.0]
+    ));
+}
 
-    #[test]
-    fn distance_defaults_to_zero() {
-        let component = ComponentKind::Distance;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("distance with no inputs succeeds");
-        let distance = outputs
-            .get(PIN_OUTPUT_DISTANCE)
-            .and_then(|value| value.expect_number().ok())
-            .expect("distance output present");
-        assert!(distance.abs() < 1e-9);
-    }
+#[test]
+fn distance_defaults_to_zero() {
+    let component = ComponentKind::Distance;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("distance with no inputs succeeds");
+    let distance = outputs
+        .get(PIN_OUTPUT_DISTANCE)
+        .and_then(|value| value.expect_number().ok())
+        .expect("distance output present");
+    assert!(distance.abs() < 1e-9);
+}
 
-    #[test]
-    fn deconstruct_defaults_to_origin() {
-        let component = ComponentKind::Deconstruct;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("deconstruct with no inputs succeeds");
-        let x = outputs.get(PIN_OUTPUT_X).and_then(|v| v.expect_number().ok()).unwrap();
-        let y = outputs.get(PIN_OUTPUT_Y).and_then(|v| v.expect_number().ok()).unwrap();
-        let z = outputs.get(PIN_OUTPUT_Z).and_then(|v| v.expect_number().ok()).unwrap();
-        assert!(x.abs() < 1e-9);
-        assert!(y.abs() < 1e-9);
-        assert!(z.abs() < 1e-9);
-    }
+#[test]
+fn deconstruct_defaults_to_origin() {
+    let component = ComponentKind::Deconstruct;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("deconstruct with no inputs succeeds");
+    let x = outputs
+        .get(PIN_OUTPUT_X)
+        .and_then(|v| v.expect_number().ok())
+        .unwrap();
+    let y = outputs
+        .get(PIN_OUTPUT_Y)
+        .and_then(|v| v.expect_number().ok())
+        .unwrap();
+    let z = outputs
+        .get(PIN_OUTPUT_Z)
+        .and_then(|v| v.expect_number().ok())
+        .unwrap();
+    assert!(x.abs() < 1e-9);
+    assert!(y.abs() < 1e-9);
+    assert!(z.abs() < 1e-9);
+}
 
-    #[test]
-    fn closest_point_defaults_to_origin_target() {
-        let component = ComponentKind::ClosestPoint;
-        let outputs = component
-            .evaluate(
-                &[
-                    Value::Null, // Missing target point
-                    Value::List(vec![
-                        Value::Point([2.0, 0.0, 0.0]),
-                        Value::Point([1.0, 0.0, 0.0]),
-                    ]),
-                ],
-                &MetaMap::new(),
-            )
-            .expect("closest point with default target succeeds");
-        let point = outputs
-            .get(PIN_OUTPUT_POINT)
-            .and_then(|value| value.expect_point().ok())
-            .expect("point output present");
-        assert_eq!(point, [1.0, 0.0, 0.0]); // Closest to origin
-        let index = outputs
-            .get(PIN_OUTPUT_INDEX)
-            .and_then(|value| value.expect_number().ok())
-            .unwrap();
-        assert_eq!(index, 1.0);
-    }
+#[test]
+fn closest_point_defaults_to_origin_target() {
+    let component = ComponentKind::ClosestPoint;
+    let outputs = component
+        .evaluate(
+            &[
+                Value::Null, // Missing target point
+                Value::List(vec![
+                    Value::Point([2.0, 0.0, 0.0]),
+                    Value::Point([1.0, 0.0, 0.0]),
+                ]),
+            ],
+            &MetaMap::new(),
+        )
+        .expect("closest point with default target succeeds");
+    let point = outputs
+        .get(PIN_OUTPUT_POINT)
+        .and_then(|value| value.expect_point().ok())
+        .expect("point output present");
+    assert_eq!(point, [1.0, 0.0, 0.0]); // Closest to origin
+    let index = outputs
+        .get(PIN_OUTPUT_INDEX)
+        .and_then(|value| value.expect_number().ok())
+        .unwrap();
+    assert_eq!(index, 1.0);
+}
 
-    #[test]
-    fn barycentric_defaults_to_origin() {
-        let component = ComponentKind::Barycentric;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("barycentric with no inputs succeeds");
-        let point = outputs
-            .get(PIN_OUTPUT_POINT)
-            .and_then(|value| value.expect_point().ok())
-            .unwrap();
-        assert_eq!(point, [0.0, 0.0, 0.0]);
-    }
+#[test]
+fn barycentric_defaults_to_origin() {
+    let component = ComponentKind::Barycentric;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("barycentric with no inputs succeeds");
+    let point = outputs
+        .get(PIN_OUTPUT_POINT)
+        .and_then(|value| value.expect_point().ok())
+        .unwrap();
+    assert_eq!(point, [0.0, 0.0, 0.0]);
+}
 
-    #[test]
-    fn pull_point_defaults_to_origin() {
-        let component = ComponentKind::PullPoint;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("pull point with no inputs succeeds");
-        let pulled = outputs
-            .get(PIN_OUTPUT_POINT)
-            .and_then(|value| value.expect_point().ok())
-            .unwrap();
-        assert_eq!(pulled, [0.0, 0.0, 0.0]);
-        let distance = outputs
-            .get(PIN_OUTPUT_DISTANCE)
-            .and_then(|value| value.expect_number().ok())
-            .unwrap();
-        assert!((distance).abs() < 1e-9);
-    }
+#[test]
+fn pull_point_defaults_to_origin() {
+    let component = ComponentKind::PullPoint;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("pull point with no inputs succeeds");
+    let pulled = outputs
+        .get(PIN_OUTPUT_POINT)
+        .and_then(|value| value.expect_point().ok())
+        .unwrap();
+    assert_eq!(pulled, [0.0, 0.0, 0.0]);
+    let distance = outputs
+        .get(PIN_OUTPUT_DISTANCE)
+        .and_then(|value| value.expect_number().ok())
+        .unwrap();
+    assert!((distance).abs() < 1e-9);
+}

@@ -3,10 +3,13 @@ use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Value};
-use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::seq::SliceRandom;
 
-use super::{coerce::{coerce_boolean, coerce_number, coerce_integer}, Component, ComponentError, ComponentResult};
+use super::{
+    Component, ComponentError, ComponentResult,
+    coerce::{coerce_boolean, coerce_integer, coerce_number},
+};
 
 pub const REGISTRATIONS: &[Registration] = &[
     Registration {
@@ -264,7 +267,10 @@ impl Component for CullPattern {
             return Err(ComponentError::new("Pattern cannot be empty"));
         }
 
-        let bool_pattern: Vec<bool> = pattern.iter().map(coerce_boolean).collect::<Result<_, _>>()?;
+        let bool_pattern: Vec<bool> = pattern
+            .iter()
+            .map(coerce_boolean)
+            .collect::<Result<_, _>>()?;
 
         let culled_list: Vec<Value> = list
             .iter()
@@ -290,7 +296,10 @@ impl Component for CullIndex {
                     _ => return Err(ComponentError::new("Input L must be a list.")),
                 };
                 let indices = match &inputs[1] {
-                    Value::List(i) => i.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
+                    Value::List(i) => i
+                        .iter()
+                        .map(coerce_integer)
+                        .collect::<Result<Vec<_>, _>>()?,
                     _ => return Err(ComponentError::new("Input I must be a list.")),
                 };
                 (list, indices, false)
@@ -301,7 +310,10 @@ impl Component for CullIndex {
                     _ => return Err(ComponentError::new("Input L must be a list.")),
                 };
                 let indices = match &inputs[1] {
-                    Value::List(i) => i.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
+                    Value::List(i) => i
+                        .iter()
+                        .map(coerce_integer)
+                        .collect::<Result<Vec<_>, _>>()?,
                     _ => return Err(ComponentError::new("Input I must be a list.")),
                 };
                 let wrap = coerce_boolean(&inputs[2])?;
@@ -477,7 +489,10 @@ impl Component for StackData {
             _ => return Err(ComponentError::new("Input D must be a list.")),
         };
         let stack = match &inputs[1] {
-            Value::List(s) => s.iter().map(coerce_integer).collect::<Result<Vec<_>, _>>()?,
+            Value::List(s) => s
+                .iter()
+                .map(coerce_integer)
+                .collect::<Result<Vec<_>, _>>()?,
             _ => return Err(ComponentError::new("Input S must be a list.")),
         };
 
@@ -598,7 +613,6 @@ impl Component for Jitter {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -629,7 +643,9 @@ mod tests {
         let range_comp = Range;
         let domain = Value::Domain(Domain::One(create_domain(0.0, 10.0).unwrap()));
         let steps = Value::Number(10.0);
-        let outputs = range_comp.evaluate(&[domain, steps], &MetaMap::new()).unwrap();
+        let outputs = range_comp
+            .evaluate(&[domain, steps], &MetaMap::new())
+            .unwrap();
         let list = match outputs.get("R").unwrap() {
             Value::List(l) => l,
             _ => panic!("Expected a list"),
@@ -645,7 +661,9 @@ mod tests {
         let start = Value::Number(0.0);
         let step = Value::Number(2.0);
         let count = Value::Number(5.0);
-        let outputs = series.evaluate(&[start, step, count], &MetaMap::new()).unwrap();
+        let outputs = series
+            .evaluate(&[start, step, count], &MetaMap::new())
+            .unwrap();
         let list = match outputs.get("S").unwrap() {
             Value::List(l) => l,
             _ => panic!("Expected a list"),
@@ -702,10 +720,7 @@ mod tests {
             Value::List(l) => l,
             _ => panic!("Expected a list"),
         };
-        assert_eq!(
-            *culled_list,
-            vec![Value::Number(2.0), Value::Number(5.0)]
-        );
+        assert_eq!(*culled_list, vec![Value::Number(2.0), Value::Number(5.0)]);
     }
     #[test]
     fn test_cull_index() {
@@ -718,7 +733,9 @@ mod tests {
             Value::Number(5.0),
         ]);
         let indices = Value::List(vec![Value::Number(1.0), Value::Number(3.0)]);
-        let outputs = cull.evaluate(&[list, indices, Value::Boolean(false)], &MetaMap::new()).unwrap();
+        let outputs = cull
+            .evaluate(&[list, indices, Value::Boolean(false)], &MetaMap::new())
+            .unwrap();
         let culled_list = match outputs.get("L").unwrap() {
             Value::List(l) => l,
             _ => panic!("Expected a list"),
@@ -757,7 +774,15 @@ mod tests {
         let number = Value::Number(10.0);
         let seed = Value::Number(123.0);
         let outputs = random
-            .evaluate(&[range.clone(), number.clone(), seed.clone(), Value::Boolean(false)], &MetaMap::new())
+            .evaluate(
+                &[
+                    range.clone(),
+                    number.clone(),
+                    seed.clone(),
+                    Value::Boolean(false),
+                ],
+                &MetaMap::new(),
+            )
             .unwrap();
         let list = match outputs.get("R").unwrap() {
             Value::List(l) => l,
@@ -766,7 +791,10 @@ mod tests {
         assert_eq!(list.len(), 10);
 
         let outputs2 = random
-            .evaluate(&[range, number, seed, Value::Boolean(false)], &MetaMap::new())
+            .evaluate(
+                &[range, number, seed, Value::Boolean(false)],
+                &MetaMap::new(),
+            )
             .unwrap();
         let list2 = match outputs2.get("R").unwrap() {
             Value::List(l) => l,
@@ -847,7 +875,10 @@ mod tests {
         let data = Value::List(vec![Value::Number(1.0), Value::Number(2.0)]);
         let number = Value::Number(2.0);
         let outputs = duplicate
-            .evaluate(&[data.clone(), number.clone(), Value::Boolean(false)], &MetaMap::new())
+            .evaluate(
+                &[data.clone(), number.clone(), Value::Boolean(false)],
+                &MetaMap::new(),
+            )
             .unwrap();
         let duplicated_list = match outputs.get("D").unwrap() {
             Value::List(l) => l,
@@ -891,7 +922,9 @@ mod tests {
         ]);
         let j = Value::Number(1.0);
         let seed = Value::Number(123.0);
-        let outputs = jitter.evaluate(&[list.clone(), j, seed], &MetaMap::new()).unwrap();
+        let outputs = jitter
+            .evaluate(&[list.clone(), j, seed], &MetaMap::new())
+            .unwrap();
         let shuffled_list = match outputs.get("V").unwrap() {
             Value::List(l) => l,
             _ => panic!("Expected a list"),
@@ -904,7 +937,7 @@ mod tests {
         assert_eq!(shuffled_list.len(), 3);
         assert_eq!(indices.len(), 3);
         if let Value::List(original_list) = list {
-             assert_ne!(*shuffled_list, original_list);
+            assert_ne!(*shuffled_list, original_list);
         }
     }
 }

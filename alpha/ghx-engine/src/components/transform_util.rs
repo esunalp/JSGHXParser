@@ -156,8 +156,11 @@ fn evaluate_inverse_transform(inputs: &[Value], _meta: &MetaMap) -> ComponentRes
                         }
                     }
                     "Rotate" => {
-                        if let (Some(Value::Point(p)), Some(Value::Vector(a)), Some(Value::Number(angle))) =
-                            (list.get(1), list.get(2), list.get(3))
+                        if let (
+                            Some(Value::Point(p)),
+                            Some(Value::Vector(a)),
+                            Some(Value::Number(angle)),
+                        ) = (list.get(1), list.get(2), list.get(3))
                         {
                             Value::List(vec![
                                 Value::Text("Rotate".into()),
@@ -166,12 +169,14 @@ fn evaluate_inverse_transform(inputs: &[Value], _meta: &MetaMap) -> ComponentRes
                                 Value::Number(-angle),
                             ])
                         } else {
-                            return Err(ComponentError::new(
-                                "Invalid 'Rotate' transform format.",
-                            ));
+                            return Err(ComponentError::new("Invalid 'Rotate' transform format."));
                         }
                     }
-                    _ => return Err(ComponentError::new("Unsupported transform type for inversion.")),
+                    _ => {
+                        return Err(ComponentError::new(
+                            "Unsupported transform type for inversion.",
+                        ));
+                    }
                 }
             } else {
                 return Err(ComponentError::new("Invalid transform format."));
@@ -187,7 +192,9 @@ fn evaluate_inverse_transform(inputs: &[Value], _meta: &MetaMap) -> ComponentRes
 
 fn evaluate_transform(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Transform component requires Geometry and Transform inputs."));
+        return Err(ComponentError::new(
+            "Transform component requires Geometry and Transform inputs.",
+        ));
     }
     let geometry = &inputs[0];
     let transform = &inputs[1];
@@ -198,7 +205,6 @@ fn evaluate_transform(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_GEOMETRY.to_owned(), transformed_geometry);
     Ok(outputs)
 }
-
 
 fn evaluate_group(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let objects_to_group = if let Some(Value::List(list)) = inputs.get(0) {
@@ -214,7 +220,9 @@ fn evaluate_group(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_split(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() != 1 {
-        return Err(ComponentError::new("Split component expects a single Transform input."));
+        return Err(ComponentError::new(
+            "Split component expects a single Transform input.",
+        ));
     }
     let compound_transform = &inputs[0];
 
@@ -227,7 +235,6 @@ fn evaluate_split(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_FRAGMENTS.to_owned(), Value::List(fragments));
     Ok(outputs)
 }
-
 
 fn evaluate_ungroup(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() != 1 {
@@ -249,7 +256,9 @@ fn evaluate_ungroup(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_compound(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() != 1 {
-        return Err(ComponentError::new("Compound component expects a single list of Transforms."));
+        return Err(ComponentError::new(
+            "Compound component expects a single list of Transforms.",
+        ));
     }
     let transforms = match &inputs[0] {
         Value::List(list) => list,
@@ -257,7 +266,10 @@ fn evaluate_compound(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_COMPOUND.to_owned(), Value::List(transforms.clone()));
+    outputs.insert(
+        PIN_OUTPUT_COMPOUND.to_owned(),
+        Value::List(transforms.clone()),
+    );
     Ok(outputs)
 }
 
@@ -269,19 +281,11 @@ fn evaluate_split_group(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     }
     let group = match inputs.get(0) {
         Some(Value::List(list)) => list,
-        _ => {
-            return Err(ComponentError::new(
-                "Split Group input 'G' must be a list.",
-            ))
-        }
+        _ => return Err(ComponentError::new("Split Group input 'G' must be a list.")),
     };
     let indices = match inputs.get(1) {
         Some(Value::List(list)) => list,
-        _ => {
-            return Err(ComponentError::new(
-                "Split Group input 'I' must be a list.",
-            ))
-        }
+        _ => return Err(ComponentError::new("Split Group input 'I' must be a list.")),
     };
     let wrap = match inputs.get(2) {
         Some(value) => coerce_number(Some(value), "Wrap")? != 0.0,
@@ -353,17 +357,22 @@ fn apply_transform(geometry: &Value, transform: &Value) -> Result<Value, Compone
                         }
                     }
                     "Rotate" => {
-                        if let (Some(Value::Point(p)), Some(Value::Vector(a)), Some(Value::Number(angle))) =
-                            (list.get(1), list.get(2), list.get(3))
+                        if let (
+                            Some(Value::Point(p)),
+                            Some(Value::Vector(a)),
+                            Some(Value::Number(angle)),
+                        ) = (list.get(1), list.get(2), list.get(3))
                         {
                             let mut point_fn = |point: [f64; 3]| {
                                 let translated = subtract(point, *p);
                                 let rotated = rotate_vector(translated, *a, *angle);
                                 add(rotated, *p)
                             };
-                             Ok(map_geometry(geometry, &mut point_fn, &mut |vec| rotate_vector(vec, *a, *angle)))
+                            Ok(map_geometry(geometry, &mut point_fn, &mut |vec| {
+                                rotate_vector(vec, *a, *angle)
+                            }))
                         } else {
-                             Err(ComponentError::new("Invalid 'Rotate' transform format."))
+                            Err(ComponentError::new("Invalid 'Rotate' transform format."))
                         }
                     }
                     _ => Err(ComponentError::new("Unsupported transform type.")),
@@ -464,10 +473,13 @@ fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     )
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::{Component, ComponentKind, PIN_OUTPUT_GROUP, PIN_OUTPUT_OBJECTS, PIN_OUTPUT_GROUP_A, PIN_OUTPUT_GROUP_B, PIN_OUTPUT_TRANSFORM, PIN_OUTPUT_GEOMETRY, PIN_OUTPUT_FRAGMENTS, PIN_OUTPUT_COMPOUND};
+    use super::{
+        Component, ComponentKind, PIN_OUTPUT_COMPOUND, PIN_OUTPUT_FRAGMENTS, PIN_OUTPUT_GEOMETRY,
+        PIN_OUTPUT_GROUP, PIN_OUTPUT_GROUP_A, PIN_OUTPUT_GROUP_B, PIN_OUTPUT_OBJECTS,
+        PIN_OUTPUT_TRANSFORM,
+    };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
     use std::f64::consts::PI;
@@ -535,7 +547,11 @@ mod tests {
         let outputs = component
             .evaluate(
                 &[
-                    Value::List(vec![Value::Number(10.0), Value::Number(20.0), Value::Number(30.0)]),
+                    Value::List(vec![
+                        Value::Number(10.0),
+                        Value::Number(20.0),
+                        Value::Number(30.0),
+                    ]),
                     Value::List(vec![Value::Number(0.0), Value::Number(2.0)]),
                     Value::Boolean(false),
                 ],
@@ -543,8 +559,12 @@ mod tests {
             )
             .expect("split group");
 
-        let Value::List(group_a) = outputs.get(PIN_OUTPUT_GROUP_A).unwrap() else { panic!("expected list A") };
-        let Value::List(group_b) = outputs.get(PIN_OUTPUT_GROUP_B).unwrap() else { panic!("expected list B") };
+        let Value::List(group_a) = outputs.get(PIN_OUTPUT_GROUP_A).unwrap() else {
+            panic!("expected list A")
+        };
+        let Value::List(group_b) = outputs.get(PIN_OUTPUT_GROUP_B).unwrap() else {
+            panic!("expected list B")
+        };
 
         assert_eq!(group_a.len(), 2);
         assert_eq!(group_b.len(), 1);
@@ -569,41 +589,55 @@ mod tests {
         let Value::List(inversed) = outputs.get(PIN_OUTPUT_TRANSFORM).unwrap() else {
             panic!("expected list");
         };
-        let Value::Vector(v) = inversed[1] else { panic!("expected vector") };
+        let Value::Vector(v) = inversed[1] else {
+            panic!("expected vector")
+        };
         assert!((v[0] + 10.0).abs() < 1e-6);
     }
 
     #[test]
     fn inverse_transform_rotate() {
         let component = ComponentKind::InverseTransform;
-        let outputs = component.evaluate(&[
-            Value::List(vec![
-                Value::Text("Rotate".into()),
-                Value::Point([0.0, 0.0, 0.0]),
-                Value::Vector([0.0, 0.0, 1.0]),
-                Value::Number(PI / 2.0),
-            ])
-        ], &MetaMap::new()).expect("inverse transform rotate");
+        let outputs = component
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Text("Rotate".into()),
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Vector([0.0, 0.0, 1.0]),
+                    Value::Number(PI / 2.0),
+                ])],
+                &MetaMap::new(),
+            )
+            .expect("inverse transform rotate");
 
         let Value::List(inversed) = outputs.get(PIN_OUTPUT_TRANSFORM).unwrap() else {
             panic!("expected list");
         };
-        let Value::Number(angle) = inversed[3] else { panic!("expected number") };
+        let Value::Number(angle) = inversed[3] else {
+            panic!("expected number")
+        };
         assert!((angle + PI / 2.0).abs() < 1e-6);
-        let Value::Text(text) = &inversed[0] else { panic!("expected text") };
+        let Value::Text(text) = &inversed[0] else {
+            panic!("expected text")
+        };
         assert_eq!(text, "Rotate");
     }
 
     #[test]
     fn transform_point_move() {
         let component = ComponentKind::Transform;
-        let outputs = component.evaluate(&[
-            Value::Point([1.0, 2.0, 3.0]),
-            Value::List(vec![
-                Value::Text("Move".into()),
-                Value::Vector([10.0, 20.0, 30.0])
-            ]),
-        ], &MetaMap::new()).expect("transform move");
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([1.0, 2.0, 3.0]),
+                    Value::List(vec![
+                        Value::Text("Move".into()),
+                        Value::Vector([10.0, 20.0, 30.0]),
+                    ]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("transform move");
 
         let Value::Point(p) = outputs.get(PIN_OUTPUT_GEOMETRY).unwrap() else {
             panic!("expected point");
@@ -616,15 +650,20 @@ mod tests {
     #[test]
     fn transform_point_rotate() {
         let component = ComponentKind::Transform;
-        let outputs = component.evaluate(&[
-            Value::Point([10.0, 0.0, 0.0]),
-            Value::List(vec![
-                Value::Text("Rotate".into()),
-                Value::Point([0.0, 0.0, 0.0]),
-                Value::Vector([0.0, 0.0, 1.0]),
-                Value::Number(PI / 2.0),
-            ]),
-        ], &MetaMap::new()).expect("transform rotate");
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([10.0, 0.0, 0.0]),
+                    Value::List(vec![
+                        Value::Text("Rotate".into()),
+                        Value::Point([0.0, 0.0, 0.0]),
+                        Value::Vector([0.0, 0.0, 1.0]),
+                        Value::Number(PI / 2.0),
+                    ]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("transform rotate");
 
         let Value::Point(p) = outputs.get(PIN_OUTPUT_GEOMETRY).unwrap() else {
             panic!("expected point");
@@ -637,11 +676,16 @@ mod tests {
     #[test]
     fn split_compound_transform() {
         let component = ComponentKind::Split;
-        let move_transform = Value::List(vec![Value::Text("Move".into()), Value::Vector([1.0, 2.0, 3.0])]);
+        let move_transform = Value::List(vec![
+            Value::Text("Move".into()),
+            Value::Vector([1.0, 2.0, 3.0]),
+        ]);
         let rotate_transform = Value::List(vec![Value::Text("Rotate".into()), Value::Number(90.0)]);
         let compound = Value::List(vec![move_transform.clone(), rotate_transform.clone()]);
 
-        let outputs = component.evaluate(&[compound], &MetaMap::new()).expect("split");
+        let outputs = component
+            .evaluate(&[compound], &MetaMap::new())
+            .expect("split");
 
         let Value::List(fragments) = outputs.get(PIN_OUTPUT_FRAGMENTS).unwrap() else {
             panic!("expected list");
@@ -655,11 +699,16 @@ mod tests {
     fn compound_transforms() {
         let component = ComponentKind::Compound;
         let transforms = Value::List(vec![
-            Value::List(vec![Value::Text("Move".into()), Value::Vector([1.0, 2.0, 3.0])]),
-            Value::List(vec![Value::Text("Rotate".into()), Value::Number(90.0)])
+            Value::List(vec![
+                Value::Text("Move".into()),
+                Value::Vector([1.0, 2.0, 3.0]),
+            ]),
+            Value::List(vec![Value::Text("Rotate".into()), Value::Number(90.0)]),
         ]);
 
-        let outputs = component.evaluate(&[transforms.clone()], &MetaMap::new()).expect("compound");
+        let outputs = component
+            .evaluate(&[transforms.clone()], &MetaMap::new())
+            .expect("compound");
 
         let compound_transform = outputs.get(PIN_OUTPUT_COMPOUND).unwrap();
         assert_eq!(compound_transform, &transforms);

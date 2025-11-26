@@ -1274,8 +1274,8 @@ fn list_to_point(values: &[Value]) -> Option<[f64; 3]> {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, Subd, PIN_OUTPUT_FACE_COUNTS, PIN_OUTPUT_MESH, PIN_OUTPUT_SUBD,
-        PIN_OUTPUT_VERTEX_TAGS,
+        Component, ComponentKind, PIN_OUTPUT_FACE_COUNTS, PIN_OUTPUT_MESH, PIN_OUTPUT_SUBD,
+        PIN_OUTPUT_VERTEX_TAGS, Subd,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1319,10 +1319,12 @@ mod tests {
             )
             .unwrap();
         let updated = Subd::from_value(outputs.get(PIN_OUTPUT_SUBD).unwrap()).unwrap();
-        assert!(updated
-            .edges
-            .iter()
-            .any(|edge| edge.id == 0 && edge.tag.to_string() == "crease"));
+        assert!(
+            updated
+                .edges
+                .iter()
+                .any(|edge| edge.id == 0 && edge.tag.to_string() == "crease")
+        );
     }
 
     #[test]
@@ -1346,9 +1348,11 @@ mod tests {
         let Value::List(entries) = counts else {
             panic!("verwachte lijst");
         };
-        assert!(entries
-            .iter()
-            .all(|value| matches!(value, Value::Number(number) if (*number - 4.0).abs() < 1e-6)));
+        assert!(
+            entries.iter().all(
+                |value| matches!(value, Value::Number(number) if (*number - 4.0).abs() < 1e-6)
+            )
+        );
     }
 
     #[test]

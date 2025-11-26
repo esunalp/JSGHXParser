@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 /// Output pin name for the mesh.
 const OUTPUT_M: &str = "M";
@@ -31,10 +31,7 @@ impl Component for ConstructMeshComponent {
         // De `Value::Surface` enum heeft geen veld voor kleuren.
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_M.to_owned(),
-            Value::Surface { vertices, faces },
-        );
+        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
 
         Ok(outputs)
     }
@@ -92,9 +89,7 @@ pub struct MeshTriangleComponent;
 impl Component for MeshTriangleComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 3 {
-            return Err(ComponentError::new(
-                "Minimaal 3 inputs (A, B, C) vereist.",
-            ));
+            return Err(ComponentError::new("Minimaal 3 inputs (A, B, C) vereist."));
         }
         let a = coerce_index(&inputs[0])?;
         let b = coerce_index(&inputs[1])?;
@@ -241,34 +236,30 @@ impl Component for MeshSphereExComponent {
                 for i in 0..count {
                     let mut face_indices = Vec::with_capacity(4);
                     for (u_offset, v_offset) in [(0, 0), (1, 0), (1, 1), (0, 1)] {
-                         let u = ((i + u_offset) as f64 / count as f64 - 0.5) * 2.0;
-                         let v = ((j + v_offset) as f64 / count as f64 - 0.5) * 2.0;
+                        let u = ((i + u_offset) as f64 / count as f64 - 0.5) * 2.0;
+                        let v = ((j + v_offset) as f64 / count as f64 - 0.5) * 2.0;
 
-                         let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
-                         let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
-                         let pz = dir[2] + axis_a[2] * u + axis_b[2] * v;
+                        let px = dir[0] + axis_a[0] * u + axis_b[0] * v;
+                        let py = dir[1] + axis_a[1] * u + axis_b[1] * v;
+                        let pz = dir[2] + axis_a[2] * u + axis_b[2] * v;
 
-                         let length = (px * px + py * py + pz * pz).sqrt();
-                         let normalized = [px / length, py / length, pz / length];
+                        let length = (px * px + py * py + pz * pz).sqrt();
+                        let normalized = [px / length, py / length, pz / length];
 
-                         let key = (
+                        let key = (
                             (normalized[0] * 1e6) as i64,
                             (normalized[1] * 1e6) as i64,
                             (normalized[2] * 1e6) as i64,
-                         );
-                         face_indices.push(*vertex_map.get(&key).unwrap());
+                        );
+                        face_indices.push(*vertex_map.get(&key).unwrap());
                     }
                     faces.push(face_indices);
                 }
             }
         }
 
-
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_M.to_owned(),
-            Value::Surface { vertices, faces },
-        );
+        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
 
         Ok(outputs)
     }
@@ -353,25 +344,22 @@ mod tests {
     #[test]
     fn test_construct_mesh_invalid_face_indices() {
         let component = ConstructMeshComponent;
-        let vertices = Value::List(vec![
-            Value::Point([0.0, 0.0, 0.0]),
-        ]);
+        let vertices = Value::List(vec![Value::Point([0.0, 0.0, 0.0])]);
         let faces = Value::List(vec![Value::List(vec![
             Value::Number(-1.0), // Invalid index
         ])]);
         let inputs = vec![vertices, faces];
         let err = component.evaluate(&inputs, &MetaMap::new()).unwrap_err();
-        assert!(err.message().contains("Face index moet een niet-negatief geheel getal zijn"));
+        assert!(
+            err.message()
+                .contains("Face index moet een niet-negatief geheel getal zijn")
+        );
     }
 
     #[test]
     fn test_mesh_triangle() {
         let component = MeshTriangleComponent;
-        let inputs = vec![
-            Value::Number(1.0),
-            Value::Number(2.0),
-            Value::Number(3.0),
-        ];
+        let inputs = vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
         let face = outputs.get(OUTPUT_F).unwrap();
         assert_eq!(
@@ -458,7 +446,7 @@ mod tests {
             // Vertices = (U * (V-1)) + 2 poles
             assert_eq!(vertices.len(), (8 * (6 - 1)) + 2);
             // Faces = (U * (V-2) quads) + (2 * U triangles)
-            assert_eq!(faces.len(), (8 * (6-2)) + (2 * 8));
+            assert_eq!(faces.len(), (8 * (6 - 2)) + (2 * 8));
         } else {
             panic!("Incorrect output type");
         }
@@ -488,18 +476,20 @@ mod tests {
     fn test_mesh_colours_not_implemented() {
         let component = MeshColoursComponent;
         let err = component.evaluate(&[], &MetaMap::new()).unwrap_err();
-        assert!(err
-            .message()
-            .contains("Component Mesh Colours is not yet implemented."));
+        assert!(
+            err.message()
+                .contains("Component Mesh Colours is not yet implemented.")
+        );
     }
 
     #[test]
     fn test_mesh_spray_not_implemented() {
         let component = MeshSprayComponent;
         let err = component.evaluate(&[], &MetaMap::new()).unwrap_err();
-        assert!(err
-            .message()
-            .contains("Component Mesh Spray is not yet implemented."));
+        assert!(
+            err.message()
+                .contains("Component Mesh Spray is not yet implemented.")
+        );
     }
 }
 
@@ -573,7 +563,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::MeshQuad(MeshQuadComponent),
     },
     Registration {
-        guids: &["8adbf481-7589-4a40-b490-006531ea001d", "dd8d834f-40f1-4a84-8e4b-9fa8efe7be41"],
+        guids: &[
+            "8adbf481-7589-4a40-b490-006531ea001d",
+            "dd8d834f-40f1-4a84-8e4b-9fa8efe7be41",
+        ],
         names: &["Mesh Plane", "MPlane"],
         kind: ComponentKind::MeshPlane(MeshPlaneComponent),
     },
@@ -687,10 +680,7 @@ impl Component for MeshSphereComponent {
         }
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_M.to_owned(),
-            Value::Surface { vertices, faces },
-        );
+        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
 
         Ok(outputs)
     }
@@ -729,9 +719,18 @@ impl Component for MeshBoxComponent {
                     let u = i as f64 / nx as f64;
                     let v_ = j as f64 / ny as f64;
                     let p = [
-                        (1.0 - u) * (1.0 - v_) * v[0][0] + u * (1.0 - v_) * v[1][0] + u * v_ * v[2][0] + (1.0 - u) * v_ * v[3][0],
-                        (1.0 - u) * (1.0 - v_) * v[0][1] + u * (1.0 - v_) * v[1][1] + u * v_ * v[2][1] + (1.0 - u) * v_ * v[3][1],
-                        (1.0 - u) * (1.0 - v_) * v[0][2] + u * (1.0 - v_) * v[1][2] + u * v_ * v[2][2] + (1.0 - u) * v_ * v[3][2],
+                        (1.0 - u) * (1.0 - v_) * v[0][0]
+                            + u * (1.0 - v_) * v[1][0]
+                            + u * v_ * v[2][0]
+                            + (1.0 - u) * v_ * v[3][0],
+                        (1.0 - u) * (1.0 - v_) * v[0][1]
+                            + u * (1.0 - v_) * v[1][1]
+                            + u * v_ * v[2][1]
+                            + (1.0 - u) * v_ * v[3][1],
+                        (1.0 - u) * (1.0 - v_) * v[0][2]
+                            + u * (1.0 - v_) * v[1][2]
+                            + u * v_ * v[2][2]
+                            + (1.0 - u) * v_ * v[3][2],
                     ];
                     vertices.push(p);
                 }
@@ -748,23 +747,74 @@ impl Component for MeshBoxComponent {
         };
 
         // Bottom face (-z)
-        add_face([[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5]], x_count, y_count);
+        add_face(
+            [
+                [-0.5, -0.5, -0.5],
+                [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [-0.5, 0.5, -0.5],
+            ],
+            x_count,
+            y_count,
+        );
         // Top face (+z)
-        add_face([[-0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5]], x_count, y_count);
+        add_face(
+            [
+                [-0.5, 0.5, 0.5],
+                [0.5, 0.5, 0.5],
+                [0.5, -0.5, 0.5],
+                [-0.5, -0.5, 0.5],
+            ],
+            x_count,
+            y_count,
+        );
         // Front face (+y)
-        add_face([[-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, -0.5, 0.5], [-0.5, -0.5, 0.5]], x_count, z_count);
+        add_face(
+            [
+                [-0.5, -0.5, -0.5],
+                [0.5, -0.5, -0.5],
+                [0.5, -0.5, 0.5],
+                [-0.5, -0.5, 0.5],
+            ],
+            x_count,
+            z_count,
+        );
         // Back face (-y)
-        add_face([[-0.5, 0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5]], x_count, z_count);
+        add_face(
+            [
+                [-0.5, 0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [0.5, 0.5, 0.5],
+                [-0.5, 0.5, 0.5],
+            ],
+            x_count,
+            z_count,
+        );
         // Right face (+x)
-        add_face([[0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [0.5, 0.5, 0.5], [0.5, -0.5, 0.5]], y_count, z_count);
+        add_face(
+            [
+                [0.5, -0.5, -0.5],
+                [0.5, 0.5, -0.5],
+                [0.5, 0.5, 0.5],
+                [0.5, -0.5, 0.5],
+            ],
+            y_count,
+            z_count,
+        );
         // Left face (-x)
-        add_face([[-0.5, -0.5, -0.5], [-0.5, 0.5, -0.5], [-0.5, 0.5, 0.5], [-0.5, -0.5, 0.5]], y_count, z_count);
+        add_face(
+            [
+                [-0.5, -0.5, -0.5],
+                [-0.5, 0.5, -0.5],
+                [-0.5, 0.5, 0.5],
+                [-0.5, -0.5, 0.5],
+            ],
+            y_count,
+            z_count,
+        );
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_M.to_owned(),
-            Value::Surface { vertices, faces },
-        );
+        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
 
         Ok(outputs)
     }
@@ -814,10 +864,7 @@ impl Component for MeshPlaneComponent {
         }
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(
-            OUTPUT_M.to_owned(),
-            Value::Surface { vertices, faces },
-        );
+        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
         // De 'Area' output wordt voorlopig niet berekend.
         outputs.insert("A".to_owned(), Value::Number(1.0));
 

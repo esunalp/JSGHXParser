@@ -1097,7 +1097,7 @@ impl BrepData {
         // Bouw een map van start/end punten naar edge indices voor snelle lookup
         // We gebruiken een eenvoudige aanpak met lineaire zoektochten voor nu,
         // optimalisatie kan later indien nodig.
-        
+
         for i in 0..edge_indices.len() {
             if visited[i] {
                 continue;
@@ -1105,12 +1105,12 @@ impl BrepData {
 
             let start_edge_idx = edge_indices[i];
             let start_edge = &self.edges[start_edge_idx];
-            
+
             // Begin een nieuwe loop
             let mut current_loop = Vec::new();
             current_loop.push(start_edge.start);
             current_loop.push(start_edge.end);
-            
+
             visited[i] = true;
             let mut current_end = start_edge.end;
             let mut loop_closed = false;
@@ -1122,7 +1122,7 @@ impl BrepData {
                     if visited[j] {
                         continue;
                     }
-                    
+
                     let next_edge_idx = edge_indices[j];
                     let next_edge = &self.edges[next_edge_idx];
 
@@ -1152,7 +1152,7 @@ impl BrepData {
                     }
                     break;
                 }
-                
+
                 if nearly_equal_points(&current_end, &current_loop[0]) {
                     loop_closed = true;
                     current_loop.pop();
@@ -1176,9 +1176,8 @@ impl BrepData {
         for face in &self.faces {
             let mut face_indices = Vec::new();
             for vertex in &face.vertices {
-                let index = if let Some(pos) = vertices
-                    .iter()
-                    .position(|v| nearly_equal_points(v, vertex))
+                let index = if let Some(pos) =
+                    vertices.iter().position(|v| nearly_equal_points(v, vertex))
                 {
                     pos
                 } else {
@@ -1865,10 +1864,14 @@ mod tests {
         ];
         let faces = vec![
             // Side faces
-            vec![0, 1, 5], vec![0, 5, 4], // Front
-            vec![1, 2, 6], vec![1, 6, 5], // Right
-            vec![2, 3, 7], vec![2, 7, 6], // Back
-            vec![3, 0, 4], vec![3, 4, 7], // Left
+            vec![0, 1, 5],
+            vec![0, 5, 4], // Front
+            vec![1, 2, 6],
+            vec![1, 6, 5], // Right
+            vec![2, 3, 7],
+            vec![2, 7, 6], // Back
+            vec![3, 0, 4],
+            vec![3, 4, 7], // Left
         ];
         let initial_face_count = faces.len();
         let surface_with_holes = Value::Surface { vertices, faces };

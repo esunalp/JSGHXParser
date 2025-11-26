@@ -1,9 +1,9 @@
 use ghx_engine::Engine;
 use ghx_engine::components::ComponentRegistry;
+use ghx_engine::graph::Graph;
 use ghx_engine::graph::evaluator::{self, EvaluationResult};
 use ghx_engine::graph::node::{Node, NodeId};
 use ghx_engine::graph::value::Value;
-use ghx_engine::graph::Graph;
 use ghx_engine::parse::ghx_xml;
 
 #[test]
@@ -24,19 +24,23 @@ fn slider_updates_require_existing_identifier() {
     engine
         .update_input_value("Length", Value::Number(4.5))
         .expect("valid slider name");
-    assert!(engine.update_input_value("onbekend", Value::Number(1.0)).is_err());
+    assert!(
+        engine
+            .update_input_value("onbekend", Value::Number(1.0))
+            .is_err()
+    );
 }
 
 #[test]
 fn parses_brugtest_boolean_toggle() {
-    let xml = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../web/brugtest.ghx"
-    ));
+    let xml = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../web/brugtest.ghx"));
     let graph = ghx_xml::parse_str(xml).expect("parse brugtest");
 
     // GUID for Boolean Toggle: 2e78987b-9dfb-42a2-8b76-3923ac8bd91a
-    let toggle = graph.nodes().iter().find(|n| n.guid.as_deref() == Some("{2e78987b-9dfb-42a2-8b76-3923ac8bd91a}"));
+    let toggle = graph
+        .nodes()
+        .iter()
+        .find(|n| n.guid.as_deref() == Some("{2e78987b-9dfb-42a2-8b76-3923ac8bd91a}"));
     assert!(toggle.is_some(), "Boolean Toggle node should exist");
 
     let toggle = toggle.unwrap();
@@ -48,7 +52,10 @@ fn parses_brugtest_boolean_toggle() {
     }
 
     // Check if "Output" pin exists (added by my fix)
-    assert!(toggle.outputs.contains_key("Output"), "Output pin should exist");
+    assert!(
+        toggle.outputs.contains_key("Output"),
+        "Output pin should exist"
+    );
 }
 
 #[test]

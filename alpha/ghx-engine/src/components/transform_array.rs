@@ -104,9 +104,15 @@ fn evaluate_box_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
     let cell_points = match inputs.get(1) {
         Some(Value::List(pts)) => Ok(pts),
-        _ => Err(ComponentError::new("Box Array cel moet een lijst van punten zijn"))
+        _ => Err(ComponentError::new(
+            "Box Array cel moet een lijst van punten zijn",
+        )),
     }?;
-    if cell_points.len() < 4 { return Err(ComponentError::new("Box Array cel vereist minstens 4 punten")) }
+    if cell_points.len() < 4 {
+        return Err(ComponentError::new(
+            "Box Array cel vereist minstens 4 punten",
+        ));
+    }
     let origin = coerce_point(cell_points.get(0), "Box Array cel oorsprong")?;
     let x_point = coerce_point(cell_points.get(1), "Box Array cel X")?;
     let y_point = coerce_point(cell_points.get(2), "Box Array cel Y")?;
@@ -195,7 +201,11 @@ fn evaluate_kaleidoscope(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
             rotate_vector(transformed_vector, plane.z_axis, current_angle)
         };
 
-        geometries.push(map_geometry(&geometry, &mut final_point_fn, &mut final_vector_fn));
+        geometries.push(map_geometry(
+            &geometry,
+            &mut final_point_fn,
+            &mut final_vector_fn,
+        ));
         transforms.push(Value::List(vec![
             Value::Text("Kaleidoscope".into()),
             Value::Number(i as f64),
@@ -227,7 +237,11 @@ fn evaluate_curve_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut transforms = Vec::with_capacity(count);
 
     for i in 0..count {
-        let t = if count > 1 { i as f64 / (count - 1) as f64 } else { 0.0 };
+        let t = if count > 1 {
+            i as f64 / (count - 1) as f64
+        } else {
+            0.0
+        };
         let point = curve.point_at(t);
         let tangent = curve.tangent_at(t);
         let plane = Plane::from_origin_and_normal(point, tangent);
@@ -270,9 +284,15 @@ fn evaluate_rectangular_array(inputs: &[Value], _meta: &MetaMap) -> ComponentRes
 
     let cell_points = match inputs.get(1) {
         Some(Value::List(pts)) => Ok(pts),
-        _ => Err(ComponentError::new("Rectangular Array cel moet een lijst van punten zijn"))
+        _ => Err(ComponentError::new(
+            "Rectangular Array cel moet een lijst van punten zijn",
+        )),
     }?;
-    if cell_points.len() < 3 { return Err(ComponentError::new("Rectangular Array cel vereist minstens 3 punten")) }
+    if cell_points.len() < 3 {
+        return Err(ComponentError::new(
+            "Rectangular Array cel vereist minstens 3 punten",
+        ));
+    }
     let origin = coerce_point(cell_points.get(0), "Rectangular Array cel oorsprong")?;
     let x_point = coerce_point(cell_points.get(1), "Rectangular Array cel X")?;
     let y_point = coerce_point(cell_points.get(2), "Rectangular Array cel Y")?;
@@ -362,7 +382,11 @@ fn evaluate_polar_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut transforms = Vec::with_capacity(count);
 
     for i in 0..count {
-        let current_angle = if count > 1 { angle * (i as f64 / (count - 1) as f64) } else { 0.0 };
+        let current_angle = if count > 1 {
+            angle * (i as f64 / (count - 1) as f64)
+        } else {
+            0.0
+        };
         let mut point_fn = |point: [f64; 3]| {
             let translated = subtract(point, plane.origin);
             let rotated = rotate_vector(translated, plane.z_axis, current_angle);
@@ -544,7 +568,10 @@ fn coerce_curve(value: Option<&Value>, context: &str) -> Result<Box<dyn Curve>, 
             context,
             other.kind()
         ))),
-        None => Err(ComponentError::new(format!("{} vereist een curve", context))),
+        None => Err(ComponentError::new(format!(
+            "{} vereist een curve",
+            context
+        ))),
     }
 }
 
@@ -730,7 +757,6 @@ fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     )
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{Component, ComponentKind};
@@ -761,7 +787,9 @@ mod tests {
 
         assert_eq!(geometries.len(), 3);
 
-        let Value::Point(p2) = geometries[2] else { panic!("expected point") };
+        let Value::Point(p2) = geometries[2] else {
+            panic!("expected point")
+        };
         assert!((p2[0] - 21.0).abs() < 1e-6);
     }
 
@@ -794,7 +822,9 @@ mod tests {
 
         assert_eq!(geometries.len(), 6);
 
-        let Value::Point(p5) = geometries[5] else { panic!("expected point") };
+        let Value::Point(p5) = geometries[5] else {
+            panic!("expected point")
+        };
         assert!((p5[0] - 10.0).abs() < 1e-6 && (p5[1] - 10.0).abs() < 1e-6);
     }
 
@@ -827,7 +857,9 @@ mod tests {
 
         assert_eq!(geometries.len(), 3);
 
-        let Value::Point(p2) = geometries[2] else { panic!("expected point") };
+        let Value::Point(p2) = geometries[2] else {
+            panic!("expected point")
+        };
         assert!((p2[0] - -10.0).abs() < 1e-6 && (p2[1] - 0.0).abs() < 1e-7);
     }
 
@@ -862,8 +894,12 @@ mod tests {
 
         assert_eq!(geometries.len(), 8);
 
-        let Value::Point(p7) = geometries[7] else { panic!("expected point") };
-        assert!((p7[0] - 10.0).abs() < 1e-6 && (p7[1] - 5.0).abs() < 1e-6 && (p7[2] - 2.0).abs() < 1e-6);
+        let Value::Point(p7) = geometries[7] else {
+            panic!("expected point")
+        };
+        assert!(
+            (p7[0] - 10.0).abs() < 1e-6 && (p7[1] - 5.0).abs() < 1e-6 && (p7[2] - 2.0).abs() < 1e-6
+        );
     }
 
     #[test]
@@ -893,7 +929,9 @@ mod tests {
 
         assert_eq!(geometries.len(), 3);
 
-        let Value::Point(p2) = geometries[2] else { panic!("expected point") };
+        let Value::Point(p2) = geometries[2] else {
+            panic!("expected point")
+        };
         assert!((p2[0] - 10.0).abs() < 1e-6 && (p2[1] - 0.0).abs() < 1e-6);
     }
 
@@ -925,7 +963,9 @@ mod tests {
 
         assert_eq!(geometries.len(), 4);
 
-        let Value::Point(p1) = geometries[1] else { panic!("expected point") };
+        let Value::Point(p1) = geometries[1] else {
+            panic!("expected point")
+        };
         assert!((p1[0] - 5.0).abs() < 1e-6 && (p1[1] - 10.0).abs() < 1e-6);
     }
 }

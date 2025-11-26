@@ -8,7 +8,7 @@ use time::{Date, Month, PrimitiveDateTime, Time};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const EPSILON: f64 = 1e-9;
 
@@ -1337,14 +1337,19 @@ mod tests {
     }
 }
 
-    #[test]
-    fn addition_defaults_to_double_z_axis() {
-        let outputs = evaluate_addition(&[Value::Null, Value::Null, Value::Boolean(false)]).expect("addition with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_OUTPUT_VECTOR), Some(Value::Vector(v)) if (v[0]).abs() < 1e-9 && (v[1]).abs() < 1e-9 && (v[2] - 2.0).abs() < 1e-9));
-    }
+#[test]
+fn addition_defaults_to_double_z_axis() {
+    let outputs = evaluate_addition(&[Value::Null, Value::Null, Value::Boolean(false)])
+        .expect("addition with no inputs succeeds");
+    assert!(
+        matches!(outputs.get(PIN_OUTPUT_VECTOR), Some(Value::Vector(v)) if (v[0]).abs() < 1e-9 && (v[1]).abs() < 1e-9 && (v[2] - 2.0).abs() < 1e-9)
+    );
+}
 
-    #[test]
-    fn angle_defaults_to_zero() {
-        let outputs = evaluate_angle(&[]).expect("angle with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if angle.abs() < 1e-9));
-    }
+#[test]
+fn angle_defaults_to_zero() {
+    let outputs = evaluate_angle(&[]).expect("angle with no inputs succeeds");
+    assert!(
+        matches!(outputs.get(PIN_OUTPUT_ANGLE), Some(Value::Number(angle)) if angle.abs() < 1e-9)
+    );
+}

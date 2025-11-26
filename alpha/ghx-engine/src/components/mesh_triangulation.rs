@@ -190,7 +190,9 @@ macro_rules! placeholder_component {
 
         impl Component for $name {
             fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-                Err(ComponentError::NotYetImplemented($component_name.to_string()))
+                Err(ComponentError::NotYetImplemented(
+                    $component_name.to_string(),
+                ))
             }
         }
     };
@@ -218,9 +220,7 @@ impl Component for FacetDome {
         };
 
         if points.len() < 3 {
-            return Err(ComponentError::new(
-                "Not enough points for triangulation",
-            ));
+            return Err(ComponentError::new("Not enough points for triangulation"));
         }
 
         let delaunator_points: Vec<delaunator::Point> = points
@@ -385,9 +385,7 @@ impl Component for ConvexHull {
         }
 
         if vertices.len() < 3 {
-            return Err(ComponentError::new(
-                "Not enough points for triangulation",
-            ));
+            return Err(ComponentError::new("Not enough points for triangulation"));
         }
 
         let triangulation = delaunator::triangulate(&delaunator_points);
@@ -524,9 +522,7 @@ impl Component for DelaunayEdges {
         }
 
         if vertices.len() < 3 {
-            return Err(ComponentError::new(
-                "Not enough points for triangulation",
-            ));
+            return Err(ComponentError::new("Not enough points for triangulation"));
         }
 
         let triangulation = delaunator::triangulate(&delaunator_points);
@@ -556,13 +552,7 @@ impl Component for DelaunayEdges {
 
         let connectivity_tree = Value::List(
             (0..vertices.len())
-                .map(|i| {
-                    Value::List(
-                        connectivity
-                            .remove(&i)
-                            .unwrap_or_default(),
-                    )
-                })
+                .map(|i| Value::List(connectivity.remove(&i).unwrap_or_default()))
                 .collect(),
         );
 
@@ -625,9 +615,8 @@ impl Component for Proximity3D {
                     continue;
                 }
 
-                let dist_sq = (p1[0] - p2[0]).powi(2)
-                    + (p1[1] - p2[1]).powi(2)
-                    + (p1[2] - p2[2]).powi(2);
+                let dist_sq =
+                    (p1[0] - p2[0]).powi(2) + (p1[1] - p2[1]).powi(2) + (p1[2] - p2[2]).powi(2);
 
                 if dist_sq >= min_radius_sq && dist_sq <= max_radius_sq {
                     neighbors.push((dist_sq, j, p2));
@@ -688,9 +677,7 @@ impl Component for DelaunayMesh {
         }
 
         if vertices.len() < 3 {
-            return Err(ComponentError::new(
-                "Not enough points for triangulation",
-            ));
+            return Err(ComponentError::new("Not enough points for triangulation"));
         }
 
         let triangulation = delaunator::triangulate(&delaunator_points);
@@ -713,10 +700,10 @@ impl Component for DelaunayMesh {
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ConvexHull, DelaunayEdges, DelaunayMesh, FacetDome, Proximity2D, Proximity3D,
-        QuadRemesh, Voronoi, OUTPUT_CELLS, OUTPUT_CONNECTIVITY, OUTPUT_DOME, OUTPUT_EDGES,
-        OUTPUT_HULL, OUTPUT_HULL_Z, OUTPUT_INDICES, OUTPUT_LINKS, OUTPUT_MESH, OUTPUT_PATTERN,
-        OUTPUT_TOPOLOGY,
+        Component, ConvexHull, DelaunayEdges, DelaunayMesh, FacetDome, OUTPUT_CELLS,
+        OUTPUT_CONNECTIVITY, OUTPUT_DOME, OUTPUT_EDGES, OUTPUT_HULL, OUTPUT_HULL_Z, OUTPUT_INDICES,
+        OUTPUT_LINKS, OUTPUT_MESH, OUTPUT_PATTERN, OUTPUT_TOPOLOGY, Proximity2D, Proximity3D,
+        QuadRemesh, Voronoi,
     };
     use crate::graph::{node::MetaMap, value::Value};
     #[test]
@@ -742,7 +729,10 @@ mod tests {
             // Each cell should be a valid closed polyline
             for cell in cell_list {
                 if let Value::List(points) = cell {
-                    assert!(points.len() >= 4, "A closed cell should have at least 4 vertices (3 + 1 to close)");
+                    assert!(
+                        points.len() >= 4,
+                        "A closed cell should have at least 4 vertices (3 + 1 to close)"
+                    );
                 } else {
                     panic!("Expected a list of points for each cell");
                 }
@@ -964,7 +954,9 @@ mod tests {
             assert!(
                 sorted_faces == expected1 || sorted_faces == expected2,
                 "Generated faces do not match any expected triangulation. Got: {:?}, Expected: {:?} or {:?}",
-                sorted_faces, expected1, expected2
+                sorted_faces,
+                expected1,
+                expected2
             );
         } else {
             panic!("Expected a Surface output");
@@ -974,10 +966,7 @@ mod tests {
     #[test]
     fn test_delaunay_mesh_not_enough_points() {
         let component = DelaunayMesh;
-        let points = vec![
-            Value::Point([0.0, 0.0, 0.0]),
-            Value::Point([1.0, 0.0, 0.0]),
-        ];
+        let points = vec![Value::Point([0.0, 0.0, 0.0]), Value::Point([1.0, 0.0, 0.0])];
         let inputs = vec![Value::List(points)];
 
         let err = component.evaluate(&inputs, &MetaMap::new()).unwrap_err();
@@ -1094,10 +1083,7 @@ mod tests {
     #[test]
     fn test_convex_hull_not_enough_points() {
         let component = ConvexHull;
-        let points = vec![
-            Value::Point([0.0, 0.0, 0.0]),
-            Value::Point([1.0, 0.0, 0.0]),
-        ];
+        let points = vec![Value::Point([0.0, 0.0, 0.0]), Value::Point([1.0, 0.0, 0.0])];
         let inputs = vec![Value::List(points)];
 
         let err = component.evaluate(&inputs, &MetaMap::new()).unwrap_err();

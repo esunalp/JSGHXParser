@@ -1,8 +1,8 @@
 //! Grasshopper Input Parameter Components
 
+use super::{Component, ComponentError, ComponentResult, coerce};
 use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
-use super::{coerce, Component, ComponentError, ComponentResult};
 use std::collections::BTreeMap;
 
 /// Defines a component's registration information.
@@ -154,10 +154,13 @@ pub struct BooleanToggleComponent;
 
 impl Component for BooleanToggleComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get_normalized("Value").and_then(|v| match v {
-            MetaValue::Boolean(b) => Some(*b),
-            _ => None
-        }).unwrap_or(false);
+        let val = meta
+            .get_normalized("Value")
+            .and_then(|v| match v {
+                MetaValue::Boolean(b) => Some(*b),
+                _ => None,
+            })
+            .unwrap_or(false);
         let mut outputs = BTreeMap::new();
         outputs.insert("Output".to_string(), Value::Boolean(val));
         Ok(outputs)
@@ -254,7 +257,8 @@ impl Component for PanelComponent {
             .and_then(|v| v.as_boolean())
             .unwrap_or(true);
 
-        let output_value = if !inputs.is_empty() && inputs.iter().any(|v| !matches!(v, Value::Null)) {
+        let output_value = if !inputs.is_empty() && inputs.iter().any(|v| !matches!(v, Value::Null))
+        {
             inputs
                 .iter()
                 .filter(|v| !matches!(v, Value::Null))
@@ -321,7 +325,10 @@ impl Component for ValueListComponent {
             .get_normalized("ListItems")
             .or_else(|| meta.get_normalized("Values"))
         {
-            Some(MetaValue::List(items)) => items.iter().filter_map(|mv| mv.as_value()).collect::<Vec<Value>>(),
+            Some(MetaValue::List(items)) => items
+                .iter()
+                .filter_map(|mv| mv.as_value())
+                .collect::<Vec<Value>>(),
             _ => {
                 let mut outputs = BTreeMap::new();
                 outputs.insert("Output".to_string(), Value::Null);
@@ -335,7 +342,7 @@ impl Component for ValueListComponent {
             .and_then(|v| match v {
                 MetaValue::Number(n) => Some(*n as usize),
                 MetaValue::Integer(i) => Some(*i as usize),
-                _ => None
+                _ => None,
             })
             .unwrap_or(0);
 
@@ -355,7 +362,8 @@ pub struct MDSliderComponent;
 
 impl Component for MDSliderComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get_normalized("Value")
+        let val = meta
+            .get_normalized("Value")
             .and_then(|v| v.as_value())
             .unwrap_or(Value::List(vec![Value::Number(0.0), Value::Number(0.0)]));
         let mut outputs = BTreeMap::new();
@@ -369,10 +377,11 @@ pub struct ColourPickerComponent;
 
 impl Component for ColourPickerComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get_normalized("Value")
+        let val = meta
+            .get_normalized("Value")
             .and_then(|v| match v {
                 MetaValue::Text(t) => Some(t.clone()),
-                _ => None
+                _ => None,
             })
             .unwrap_or_else(|| "Color [A=255, R=128, G=128, B=128]".to_string());
         let mut outputs = BTreeMap::new();
@@ -386,11 +395,14 @@ pub struct DigitScrollerComponent;
 
 impl Component for DigitScrollerComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let val = meta.get_normalized("Value").and_then(|v| match v {
-            MetaValue::Number(n) => Some(*n),
-            MetaValue::Integer(i) => Some(*i as f64),
-            _ => None
-        }).unwrap_or(0.0);
+        let val = meta
+            .get_normalized("Value")
+            .and_then(|v| match v {
+                MetaValue::Number(n) => Some(*n),
+                MetaValue::Integer(i) => Some(*i as f64),
+                _ => None,
+            })
+            .unwrap_or(0.0);
         let mut outputs = BTreeMap::new();
         outputs.insert("Output".to_string(), Value::Number(val));
         Ok(outputs)
@@ -404,11 +416,21 @@ impl Component for ColourSwatchComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         use crate::graph::value::ColorValue;
 
-        let output_value = if let Some(MetaValue::List(rgb)) = meta.get_normalized("SwatchColorRGB") {
+        let output_value = if let Some(MetaValue::List(rgb)) = meta.get_normalized("SwatchColorRGB")
+        {
             if rgb.len() >= 3 {
-                let r = rgb[0].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
-                let g = rgb[1].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
-                let b = rgb[2].as_value().and_then(|v| v.expect_number().ok()).unwrap_or(0.0);
+                let r = rgb[0]
+                    .as_value()
+                    .and_then(|v| v.expect_number().ok())
+                    .unwrap_or(0.0);
+                let g = rgb[1]
+                    .as_value()
+                    .and_then(|v| v.expect_number().ok())
+                    .unwrap_or(0.0);
+                let b = rgb[2]
+                    .as_value()
+                    .and_then(|v| v.expect_number().ok())
+                    .unwrap_or(0.0);
                 Value::Color(ColorValue::from_rgb255(r, g, b))
             } else {
                 Value::Color(ColorValue::new(0.0, 0.0, 0.0))
@@ -435,10 +457,13 @@ pub struct ButtonComponent;
 
 impl Component for ButtonComponent {
     fn evaluate(&self, _inputs: &[Value], meta: &MetaMap) -> ComponentResult {
-        let pressed = meta.get_normalized("Pressed").and_then(|v| match v {
-            MetaValue::Boolean(b) => Some(*b),
-            _ => None
-        }).unwrap_or(false);
+        let pressed = meta
+            .get_normalized("Pressed")
+            .and_then(|v| match v {
+                MetaValue::Boolean(b) => Some(*b),
+                _ => None,
+            })
+            .unwrap_or(false);
         let mut outputs = BTreeMap::new();
         outputs.insert("Output".to_string(), Value::Boolean(pressed));
         Ok(outputs)
@@ -507,7 +532,9 @@ macro_rules! define_not_implemented_component {
 
         impl Component for $struct_name {
             fn evaluate(&self, _inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-                Err(ComponentError::NotYetImplemented($component_name.to_string()))
+                Err(ComponentError::NotYetImplemented(
+                    $component_name.to_string(),
+                ))
             }
         }
     };
@@ -527,34 +554,152 @@ define_not_implemented_component!(FlagFieldsComponent, "Flag fields");
 define_not_implemented_component!(RobotsLibraryComponent, "Robots library");
 
 pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
-    Registration::new(ComponentKind::ValueList, &["00027467-0d24-4fa7-b178-8dc0ac5f42ec"], &["Value List", "List"]),
-    Registration::new(ComponentKind::FlagFields, &["0381b555-bf9c-4d68-8e5c-10b2fcb16f30"], &["Flag fields"]),
-    Registration::new(ComponentKind::ImageResource, &["216bccd8-bf29-4d3c-b791-54c89a180db3"], &["Image Resource"]),
-    Registration::new(ComponentKind::BooleanToggle, &["2e78987b-9dfb-42a2-8b76-3923ac8bd91a", "ad483f40-dc72-40dc-844d-c9e462c7d19f"], &["Boolean Toggle", "Toggle"]),
-    Registration::new(ComponentKind::Import3DM, &["317f1cb2-820d-4a8f-b5c8-5de3594ddfba", "f055c5d7-5d97-4964-90c7-8e9eee9a8a39"], &["Import 3DM", "3DM"]),
-    Registration::new(ComponentKind::MDSlider, &["318dacd7-9073-4ede-b043-a0c132eb77e0"], &["MD Slider"]),
-    Registration::new(ComponentKind::ColourPicker, &["339c0ee1-cf11-444f-8e10-65c9150ea755"], &["Colour Picker", "Colour"]),
-    Registration::new(ComponentKind::DigitScroller, &["33bcf975-a0b2-4b54-99fd-585c893b9e88"], &["Digit Scroller"]),
-    Registration::new(ComponentKind::ImportPDB, &["383929c0-6515-4899-8b4b-3bd0d0b32471"], &["Import PDB", "PDB"]),
-    Registration::new(ComponentKind::ColourWheel, &["51a2ede9-8f8c-4fdf-a375-999c2062eab7"], &["Colour Wheel", "Wheel"]),
-    Registration::new(ComponentKind::NumberSlider, &["57da07bd-ecab-415d-9d86-af36d7073abc"], &["Number Slider"]),
-    Registration::new(ComponentKind::Panel, &["59e0b89a-e487-49f8-bab8-b5bab16be14c"], &["Panel"]),
-    Registration::new(ComponentKind::RobotsLibrary, &["5dd377ec-f6af-43f8-8e92-fc6669013e61"], &["Robots library"]),
-    Registration::new(ComponentKind::ReadFile, &["6587fcbf-e3cf-480a-b2f5-641794474194"], &["Read File", "File"]),
-    Registration::new(ComponentKind::Gradient, &["6da9f120-3ad0-4b6e-9fe0-f8cde3a649b7"], &["Gradient"]),
-    Registration::new(ComponentKind::AtomData, &["7b371d04-53e3-47d8-b3dd-7b113c48bc59"], &["Atom Data", "Atom"]),
-    Registration::new(ComponentKind::ColourSwatch, &["9c53bac0-ba66-40bd-8154-ce9829b9db1a"], &["Colour Swatch", "Swatch"]),
-    Registration::new(ComponentKind::Button, &["a8b97322-2d53-47cd-905e-b932c3ccd74e"], &["Button"]),
-    Registration::new(ComponentKind::ImportSHP, &["aa538b89-3df8-436f-9ae4-bc44525984de"], &["Import SHP", "SHP"]),
-    Registration::new(ComponentKind::Calendar, &["ab898d46-b8b3-4ed5-b28f-4f8047920262"], &["Calendar"]),
-    Registration::new(ComponentKind::ImportCoordinates, &["b8a66384-fc66-4574-a8a9-ad18e610d623"], &["Import Coordinates", "Coords"]),
-    Registration::new(ComponentKind::GraphMapper, &["bc984576-7aa6-491f-a91d-e444c33675a7"], &["Graph Mapper", "Graph"]),
-    Registration::new(ComponentKind::ControlKnob, &["bcac2747-348b-4edd-ae1f-77a782cebbdd"], &["Control Knob", "Knob"]),
-    Registration::new(ComponentKind::ImportImage, &["c2c0c6cf-f362-4047-a159-21a72e7c272a"], &["Import Image", "IMG"]),
-    Registration::new(ComponentKind::ObjectDetails, &["c7b5c66a-6360-4f5f-aa17-a918d0b1c314"], &["Object Details", "ObjDet"]),
-    Registration::new(ComponentKind::ImageSampler, &["d69a3494-785b-4beb-969b-d2373f65abfd"], &["Image Sampler", "Image"]),
-    Registration::new(ComponentKind::Clock, &["f8a94819-1e2b-4d67-9100-9e983ac493cc"], &["Clock"]),
-    Registration::new(ComponentKind::Scribble, &["7f5c6c55-f846-4a08-9c9a-cfdc285cc6fe"], &["Scribble"]),
+    Registration::new(
+        ComponentKind::ValueList,
+        &["00027467-0d24-4fa7-b178-8dc0ac5f42ec"],
+        &["Value List", "List"],
+    ),
+    Registration::new(
+        ComponentKind::FlagFields,
+        &["0381b555-bf9c-4d68-8e5c-10b2fcb16f30"],
+        &["Flag fields"],
+    ),
+    Registration::new(
+        ComponentKind::ImageResource,
+        &["216bccd8-bf29-4d3c-b791-54c89a180db3"],
+        &["Image Resource"],
+    ),
+    Registration::new(
+        ComponentKind::BooleanToggle,
+        &[
+            "2e78987b-9dfb-42a2-8b76-3923ac8bd91a",
+            "ad483f40-dc72-40dc-844d-c9e462c7d19f",
+        ],
+        &["Boolean Toggle", "Toggle"],
+    ),
+    Registration::new(
+        ComponentKind::Import3DM,
+        &[
+            "317f1cb2-820d-4a8f-b5c8-5de3594ddfba",
+            "f055c5d7-5d97-4964-90c7-8e9eee9a8a39",
+        ],
+        &["Import 3DM", "3DM"],
+    ),
+    Registration::new(
+        ComponentKind::MDSlider,
+        &["318dacd7-9073-4ede-b043-a0c132eb77e0"],
+        &["MD Slider"],
+    ),
+    Registration::new(
+        ComponentKind::ColourPicker,
+        &["339c0ee1-cf11-444f-8e10-65c9150ea755"],
+        &["Colour Picker", "Colour"],
+    ),
+    Registration::new(
+        ComponentKind::DigitScroller,
+        &["33bcf975-a0b2-4b54-99fd-585c893b9e88"],
+        &["Digit Scroller"],
+    ),
+    Registration::new(
+        ComponentKind::ImportPDB,
+        &["383929c0-6515-4899-8b4b-3bd0d0b32471"],
+        &["Import PDB", "PDB"],
+    ),
+    Registration::new(
+        ComponentKind::ColourWheel,
+        &["51a2ede9-8f8c-4fdf-a375-999c2062eab7"],
+        &["Colour Wheel", "Wheel"],
+    ),
+    Registration::new(
+        ComponentKind::NumberSlider,
+        &["57da07bd-ecab-415d-9d86-af36d7073abc"],
+        &["Number Slider"],
+    ),
+    Registration::new(
+        ComponentKind::Panel,
+        &["59e0b89a-e487-49f8-bab8-b5bab16be14c"],
+        &["Panel"],
+    ),
+    Registration::new(
+        ComponentKind::RobotsLibrary,
+        &["5dd377ec-f6af-43f8-8e92-fc6669013e61"],
+        &["Robots library"],
+    ),
+    Registration::new(
+        ComponentKind::ReadFile,
+        &["6587fcbf-e3cf-480a-b2f5-641794474194"],
+        &["Read File", "File"],
+    ),
+    Registration::new(
+        ComponentKind::Gradient,
+        &["6da9f120-3ad0-4b6e-9fe0-f8cde3a649b7"],
+        &["Gradient"],
+    ),
+    Registration::new(
+        ComponentKind::AtomData,
+        &["7b371d04-53e3-47d8-b3dd-7b113c48bc59"],
+        &["Atom Data", "Atom"],
+    ),
+    Registration::new(
+        ComponentKind::ColourSwatch,
+        &["9c53bac0-ba66-40bd-8154-ce9829b9db1a"],
+        &["Colour Swatch", "Swatch"],
+    ),
+    Registration::new(
+        ComponentKind::Button,
+        &["a8b97322-2d53-47cd-905e-b932c3ccd74e"],
+        &["Button"],
+    ),
+    Registration::new(
+        ComponentKind::ImportSHP,
+        &["aa538b89-3df8-436f-9ae4-bc44525984de"],
+        &["Import SHP", "SHP"],
+    ),
+    Registration::new(
+        ComponentKind::Calendar,
+        &["ab898d46-b8b3-4ed5-b28f-4f8047920262"],
+        &["Calendar"],
+    ),
+    Registration::new(
+        ComponentKind::ImportCoordinates,
+        &["b8a66384-fc66-4574-a8a9-ad18e610d623"],
+        &["Import Coordinates", "Coords"],
+    ),
+    Registration::new(
+        ComponentKind::GraphMapper,
+        &["bc984576-7aa6-491f-a91d-e444c33675a7"],
+        &["Graph Mapper", "Graph"],
+    ),
+    Registration::new(
+        ComponentKind::ControlKnob,
+        &["bcac2747-348b-4edd-ae1f-77a782cebbdd"],
+        &["Control Knob", "Knob"],
+    ),
+    Registration::new(
+        ComponentKind::ImportImage,
+        &["c2c0c6cf-f362-4047-a159-21a72e7c272a"],
+        &["Import Image", "IMG"],
+    ),
+    Registration::new(
+        ComponentKind::ObjectDetails,
+        &["c7b5c66a-6360-4f5f-aa17-a918d0b1c314"],
+        &["Object Details", "ObjDet"],
+    ),
+    Registration::new(
+        ComponentKind::ImageSampler,
+        &["d69a3494-785b-4beb-969b-d2373f65abfd"],
+        &["Image Sampler", "Image"],
+    ),
+    Registration::new(
+        ComponentKind::Clock,
+        &["f8a94819-1e2b-4d67-9100-9e983ac493cc"],
+        &["Clock"],
+    ),
+    Registration::new(
+        ComponentKind::Scribble,
+        &["7f5c6c55-f846-4a08-9c9a-cfdc285cc6fe"],
+        &["Scribble"],
+    ),
 ];
 
 #[cfg(test)]
@@ -672,7 +817,10 @@ mod tests {
         let mut meta = MetaMap::new();
         meta.insert("userText".to_string(), MetaValue::Text("hello".to_string()));
         let outputs = component.evaluate(&[], &meta).unwrap();
-        assert_eq!(outputs.get("Output"), Some(&Value::Text("hello".to_string())));
+        assert_eq!(
+            outputs.get("Output"),
+            Some(&Value::Text("hello".to_string()))
+        );
     }
 
     #[test]
@@ -680,7 +828,10 @@ mod tests {
         let component = PanelComponent;
         let inputs = vec![Value::Text("world".to_string())];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
-        assert_eq!(outputs.get("Output"), Some(&Value::Text("world".to_string())));
+        assert_eq!(
+            outputs.get("Output"),
+            Some(&Value::Text("world".to_string()))
+        );
     }
 
     #[test]
@@ -718,13 +869,20 @@ mod tests {
         let values = vec![MetaValue::Number(0.1), MetaValue::Number(0.9)];
         meta.insert("Value".to_string(), MetaValue::List(values.clone()));
         let outputs = component.evaluate(&[], &meta).unwrap();
-        assert_eq!(outputs.get("Output"), Some(&Value::List(vec![Value::Number(0.1), Value::Number(0.9)])));
+        assert_eq!(
+            outputs.get("Output"),
+            Some(&Value::List(vec![Value::Number(0.1), Value::Number(0.9)]))
+        );
     }
 
     #[test]
     fn test_gradient_component() {
         let component = GradientComponent;
-        let inputs = vec![Value::Number(0.0), Value::Number(100.0), Value::Number(50.0)];
+        let inputs = vec![
+            Value::Number(0.0),
+            Value::Number(100.0),
+            Value::Number(50.0),
+        ];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
         let expected_color = format!("Color [A=255, R=127, G=127, B=0]");
         assert_eq!(outputs.get("Colour"), Some(&Value::Text(expected_color)));

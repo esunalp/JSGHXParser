@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Archive name="Root">
+  <chunks count="1">
+    <chunk name="Definition">
+      <chunks count="1">
+        <chunk name="DefinitionObjects">
+          <chunks count="1">
+            <chunk name="Object" index="0">
+              <items count="2">
+                <item name="GUID" type_name="gh_guid" type_code="9">d2a31d0a-8a1c-4ffb-b3c7-96931fee6c34</item>
+                <item name="Name" type_name="gh_string" type_code="10">PersistentValues</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <chunks count="3">
+                    <chunk name="param_input" index="0">
+                      <items count="1">
+                        <item name="NickName" type_name="gh_string" type_code="10">Number</item>
+                      </items>
+                      <chunks count="1">
+                        <chunk name="PersistentData">
+                          <chunks count="1">
+                            <chunk name="Branch" index="0">
+                              <chunks count="1">
+                                <chunk name="Item" index="0">
+                                  <items count="2">
+                                    <item name="TypeName" type_name="gh_string" type_code="10">Grasshopper.Kernel.Types.GH_Number</item>
+                                    <item name="number" type_name="gh_double" type_code="6">1.5</item>
+                                  </items>
+                                </chunk>
+                              </chunks>
+                            </chunk>
+                          </chunks>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                    <chunk name="param_input" index="1">
+                      <items count="1">
+                        <item name="NickName" type_name="gh_string" type_code="10">Text</item>
+                      </items>
+                      <chunks count="1">
+                        <chunk name="PersistentData">
+                          <chunks count="1">
+                            <chunk name="Branch" index="0">
+                              <chunks count="1">
+                                <chunk name="Item" index="0">
+                                  <items count="2">
+                                    <item name="TypeName" type_name="gh_string" type_code="10">Grasshopper.Kernel.Types.GH_String</item>
+                                    <item name="text" type_name="gh_string" type_code="10">hello world</item>
+                                  </items>
+                                </chunk>
+                              </chunks>
+                            </chunk>
+                          </chunks>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                    <chunk name="param_input" index="2">
+                      <items count="1">
+                        <item name="NickName" type_name="gh_string" type_code="10">Boolean</item>
+                      </items>
+                      <chunks count="1">
+                        <chunk name="PersistentData">
+                          <chunks count="1">
+                            <chunk name="Branch" index="0">
+                              <chunks count="1">
+                                <chunk name="Item" index="0">
+                                  <items count="2">
+                                    <item name="TypeName" type_name="gh_string" type_code="10">Grasshopper.Kernel.Types.GH_Boolean</item>
+                                    <item name="boolean" type_name="gh_bool" type_code="1">true</item>
+                                  </items>
+                                </chunk>
+                              </chunks>
+                            </chunk>
+                          </chunks>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                  </chunks>
+                </chunk>
+              </chunks>
+            </chunk>
+          </chunks>
+        </chunk>
+      </chunks>
+    </chunk>
+  </chunks>
+</Archive>

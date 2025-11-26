@@ -541,7 +541,10 @@ fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
 
     for (idx, item_chunk) in list_items.iter().enumerate() {
         let name = item_chunk.item_value("Name").unwrap_or("").to_string();
-        let expression = item_chunk.item_value("Expression").unwrap_or("").to_string();
+        let expression = item_chunk
+            .item_value("Expression")
+            .unwrap_or("")
+            .to_string();
         let selected = item_chunk
             .item_value("Selected")
             .and_then(parse_boolean_text)
@@ -553,9 +556,9 @@ fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
         // If expression is "0", it could be number or text. Let's match how parse_persistent_value does it roughly,
         // or just keep it simple.
         let value = if let Some(num) = parse_f64(&expression) {
-             Value::Number(num)
+            Value::Number(num)
         } else {
-             Value::Text(expression.clone())
+            Value::Text(expression.clone())
         };
 
         if selected {
@@ -677,7 +680,7 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
     let item_chunk = branch
         .children()
         .find(|child| child.name.eq_ignore_ascii_case("Item"))?;
-    let value_item = item_chunk.items.items.first()?;
+    let value_item = select_persistent_value_item(item_chunk)?;
     let text = value_item.text.as_deref()?.trim();
     if text.is_empty() {
         return None;
@@ -719,6 +722,35 @@ fn parse_persistent_value(chunk: &RawChunk) -> Option<Value> {
     }
 
     Some(Value::Text(text.to_owned()))
+}
+
+fn select_persistent_value_item(chunk: &RawChunk) -> Option<&RawItem> {
+    chunk
+        .items
+        .items
+        .iter()
+        .find(|item| is_persistent_value_item(item))
+        .or_else(|| chunk.items.items.iter().rev().find(|item| has_text(item)))
+}
+
+fn is_persistent_value_item(item: &RawItem) -> bool {
+    if !has_text(item) {
+        return false;
+    }
+
+    let name = item.name.as_str();
+    !matches!(
+        name.to_ascii_lowercase().as_str(),
+        // Exclude metadata entries that describe the payload rather than carry it.
+        "typename" | "typecode" | "count" | "path" | "index"
+    )
+}
+
+fn has_text(item: &RawItem) -> bool {
+    item.text
+        .as_deref()
+        .map(|text| !text.trim().is_empty())
+        .unwrap_or(false)
 }
 
 fn parse_point_value(text: &str) -> Option<[f64; 3]> {
@@ -1212,6 +1244,30 @@ mod tests {
     }
 
     #[test]
+    fn parses_persistent_inputs() {
+        let xml = include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/tools/ghx-samples/persistent_values.ghx"
+        ));
+        let graph = parse_str(xml).expect("persistent value graph parsed");
+        assert_eq!(graph.node_count(), 1);
+
+        let node = graph.nodes().first().unwrap();
+        match node.inputs.get("Number") {
+            Some(Value::Number(number)) => assert!((number - 1.5).abs() < f64::EPSILON),
+            other => panic!("expected number input value, got {other:?}"),
+        }
+        match node.inputs.get("Text") {
+            Some(Value::Text(text)) => assert_eq!(text, "hello world"),
+            other => panic!("expected text input value, got {other:?}"),
+        }
+        match node.inputs.get("Boolean") {
+            Some(Value::Boolean(flag)) => assert!(flag),
+            other => panic!("expected boolean input value, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn parses_parameter_data_output_param_wires() {
         let xml = r#"<?xml version="1.0" encoding="utf-8"?>
 <Archive name="Root">
@@ -1394,7 +1450,11 @@ mod tests {
         // Should have 1 wire from Source to Relay
         assert_eq!(graph.wire_count(), 1);
 
-        let relay_node = graph.nodes().iter().find(|n| n.name.as_deref() == Some("Relay")).unwrap();
+        let relay_node = graph
+            .nodes()
+            .iter()
+            .find(|n| n.name.as_deref() == Some("Relay"))
+            .unwrap();
         assert!(relay_node.outputs.contains_key("Output"));
         // `add_input_pin` adds to input_order, but doesn't necessarily populate the inputs map if no value is set.
         assert!(relay_node.input_order().contains(&"Input".to_string()));

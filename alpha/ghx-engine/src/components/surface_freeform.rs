@@ -259,7 +259,11 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
 
         // Streef naar een positieve winding (CCW). Als de referentie zelf CW is, keer de normaal om.
         let target_normal = if reference_winding < 0.0 {
-            [-reference_normal[0], -reference_normal[1], -reference_normal[2]]
+            [
+                -reference_normal[0],
+                -reference_normal[1],
+                -reference_normal[2],
+            ]
         } else {
             reference_normal
         };
@@ -313,11 +317,7 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
     unify_curve_directions(&mut polylines);
 
     // Bepaal het doelaantal punten door het maximum van alle polylines te nemen.
-    let target_count = polylines
-        .iter()
-        .map(|p| p.len())
-        .max()
-        .unwrap_or(0);
+    let target_count = polylines.iter().map(|p| p.len()).max().unwrap_or(0);
 
     if target_count < 2 {
         return Err(ComponentError::new(format!(
@@ -352,11 +352,7 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
             let base_in_next_curve_idx = ((i + 1) * num_points_per_curve + j) as u32;
             let next_in_next_curve_idx = base_in_next_curve_idx + 1;
 
-            faces.push(vec![
-                base_idx,
-                next_in_next_curve_idx,
-                next_in_row_idx,
-            ]);
+            faces.push(vec![base_idx, next_in_next_curve_idx, next_in_row_idx]);
             faces.push(vec![
                 base_idx,
                 base_in_next_curve_idx,
@@ -807,11 +803,7 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_extrude_linear(inputs: &[Value]) -> ComponentResult {
     let component = "Extrude Linear";
-    let profile_segments = coerce::coerce_curve_segments(
-        inputs
-            .get(0)
-            .unwrap_or(&Value::Null),
-    )?;
+    let profile_segments = coerce::coerce_curve_segments(inputs.get(0).unwrap_or(&Value::Null))?;
     if profile_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Linear kon geen profielcurve herkennen",
@@ -905,11 +897,7 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
     let component = "Extrude Point";
-    let base_segments = coerce::coerce_curve_segments(
-        inputs
-            .get(0)
-            .unwrap_or(&Value::Null),
-    )?;
+    let base_segments = coerce::coerce_curve_segments(inputs.get(0).unwrap_or(&Value::Null))?;
     if base_segments.is_empty() {
         return Err(ComponentError::new(
             "Extrude Point kon de basiscurve niet lezen",
@@ -929,11 +917,7 @@ fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_pipe(inputs: &[Value]) -> ComponentResult {
     let component = "Pipe";
-    let segments = coerce::coerce_curve_segments(
-        inputs
-            .get(0)
-            .unwrap_or(&Value::Null),
-    )?;
+    let segments = coerce::coerce_curve_segments(inputs.get(0).unwrap_or(&Value::Null))?;
     if segments.is_empty() {
         return Err(ComponentError::new("Pipe kon de railcurve niet lezen"));
     }
@@ -986,16 +970,8 @@ fn evaluate_fragment_patch(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_revolution(inputs: &[Value]) -> ComponentResult {
     let component = "Revolution";
-    let profile_segments = coerce::coerce_curve_segments(
-        inputs
-            .get(0)
-            .unwrap_or(&Value::Null),
-    )?;
-    let axis_segments = coerce::coerce_curve_segments(
-        inputs
-            .get(1)
-            .unwrap_or(&Value::Null),
-    )?;
+    let profile_segments = coerce::coerce_curve_segments(inputs.get(0).unwrap_or(&Value::Null))?;
+    let axis_segments = coerce::coerce_curve_segments(inputs.get(1).unwrap_or(&Value::Null))?;
     if profile_segments.is_empty() || axis_segments.is_empty() {
         return Err(ComponentError::new(
             "Revolution kon profiel of as niet lezen",
@@ -1731,9 +1707,9 @@ fn polyline_winding_direction(polyline: &[[f64; 3]], normal: [f64; 3]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::{
-        add_vector, Component, ComponentKind, is_closed, polyline_normal,
-        polyline_winding_direction, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT, PIN_OUTPUT_OPTIONS,
-        PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE, EPSILON,
+        Component, ComponentKind, EPSILON, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT,
+        PIN_OUTPUT_OPTIONS, PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE, add_vector, is_closed,
+        polyline_normal, polyline_winding_direction,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1815,10 +1791,7 @@ mod tests {
         let final_position = [5.0, 0.0, 10.0];
         assert_eq!(vertices[8], add_vector([0.0, 0.0, 0.0], final_position));
         assert_eq!(vertices[9], add_vector([1.0, 0.0, 0.0], final_position));
-        assert_eq!(
-            vertices[10],
-            add_vector([1.0, 1.0, 0.0], final_position)
-        );
+        assert_eq!(vertices[10], add_vector([1.0, 1.0, 0.0], final_position));
         assert_eq!(vertices[11], add_vector([0.0, 1.0, 0.0], final_position));
     }
 
@@ -2202,7 +2175,12 @@ mod tests {
 
     #[test]
     fn test_is_closed() {
-        let closed_poly = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]];
+        let closed_poly = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ];
         assert!(is_closed(&closed_poly));
         let open_poly = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
         assert!(!is_closed(&open_poly));
@@ -2213,18 +2191,35 @@ mod tests {
     #[test]
     fn test_polyline_normal_and_winding() {
         // CCW square on XY plane
-        let poly_ccw = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 0.0]];
+        let poly_ccw = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0],
+        ];
         let normal_ccw = polyline_normal(&poly_ccw);
-        assert!((normal_ccw[2] - 1.0).abs() < EPSILON, "Expected normal to be Z-axis for CCW");
-        assert!(polyline_winding_direction(&poly_ccw, [0.0, 0.0, 1.0]) > 0.0, "Expected positive (CCW) winding");
-
+        assert!(
+            (normal_ccw[2] - 1.0).abs() < EPSILON,
+            "Expected normal to be Z-axis for CCW"
+        );
+        assert!(
+            polyline_winding_direction(&poly_ccw, [0.0, 0.0, 1.0]) > 0.0,
+            "Expected positive (CCW) winding"
+        );
 
         // CW square on XY plane
         let mut poly_cw = poly_ccw.clone();
         poly_cw.reverse();
         let normal_cw = polyline_normal(&poly_cw);
-        assert!((normal_cw[2] + 1.0).abs() < EPSILON, "Expected normal to be negative Z-axis for CW");
-        assert!(polyline_winding_direction(&poly_cw, [0.0, 0.0, 1.0]) < 0.0, "Expected negative (CW) winding");
+        assert!(
+            (normal_cw[2] + 1.0).abs() < EPSILON,
+            "Expected normal to be negative Z-axis for CW"
+        );
+        assert!(
+            polyline_winding_direction(&poly_cw, [0.0, 0.0, 1.0]) < 0.0,
+            "Expected negative (CW) winding"
+        );
     }
 
     #[test]
@@ -2249,7 +2244,9 @@ mod tests {
             ]),
         ])];
 
-        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft failed");
         let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
             panic!("expected surface output");
         };
@@ -2283,7 +2280,9 @@ mod tests {
             ]),
         ])];
 
-        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft failed");
         let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
             panic!("expected surface output");
         };
@@ -2316,7 +2315,9 @@ mod tests {
             ]),
         ])];
 
-        let outputs = component.evaluate(&inputs, &MetaMap::new()).expect("loft failed");
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft failed");
         let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
             panic!("expected surface output");
         };

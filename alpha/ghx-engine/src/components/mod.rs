@@ -6,6 +6,7 @@ use std::fmt;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
+pub mod coerce;
 pub mod complex;
 pub mod curve_analysis;
 pub mod curve_division;
@@ -13,18 +14,23 @@ pub mod curve_primitive;
 pub mod curve_sampler;
 pub mod curve_spline;
 pub mod curve_util;
+pub mod display_preview;
 pub mod extrude;
 pub mod maths_domain;
 pub mod maths_matrix;
 pub mod maths_operators;
-pub mod mesh_analysis;
-pub mod mesh_primitive;
-pub mod mesh_triangulation;
 pub mod maths_polynomials;
 pub mod maths_script;
 pub mod maths_time;
 pub mod maths_trig;
 pub mod maths_util;
+pub mod mesh_analysis;
+pub mod mesh_primitive;
+pub mod mesh_triangulation;
+pub mod params_geometry;
+pub mod params_input;
+pub mod params_primitive;
+pub mod params_util;
 pub mod scalar;
 pub mod sets_list;
 pub mod sets_sequence;
@@ -45,12 +51,6 @@ pub mod vector_grid;
 pub mod vector_plane;
 pub mod vector_point;
 pub mod vector_vector;
-pub mod display_preview;
-pub mod params_geometry;
-pub mod params_primitive;
-pub mod params_input;
-pub mod params_util;
-pub mod coerce;
 
 /// Output-map van een component: pinnickname → waarde.
 pub type OutputMap = std::collections::BTreeMap<String, Value>;
@@ -183,8 +183,12 @@ impl ComponentKind {
             Self::SetsList(component) => component.evaluate(inputs, meta),
             Self::SetsSequence(component) => component.evaluate(inputs, meta),
             Self::SetsSets(component) => component.evaluate(inputs, meta),
-            Self::SetsText(component) => sets_text::ComponentKind::evaluate(component, inputs, meta),
-            Self::SetsTree(component) => sets_tree::ComponentKind::evaluate(*component, inputs, meta),
+            Self::SetsText(component) => {
+                sets_text::ComponentKind::evaluate(component, inputs, meta)
+            }
+            Self::SetsTree(component) => {
+                sets_tree::ComponentKind::evaluate(*component, inputs, meta)
+            }
             Self::DisplayPreview(component) => component.evaluate(inputs, meta),
             Self::MeshPrimitive(component) => component.evaluate(inputs, meta),
             Self::MeshAnalysis(component) => component.evaluate(inputs, meta),
@@ -675,7 +679,7 @@ fn normalize_name(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{maths_operators, params_input, ComponentKind, ComponentRegistry};
+    use super::{ComponentKind, ComponentRegistry, maths_operators, params_input};
 
     #[test]
     fn lookup_by_guid_and_name() {
@@ -684,9 +688,10 @@ mod tests {
         let component = registry
             .resolve(Some("{57da07bd-ecab-415d-9d86-af36d7073abc}"), None, None)
             .unwrap();
-        assert!(
-            matches!(component, ComponentKind::ParamsInput(params_input::ComponentKind::NumberSlider))
-        );
+        assert!(matches!(
+            component,
+            ComponentKind::ParamsInput(params_input::ComponentKind::NumberSlider)
+        ));
 
         let by_name = registry.resolve(None, Some("Add"), None).unwrap();
         assert!(matches!(

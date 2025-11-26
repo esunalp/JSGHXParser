@@ -121,12 +121,18 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::SurfacePoints,
     },
     Registration {
-        guids: &["{1eb7b856-ec7d-40b6-a76c-f216a11df37c}", "{c98c1666-5f29-4bb8-aafd-bb5a708e8a95}"],
+        guids: &[
+            "{1eb7b856-ec7d-40b6-a76c-f216a11df37c}",
+            "{c98c1666-5f29-4bb8-aafd-bb5a708e8a95}",
+        ],
         names: &["Area Moments", "AMoments"],
         kind: ComponentKind::AreaMoments,
     },
     Registration {
-        guids: &["{224f7648-5956-4b26-80d9-8d771f3dfd5d}", "{7c0523e8-79c9-45a2-8777-cf0d46bc5432}"],
+        guids: &[
+            "{224f7648-5956-4b26-80d9-8d771f3dfd5d}",
+            "{7c0523e8-79c9-45a2-8777-cf0d46bc5432}",
+        ],
         names: &["Volume"],
         kind: ComponentKind::Volume,
     },
@@ -136,17 +142,28 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::ShapeInBrep,
     },
     Registration {
-        guids: &["{2e205f24-9279-47b2-b414-d06dcd0b21a7}", "{86b28a7e-94d9-4791-8306-e13e10d5f8d5}", "{ab766b01-a3f5-4257-831a-fc84d7b288b4}"],
+        guids: &[
+            "{2e205f24-9279-47b2-b414-d06dcd0b21a7}",
+            "{86b28a7e-94d9-4791-8306-e13e10d5f8d5}",
+            "{ab766b01-a3f5-4257-831a-fc84d7b288b4}",
+        ],
         names: &["Area"],
         kind: ComponentKind::Area,
     },
     Registration {
-        guids: &["{2e685fd9-7b8f-461b-b330-44857b099937}", "{4b5f79e1-c2b3-4b9c-b97d-470145a3ca74}", "{ffdfcfc5-3933-4c38-b680-8bb530e243ff}"],
+        guids: &[
+            "{2e685fd9-7b8f-461b-b330-44857b099937}",
+            "{4b5f79e1-c2b3-4b9c-b97d-470145a3ca74}",
+            "{ffdfcfc5-3933-4c38-b680-8bb530e243ff}",
+        ],
         names: &["Volume Moments", "VMoments"],
         kind: ComponentKind::VolumeMoments,
     },
     Registration {
-        guids: &["{353b206e-bde5-4f02-a913-b3b8a977d4b9}", "{aa1dc107-70de-473e-9636-836030160fc3}"],
+        guids: &[
+            "{353b206e-bde5-4f02-a913-b3b8a977d4b9}",
+            "{aa1dc107-70de-473e-9636-836030160fc3}",
+        ],
         names: &["Evaluate Surface", "EvalSrf"],
         kind: ComponentKind::EvaluateSurface,
     },
@@ -268,9 +285,7 @@ impl Component for ComponentKind {
             Self::PrincipalCurvature => evaluate_principal_curvature(inputs),
             Self::SurfaceCurvature => evaluate_surface_curvature(inputs),
             Self::SurfaceClosestPoint => evaluate_surface_closest_point(inputs),
-            Self::BrepClosestPointWithNormal => {
-                evaluate_brep_closest_point(inputs, true)
-            }
+            Self::BrepClosestPointWithNormal => evaluate_brep_closest_point(inputs, true),
             Self::BrepClosestPoint => evaluate_brep_closest_point(inputs, false),
             Self::BrepAreaMoments => evaluate_area_moments(inputs, "Brep Area Moments"),
             Self::PointInBreps => evaluate_point_in_breps(inputs),
@@ -355,9 +370,7 @@ fn evaluate_box(inputs: &[Value]) -> ComponentResult {
     };
 
     if points.len() < 8 {
-        return Err(ComponentError::new(
-            "Evaluate Box vereist acht hoekpunten",
-        ));
+        return Err(ComponentError::new("Evaluate Box vereist acht hoekpunten"));
     }
 
     let u = coerce_number(inputs.get(1), "Evaluate Box U")?.clamp(0.0, 1.0);
@@ -393,15 +406,21 @@ fn evaluate_brep_edges(inputs: &[Value]) -> ComponentResult {
         .collect();
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_NAKED_EDGES.to_owned(), Value::List(wireframe));
-    outputs.insert(PIN_OUTPUT_INTERIOR_EDGES.to_owned(), Value::List(Vec::new()));
-    outputs.insert(PIN_OUTPUT_NON_MANIFOLD_EDGES.to_owned(), Value::List(Vec::new()));
+    outputs.insert(
+        PIN_OUTPUT_INTERIOR_EDGES.to_owned(),
+        Value::List(Vec::new()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_NON_MANIFOLD_EDGES.to_owned(),
+        Value::List(Vec::new()),
+    );
     Ok(outputs)
 }
 
 fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
-    let surface = inputs.get(0).ok_or_else(|| {
-        ComponentError::new("Surface Points vereist een surface invoer")
-    })?;
+    let surface = inputs
+        .get(0)
+        .ok_or_else(|| ComponentError::new("Surface Points vereist een surface invoer"))?;
 
     if let Some(grid) = collect_point_grid(Some(surface)) {
         let v_count = grid.len();
@@ -430,14 +449,8 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
         outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(point_values));
         outputs.insert(PIN_OUTPUT_WEIGHTS.to_owned(), Value::List(weights));
         outputs.insert(PIN_OUTPUT_GREVILLE.to_owned(), Value::List(greville));
-        outputs.insert(
-            PIN_OUTPUT_U_COUNT.to_owned(),
-            Value::Number(u_count as f64),
-        );
-        outputs.insert(
-            PIN_OUTPUT_V_COUNT.to_owned(),
-            Value::Number(v_count as f64),
-        );
+        outputs.insert(PIN_OUTPUT_U_COUNT.to_owned(), Value::Number(u_count as f64));
+        outputs.insert(PIN_OUTPUT_V_COUNT.to_owned(), Value::Number(v_count as f64));
         Ok(outputs)
     } else {
         let metrics = ShapeMetrics::from_inputs(Some(surface))
@@ -464,16 +477,18 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
         outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(points));
         outputs.insert(PIN_OUTPUT_WEIGHTS.to_owned(), Value::List(weight_list));
         outputs.insert(PIN_OUTPUT_GREVILLE.to_owned(), Value::List(greville));
-        outputs.insert(PIN_OUTPUT_U_COUNT.to_owned(), Value::Number(metrics.points.len() as f64));
+        outputs.insert(
+            PIN_OUTPUT_U_COUNT.to_owned(),
+            Value::Number(metrics.points.len() as f64),
+        );
         outputs.insert(PIN_OUTPUT_V_COUNT.to_owned(), Value::Number(1.0));
         Ok(outputs)
     }
 }
 
 fn evaluate_area_moments(inputs: &[Value], context: &str) -> ComponentResult {
-    let metrics = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new(format!("{} vereist geometrische invoer", context))
-    })?;
+    let metrics = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new(format!("{} vereist geometrische invoer", context)))?;
     let area = metrics.area();
     let centroid = Value::Point(metrics.center());
     let inertia = simple_inertia(metrics.size(), area);
@@ -484,7 +499,10 @@ fn evaluate_area_moments(inputs: &[Value], context: &str) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_AREA.to_owned(), Value::Number(area));
     outputs.insert(PIN_OUTPUT_CENTROID.to_owned(), centroid);
     outputs.insert(PIN_OUTPUT_INERTIA.to_owned(), to_number_list(&inertia));
-    outputs.insert(PIN_OUTPUT_INERTIA_ERROR.to_owned(), to_number_list(&[0.0; 3]));
+    outputs.insert(
+        PIN_OUTPUT_INERTIA_ERROR.to_owned(),
+        to_number_list(&[0.0; 3]),
+    );
     outputs.insert(PIN_OUTPUT_SECONDARY.to_owned(), to_number_list(&secondary));
     outputs.insert(
         PIN_OUTPUT_SECONDARY_ERROR.to_owned(),
@@ -495,12 +513,17 @@ fn evaluate_area_moments(inputs: &[Value], context: &str) -> ComponentResult {
 }
 
 fn evaluate_volume(inputs: &[Value], context: &str) -> ComponentResult {
-    let metrics = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new(format!("{} vereist geometrische invoer", context))
-    })?;
+    let metrics = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new(format!("{} vereist geometrische invoer", context)))?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_VOLUME.to_owned(), Value::Number(metrics.volume()));
-    outputs.insert(PIN_OUTPUT_CENTROID.to_owned(), Value::Point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_VOLUME.to_owned(),
+        Value::Number(metrics.volume()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_CENTROID.to_owned(),
+        Value::Point(metrics.center()),
+    );
     Ok(outputs)
 }
 
@@ -528,24 +551,28 @@ fn evaluate_shape_in_brep(inputs: &[Value]) -> ComponentResult {
     };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_RELATION.to_owned(), Value::Number(relation as f64));
+    outputs.insert(
+        PIN_OUTPUT_RELATION.to_owned(),
+        Value::Number(relation as f64),
+    );
     Ok(outputs)
 }
 
 fn evaluate_area(inputs: &[Value], context: &str) -> ComponentResult {
-    let metrics = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new(format!("{} vereist geometrische invoer", context))
-    })?;
+    let metrics = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new(format!("{} vereist geometrische invoer", context)))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_AREA.to_owned(), Value::Number(metrics.area()));
-    outputs.insert(PIN_OUTPUT_CENTROID.to_owned(), Value::Point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_CENTROID.to_owned(),
+        Value::Point(metrics.center()),
+    );
     Ok(outputs)
 }
 
 fn evaluate_volume_moments(inputs: &[Value], context: &str) -> ComponentResult {
-    let metrics = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new(format!("{} vereist geometrische invoer", context))
-    })?;
+    let metrics = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new(format!("{} vereist geometrische invoer", context)))?;
     let volume = metrics.volume();
     let inertia = simple_inertia(metrics.size(), volume);
     let secondary = simple_secondary(metrics.size(), volume);
@@ -553,9 +580,15 @@ fn evaluate_volume_moments(inputs: &[Value], context: &str) -> ComponentResult {
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_VOLUME.to_owned(), Value::Number(volume));
-    outputs.insert(PIN_OUTPUT_CENTROID.to_owned(), Value::Point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_CENTROID.to_owned(),
+        Value::Point(metrics.center()),
+    );
     outputs.insert(PIN_OUTPUT_INERTIA.to_owned(), to_number_list(&inertia));
-    outputs.insert(PIN_OUTPUT_INERTIA_ERROR.to_owned(), to_number_list(&[0.0; 3]));
+    outputs.insert(
+        PIN_OUTPUT_INERTIA_ERROR.to_owned(),
+        to_number_list(&[0.0; 3]),
+    );
     outputs.insert(PIN_OUTPUT_SECONDARY.to_owned(), to_number_list(&secondary));
     outputs.insert(
         PIN_OUTPUT_SECONDARY_ERROR.to_owned(),
@@ -571,16 +604,21 @@ fn evaluate_surface_sample_component(inputs: &[Value]) -> ComponentResult {
             "Evaluate Surface vereist minimaal een surface",
         ));
     }
-    let surface = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new("Evaluate Surface kon de surface niet lezen")
-    })?;
+    let surface = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new("Evaluate Surface kon de surface niet lezen"))?;
     let uv = coerce_uv(inputs.get(1)).unwrap_or((0.5, 0.5));
     let point = surface.sample_point(uv);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::Point(point));
     outputs.insert(PIN_OUTPUT_NORMAL.to_owned(), Value::Vector([0.0, 0.0, 1.0]));
-    outputs.insert(PIN_OUTPUT_U_DIRECTION.to_owned(), Value::Vector([1.0, 0.0, 0.0]));
-    outputs.insert(PIN_OUTPUT_V_DIRECTION.to_owned(), Value::Vector([0.0, 1.0, 0.0]));
+    outputs.insert(
+        PIN_OUTPUT_U_DIRECTION.to_owned(),
+        Value::Vector([1.0, 0.0, 0.0]),
+    );
+    outputs.insert(
+        PIN_OUTPUT_V_DIRECTION.to_owned(),
+        Value::Vector([0.0, 1.0, 0.0]),
+    );
     outputs.insert(PIN_OUTPUT_FRAME.to_owned(), plane_from_point(point));
     Ok(outputs)
 }
@@ -591,9 +629,8 @@ fn evaluate_principal_curvature(inputs: &[Value]) -> ComponentResult {
             "Principal Curvature vereist een surface",
         ));
     }
-    let surface = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new("Principal Curvature kon de surface niet lezen")
-    })?;
+    let surface = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new("Principal Curvature kon de surface niet lezen"))?;
     let uv = coerce_uv(inputs.get(1)).unwrap_or((0.5, 0.5));
     let point = surface.sample_point(uv);
     let size = surface.size();
@@ -625,13 +662,10 @@ fn evaluate_principal_curvature(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_surface_curvature(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
-        return Err(ComponentError::new(
-            "Surface Curvature vereist een surface",
-        ));
+        return Err(ComponentError::new("Surface Curvature vereist een surface"));
     }
-    let surface = ShapeMetrics::from_inputs(inputs.get(0)).ok_or_else(|| {
-        ComponentError::new("Surface Curvature kon de surface niet lezen")
-    })?;
+    let surface = ShapeMetrics::from_inputs(inputs.get(0))
+        .ok_or_else(|| ComponentError::new("Surface Curvature kon de surface niet lezen"))?;
     let uv = coerce_uv(inputs.get(1)).unwrap_or((0.5, 0.5));
     let point = surface.sample_point(uv);
     let size = surface.size();
@@ -669,7 +703,10 @@ fn evaluate_surface_closest_point(inputs: &[Value]) -> ComponentResult {
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::Point(closest));
-    outputs.insert(PIN_OUTPUT_UV_POINT.to_owned(), Value::Point([uv.0, uv.1, 0.0]));
+    outputs.insert(
+        PIN_OUTPUT_UV_POINT.to_owned(),
+        Value::Point([uv.0, uv.1, 0.0]),
+    );
     outputs.insert(
         PIN_OUTPUT_DISTANCE.to_owned(),
         Value::Number(distance(&target, &closest)),
@@ -711,7 +748,7 @@ fn evaluate_point_in_breps(inputs: &[Value]) -> ComponentResult {
             return Err(ComponentError::new(format!(
                 "Point In Breps verwacht een lijst, kreeg {}",
                 other.kind()
-            )))
+            )));
         }
     };
     let target = coerce_point(inputs.get(1), "Point In Breps punt")?;
@@ -729,15 +766,16 @@ fn evaluate_point_in_breps(inputs: &[Value]) -> ComponentResult {
     let inside = inside_index >= 0;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_INSIDE.to_owned(), Value::Boolean(inside));
-    outputs.insert(PIN_OUTPUT_INDEX.to_owned(), Value::Number(inside_index as f64));
+    outputs.insert(
+        PIN_OUTPUT_INDEX.to_owned(),
+        Value::Number(inside_index as f64),
+    );
     Ok(outputs)
 }
 
 fn evaluate_brep_topology() -> ComponentResult {
     let face_face = (0..6)
-        .map(|index| {
-            Value::List(vec![Value::Number(((index + 1) % 6) as f64)])
-        })
+        .map(|index| Value::List(vec![Value::Number(((index + 1) % 6) as f64)]))
         .collect();
     let face_edge = (0..6)
         .map(|index| Value::List(vec![Value::Number(index as f64)]))
@@ -809,14 +847,17 @@ fn evaluate_box_properties(inputs: &[Value]) -> ComponentResult {
         .count();
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_CENTROID.to_owned(), Value::Point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_CENTROID.to_owned(),
+        Value::Point(metrics.center()),
+    );
     outputs.insert(PIN_OUTPUT_DISTANCE.to_owned(), Value::Vector(diagonal));
     outputs.insert(PIN_OUTPUT_AREA.to_owned(), Value::Number(metrics.area()));
-    outputs.insert(PIN_OUTPUT_VOLUME.to_owned(), Value::Number(metrics.volume()));
     outputs.insert(
-        "d".to_owned(),
-        Value::Number(degeneracy as f64),
+        PIN_OUTPUT_VOLUME.to_owned(),
+        Value::Number(metrics.volume()),
     );
+    outputs.insert("d".to_owned(), Value::Number(degeneracy as f64));
     Ok(outputs)
 }
 
@@ -859,7 +900,10 @@ fn evaluate_is_planar(inputs: &[Value]) -> ComponentResult {
     let planar = size[2].abs() <= EPSILON;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_PLANAR.to_owned(), Value::Boolean(planar));
-    outputs.insert(PIN_OUTPUT_PLANE.to_owned(), plane_from_point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_PLANE.to_owned(),
+        plane_from_point(metrics.center()),
+    );
     Ok(outputs)
 }
 
@@ -868,7 +912,10 @@ fn evaluate_deconstruct_box(inputs: &[Value]) -> ComponentResult {
         .ok_or_else(|| ComponentError::new("Deconstruct Box vereist een box"))?;
     let size = metrics.size();
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_PLANE.to_owned(), plane_from_point(metrics.center()));
+    outputs.insert(
+        PIN_OUTPUT_PLANE.to_owned(),
+        plane_from_point(metrics.center()),
+    );
     outputs.insert(PIN_OUTPUT_X_SIZE.to_owned(), Value::Number(size[0].abs()));
     outputs.insert(PIN_OUTPUT_Y_SIZE.to_owned(), Value::Number(size[1].abs()));
     outputs.insert(PIN_OUTPUT_Z_SIZE.to_owned(), Value::Number(size[2].abs()));
@@ -972,10 +1019,7 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
             context,
             other.kind()
         ))),
-        None => Err(ComponentError::new(format!(
-            "{} vereist een punt",
-            context
-        ))),
+        None => Err(ComponentError::new(format!("{} vereist een punt", context))),
     }
 }
 
@@ -1161,7 +1205,11 @@ fn collect_point_grid(value: Option<&Value>) -> Option<Vec<Vec<[f64; 3]>>> {
                     }
                 }
             }
-            if result.is_empty() { None } else { Some(result) }
+            if result.is_empty() {
+                None
+            } else {
+                Some(result)
+            }
         }
         _ => None,
     }
@@ -1401,7 +1449,10 @@ mod tests {
     fn osculating_circles_return_two_curves() {
         let component = ComponentKind::OsculatingCircles;
         let outputs = component
-            .evaluate(&[cube_points(), Value::Point([0.5, 0.5, 0.0])], &MetaMap::new())
+            .evaluate(
+                &[cube_points(), Value::Point([0.5, 0.5, 0.0])],
+                &MetaMap::new(),
+            )
             .expect("osc circles");
         let c1 = outputs
             .get(super::PIN_OUTPUT_CIRCLE_ONE)

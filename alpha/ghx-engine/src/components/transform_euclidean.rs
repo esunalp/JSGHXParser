@@ -125,10 +125,7 @@ fn evaluate_move(inputs: &[Value], include_transform: bool) -> ComponentResult {
     if include_transform {
         outputs.insert(
             PIN_OUTPUT_TRANSFORM.to_owned(),
-            Value::List(vec![
-                Value::Text("Move".into()),
-                Value::Vector(translation),
-            ]),
+            Value::List(vec![Value::Text("Move".into()), Value::Vector(translation)]),
         );
     }
 
@@ -256,7 +253,6 @@ fn evaluate_rotate(inputs: &[Value], include_transform: bool) -> ComponentResult
 
     Ok(outputs)
 }
-
 
 // HELPER FUNCTIONS
 
@@ -567,7 +563,6 @@ fn rotate_vector(vector: [f64; 3], axis: [f64; 3], angle: f64) -> [f64; 3] {
     )
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{Component, ComponentKind};
@@ -631,12 +626,14 @@ mod tests {
             .evaluate(
                 &[
                     Value::Point([1.0, 0.0, 0.0]),
-                    Value::List(vec![ // XY plane
+                    Value::List(vec![
+                        // XY plane
                         Value::Point([0.0, 0.0, 0.0]),
                         Value::Point([1.0, 0.0, 0.0]),
                         Value::Point([0.0, 1.0, 0.0]),
                     ]),
-                    Value::List(vec![ // YZ plane
+                    Value::List(vec![
+                        // YZ plane
                         Value::Point([0.0, 0.0, 0.0]),
                         Value::Point([0.0, 1.0, 0.0]),
                         Value::Point([0.0, 0.0, 1.0]),
@@ -691,7 +688,8 @@ mod tests {
                 &[
                     Value::Point([1.0, 0.0, 0.0]),
                     Value::Number(std::f64::consts::PI / 2.0),
-                    Value::List(vec![ // XY plane
+                    Value::List(vec![
+                        // XY plane
                         Value::Point([0.0, 0.0, 0.0]),
                         Value::Point([1.0, 0.0, 0.0]),
                         Value::Point([0.0, 1.0, 0.0]),

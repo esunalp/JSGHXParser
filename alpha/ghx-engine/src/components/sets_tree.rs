@@ -2,9 +2,9 @@
 
 use std::collections::BTreeMap;
 
+use crate::components::coerce::{coerce_boolean, coerce_integer, coerce_text};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
-use crate::components::coerce::{coerce_integer, coerce_text, coerce_boolean};
 use wildmatch::WildMatch;
 
 use super::{Component, ComponentError, ComponentResult};
@@ -31,15 +31,13 @@ impl Tree {
         let paths: Vec<_> = self.branches.keys().collect();
         let mut common_prefix_len = paths[0].len();
         for path in paths.iter().skip(1) {
-            common_prefix_len = common_prefix_len
-                .min(path.len())
-                .min(
-                    paths[0]
-                        .iter()
-                        .zip(path.iter())
-                        .take_while(|(a, b)| a == b)
-                        .count(),
-                );
+            common_prefix_len = common_prefix_len.min(path.len()).min(
+                paths[0]
+                    .iter()
+                    .zip(path.iter())
+                    .take_while(|(a, b)| a == b)
+                    .count(),
+            );
         }
 
         if common_prefix_len == 0 {
@@ -338,25 +336,45 @@ fn parse_path(path_str: &str) -> Result<Vec<usize>, ComponentError> {
 pub const REGISTRATIONS: &[Registration] = &[
     Registration::new(
         "Simplify Tree",
-        &["{06b3086c-1e9d-41c2-bcfc-bb843156196e}", "{1303da7b-e339-4e65-a051-82c4dce8224d}"],
+        &[
+            "{06b3086c-1e9d-41c2-bcfc-bb843156196e}",
+            "{1303da7b-e339-4e65-a051-82c4dce8224d}",
+        ],
         &["Simplify Tree", "Simplify"],
         ComponentKind::SimplifyTree(SimplifyTreeComponent),
     ),
     Registration::new(
         "Clean Tree",
-        &["{071c3940-a12d-4b77-bb23-42b5d3314a0d}", "{70ce4230-da08-4fce-b29d-63dc42a88585}", "{7991bc5f-8a01-4768-bfb0-a39357ac6b84}"],
+        &[
+            "{071c3940-a12d-4b77-bb23-42b5d3314a0d}",
+            "{70ce4230-da08-4fce-b29d-63dc42a88585}",
+            "{7991bc5f-8a01-4768-bfb0-a39357ac6b84}",
+        ],
         &["Clean Tree", "Clean"],
         ComponentKind::CleanTree(CleanTreeComponent),
     ),
     Registration::new(
         "Merge",
-        &["{0b6c5dac-6c93-4158-b8d1-ca3187d45f25}", "{3cadddef-1e2b-4c09-9390-0e8f78f7609f}", "{86866576-6cc0-485a-9cd2-6f7d493f57f7}", "{22f66ff6-d281-453c-bd8c-36ed24026783}", "{481f0339-1299-43ba-b15c-c07891a8f822}", "{a70aa477-0109-4e75-ba73-78725dca0274}", "{ac9b4faf-c9d5-4f6a-a5e9-58c0c2cac116}", "{b5be5d1f-717f-493c-b958-816957f271fd}", "{f4b0f7b4-5a10-46c4-8191-58d7d66ffdff}"],
+        &[
+            "{0b6c5dac-6c93-4158-b8d1-ca3187d45f25}",
+            "{3cadddef-1e2b-4c09-9390-0e8f78f7609f}",
+            "{86866576-6cc0-485a-9cd2-6f7d493f57f7}",
+            "{22f66ff6-d281-453c-bd8c-36ed24026783}",
+            "{481f0339-1299-43ba-b15c-c07891a8f822}",
+            "{a70aa477-0109-4e75-ba73-78725dca0274}",
+            "{ac9b4faf-c9d5-4f6a-a5e9-58c0c2cac116}",
+            "{b5be5d1f-717f-493c-b958-816957f271fd}",
+            "{f4b0f7b4-5a10-46c4-8191-58d7d66ffdff}",
+        ],
         &["Merge", "M10", "M3", "M8", "M6", "M4", "M5"],
         ComponentKind::Merge(MergeComponent),
     ),
     Registration::new(
         "Graft Tree",
-        &["{10a8674b-f4bb-4fdf-a56e-94dc606ecf33}", "{87e1d9ef-088b-4d30-9dda-8a7448a17329}"],
+        &[
+            "{10a8674b-f4bb-4fdf-a56e-94dc606ecf33}",
+            "{87e1d9ef-088b-4d30-9dda-8a7448a17329}",
+        ],
         &["Graft Tree", "Graft"],
         ComponentKind::GraftTree(GraftTreeComponent),
     ),
@@ -374,7 +392,10 @@ pub const REGISTRATIONS: &[Registration] = &[
     ),
     Registration::new(
         "Relative Items",
-        &["{2653b135-4df1-4a6b-820c-55e2ad3bc1e0}", "{fac0d5be-e3ff-4bbb-9742-ec9a54900d41}"],
+        &[
+            "{2653b135-4df1-4a6b-820c-55e2ad3bc1e0}",
+            "{fac0d5be-e3ff-4bbb-9742-ec9a54900d41}",
+        ],
         &["Relative Items", "RelItem2", "RelItem"],
         ComponentKind::RelativeItems(RelativeItemsComponent),
     ),
@@ -392,7 +413,10 @@ pub const REGISTRATIONS: &[Registration] = &[
     ),
     Registration::new(
         "Stream Filter",
-        &["{3e5582a1-901a-4f7c-b58d-f5d7e3166124}", "{eeafc956-268e-461d-8e73-ee05c6f72c01}"],
+        &[
+            "{3e5582a1-901a-4f7c-b58d-f5d7e3166124}",
+            "{eeafc956-268e-461d-8e73-ee05c6f72c01}",
+        ],
         &["Stream Filter", "Filter"],
         ComponentKind::StreamFilter(StreamFilterComponent),
     ),
@@ -410,13 +434,19 @@ pub const REGISTRATIONS: &[Registration] = &[
     ),
     Registration::new(
         "Stream Gate",
-        &["{71fcc052-6add-4d70-8d97-cfb37ea9d169}", "{d6313940-216b-487f-b511-6c8a5b87eae7}"],
+        &[
+            "{71fcc052-6add-4d70-8d97-cfb37ea9d169}",
+            "{d6313940-216b-487f-b511-6c8a5b87eae7}",
+        ],
         &["Stream Gate", "Gate"],
         ComponentKind::StreamGate(StreamGateComponent),
     ),
     Registration::new(
         "Explode Tree",
-        &["{74cad441-2264-45fe-a57d-85034751208a}", "{8a470a35-d673-4779-a65e-ba95765e59e4}"],
+        &[
+            "{74cad441-2264-45fe-a57d-85034751208a}",
+            "{8a470a35-d673-4779-a65e-ba95765e59e4}",
+        ],
         &["Explode Tree", "BANG!"],
         ComponentKind::ExplodeTree(ExplodeTreeComponent),
     ),
@@ -434,7 +464,10 @@ pub const REGISTRATIONS: &[Registration] = &[
     ),
     Registration::new(
         "Flatten Tree",
-        &["{a13fcd5d-81af-4337-a32e-28dd7e23ae4c}", "{f80cfe18-9510-4b89-8301-8e58faf423bb}"],
+        &[
+            "{a13fcd5d-81af-4337-a32e-28dd7e23ae4c}",
+            "{f80cfe18-9510-4b89-8301-8e58faf423bb}",
+        ],
         &["Flatten Tree", "Flatten"],
         ComponentKind::FlattenTree(FlattenTreeComponent),
     ),
@@ -582,7 +615,6 @@ impl ComponentKind {
     }
 }
 
-
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SimplifyTreeComponent;
 
@@ -625,7 +657,12 @@ impl Component for CleanTreeComponent {
     }
 }
 
-fn clean_tree(value: &Value, remove_nulls: bool, remove_invalid: bool, remove_empty: bool) -> Value {
+fn clean_tree(
+    value: &Value,
+    remove_nulls: bool,
+    remove_invalid: bool,
+    remove_empty: bool,
+) -> Value {
     match value {
         Value::List(items) => {
             let cleaned_items: Vec<Value> = items
@@ -657,7 +694,13 @@ impl Component for MergeComponent {
 
         let lists: Vec<_> = inputs
             .iter()
-            .map(|v| if let Value::List(l) = v { l.clone() } else { vec![v.clone()] })
+            .map(|v| {
+                if let Value::List(l) = v {
+                    l.clone()
+                } else {
+                    vec![v.clone()]
+                }
+            })
             .collect();
 
         let max_len = lists.iter().map(|l| l.len()).max().unwrap_or(0);
@@ -683,7 +726,9 @@ pub struct GraftTreeComponent;
 impl Component for GraftTreeComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.is_empty() {
-            return Err(ComponentError::new("Graft Tree component requires at least one input."));
+            return Err(ComponentError::new(
+                "Graft Tree component requires at least one input.",
+            ));
         }
 
         let mut grafted_tree = Vec::new();
@@ -707,7 +752,9 @@ pub struct TrimTreeComponent;
 impl Component for TrimTreeComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Trim Tree component requires two inputs."));
+            return Err(ComponentError::new(
+                "Trim Tree component requires two inputs.",
+            ));
         }
         let tree = Tree::from(&inputs[0]);
         let depth = coerce_integer(&inputs[1])? as usize;
@@ -719,11 +766,20 @@ impl Component for TrimTreeComponent {
             } else {
                 vec![]
             };
-            new_branches.entry(new_path).or_insert_with(Vec::new).extend(values);
+            new_branches
+                .entry(new_path)
+                .or_insert_with(Vec::new)
+                .extend(values);
         }
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("T".to_string(), Tree { branches: new_branches }.to_value());
+        outputs.insert(
+            "T".to_string(),
+            Tree {
+                branches: new_branches,
+            }
+            .to_value(),
+        );
         Ok(outputs)
     }
 }
@@ -734,7 +790,9 @@ pub struct PathCompareComponent;
 impl Component for PathCompareComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Path Compare component requires two inputs."));
+            return Err(ComponentError::new(
+                "Path Compare component requires two inputs.",
+            ));
         }
         let path_str = coerce_text(&inputs[0])?;
         let mask = coerce_text(&inputs[1])?;
@@ -757,12 +815,26 @@ pub struct RelativeItemsComponent;
 impl Component for RelativeItemsComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 3 {
-            return Err(ComponentError::new("Relative Items component requires at least three inputs."));
+            return Err(ComponentError::new(
+                "Relative Items component requires at least three inputs.",
+            ));
         }
         let tree_a = Tree::from(&inputs[0]);
-        let tree_b = if inputs.len() > 3 { Tree::from(&inputs[1]) } else { tree_a.clone_tree() };
-        let offset = coerce_integer(if inputs.len() > 3 { &inputs[2] } else { &inputs[1] })?;
-        let wrap = if inputs.len() > 3 { coerce_boolean(&inputs[3])? } else { false };
+        let tree_b = if inputs.len() > 3 {
+            Tree::from(&inputs[1])
+        } else {
+            tree_a.clone_tree()
+        };
+        let offset = coerce_integer(if inputs.len() > 3 {
+            &inputs[2]
+        } else {
+            &inputs[1]
+        })?;
+        let wrap = if inputs.len() > 3 {
+            coerce_boolean(&inputs[3])?
+        } else {
+            false
+        };
         let mut outputs = BTreeMap::new();
         let mut result_a = BTreeMap::new();
         let mut result_b = BTreeMap::new();
@@ -804,14 +876,15 @@ impl Tree {
     }
 }
 
-
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ShiftPathsComponent;
 
 impl Component for ShiftPathsComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Shift Paths component requires two inputs."));
+            return Err(ComponentError::new(
+                "Shift Paths component requires two inputs.",
+            ));
         }
         let tree = Tree::from(&inputs[0]);
         let offset = coerce_integer(&inputs[1])? as isize;
@@ -830,7 +903,9 @@ pub struct TreeBranchComponent;
 impl Component for TreeBranchComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Tree Branch component requires two inputs."));
+            return Err(ComponentError::new(
+                "Tree Branch component requires two inputs.",
+            ));
         }
         let tree = Tree::from(&inputs[0]);
         let path_str = coerce_text(&inputs[1])?;
@@ -852,7 +927,9 @@ pub struct StreamFilterComponent;
 impl Component for StreamFilterComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Stream Filter component requires at least two inputs."));
+            return Err(ComponentError::new(
+                "Stream Filter component requires at least two inputs.",
+            ));
         }
         let gate = coerce_integer(&inputs[0])? as usize;
         if gate < inputs.len() - 1 {
@@ -871,7 +948,9 @@ pub struct FlipMatrixComponent;
 impl Component for FlipMatrixComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.is_empty() {
-            return Err(ComponentError::new("Flip Matrix component requires one input."));
+            return Err(ComponentError::new(
+                "Flip Matrix component requires one input.",
+            ));
         }
         let tree = Tree::from(&inputs[0]);
         let flipped_tree = tree.flip_matrix();
@@ -887,7 +966,9 @@ pub struct MatchTreeComponent;
 impl Component for MatchTreeComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Match Tree component requires two inputs."));
+            return Err(ComponentError::new(
+                "Match Tree component requires two inputs.",
+            ));
         }
         let tree_to_modify = Tree::from(&inputs[0]);
         let guide_tree = Tree::from(&inputs[1]);
@@ -907,7 +988,9 @@ pub struct StreamGateComponent;
 impl Component for StreamGateComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Stream Gate component requires at least two inputs."));
+            return Err(ComponentError::new(
+                "Stream Gate component requires at least two inputs.",
+            ));
         }
         let gate = coerce_integer(&inputs[0])? as usize;
         let mut outputs = BTreeMap::new();
@@ -930,7 +1013,9 @@ pub struct ExplodeTreeComponent;
 impl Component for ExplodeTreeComponent {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.is_empty() {
-            return Err(ComponentError::new("Explode Tree component requires one input."));
+            return Err(ComponentError::new(
+                "Explode Tree component requires one input.",
+            ));
         }
         let tree = Tree::from(&inputs[0]);
         let mut outputs = BTreeMap::new();
@@ -938,7 +1023,13 @@ impl Component for ExplodeTreeComponent {
         for (i, (path, branch)) in tree.branches.iter().enumerate() {
             let mut branch_tree = BTreeMap::new();
             branch_tree.insert(path.clone(), branch.clone());
-            outputs.insert(format!("Branch {}", i), Tree{ branches: branch_tree }.to_value());
+            outputs.insert(
+                format!("Branch {}", i),
+                Tree {
+                    branches: branch_tree,
+                }
+                .to_value(),
+            );
         }
 
         Ok(outputs)
@@ -961,7 +1052,7 @@ impl Component for ConstructPathComponent {
             _ => {
                 return Err(ComponentError::new(
                     "Construct Path component requires a list of integers.",
-                ))
+                ));
             }
         };
 
@@ -1089,7 +1180,7 @@ impl Component for ReplacePathsComponent {
             _ => {
                 return Err(ComponentError::new(
                     "Replace Paths component requires a list of search masks.",
-                ))
+                ));
             }
         };
         let replace_paths = match &inputs[2] {
@@ -1097,7 +1188,7 @@ impl Component for ReplacePathsComponent {
             _ => {
                 return Err(ComponentError::new(
                     "Replace Paths component requires a list of replace paths.",
-                ))
+                ));
             }
         };
 
@@ -1363,7 +1454,11 @@ mod tests {
     fn test_unflatten_tree() {
         let component = UnflattenTreeComponent;
         let inputs = vec![
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
             Value::List(vec![
                 Value::List(vec![Value::Null, Value::Null]),
                 Value::List(vec![Value::Null]),
@@ -1460,8 +1555,10 @@ mod tests {
             Value::Number(1.0),
             Value::Number(2.0),
         ])]);
-        let expected_non_matching =
-            Value::List(vec![Value::List(vec![]), Value::List(vec![Value::Number(3.0)])]);
+        let expected_non_matching = Value::List(vec![
+            Value::List(vec![]),
+            Value::List(vec![Value::Number(3.0)]),
+        ]);
         assert_eq!(outputs.get("P"), Some(&expected_matching));
         assert_eq!(outputs.get("N"), Some(&expected_non_matching));
     }
@@ -1491,10 +1588,8 @@ mod tests {
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
 
         let expected_null_items = Value::List(vec![Value::Null, Value::Null]);
-        let expected_valid_items = Value::List(vec![
-            Value::Number(1.0),
-            Value::Text("hello".to_string()),
-        ]);
+        let expected_valid_items =
+            Value::List(vec![Value::Number(1.0), Value::Text("hello".to_string())]);
         let expected_null_indices = Value::List(vec![Value::Number(1.0), Value::Number(3.0)]);
         let expected_valid_indices = Value::List(vec![Value::Number(0.0), Value::Number(2.0)]);
 

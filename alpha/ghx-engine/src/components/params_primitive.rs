@@ -18,7 +18,11 @@ pub struct Registration<T> {
 
 impl<T: Copy> Registration<T> {
     /// Creates a new `Registration` instance.
-    pub const fn new(kind: T, guids: &'static [&'static str], names: &'static [&'static str]) -> Self {
+    pub const fn new(
+        kind: T,
+        guids: &'static [&'static str],
+        names: &'static [&'static str],
+    ) -> Self {
         Self { kind, guids, names }
     }
 }
@@ -115,7 +119,9 @@ macro_rules! define_param_component {
                 let input_value = &inputs[0];
 
                 let is_valid = match input_value {
-                    Value::List(items) => items.iter().all(|item| item.kind() == $expected_kind || matches!(item, Value::Null)),
+                    Value::List(items) => items
+                        .iter()
+                        .all(|item| item.kind() == $expected_kind || matches!(item, Value::Null)),
                     value => value.kind() == $expected_kind || matches!(value, Value::Null),
                 };
 
@@ -163,7 +169,9 @@ impl Component for DomainComponent {
         let input_value = &inputs[0];
 
         let is_valid = match input_value {
-            Value::List(items) => items.iter().all(|item| matches!(item, Value::Domain(Domain::One(_))) || matches!(item, Value::Null)),
+            Value::List(items) => items.iter().all(|item| {
+                matches!(item, Value::Domain(Domain::One(_))) || matches!(item, Value::Null)
+            }),
             Value::Domain(Domain::One(_)) => true,
             Value::Null => true,
             _ => false,
@@ -196,7 +204,9 @@ impl Component for Domain2Component {
         let input_value = &inputs[0];
 
         let is_valid = match input_value {
-            Value::List(items) => items.iter().all(|item| matches!(item, Value::Domain(Domain::Two(_))) || matches!(item, Value::Null)),
+            Value::List(items) => items.iter().all(|item| {
+                matches!(item, Value::Domain(Domain::Two(_))) || matches!(item, Value::Null)
+            }),
             Value::Domain(Domain::Two(_)) => true,
             Value::Null => true,
             _ => false,
@@ -215,38 +225,120 @@ impl Component for Domain2Component {
     }
 }
 
-
 // --- Registrations ---
 pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
     // Implemented
-    Registration::new(ComponentKind::Integer, &["2e3ab970-8545-46bb-836c-1c11e5610bce"], &["Integer", "Int"]),
-    Registration::new(ComponentKind::Number, &["3e8ca6be-fda8-4aaf-b5c0-3c54c8bb7312"], &["Number", "Num"]),
-    Registration::new(ComponentKind::Text, &["3ede854e-c753-40eb-84cb-b48008f14fd4"], &["Text", "Txt"]),
-    Registration::new(ComponentKind::Boolean, &["cb95db89-6165-43b6-9c41-5702bc5bf137"], &["Boolean", "Bool"]),
-    Registration::new(ComponentKind::Domain, &["15b7afe5-d0d0-43e1-b894-34fcfe3be384"], &["Domain"]),
-    Registration::new(ComponentKind::Domain2, &["90744326-eb53-4a0e-b7ef-4b45f5473d6e", "fa36c19d-b108-440c-b33d-a0a4642b45cc"], &["Domain²"]),
-    Registration::new(ComponentKind::Complex, &["476c0cf8-bc3c-4f1c-a61a-6e91e1f8b91e"], &["Complex", "C"]),
-    Registration::new(ComponentKind::Time, &["81dfff08-0c83-4f1b-a358-14791d642d9e"], &["Time"]),
-    Registration::new(ComponentKind::Color, &["203a91c3-287a-43b6-a9c5-ebb96240a650"], &["Colour", "Col"]),
-    Registration::new(ComponentKind::Matrix, &["bd4a8a18-a3cc-40ba-965b-3be91fee563b"], &["Matrix"]),
-    Registration::new(ComponentKind::FilePath, &["06953bda-1d37-4d58-9b38-4b3c74e54c8f"], &["File Path", "Path"]),
-    Registration::new(ComponentKind::DataPath, &["56c9c942-791f-4eeb-a4f0-82b93f1c0909"], &["Data Path", "Path"]),
-    Registration::new(ComponentKind::Guid, &["faf6e3bb-4c84-4cbf-bd88-6d6a0db5667a"], &["Guid", "ID"]),
-
+    Registration::new(
+        ComponentKind::Integer,
+        &["2e3ab970-8545-46bb-836c-1c11e5610bce"],
+        &["Integer", "Int"],
+    ),
+    Registration::new(
+        ComponentKind::Number,
+        &["3e8ca6be-fda8-4aaf-b5c0-3c54c8bb7312"],
+        &["Number", "Num"],
+    ),
+    Registration::new(
+        ComponentKind::Text,
+        &["3ede854e-c753-40eb-84cb-b48008f14fd4"],
+        &["Text", "Txt"],
+    ),
+    Registration::new(
+        ComponentKind::Boolean,
+        &["cb95db89-6165-43b6-9c41-5702bc5bf137"],
+        &["Boolean", "Bool"],
+    ),
+    Registration::new(
+        ComponentKind::Domain,
+        &["15b7afe5-d0d0-43e1-b894-34fcfe3be384"],
+        &["Domain"],
+    ),
+    Registration::new(
+        ComponentKind::Domain2,
+        &[
+            "90744326-eb53-4a0e-b7ef-4b45f5473d6e",
+            "fa36c19d-b108-440c-b33d-a0a4642b45cc",
+        ],
+        &["Domain²"],
+    ),
+    Registration::new(
+        ComponentKind::Complex,
+        &["476c0cf8-bc3c-4f1c-a61a-6e91e1f8b91e"],
+        &["Complex", "C"],
+    ),
+    Registration::new(
+        ComponentKind::Time,
+        &["81dfff08-0c83-4f1b-a358-14791d642d9e"],
+        &["Time"],
+    ),
+    Registration::new(
+        ComponentKind::Color,
+        &["203a91c3-287a-43b6-a9c5-ebb96240a650"],
+        &["Colour", "Col"],
+    ),
+    Registration::new(
+        ComponentKind::Matrix,
+        &["bd4a8a18-a3cc-40ba-965b-3be91fee563b"],
+        &["Matrix"],
+    ),
+    Registration::new(
+        ComponentKind::FilePath,
+        &["06953bda-1d37-4d58-9b38-4b3c74e54c8f"],
+        &["File Path", "Path"],
+    ),
+    Registration::new(
+        ComponentKind::DataPath,
+        &["56c9c942-791f-4eeb-a4f0-82b93f1c0909"],
+        &["Data Path", "Path"],
+    ),
+    Registration::new(
+        ComponentKind::Guid,
+        &["faf6e3bb-4c84-4cbf-bd88-6d6a0db5667a"],
+        &["Guid", "ID"],
+    ),
     // Placeholders
-    Registration::new(ComponentKind::Shader, &["288cfe66-f3dc-4c9a-bb96-ef81f47fe724"], &["Shader"]),
-    Registration::new(ComponentKind::SymbolDisplay, &["2bcd153c-c964-4199-b8e4-4a19dfd34967"], &["Symbol Display", "SymDis"]),
-    Registration::new(ComponentKind::Constant, &["4ad6703b-84cd-4957-a1b3-f1c6ec270d9c"], &["Constant", "constant"]),
-    Registration::new(ComponentKind::Culture, &["7fa15783-70da-485c-98c0-a099e6988c3e"], &["Culture"]),
-    Registration::new(ComponentKind::Data, &["8ec86459-bf01-4409-baee-174d0d2b13d0", "4018985c-f9e8-4a8f-8d4d-518aec276f60"], &["Data"]),
-    Registration::new(ComponentKind::Receiver, &["f19b8c33-dff2-4cc2-b95b-b4005ff3c10c"], &["Receiver"]),
+    Registration::new(
+        ComponentKind::Shader,
+        &["288cfe66-f3dc-4c9a-bb96-ef81f47fe724"],
+        &["Shader"],
+    ),
+    Registration::new(
+        ComponentKind::SymbolDisplay,
+        &["2bcd153c-c964-4199-b8e4-4a19dfd34967"],
+        &["Symbol Display", "SymDis"],
+    ),
+    Registration::new(
+        ComponentKind::Constant,
+        &["4ad6703b-84cd-4957-a1b3-f1c6ec270d9c"],
+        &["Constant", "constant"],
+    ),
+    Registration::new(
+        ComponentKind::Culture,
+        &["7fa15783-70da-485c-98c0-a099e6988c3e"],
+        &["Culture"],
+    ),
+    Registration::new(
+        ComponentKind::Data,
+        &[
+            "8ec86459-bf01-4409-baee-174d0d2b13d0",
+            "4018985c-f9e8-4a8f-8d4d-518aec276f60",
+        ],
+        &["Data"],
+    ),
+    Registration::new(
+        ComponentKind::Receiver,
+        &["f19b8c33-dff2-4cc2-b95b-b4005ff3c10c"],
+        &["Receiver"],
+    ),
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::graph::node::MetaMap;
-    use crate::graph::value::{ColorValue, ComplexValue, DateTimeValue, Domain, Domain1D, Domain2D, Matrix};
+    use crate::graph::value::{
+        ColorValue, ComplexValue, DateTimeValue, Domain, Domain1D, Domain2D, Matrix,
+    };
     use time::macros::datetime;
 
     #[test]
@@ -302,8 +394,24 @@ mod tests {
         assert_eq!(outputs.get("Domain"), Some(&value));
 
         let domain2 = Value::Domain(Domain::Two(Domain2D {
-            u: Domain1D { start: 0.0, end: 1.0, min: 0.0, max: 1.0, span: 1.0, length: 1.0, center: 0.5 },
-            v: Domain1D { start: 0.0, end: 1.0, min: 0.0, max: 1.0, span: 1.0, length: 1.0, center: 0.5 },
+            u: Domain1D {
+                start: 0.0,
+                end: 1.0,
+                min: 0.0,
+                max: 1.0,
+                span: 1.0,
+                length: 1.0,
+                center: 0.5,
+            },
+            v: Domain1D {
+                start: 0.0,
+                end: 1.0,
+                min: 0.0,
+                max: 1.0,
+                span: 1.0,
+                length: 1.0,
+                center: 0.5,
+            },
         }));
         let inputs2 = vec![domain2.clone()];
         assert!(component.evaluate(&inputs2, &MetaMap::new()).is_err());
@@ -313,8 +421,24 @@ mod tests {
     fn test_domain2_param() {
         let component = Domain2Component;
         let value = Value::Domain(Domain::Two(Domain2D {
-            u: Domain1D { start: 0.0, end: 1.0, min: 0.0, max: 1.0, span: 1.0, length: 1.0, center: 0.5 },
-            v: Domain1D { start: 0.0, end: 1.0, min: 0.0, max: 1.0, span: 1.0, length: 1.0, center: 0.5 },
+            u: Domain1D {
+                start: 0.0,
+                end: 1.0,
+                min: 0.0,
+                max: 1.0,
+                span: 1.0,
+                length: 1.0,
+                center: 0.5,
+            },
+            v: Domain1D {
+                start: 0.0,
+                end: 1.0,
+                min: 0.0,
+                max: 1.0,
+                span: 1.0,
+                length: 1.0,
+                center: 0.5,
+            },
         }));
         let inputs = vec![value.clone()];
         let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();

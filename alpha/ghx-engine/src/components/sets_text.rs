@@ -1,10 +1,10 @@
 //! Text manipulation components for the GHX engine.
 
-use std::collections::BTreeMap;
+use super::{Component, ComponentError, ComponentResult};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
-use super::{Component, ComponentError, ComponentResult};
 use regex::Regex;
+use std::collections::BTreeMap;
 use wildmatch::WildMatch;
 
 // --- Local Coercion Helpers ---
@@ -31,7 +31,6 @@ fn coerce_list(value: &Value) -> Result<Vec<Value>, ComponentError> {
         ))),
     }
 }
-
 
 // --- Component Implementations ---
 
@@ -117,7 +116,10 @@ impl Component for TextJoinComponent {
         }
         let list = coerce_list(&inputs[0])?;
         let joiner = coerce_string(&inputs[1])?;
-        let strings: Vec<String> = list.iter().map(|v| coerce_string(v).unwrap_or_default()).collect();
+        let strings: Vec<String> = list
+            .iter()
+            .map(|v| coerce_string(v).unwrap_or_default())
+            .collect();
         let mut outputs = BTreeMap::new();
         outputs.insert("R".to_owned(), Value::Text(strings.join(&joiner)));
         Ok(outputs)
@@ -133,7 +135,10 @@ impl Component for CharactersComponent {
         }
         let text = coerce_string(&inputs[0])?;
         let chars = text.chars().map(|c| Value::Text(c.to_string())).collect();
-        let unicode = text.chars().map(|c| Value::Number(c as u32 as f64)).collect();
+        let unicode = text
+            .chars()
+            .map(|c| Value::Number(c as u32 as f64))
+            .collect();
         let mut outputs = BTreeMap::new();
         outputs.insert("C".to_owned(), Value::List(chars));
         outputs.insert("U".to_owned(), Value::List(unicode));
@@ -244,7 +249,10 @@ impl Component for SortTextComponent {
             return Err(ComponentError::new("Expected at least 1 input"));
         }
         let keys = coerce_list(&inputs[0])?;
-        let mut keys: Vec<String> = keys.iter().map(|v| coerce_string(v).unwrap_or_default()).collect();
+        let mut keys: Vec<String> = keys
+            .iter()
+            .map(|v| coerce_string(v).unwrap_or_default())
+            .collect();
 
         let mut values = if inputs.len() > 1 {
             coerce_list(&inputs[1])?
@@ -252,14 +260,21 @@ impl Component for SortTextComponent {
             vec![]
         };
 
-        let mut pairs: Vec<_> = keys.clone().into_iter().zip(values.clone().into_iter()).collect();
+        let mut pairs: Vec<_> = keys
+            .clone()
+            .into_iter()
+            .zip(values.clone().into_iter())
+            .collect();
         pairs.sort_by(|a, b| a.0.cmp(&b.0));
 
         keys = pairs.iter().map(|(k, _)| k.clone()).collect();
         values = pairs.iter().map(|(_, v)| v.clone()).collect();
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("K".to_owned(), Value::List(keys.into_iter().map(Value::Text).collect()));
+        outputs.insert(
+            "K".to_owned(),
+            Value::List(keys.into_iter().map(Value::Text).collect()),
+        );
         outputs.insert("V".to_owned(), Value::List(values));
         Ok(outputs)
     }
@@ -528,7 +543,10 @@ mod tests {
     #[test]
     fn test_text_split() {
         let component = TextSplitComponent;
-        let inputs = &[Value::Text("a,b,c".to_string()), Value::Text(",".to_string())];
+        let inputs = &[
+            Value::Text("a,b,c".to_string()),
+            Value::Text(",".to_string()),
+        ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let expected = Value::List(vec![
             Value::Text("a".to_string()),
@@ -610,13 +628,19 @@ mod tests {
             Value::Text("rust".to_string()),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
-        assert_eq!(outputs.get("R"), Some(&Value::Text("hello rust".to_string())));
+        assert_eq!(
+            outputs.get("R"),
+            Some(&Value::Text("hello rust".to_string()))
+        );
     }
 
     #[test]
     fn test_text_distance() {
         let component = TextDistanceComponent;
-        let inputs = &[Value::Text("kitten".to_string()), Value::Text("sitting".to_string())];
+        let inputs = &[
+            Value::Text("kitten".to_string()),
+            Value::Text("sitting".to_string()),
+        ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(outputs.get("D"), Some(&Value::Number(3.0)));
     }
@@ -684,6 +708,9 @@ mod tests {
             Value::Text("Rust".to_string()),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
-        assert_eq!(outputs.get("T"), Some(&Value::Text("Hello, world! Welcome to Rust.".to_string())));
+        assert_eq!(
+            outputs.get("T"),
+            Some(&Value::Text("Hello, world! Welcome to Rust.".to_string()))
+        );
     }
 }

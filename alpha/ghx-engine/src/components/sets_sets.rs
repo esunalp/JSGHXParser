@@ -204,7 +204,9 @@ impl Component for KeyValueSearchComponent {
         let values = list(&inputs[1]);
         let search_key = &inputs[2];
         if keys.len() != values.len() {
-            return Err(ComponentError::new( "Keys and Values must have the same number of elements."));
+            return Err(ComponentError::new(
+                "Keys and Values must have the same number of elements.",
+            ));
         }
         let result = keys
             .iter()
@@ -221,7 +223,7 @@ impl Component for KeyValueSearchComponent {
 #[derive(Debug, Default, Clone, Copy)]
 struct DeleteConsecutiveComponent;
 impl Component for DeleteConsecutiveComponent {
-     fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
+    fn evaluate(&self, inputs: &[Value], _meta: &crate::graph::node::MetaMap) -> ComponentResult {
         let set = list(&inputs[0]);
         let wrap = boolean(&inputs[1]).unwrap_or(false);
         if set.is_empty() {
@@ -244,7 +246,7 @@ impl Component for DeleteConsecutiveComponent {
         }
         let mut outputs = BTreeMap::new();
         outputs.insert("Set".to_owned(), Value::List(result_set));
-        outputs.insert("Count".to_owned(),Value::Number(removed_count as f64));
+        outputs.insert("Count".to_owned(), Value::Number(removed_count as f64));
         Ok(outputs)
     }
 }
@@ -260,7 +262,12 @@ impl Component for ReplaceMembersComponent {
         let find_map: HashMap<_, _> = find.iter().zip(replace.iter().cycle()).collect();
         let result: Vec<_> = set
             .iter()
-            .map(|v| find_map.get(v).map(|r| (*r).clone()).unwrap_or_else(|| v.clone()))
+            .map(|v| {
+                find_map
+                    .get(v)
+                    .map(|r| (*r).clone())
+                    .unwrap_or_else(|| v.clone())
+            })
             .collect();
         let mut outputs = BTreeMap::new();
         outputs.insert("Result".to_owned(), Value::List(result));
@@ -382,7 +389,6 @@ impl Component for FindSimilarMemberComponent {
     }
 }
 
-
 // --- Registration ---
 
 #[derive(Debug, Clone, Copy)]
@@ -465,12 +471,18 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::CreateSetWithMap,
     },
     Registration {
-        guids: &["8eed5d78-7810-4ba1-968e-8a1f1db98e39", "ab34845d-4ab9-4ff4-8870-eedd0c5594cb"],
+        guids: &[
+            "8eed5d78-7810-4ba1-968e-8a1f1db98e39",
+            "ab34845d-4ab9-4ff4-8870-eedd0c5594cb",
+        ],
         names: &["Set Union", "SUnion"],
         kind: ComponentKind::SetUnion,
     },
     Registration {
-        guids: &["82f19c48-9e73-43a4-ae6c-3a8368099b08", "8a55f680-cf53-4634-a486-b828de92b71d"],
+        guids: &[
+            "82f19c48-9e73-43a4-ae6c-3a8368099b08",
+            "8a55f680-cf53-4634-a486-b828de92b71d",
+        ],
         names: &["Set Intersection", "Intersection"],
         kind: ComponentKind::SetIntersection,
     },
@@ -611,10 +623,7 @@ mod tests {
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let intersection = result.get("Intersection").unwrap();
-        assert_eq!(
-            intersection,
-            &Value::List(vec![Value::Number(2.0)])
-        );
+        assert_eq!(intersection, &Value::List(vec![Value::Number(2.0)]));
     }
 
     #[test]
@@ -626,10 +635,7 @@ mod tests {
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let difference = result.get("Difference").unwrap();
-        assert_eq!(
-            difference,
-            &Value::List(vec![Value::Number(1.0)])
-        );
+        assert_eq!(difference, &Value::List(vec![Value::Number(1.0)]));
     }
 
     #[test]
@@ -642,10 +648,7 @@ mod tests {
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let mut difference: Vec<_> = list(result.get("ExDifference").unwrap()).to_vec();
         difference.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        assert_eq!(
-            difference,
-            vec![Value::Number(1.0), Value::Number(3.0)]
-        );
+        assert_eq!(difference, vec![Value::Number(1.0), Value::Number(3.0)]);
     }
 
     #[test]
@@ -676,14 +679,21 @@ mod tests {
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
             Value::List(vec![Value::Number(3.0), Value::Number(4.0)]),
         ];
-        let result_disjoint = component.evaluate(inputs_disjoint, &MetaMap::new()).unwrap();
-        assert_eq!(result_disjoint.get("Result").unwrap(), &Value::Boolean(true));
+        let result_disjoint = component
+            .evaluate(inputs_disjoint, &MetaMap::new())
+            .unwrap();
+        assert_eq!(
+            result_disjoint.get("Result").unwrap(),
+            &Value::Boolean(true)
+        );
 
         let inputs_not_disjoint = &[
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
             Value::List(vec![Value::Number(2.0), Value::Number(3.0)]),
         ];
-        let result_not_disjoint = component.evaluate(inputs_not_disjoint, &MetaMap::new()).unwrap();
+        let result_not_disjoint = component
+            .evaluate(inputs_not_disjoint, &MetaMap::new())
+            .unwrap();
         assert_eq!(
             result_not_disjoint.get("Result").unwrap(),
             &Value::Boolean(false)
@@ -708,7 +718,9 @@ mod tests {
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
             Value::List(vec![Value::Number(2.0), Value::Number(3.0)]),
         ];
-        let result_not_subset = component.evaluate(inputs_not_subset, &MetaMap::new()).unwrap();
+        let result_not_subset = component
+            .evaluate(inputs_not_subset, &MetaMap::new())
+            .unwrap();
         assert_eq!(
             result_not_subset.get("Result").unwrap(),
             &Value::Boolean(false)
@@ -807,10 +819,7 @@ mod tests {
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let mut majority: Vec<_> = list(result.get("Result").unwrap()).to_vec();
         majority.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        assert_eq!(
-            majority,
-            vec![Value::Number(2.0), Value::Number(3.0)]
-        );
+        assert_eq!(majority, vec![Value::Number(2.0), Value::Number(3.0)]);
     }
 
     #[test]
@@ -818,7 +827,10 @@ mod tests {
         let component = CartesianProductComponent;
         let inputs = &[
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
-            Value::List(vec![Value::Text("a".to_string()), Value::Text("b".to_string())]),
+            Value::List(vec![
+                Value::Text("a".to_string()),
+                Value::Text("b".to_string()),
+            ]),
         ];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let product = result.get("Product").unwrap();
@@ -859,19 +871,15 @@ mod tests {
         let component = FindSimilarMemberComponent;
         // Test with a single Boolean input instead of a list
         // Inputs: Data, Set
-        let inputs = &[
-            Value::Boolean(true),
-            Value::Boolean(true),
-        ];
+        let inputs = &[Value::Boolean(true), Value::Boolean(true)];
         let result = component.evaluate(inputs, &MetaMap::new()).unwrap();
         assert_eq!(result.get("Hit").unwrap(), &Value::Boolean(true));
         assert_eq!(result.get("Index").unwrap(), &Value::Number(0.0));
 
-        let inputs_mismatch = &[
-            Value::Boolean(false),
-            Value::Boolean(true),
-        ];
-        let result_mismatch = component.evaluate(inputs_mismatch, &MetaMap::new()).unwrap();
+        let inputs_mismatch = &[Value::Boolean(false), Value::Boolean(true)];
+        let result_mismatch = component
+            .evaluate(inputs_mismatch, &MetaMap::new())
+            .unwrap();
         // This should now return Null as there is no good match
         assert_eq!(result_mismatch.get("Hit").unwrap(), &Value::Null);
         assert_eq!(result_mismatch.get("Index").unwrap(), &Value::Null);
@@ -883,7 +891,8 @@ mod tests {
         // Test loose equality: Boolean(true) vs Text("True")
         let inputs = &[
             Value::Boolean(true), // Data
-            Value::List(vec![     // Set
+            Value::List(vec![
+                // Set
                 Value::Text("False".to_string()),
                 Value::Text("True".to_string()),
             ]),
@@ -899,7 +908,8 @@ mod tests {
         // Test user's specific case: Boolean(true) vs Text("True") as first item
         let inputs = &[
             Value::Boolean(true), // Data
-            Value::List(vec![     // Set
+            Value::List(vec![
+                // Set
                 Value::Text("True".to_string()),
                 Value::Text("False".to_string()),
             ]),
@@ -915,7 +925,8 @@ mod tests {
         // Test no match case
         let inputs = &[
             Value::Text("unrelated".to_string()), // Data
-            Value::List(vec![                     // Set
+            Value::List(vec![
+                // Set
                 Value::Number(1.0),
                 Value::Number(2.0),
             ]),

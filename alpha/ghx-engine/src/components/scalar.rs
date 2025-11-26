@@ -73,7 +73,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::Multiplication,
     },
     Registration {
-        guids: &["481e1f0d-a945-4662-809d-f49d1a8f40bd", "9ebccbb4-f3e3-4ee1-af31-2f301f2516f0"],
+        guids: &[
+            "481e1f0d-a945-4662-809d-f49d1a8f40bd",
+            "9ebccbb4-f3e3-4ee1-af31-2f301f2516f0",
+        ],
         names: &[],
         kind: ComponentKind::Modulus,
     },
@@ -88,7 +91,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::PowerOfE,
     },
     Registration {
-        guids: &["74d95062-0bec-4a4e-9026-5141fca954a6", "bb64b2fb-f87a-432f-86f8-393f4ee21310"],
+        guids: &[
+            "74d95062-0bec-4a4e-9026-5141fca954a6",
+            "bb64b2fb-f87a-432f-86f8-393f4ee21310",
+        ],
         names: &[],
         kind: ComponentKind::MassAddition,
     },
@@ -313,13 +319,20 @@ fn evaluate_mass_addition(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_truncate(inputs: &[Value]) -> ComponentResult {
     let mut numbers = coerce_number_list(inputs.get(0));
-    let factor = coerce_number_any(inputs.get(1)).unwrap_or(0.0).clamp(0.0, 1.0);
+    let factor = coerce_number_any(inputs.get(1))
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
 
     numbers.sort_by(|a, b| a.partial_cmp(b).unwrap());
     let len = numbers.len();
     let count = (len as f64 * factor / 2.0).floor() as usize;
 
-    let truncated = numbers.into_iter().skip(count).take(len - 2 * count).map(Value::Number).collect();
+    let truncated = numbers
+        .into_iter()
+        .skip(count)
+        .take(len - 2 * count)
+        .map(Value::Number)
+        .collect();
 
     let mut outputs = BTreeMap::new();
     outputs.insert("T".to_owned(), Value::List(truncated));
@@ -338,7 +351,10 @@ fn coerce_number_any(value: Option<&Value>) -> Option<f64> {
 
 fn coerce_number_list(value: Option<&Value>) -> Vec<f64> {
     if let Some(Value::List(values)) = value {
-        values.iter().filter_map(|v| coerce_number_any(Some(v))).collect()
+        values
+            .iter()
+            .filter_map(|v| coerce_number_any(Some(v)))
+            .collect()
     } else if let Some(v) = coerce_number_any(value) {
         vec![v]
     } else {
@@ -358,25 +374,45 @@ mod tests {
         let outputs = component
             .evaluate(&[Value::Number(2.0), Value::Number(3.0)], &MetaMap::new())
             .unwrap();
-        assert!(matches!(outputs.get("R"), Some(Value::Number(value)) if (*value - 5.0).abs() < 1e-9));
+        assert!(
+            matches!(outputs.get("R"), Some(Value::Number(value)) if (*value - 5.0).abs() < 1e-9)
+        );
     }
 
     #[test]
     fn test_mean() {
         let component = ComponentKind::Mean;
         let outputs = component
-            .evaluate(&[Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)])], &MetaMap::new())
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Number(1.0),
+                    Value::Number(2.0),
+                    Value::Number(3.0),
+                ])],
+                &MetaMap::new(),
+            )
             .unwrap();
-        assert!(matches!(outputs.get("AM"), Some(Value::Number(value)) if (*value - 2.0).abs() < 1e-9));
+        assert!(
+            matches!(outputs.get("AM"), Some(Value::Number(value)) if (*value - 2.0).abs() < 1e-9)
+        );
     }
 
     #[test]
     fn test_mass_addition() {
         let component = ComponentKind::MassAddition;
         let outputs = component
-            .evaluate(&[Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)])], &MetaMap::new())
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Number(1.0),
+                    Value::Number(2.0),
+                    Value::Number(3.0),
+                ])],
+                &MetaMap::new(),
+            )
             .unwrap();
-        assert!(matches!(outputs.get("R"), Some(Value::Number(value)) if (*value - 6.0).abs() < 1e-9));
+        assert!(
+            matches!(outputs.get("R"), Some(Value::Number(value)) if (*value - 6.0).abs() < 1e-9)
+        );
         assert!(matches!(outputs.get("Pr"), Some(Value::List(values)) if values.len() == 3));
     }
 }

@@ -17,7 +17,6 @@ const PIN_OUTPUT_RESULT: &str = "R";
 const PIN_OUTPUT_WEAVE: &str = "W";
 const PIN_OUTPUT_CHUNKS: &str = "C";
 
-
 /// Beschikbare componenten binnen Sets -> List.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
@@ -49,7 +48,11 @@ pub struct Registration {
 /// Registraties van alle Sets -> List componenten.
 pub const REGISTRATIONS: &[Registration] = &[
     Registration {
-        guids: &["{285ddd8a-5398-4a3e-b3c2-361025711a51}", "{59daf374-bc21-4a5e-8282-5504fb7ae9ae}", "{6e2ba21a-2252-42f4-8d3f-f5e0f49cc4ef}"],
+        guids: &[
+            "{285ddd8a-5398-4a3e-b3c2-361025711a51}",
+            "{59daf374-bc21-4a5e-8282-5504fb7ae9ae}",
+            "{6e2ba21a-2252-42f4-8d3f-f5e0f49cc4ef}",
+        ],
         names: &["List Item", "Item"],
         kind: ComponentKind::ListItem,
     },
@@ -69,7 +72,11 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::Dispatch,
     },
     Registration {
-        guids: &["{2b2628ea-3f43-4ce9-8435-9a045d54b5c6}", "{6f93d366-919f-4dda-a35e-ba03dd62799b}", "{cacb2c64-61b5-46db-825d-c61d5d09cc08}"],
+        guids: &[
+            "{2b2628ea-3f43-4ce9-8435-9a045d54b5c6}",
+            "{6f93d366-919f-4dda-a35e-ba03dd62799b}",
+            "{cacb2c64-61b5-46db-825d-c61d5d09cc08}",
+        ],
         names: &["Sort List", "Sort"],
         kind: ComponentKind::SortList,
     },
@@ -84,12 +91,18 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::InsertItems,
     },
     Registration {
-        guids: &["{03b801eb-87cd-476a-a591-257fe5d5bf0f}", "{4356ef8f-0ca1-4632-9c39-9e6dcd2b9496}"],
+        guids: &[
+            "{03b801eb-87cd-476a-a591-257fe5d5bf0f}",
+            "{4356ef8f-0ca1-4632-9c39-9e6dcd2b9496}",
+        ],
         names: &["Pick'n'Choose", "P'n'C"],
         kind: ComponentKind::PickAndChoose,
     },
     Registration {
-        guids: &["{160c1df2-e2e8-48e5-b538-f2d6981007e3}", "{50faccbd-9c92-4175-a5fa-d65e36013db6}"],
+        guids: &[
+            "{160c1df2-e2e8-48e5-b538-f2d6981007e3}",
+            "{50faccbd-9c92-4175-a5fa-d65e36013db6}",
+        ],
         names: &["Weave"],
         kind: ComponentKind::Weave,
     },
@@ -172,12 +185,16 @@ impl ComponentKind {
 
 fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("List Item vereist een lijst en een index"));
+        return Err(ComponentError::new(
+            "List Item vereist een lijst en een index",
+        ));
     }
 
     let list = coerce_list(inputs.get(0), "List Item L")?;
     let index = coerce_integer(inputs.get(1), "List Item i")?;
-    let wrap = inputs.get(2).map_or(Ok(false), |v| coerce_boolean(Some(v), "List Item W"))?;
+    let wrap = inputs
+        .get(2)
+        .map_or(Ok(false), |v| coerce_boolean(Some(v), "List Item W"))?;
 
     if list.is_empty() {
         return Ok(BTreeMap::new()); // Return lege map als de lijst leeg is
@@ -190,7 +207,11 @@ fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     };
 
     if final_index >= list.len() {
-        return Err(ComponentError::new(format!("Index {} is buiten de grenzen van de lijst (lengte {})", final_index, list.len())));
+        return Err(ComponentError::new(format!(
+            "Index {} is buiten de grenzen van de lijst (lengte {})",
+            final_index,
+            list.len()
+        )));
     }
 
     let item = list[final_index].clone();
@@ -198,8 +219,20 @@ fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_ELEMENT.to_owned(), item);
     // Sommige GHX-bestanden gebruiken andere pinnamen (bijv. "Item"/"i") voor de List Item-output.
     // Voeg aliases toe zodat verbindingen via die pinnamen ook een waarde ontvangen.
-    outputs.insert("Item".to_owned(), outputs.get(PIN_OUTPUT_ELEMENT).cloned().unwrap_or(Value::Null));
-    outputs.insert("i".to_owned(), outputs.get(PIN_OUTPUT_ELEMENT).cloned().unwrap_or(Value::Null));
+    outputs.insert(
+        "Item".to_owned(),
+        outputs
+            .get(PIN_OUTPUT_ELEMENT)
+            .cloned()
+            .unwrap_or(Value::Null),
+    );
+    outputs.insert(
+        "i".to_owned(),
+        outputs
+            .get(PIN_OUTPUT_ELEMENT)
+            .cloned()
+            .unwrap_or(Value::Null),
+    );
 
     Ok(outputs)
 }
@@ -233,7 +266,9 @@ fn evaluate_reverse_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_dispatch(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Dispatch vereist een lijst en een patroon"));
+        return Err(ComponentError::new(
+            "Dispatch vereist een lijst en een patroon",
+        ));
     }
 
     let list = coerce_list(inputs.get(0), "Dispatch L")?;
@@ -247,7 +282,10 @@ fn evaluate_dispatch(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut list_b = Vec::new();
 
     for (i, item) in list.iter().enumerate() {
-        let pattern_value = pattern.get(i % pattern.len()).cloned().unwrap_or(Value::Boolean(false));
+        let pattern_value = pattern
+            .get(i % pattern.len())
+            .cloned()
+            .unwrap_or(Value::Boolean(false));
         if coerce_boolean(Some(&pattern_value), "Dispatch P").unwrap_or(false) {
             list_a.push(item.clone());
         } else {
@@ -264,7 +302,9 @@ fn evaluate_dispatch(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_sort_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.is_empty() {
-        return Err(ComponentError::new("Sort List vereist een lijst met sleutels"));
+        return Err(ComponentError::new(
+            "Sort List vereist een lijst met sleutels",
+        ));
     }
 
     let keys = coerce_list(inputs.get(0), "Sort List K")?;
@@ -280,7 +320,10 @@ fn evaluate_sort_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     for (i, pin) in ["A", "B", "C"].iter().enumerate() {
         if let Some(values) = inputs.get(i + 1) {
             let values_list = coerce_list(Some(values), &format!("Sort List {}", pin))?;
-            let sorted_values: Vec<Value> = indexed_keys.iter().map(|(idx, _)| values_list.get(*idx).cloned().unwrap_or(Value::Null)).collect();
+            let sorted_values: Vec<Value> = indexed_keys
+                .iter()
+                .map(|(idx, _)| values_list.get(*idx).cloned().unwrap_or(Value::Null))
+                .collect();
             outputs.insert(pin.to_string(), Value::List(sorted_values));
         }
     }
@@ -290,12 +333,16 @@ fn evaluate_sort_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_shift_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Shift List vereist een lijst en een shift offset"));
+        return Err(ComponentError::new(
+            "Shift List vereist een lijst en een shift offset",
+        ));
     }
 
     let list = coerce_list(inputs.get(0), "Shift List L")?;
     let shift = coerce_integer(inputs.get(1), "Shift List S")?;
-    let wrap = inputs.get(2).map_or(Ok(false), |v| coerce_boolean(Some(v), "Shift List W"))?;
+    let wrap = inputs
+        .get(2)
+        .map_or(Ok(false), |v| coerce_boolean(Some(v), "Shift List W"))?;
 
     if list.is_empty() {
         return Ok(BTreeMap::new());
@@ -331,13 +378,17 @@ fn evaluate_shift_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_insert_items(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 3 {
-        return Err(ComponentError::new("Insert Items vereist een lijst, items en indices"));
+        return Err(ComponentError::new(
+            "Insert Items vereist een lijst, items en indices",
+        ));
     }
 
     let list = coerce_list(inputs.get(0), "Insert Items L")?;
     let items = coerce_list(inputs.get(1), "Insert Items I")?;
     let indices = coerce_list(inputs.get(2), "Insert Items i")?;
-    let wrap = inputs.get(3).map_or(Ok(false), |v| coerce_boolean(Some(v), "Insert Items W"))?;
+    let wrap = inputs
+        .get(3)
+        .map_or(Ok(false), |v| coerce_boolean(Some(v), "Insert Items W"))?;
 
     let mut result_list = list.to_vec();
 
@@ -429,7 +480,9 @@ fn evaluate_weave(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_sift_pattern(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Sift Pattern vereist een lijst en een patroon"));
+        return Err(ComponentError::new(
+            "Sift Pattern vereist een lijst en een patroon",
+        ));
     }
 
     let list = coerce_list(inputs.get(0), "Sift Pattern L")?;
@@ -439,7 +492,8 @@ fn evaluate_sift_pattern(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         return Err(ComponentError::new("Sift patroon kan niet leeg zijn"));
     }
 
-    let max_pattern_index = pattern.iter()
+    let max_pattern_index = pattern
+        .iter()
         .map(|p| coerce_integer(Some(p), "Sift Pattern P").unwrap_or(0))
         .max()
         .unwrap_or(0) as usize;
@@ -447,7 +501,8 @@ fn evaluate_sift_pattern(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let mut outputs_vec: Vec<Vec<Value>> = vec![Vec::new(); max_pattern_index + 1];
 
     for (i, item) in list.iter().enumerate() {
-        let pattern_index = coerce_integer(pattern.get(i % pattern.len()), "Sift Pattern P").unwrap_or(0) as usize;
+        let pattern_index =
+            coerce_integer(pattern.get(i % pattern.len()), "Sift Pattern P").unwrap_or(0) as usize;
         if let Some(output_list) = outputs_vec.get_mut(pattern_index) {
             output_list.push(item.clone());
         }
@@ -494,8 +549,14 @@ fn evaluate_shortest_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult 
     let min_len = list_a.len().min(list_b.len());
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_LIST_A.to_owned(), Value::List(list_a[..min_len].to_vec()));
-    outputs.insert(PIN_OUTPUT_LIST_B.to_owned(), Value::List(list_b[..min_len].to_vec()));
+    outputs.insert(
+        PIN_OUTPUT_LIST_A.to_owned(),
+        Value::List(list_a[..min_len].to_vec()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_LIST_B.to_owned(),
+        Value::List(list_b[..min_len].to_vec()),
+    );
     Ok(outputs)
 }
 
@@ -522,7 +583,9 @@ fn evaluate_longest_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 
 fn evaluate_partition_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Partition List vereist een lijst en een grootte"));
+        return Err(ComponentError::new(
+            "Partition List vereist een lijst en een grootte",
+        ));
     }
     let list = coerce_list(inputs.get(0), "Partition List L")?;
     let size = coerce_integer(inputs.get(1), "Partition List S")? as usize;
@@ -539,13 +602,18 @@ fn evaluate_partition_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult
 
 fn evaluate_split_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
-        return Err(ComponentError::new("Split List vereist een lijst en een index"));
+        return Err(ComponentError::new(
+            "Split List vereist een lijst en een index",
+        ));
     }
     let list = coerce_list(inputs.get(0), "Split List L")?;
     let index = coerce_integer(inputs.get(1), "Split List i")? as usize;
 
     if index > list.len() {
-        return Err(ComponentError::new(format!("Split index {} is buiten de grenzen van de lijst", index)));
+        return Err(ComponentError::new(format!(
+            "Split index {} is buiten de grenzen van de lijst",
+            index
+        )));
     }
 
     let (a, b) = list.split_at(index);
@@ -555,7 +623,6 @@ fn evaluate_split_list(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     Ok(outputs)
 }
 
-
 fn coerce_list<'a>(
     value: Option<&'a Value>,
     context: &str,
@@ -563,7 +630,10 @@ fn coerce_list<'a>(
     match value {
         Some(Value::List(list)) => Ok(Cow::Borrowed(list)),
         Some(other) => Ok(Cow::Owned(vec![other.clone()])),
-        None => Err(ComponentError::new(format!("{} vereist een lijst", context))),
+        None => Err(ComponentError::new(format!(
+            "{} vereist een lijst",
+            context
+        ))),
     }
 }
 
@@ -603,7 +673,10 @@ fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, Componen
 
 #[cfg(test)]
 mod tests {
-    use super::{Component, ComponentKind, PIN_OUTPUT_ELEMENT, PIN_OUTPUT_LIST, PIN_OUTPUT_LIST_A, PIN_OUTPUT_LIST_B, PIN_OUTPUT_KEYS, PIN_OUTPUT_RESULT, PIN_OUTPUT_WEAVE, PIN_OUTPUT_CHUNKS};
+    use super::{
+        Component, ComponentKind, PIN_OUTPUT_CHUNKS, PIN_OUTPUT_ELEMENT, PIN_OUTPUT_KEYS,
+        PIN_OUTPUT_LIST, PIN_OUTPUT_LIST_A, PIN_OUTPUT_LIST_B, PIN_OUTPUT_RESULT, PIN_OUTPUT_WEAVE,
+    };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
@@ -620,7 +693,11 @@ mod tests {
     fn list_item_correct() {
         let component = ComponentKind::ListItem;
         let inputs = &[
-            Value::List(vec![Value::Number(10.0), Value::Number(20.0), Value::Number(30.0)]),
+            Value::List(vec![
+                Value::Number(10.0),
+                Value::Number(20.0),
+                Value::Number(30.0),
+            ]),
             Value::Number(1.0),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
@@ -632,7 +709,11 @@ mod tests {
     fn list_item_wrap() {
         let component = ComponentKind::ListItem;
         let inputs = &[
-            Value::List(vec![Value::Number(10.0), Value::Number(20.0), Value::Number(30.0)]),
+            Value::List(vec![
+                Value::Number(10.0),
+                Value::Number(20.0),
+                Value::Number(30.0),
+            ]),
             Value::Number(4.0),
             Value::Boolean(true),
         ];
@@ -656,7 +737,11 @@ mod tests {
     #[test]
     fn reverse_list_correct() {
         let component = ComponentKind::ReverseList;
-        let inputs = &[Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)])];
+        let inputs = &[Value::List(vec![
+            Value::Number(1.0),
+            Value::Number(2.0),
+            Value::Number(3.0),
+        ])];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let reversed = match outputs.get(PIN_OUTPUT_LIST).unwrap() {
             Value::List(l) => l,
@@ -671,8 +756,17 @@ mod tests {
     fn dispatch_correct() {
         let component = ComponentKind::Dispatch;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0), Value::Number(4.0)]),
-            Value::List(vec![Value::Boolean(true), Value::Boolean(false), Value::Boolean(true)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+                Value::Number(4.0),
+            ]),
+            Value::List(vec![
+                Value::Boolean(true),
+                Value::Boolean(false),
+                Value::Boolean(true),
+            ]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let list_a = match outputs.get(PIN_OUTPUT_LIST_A).unwrap() {
@@ -695,8 +789,16 @@ mod tests {
     fn sort_list_correct() {
         let component = ComponentKind::SortList;
         let inputs = &[
-            Value::List(vec![Value::Number(3.0), Value::Number(1.0), Value::Number(2.0)]),
-            Value::List(vec![Value::Text("C".into()), Value::Text("A".into()), Value::Text("B".into())]),
+            Value::List(vec![
+                Value::Number(3.0),
+                Value::Number(1.0),
+                Value::Number(2.0),
+            ]),
+            Value::List(vec![
+                Value::Text("C".into()),
+                Value::Text("A".into()),
+                Value::Text("B".into()),
+            ]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let sorted_keys = match outputs.get(PIN_OUTPUT_KEYS).unwrap() {
@@ -719,7 +821,11 @@ mod tests {
     fn shift_list_correct() {
         let component = ComponentKind::ShiftList;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
             Value::Number(1.0),
             Value::Boolean(true),
         ];
@@ -755,9 +861,21 @@ mod tests {
     fn pick_and_choose_correct() {
         let component = ComponentKind::PickAndChoose;
         let inputs = &[
-            Value::List(vec![Value::Number(0.0), Value::Number(1.0), Value::Number(0.0)]),
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
-            Value::List(vec![Value::Number(4.0), Value::Number(5.0), Value::Number(6.0)]),
+            Value::List(vec![
+                Value::Number(0.0),
+                Value::Number(1.0),
+                Value::Number(0.0),
+            ]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
+            Value::List(vec![
+                Value::Number(4.0),
+                Value::Number(5.0),
+                Value::Number(6.0),
+            ]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let result = match outputs.get(PIN_OUTPUT_RESULT).unwrap() {
@@ -774,7 +892,11 @@ mod tests {
     fn weave_correct() {
         let component = ComponentKind::Weave;
         let inputs = &[
-            Value::List(vec![Value::Number(0.0), Value::Number(1.0), Value::Number(0.0)]),
+            Value::List(vec![
+                Value::Number(0.0),
+                Value::Number(1.0),
+                Value::Number(0.0),
+            ]),
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
             Value::List(vec![Value::Number(3.0)]),
         ];
@@ -793,7 +915,12 @@ mod tests {
     fn sift_pattern_correct() {
         let component = ComponentKind::SiftPattern;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0), Value::Number(4.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+                Value::Number(4.0),
+            ]),
             Value::List(vec![Value::Number(0.0), Value::Number(1.0)]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
@@ -839,7 +966,11 @@ mod tests {
     fn shortest_list_correct() {
         let component = ComponentKind::ShortestList;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
             Value::List(vec![Value::Number(4.0), Value::Number(5.0)]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
@@ -855,7 +986,11 @@ mod tests {
         let component = ComponentKind::LongestList;
         let inputs = &[
             Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
-            Value::List(vec![Value::Number(3.0), Value::Number(4.0), Value::Number(5.0)]),
+            Value::List(vec![
+                Value::Number(3.0),
+                Value::Number(4.0),
+                Value::Number(5.0),
+            ]),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
         let list_a = match outputs.get(PIN_OUTPUT_LIST_A).unwrap() {
@@ -870,7 +1005,12 @@ mod tests {
     fn partition_list_correct() {
         let component = ComponentKind::PartitionList;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0), Value::Number(4.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+                Value::Number(4.0),
+            ]),
             Value::Number(2.0),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
@@ -885,7 +1025,11 @@ mod tests {
     fn split_list_correct() {
         let component = ComponentKind::SplitList;
         let inputs = &[
-            Value::List(vec![Value::Number(1.0), Value::Number(2.0), Value::Number(3.0)]),
+            Value::List(vec![
+                Value::Number(1.0),
+                Value::Number(2.0),
+                Value::Number(3.0),
+            ]),
             Value::Number(1.0),
         ];
         let outputs = component.evaluate(inputs, &MetaMap::new()).unwrap();
@@ -931,10 +1075,7 @@ mod tests {
             Some(Value::Surface { .. })
         ));
         // Ensure the geometry itself is passed through unchanged.
-        assert_eq!(
-            outputs.get(super::PIN_OUTPUT_ELEMENT),
-            Some(&brep)
-        );
+        assert_eq!(outputs.get(super::PIN_OUTPUT_ELEMENT), Some(&brep));
     }
 
     #[test]
