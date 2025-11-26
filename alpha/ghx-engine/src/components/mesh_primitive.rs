@@ -68,7 +68,7 @@ fn coerce_faces(value: &Value) -> Result<Vec<Vec<u32>>, ComponentError> {
             face_list
                 .iter()
                 .map(|index_value| {
-                    let number = coerce::coerce_number(index_value)?;
+                    let number = coerce::coerce_number(index_value, None)?;
                     if number < 0.0 || number.fract() != 0.0 {
                         return Err(ComponentError::new(format!(
                             "Face index moet een niet-negatief geheel getal zijn, kreeg {}",
@@ -143,7 +143,7 @@ impl Component for MeshQuadComponent {
 
 /// Coerces a `Value` into a `u32` for use as a face index.
 fn coerce_index(value: &Value) -> Result<u32, ComponentError> {
-    let number = coerce::coerce_number(value)?;
+    let number = coerce::coerce_number(value, None)?;
     if number < 0.0 || number.fract() != 0.0 {
         return Err(ComponentError::new(format!(
             "Index moet een niet-negatief geheel getal zijn, kreeg {}",
@@ -166,7 +166,7 @@ impl Component for MeshSphereExComponent {
         }
 
         // Base plane (inputs[0]) is ignored for now.
-        let radius = coerce::coerce_number(&inputs[1])?;
+        let radius = coerce::coerce_number(&inputs[1], None)?;
         let count = coerce_index(&inputs[2])? as usize;
 
         if radius <= 0.0 {
@@ -617,7 +617,7 @@ impl Component for MeshSphereComponent {
         }
 
         // Base plane (inputs[0]) is ignored for now.
-        let radius = coerce::coerce_number(&inputs[1])?;
+        let radius = coerce::coerce_number(&inputs[1], None)?;
         let u_count = coerce_index(&inputs[2])? as usize;
         let v_count = coerce_index(&inputs[3])? as usize;
 

@@ -548,7 +548,7 @@ fn evaluate_barycentric(inputs: &[Value]) -> ComponentResult {
     let v = coerce::coerce_number_with_default(inputs.get(4));
     let w = match inputs.get(5) {
         Some(&Value::Null) | None => 1.0 - u - v,
-        Some(value) => coerce::coerce_number(value).unwrap_or(1.0 - u - v),
+        Some(value) => coerce::coerce_number(value, None).unwrap_or(1.0 - u - v),
     };
 
     let point = [

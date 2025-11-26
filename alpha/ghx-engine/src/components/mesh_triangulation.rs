@@ -293,13 +293,13 @@ impl Component for Proximity2D {
             usize::MAX
         };
         let min_radius_sq = if inputs.len() > 3 && !matches!(&inputs[3], Value::Null) {
-            let r = coerce::coerce_number(&inputs[3])?;
+            let r = coerce::coerce_number(&inputs[3], None)?;
             r * r
         } else {
             0.0
         };
         let max_radius_sq = if inputs.len() > 4 && !matches!(&inputs[4], Value::Null) {
-            let r = coerce::coerce_number(&inputs[4])?;
+            let r = coerce::coerce_number(&inputs[4], None)?;
             r * r
         } else {
             f64::INFINITY
@@ -599,13 +599,13 @@ impl Component for Proximity3D {
             usize::MAX
         };
         let min_radius_sq = if inputs.len() > 2 && !matches!(&inputs[2], Value::Null) {
-            let r = coerce::coerce_number(&inputs[2])?;
+            let r = coerce::coerce_number(&inputs[2], None)?;
             r * r
         } else {
             0.0
         };
         let max_radius_sq = if inputs.len() > 3 && !matches!(&inputs[3], Value::Null) {
-            let r = coerce::coerce_number(&inputs[3])?;
+            let r = coerce::coerce_number(&inputs[3], None)?;
             r * r
         } else {
             f64::INFINITY

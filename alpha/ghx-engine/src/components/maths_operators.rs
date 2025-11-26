@@ -285,8 +285,8 @@ fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let a = coerce::coerce_number_with_context(&inputs[0], "Addition A")?;
-    let b = coerce::coerce_number_with_context(&inputs[1], "Addition B")?;
+    let a = coerce::coerce_number(&inputs[0], Some("Addition A"))?;
+    let b = coerce::coerce_number(&inputs[1], Some("Addition B"))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Number(a + b));
     Ok(outputs)
@@ -347,7 +347,7 @@ fn evaluate_absolute(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Absolute component vereist een invoer"));
     }
-    let value = coerce::coerce_number_with_context(&inputs[0], "Absolute")?;
+    let value = coerce::coerce_number(&inputs[0], Some("Absolute"))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(value.abs()));
     Ok(outputs)
@@ -357,7 +357,7 @@ fn evaluate_negative(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Negative component vereist een invoer"));
     }
-    let value = coerce::coerce_number_with_context(&inputs[0], "Negative")?;
+    let value = coerce::coerce_number(&inputs[0], Some("Negative"))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(-value));
     Ok(outputs)
@@ -411,7 +411,7 @@ fn evaluate_factorial(inputs: &[Value]) -> ComponentResult {
             "Factorial component vereist een invoer",
         ));
     }
-    let number = coerce::coerce_number_with_context(&inputs[0], "Factorial")?;
+    let number = coerce::coerce_number(&inputs[0], Some("Factorial"))?;
     if number < 0.0 {
         return Err(ComponentError::new(
             "Factorial verwacht een niet-negatief geheel getal",
@@ -482,7 +482,7 @@ fn evaluate_series_addition(inputs: &[Value]) -> ComponentResult {
     let goal = coerce::coerce_optional_number(inputs.get(1), "Series Addition doel")?;
     let start = inputs
         .get(2)
-        .map(|value| coerce::coerce_number_with_context(value, "Series Addition start"))
+        .map(|value| coerce::coerce_number(value, Some("Series Addition start")))
         .transpose()?
         .unwrap_or(0.0);
 
@@ -552,8 +552,8 @@ fn evaluate_larger_than(inputs: &[Value]) -> ComponentResult {
             "Larger Than component vereist twee invoeren",
         ));
     }
-    let a = coerce::coerce_number_with_context(&inputs[0], "Larger Than")?;
-    let b = coerce::coerce_number_with_context(&inputs[1], "Larger Than")?;
+    let a = coerce::coerce_number(&inputs[0], Some("Larger Than"))?;
+    let b = coerce::coerce_number(&inputs[1], Some("Larger Than"))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_GREATER_THAN.to_owned(), Value::Boolean(a > b));
     outputs.insert(PIN_GREATER_OR_EQUAL.to_owned(), Value::Boolean(a >= b));
@@ -566,8 +566,8 @@ fn evaluate_smaller_than(inputs: &[Value]) -> ComponentResult {
             "Smaller Than component vereist twee invoeren",
         ));
     }
-    let a = coerce::coerce_number_with_context(&inputs[0], "Smaller Than")?;
-    let b = coerce::coerce_number_with_context(&inputs[1], "Smaller Than")?;
+    let a = coerce::coerce_number(&inputs[0], Some("Smaller Than"))?;
+    let b = coerce::coerce_number(&inputs[1], Some("Smaller Than"))?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_LESS_THAN.to_owned(), Value::Boolean(a < b));
     outputs.insert(PIN_LESS_OR_EQUAL.to_owned(), Value::Boolean(a <= b));
@@ -613,9 +613,9 @@ fn evaluate_similarity(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let a = coerce::coerce_number_with_context(&inputs[0], "Similarity")?;
-    let b = coerce::coerce_number_with_context(&inputs[1], "Similarity")?;
-    let threshold = coerce::coerce_number_with_context(&inputs[2], "Similarity")?.abs();
+    let a = coerce::coerce_number(&inputs[0], Some("Similarity"))?;
+    let b = coerce::coerce_number(&inputs[1], Some("Similarity"))?;
+    let threshold = coerce::coerce_number(&inputs[2], Some("Similarity"))?.abs();
     let difference = (a - b).abs();
     let mut outputs = BTreeMap::new();
     outputs.insert(

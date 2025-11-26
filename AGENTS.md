@@ -27,3 +27,8 @@
 - Recent history uses short, imperative Conventional Commit subjects with scopes (`feat(components): ...`, `fix(sets): ...`). Match that style and avoid multi-topic commits.
 - In pull requests, describe the issue, the approach, and commands run; link related issues and attach viewer screenshots or GHX diffs when rendering output changes.
 - Keep changes reviewable: prefer smaller PRs, note any follow-ups, and document any new feature flags or environment expectations.
+
+## IMPORANT RULES !!!
+- DO NOT refactor or reformat lines of code without request or permission.
+- Write compact and tidy, no essays in code comments please.
+- Don't try to go the extra mile and try to keep yourself within the current task.

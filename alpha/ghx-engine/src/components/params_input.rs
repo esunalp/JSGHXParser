@@ -472,9 +472,9 @@ impl Component for GradientComponent {
             ));
         }
 
-        let l0 = coerce::coerce_number(&inputs[0]).unwrap_or(0.0);
-        let l1 = coerce::coerce_number(&inputs[1]).unwrap_or(1.0);
-        let t = coerce::coerce_number(&inputs[2]).unwrap_or(0.0);
+        let l0 = coerce::coerce_number(&inputs[0], None).unwrap_or(0.0);
+        let l1 = coerce::coerce_number(&inputs[1], None).unwrap_or(1.0);
+        let t = coerce::coerce_number(&inputs[2], None).unwrap_or(0.0);
 
         let factor = if (l1 - l0).abs() < 1e-9 {
             0.5

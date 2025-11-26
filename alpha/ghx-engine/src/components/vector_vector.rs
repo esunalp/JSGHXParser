@@ -607,7 +607,7 @@ fn single_output(pin: &str, value: Value) -> BTreeMap<String, Value> {
 }
 
 fn coerce_number(value: &Value, _context: &str) -> Result<f64, ComponentError> {
-    coerce::coerce_number(value)
+    coerce::coerce_number(value, None)
 }
 
 fn coerce_boolean(value: &Value, _context: &str) -> Result<bool, ComponentError> {

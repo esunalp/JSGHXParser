@@ -36,8 +36,8 @@ pub fn parse_domain1d(value: &Value) -> Option<Domain1D> {
         Value::Number(number) => create_domain(*number, *number),
         Value::List(values) => {
             if values.len() >= 2 {
-                let start = coerce_number(values.get(0)?).ok();
-                let end = coerce_number(values.get(1)?).ok();
+                let start = coerce_number(values.get(0)?, None).ok();
+                let end = coerce_number(values.get(1)?, None).ok();
                 match (start, end) {
                     (Some(start), Some(end)) => create_domain(start, end),
                     _ => None,
@@ -56,21 +56,53 @@ pub fn coerce_domain1d(value: Option<&Value>) -> Option<Domain1D> {
     value.and_then(parse_domain1d)
 }
 
-pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
+pub fn coerce_number(value: &Value, context: Option<&str>) -> Result<f64, ComponentError> {
     match value {
-        Value::Number(n) => Ok(*n),
-        Value::Boolean(b) => Ok(if *b { 1.0 } else { 0.0 }),
-        Value::Text(s) => match parse_boolean_text(s.as_str()) {
+        Value::Number(number) => {
+            if let Some(ctx) = context {
+                if !number.is_finite() {
+                    return Err(ComponentError::new(format!(
+                        "{} verwacht een eindig getal",
+                        ctx
+                    )));
+                }
+            }
+            Ok(*number)
+        }
+        Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
+        Value::Text(text) => match parse_boolean_text(text.as_str()) {
             Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
-            None => s.parse().map_err(|_| {
-                ComponentError::new(format!("Kon tekst '{}' niet naar een getal converteren", s))
-            }),
+            None => {
+                if let Some(ctx) = context {
+                    Err(ComponentError::new(format!(
+                        "{} verwacht een numerieke waarde, kreeg tekst '{}'",
+                        ctx, text
+                    )))
+                } else {
+                    text.parse().map_err(|_| {
+                        ComponentError::new(format!(
+                            "Kon tekst '{}' niet naar een getal converteren",
+                            text
+                        ))
+                    })
+                }
+            }
         },
-        Value::List(l) if l.len() == 1 => coerce_number(&l[0]),
-        other => Err(ComponentError::new(format!(
-            "Verwachtte een getal, kreeg {}",
-            other.kind()
-        ))),
+        Value::List(l) if l.len() == 1 => coerce_number(&l[0], context),
+        other => {
+            if let Some(ctx) = context {
+                Err(ComponentError::new(format!(
+                    "{} verwacht een numerieke waarde, kreeg {}",
+                    ctx,
+                    other.kind()
+                )))
+            } else {
+                Err(ComponentError::new(format!(
+                    "Verwachtte een getal, kreeg {}",
+                    other.kind()
+                )))
+            }
+        }
     }
 }
 
@@ -104,41 +136,12 @@ pub fn coerce_boolean_with_context(value: &Value, context: &str) -> Result<bool,
     }
 }
 
-pub fn coerce_number_with_context(value: &Value, context: &str) -> Result<f64, ComponentError> {
-    match value {
-        Value::Number(number) => {
-            if number.is_finite() {
-                Ok(*number)
-            } else {
-                Err(ComponentError::new(format!(
-                    "{} verwacht een eindig getal",
-                    context
-                )))
-            }
-        }
-        Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => match parse_boolean_text(text) {
-            Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
-            None => Err(ComponentError::new(format!(
-                "{} verwacht een numerieke waarde, kreeg tekst '{}'",
-                context, text
-            ))),
-        },
-        Value::List(values) if values.len() == 1 => coerce_number_with_context(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een numerieke waarde, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
 pub fn coerce_optional_number(
     value: Option<&Value>,
     context: &str,
 ) -> Result<Option<f64>, ComponentError> {
     match value {
-        Some(value) => coerce_number_with_context(value, context).map(Some),
+        Some(value) => coerce_number(value, Some(context)).map(Some),
         None => Ok(None),
     }
 }
@@ -278,7 +281,7 @@ pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>,
 pub fn coerce_number_with_default(value: Option<&Value>) -> f64 {
     match value {
         Some(Value::Null) => 0.0,
-        Some(v) => coerce_number(v).unwrap_or(0.0),
+        Some(v) => coerce_number(v, None).unwrap_or(0.0),
         None => 0.0,
     }
 }
