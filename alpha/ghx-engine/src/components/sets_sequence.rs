@@ -197,8 +197,8 @@ impl Component for Series {
         if inputs.len() < 3 {
             return Err(ComponentError::new("Expected 3 inputs"));
         }
-        let start = coerce_number(&inputs[0])?;
-        let step = coerce_number(&inputs[1])?;
+        let start = coerce_number(&inputs[0], None)?;
+        let step = coerce_number(&inputs[1], None)?;
         let count = coerce_integer(&inputs[2])? as usize;
         let mut numbers = Vec::with_capacity(count);
         for i in 0..count {
@@ -217,8 +217,8 @@ impl Component for Fibonacci {
         if inputs.len() < 3 {
             return Err(ComponentError::new("Expected 3 inputs"));
         }
-        let a = coerce_number(&inputs[0])?;
-        let b = coerce_number(&inputs[1])?;
+        let a = coerce_number(&inputs[0], None)?;
+        let b = coerce_number(&inputs[1], None)?;
         let n = coerce_integer(&inputs[2])? as usize;
 
         let mut sequence = Vec::with_capacity(n);
@@ -569,7 +569,7 @@ impl Component for Jitter {
             Value::List(l) => l,
             _ => return Err(ComponentError::new("Input L must be a list.")),
         };
-        let jitter = coerce_number(&inputs[1])?;
+        let jitter = coerce_number(&inputs[1], None)?;
         let seed = coerce_integer(&inputs[2])?;
 
         let mut rng: rand::prelude::StdRng = rand::SeedableRng::seed_from_u64(seed as u64);
