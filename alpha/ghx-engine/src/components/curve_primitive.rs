@@ -231,7 +231,7 @@ impl Component for ComponentKind {
             Self::FitLine => evaluate_fit_line(inputs),
             Self::InCircle => not_implemented(self.name()),
             Self::Arc3Pt => evaluate_arc_3pt(inputs),
-            Self::Rectangle3Pt => not_implemented(self.name()),
+            Self::Rectangle3Pt => evaluate_rectangle_3pt(inputs),
             Self::Ellipse => not_implemented(self.name()),
             Self::Circle3Pt => not_implemented(self.name()),
             Self::Line => evaluate_line(inputs),
@@ -710,6 +710,64 @@ fn coerce_size_from_domain_or_number(
             ))),
         },
     }
+}
+
+fn evaluate_rectangle_3pt(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 3 {
+        return Err(ComponentError::new(
+            "Rectangle 3Pt component vereist drie punten",
+        ));
+    }
+
+    const CONTEXT: &str = "Rectangle 3Pt";
+    let p1 = coerce_point(inputs.get(0).unwrap(), CONTEXT)?;
+    let p2 = coerce_point(inputs.get(1).unwrap(), CONTEXT)?;
+    let p3 = coerce_point(inputs.get(2).unwrap(), CONTEXT)?;
+
+    let ab = subtract(p2, p1);
+    let (ab_dir, ab_length) = match safe_normalized(ab) {
+        Some((dir, len)) => (dir, len),
+        None => {
+            return Err(ComponentError::new(
+                "Rectangle 3Pt component vereist twee verschillende punten voor AB",
+            ))
+        }
+    };
+
+    let ac = subtract(p3, p1);
+    let projection = dot(ac, ab_dir);
+    let perp = subtract(ac, scale(ab_dir, projection));
+    let perp_length = vector_length(perp);
+
+    if perp_length < EPSILON {
+        return Err(ComponentError::new(
+            "Rectangle 3Pt component vereist dat punt C niet op lijn AB ligt",
+        ));
+    }
+
+    let corner_c = add(p2, perp);
+    let corner_d = add(p1, perp);
+
+    let perimeter = 2.0 * (ab_length + perp_length);
+
+    if perp_length.is_nan() || ab_length.is_nan() || perimeter.is_nan() {
+        return Err(ComponentError::new(
+            "Rectangle 3Pt component kon geen geldige rechthoek berekenen",
+        ));
+    }
+
+    let mut points = vec![p1, p2, corner_c, corner_d];
+    if let Some(first) = points.first().copied() {
+        points.push(first);
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_RECTANGLE.to_owned(),
+        Value::List(points.into_iter().map(Value::Point).collect()),
+    );
+    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(perimeter));
+    Ok(outputs)
 }
 
 fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
@@ -1378,6 +1436,52 @@ mod tests {
             panic!("expected point");
         };
         assert!((point[2] - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_3pt_generates_points_and_length() {
+        let component = ComponentKind::Rectangle3Pt;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([10.0, 0.0, 0.0]),
+                    Value::Point([3.0, 4.0, 0.0]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle 3pt generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        assert_eq!(points.len(), 5);
+
+        let Value::Point(first) = points.first().expect("first point") else {
+            panic!("first value is not a point");
+        };
+        assert!((first[0] - 0.0).abs() < 1e-9);
+        assert!((first[1] - 0.0).abs() < 1e-9);
+
+        let Value::Point(third) = points
+            .get(2)
+            .expect("third point")
+            else {
+                panic!("third value is not a point");
+            };
+        assert!((third[0] - 10.0).abs() < 1e-9);
+        assert!((third[1] - 4.0).abs() < 1e-9);
+
+        let Value::Point(last) = points.last().expect("last point") else {
+            panic!("last value is not a point");
+        };
+        assert!((last[0] - first[0]).abs() < 1e-9);
+        assert!((last[1] - first[1]).abs() < 1e-9);
+
+        let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected length");
+        };
+        assert!((length - 28.0).abs() < 1e-9);
     }
 
     #[test]
