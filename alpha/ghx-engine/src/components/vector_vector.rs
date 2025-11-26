@@ -3,12 +3,13 @@
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
 
-use time::{Date, Month, PrimitiveDateTime, Time};
+use time::PrimitiveDateTime;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult, coerce};
+use super::coerce::Plane;
 
 const EPSILON: f64 = 1e-9;
 
@@ -183,9 +184,9 @@ impl Component for ComponentKind {
             Self::Multiply => evaluate_multiply(inputs),
             Self::VectorLength => evaluate_vector_length(inputs),
             Self::Amplitude => evaluate_amplitude(inputs),
-            Self::UnitX => evaluate_unit_axis(inputs, [1.0, 0.0, 0.0], "Unit X"),
-            Self::UnitY => evaluate_unit_axis(inputs, [0.0, 1.0, 0.0], "Unit Y"),
-            Self::UnitZ => evaluate_unit_axis(inputs, [0.0, 0.0, 1.0], "Unit Z"),
+            Self::UnitX => evaluate_unit_axis(inputs, [1000.0, 0.0, 0.0], "Unit X"),
+            Self::UnitY => evaluate_unit_axis(inputs, [0.0, 1000.0, 0.0], "Unit Y"),
+            Self::UnitZ => evaluate_unit_axis(inputs, [0.0, 0.0, 1000.0], "Unit Z"),
             Self::VectorTwoPoint => evaluate_vector_two_point(inputs),
             Self::DeconstructVector => evaluate_deconstruct(inputs),
             Self::Rotate => evaluate_rotate(inputs),
@@ -241,7 +242,7 @@ fn evaluate_angle_plane(inputs: &[Value]) -> ComponentResult {
     let b = coerce::coerce_vector_with_default(inputs.get(1));
     let plane = match inputs.get(2) {
         Some(&Value::Null) | None => Plane::default(),
-        Some(value) => coerce_plane(value, "Vector Angle (Plane)")?,
+        Some(value) => coerce::coerce_plane(value, "Vector Angle (Plane)")?,
     };
     let (angle, reflex) = compute_angle_on_plane(a, b, &plane);
 
@@ -279,8 +280,8 @@ fn evaluate_divide(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vector = coerce_vector(&inputs[0], "Vector Divide")?;
-    let factor = coerce_number(&inputs[1], "Vector Divide")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Vector Divide")?;
+    let factor = coerce::coerce_number(&inputs[1], Some("Vector Divide"))?;
     let result = if factor.abs() < EPSILON {
         [0.0, 0.0, 0.0]
     } else {
@@ -301,11 +302,11 @@ fn evaluate_dot_product(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Dot Product vereist twee vectoren"));
     }
 
-    let mut a = coerce_vector(&inputs[0], "Dot Product")?;
-    let mut b = coerce_vector(&inputs[1], "Dot Product")?;
+    let mut a = coerce::coerce_vector(&inputs[0], "Dot Product")?;
+    let mut b = coerce::coerce_vector(&inputs[1], "Dot Product")?;
     let unitize = inputs
         .get(2)
-        .map(|value| coerce_boolean(value, "Dot Product"))
+        .map(|value| coerce::coerce_boolean(value))
         .transpose()?
         .unwrap_or(false);
 
@@ -332,9 +333,9 @@ fn evaluate_vector_xyz(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Vector XYZ vereist drie scalars"));
     }
 
-    let x = coerce_number(&inputs[0], "Vector XYZ")?;
-    let y = coerce_number(&inputs[1], "Vector XYZ")?;
-    let z = coerce_number(&inputs[2], "Vector XYZ")?;
+    let x = coerce::coerce_number(&inputs[0], Some("Vector XYZ"))?;
+    let y = coerce::coerce_number(&inputs[1], Some("Vector XYZ"))?;
+    let z = coerce::coerce_number(&inputs[2], Some("Vector XYZ"))?;
     let vector = [x, y, z];
 
     let mut outputs = BTreeMap::new();
@@ -349,19 +350,19 @@ fn evaluate_vector_xyz(inputs: &[Value]) -> ComponentResult {
 fn evaluate_solar_incidence(inputs: &[Value]) -> ComponentResult {
     let location = inputs
         .get(0)
-        .map(|value| coerce_geo_location(value, "Solar Incidence"))
+        .map(|value| coerce::coerce_geo_location(value, "Solar Incidence"))
         .transpose()?
         .unwrap_or((0.0, 0.0));
 
     let datetime = inputs
         .get(1)
-        .map(coerce_date_time)
-        .unwrap_or_else(default_datetime);
+        .map(coerce::coerce_date_time)
+        .unwrap_or_else(coerce::default_datetime);
 
     let plane = inputs
         .get(2)
         .or_else(|| inputs.get(3))
-        .map(|value| coerce_plane(value, "Solar Incidence"))
+        .map(|value| coerce::coerce_plane(value, "Solar Incidence"))
         .transpose()?
         .unwrap_or_default();
 
@@ -383,10 +384,10 @@ fn evaluate_mass_addition(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vectors = coerce_vector_list(&inputs[0], "Mass Addition")?;
+    let vectors = coerce::coerce_vector_list(&inputs[0], "Mass Addition")?;
     let unitize = inputs
         .get(1)
-        .map(|value| coerce_boolean(value, "Mass Addition"))
+        .map(|value| coerce::coerce_boolean(value))
         .transpose()?
         .unwrap_or(false);
 
@@ -406,10 +407,10 @@ fn evaluate_mass_addition_total(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vectors = coerce_vector_list(&inputs[0], "Mass Addition Total")?;
+    let vectors = coerce::coerce_vector_list(&inputs[0], "Mass Addition Total")?;
     let unitize = inputs
         .get(1)
-        .map(|value| coerce_boolean(value, "Mass Addition Total"))
+        .map(|value| coerce::coerce_boolean(value))
         .transpose()?
         .unwrap_or(false);
 
@@ -424,8 +425,8 @@ fn evaluate_multiply(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vector = coerce_vector(&inputs[0], "Vector Multiply")?;
-    let factor = coerce_number(&inputs[1], "Vector Multiply")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Vector Multiply")?;
+    let factor = coerce::coerce_number(&inputs[1], Some("Vector Multiply"))?;
     let result = scale(vector, factor);
 
     let mut outputs = BTreeMap::new();
@@ -442,7 +443,7 @@ fn evaluate_vector_length(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Vector Length vereist een vector"));
     }
 
-    let vector = coerce_vector(&inputs[0], "Vector Length")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Vector Length")?;
     Ok(single_output(
         PIN_OUTPUT_LENGTH,
         Value::Number(vector_length(vector)),
@@ -456,8 +457,8 @@ fn evaluate_amplitude(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vector = coerce_vector(&inputs[0], "Amplitude")?;
-    let amplitude = coerce_number(&inputs[1], "Amplitude")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Amplitude")?;
+    let amplitude = coerce::coerce_number(&inputs[1], Some("Amplitude"))?;
     if let Some((normalized, _)) = safe_normalized(vector) {
         Ok(single_output(
             PIN_OUTPUT_VECTOR,
@@ -474,7 +475,7 @@ fn evaluate_amplitude(inputs: &[Value]) -> ComponentResult {
 fn evaluate_unit_axis(inputs: &[Value], axis: [f64; 3], name: &str) -> ComponentResult {
     let factor = inputs
         .get(0)
-        .map(|value| coerce_number(value, name))
+        .map(|value| coerce::coerce_number(value, Some(name)))
         .transpose()?
         .unwrap_or(1.0);
 
@@ -489,11 +490,11 @@ fn evaluate_vector_two_point(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Vector 2Pt vereist twee punten"));
     }
 
-    let a = coerce_point(&inputs[0], "Vector 2Pt")?;
-    let b = coerce_point(&inputs[1], "Vector 2Pt")?;
+    let a = coerce::coerce_point_with_context(&inputs[0], "Vector 2Pt")?;
+    let b = coerce::coerce_point_with_context(&inputs[1], "Vector 2Pt")?;
     let unitize = inputs
         .get(2)
-        .map(|value| coerce_boolean(value, "Vector 2Pt"))
+        .map(|value| coerce::coerce_boolean(value))
         .transpose()?
         .unwrap_or(false);
 
@@ -518,7 +519,7 @@ fn evaluate_deconstruct(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Deconstruct Vector vereist een vector"));
     }
 
-    let vector = coerce_vector(&inputs[0], "Deconstruct Vector")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Deconstruct Vector")?;
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_X.to_owned(), Value::Number(vector[0]));
@@ -534,15 +535,15 @@ fn evaluate_rotate(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let vector = coerce_vector(&inputs[0], "Vector Rotate")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Vector Rotate")?;
     let axis = inputs
         .get(1)
-        .map(|value| coerce_vector(value, "Vector Rotate"))
+        .map(|value| coerce::coerce_vector(value, "Vector Rotate"))
         .transpose()?
         .unwrap_or([0.0, 0.0, 1.0]);
     let angle = inputs
         .get(2)
-        .map(|value| coerce_number(value, "Vector Rotate"))
+        .map(|value| coerce::coerce_number(value, Some("Vector Rotate")))
         .transpose()?
         .unwrap_or(0.0);
 
@@ -557,7 +558,7 @@ fn evaluate_unit_vector(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Unit Vector vereist een vector"));
     }
 
-    let vector = coerce_vector(&inputs[0], "Unit Vector")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Unit Vector")?;
     if let Some((normalized, _)) = safe_normalized(vector) {
         Ok(single_output(PIN_OUTPUT_VECTOR, Value::Vector(normalized)))
     } else {
@@ -573,7 +574,7 @@ fn evaluate_reverse(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Vector Reverse vereist een vector"));
     }
 
-    let vector = coerce_vector(&inputs[0], "Vector Reverse")?;
+    let vector = coerce::coerce_vector(&inputs[0], "Vector Reverse")?;
     Ok(single_output(
         PIN_OUTPUT_VECTOR,
         Value::Vector(scale(vector, -1.0)),
@@ -606,236 +607,10 @@ fn single_output(pin: &str, value: Value) -> BTreeMap<String, Value> {
     outputs
 }
 
-fn coerce_number(value: &Value, _context: &str) -> Result<f64, ComponentError> {
-    coerce::coerce_number(value, None)
-}
 
-fn coerce_boolean(value: &Value, _context: &str) -> Result<bool, ComponentError> {
-    coerce::coerce_boolean(value)
-}
 
-fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Vector(vector) => Ok(*vector),
-        Value::Point(point) => Ok(*point),
-        Value::List(values) if values.len() == 1 => coerce_vector(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(&values[0], context)?;
-            let y = coerce_number(&values[1], context)?;
-            let z = coerce_number(&values[2], context)?;
-            Ok([x, y, z])
-        }
-        Value::List(values) if values.len() == 2 => {
-            let x = coerce_number(&values[0], context)?;
-            let y = coerce_number(&values[1], context)?;
-            Ok([x, y, 0.0])
-        }
-        Value::Number(number) => Ok([0.0, 0.0, *number]),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een vector, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
 
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Point(point) => Ok(*point),
-        Value::Vector(vector) => Ok(*vector),
-        Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(&values[0], context)?;
-            let y = coerce_number(&values[1], context)?;
-            let z = coerce_number(&values[2], context)?;
-            Ok([x, y, z])
-        }
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een punt, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
 
-fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
-    match value {
-        Value::List(values) => {
-            let mut result = Vec::new();
-            for entry in values {
-                match coerce_vector(entry, context) {
-                    Ok(vector) => result.push(vector),
-                    Err(_) => {
-                        if let Value::List(nested) = entry {
-                            if let Ok(vector) = coerce_vector(&Value::List(nested.clone()), context)
-                            {
-                                result.push(vector);
-                                continue;
-                            }
-                        }
-                        return Err(ComponentError::new(format!(
-                            "{} verwacht een lijst van vectoren",
-                            context
-                        )));
-                    }
-                }
-            }
-            Ok(result)
-        }
-        other => Ok(vec![coerce_vector(other, context)?]),
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
-}
-
-impl Default for Plane {
-    fn default() -> Self {
-        Self {
-            origin: [0.0, 0.0, 0.0],
-            x_axis: [1.0, 0.0, 0.0],
-            y_axis: [0.0, 1.0, 0.0],
-            z_axis: [0.0, 0.0, 1.0],
-        }
-    }
-}
-
-impl Plane {
-    fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
-    ) -> Self {
-        let z = safe_normalized(z_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or([0.0, 0.0, 1.0]);
-
-        let mut x = safe_normalized(x_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or_else(|| orthogonal_vector(z));
-
-        let mut y = safe_normalized(y_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or_else(|| normalize(cross(z, x)));
-
-        x = normalize(cross(y, z));
-        y = normalize(cross(z, x));
-
-        Self {
-            origin,
-            x_axis: x,
-            y_axis: y,
-            z_axis: z,
-        }
-    }
-
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
-        let ab = subtract(b, a);
-        let ac = subtract(c, a);
-        let normal = cross(ab, ac);
-        if vector_length_squared(normal) < EPSILON {
-            return Self::default();
-        }
-        let x_axis = if vector_length_squared(ab) < EPSILON {
-            orthogonal_vector(normal)
-        } else {
-            normalize(ab)
-        };
-        let z_axis = normalize(normal);
-        let y_axis = normalize(cross(z_axis, x_axis));
-        Self::normalize_axes(a, x_axis, y_axis, z_axis)
-    }
-}
-
-fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
-    match value {
-        Value::List(values) if values.len() >= 3 => {
-            let a = coerce_point(&values[0], context)?;
-            let b = coerce_point(&values[1], context)?;
-            let c = coerce_point(&values[2], context)?;
-            Ok(Plane::from_points(a, b, c))
-        }
-        Value::List(values) if values.len() == 2 => {
-            let origin = coerce_point(&values[0], context)?;
-            let direction = coerce_vector(&values[1], context)?;
-            if vector_length_squared(direction) < EPSILON {
-                Ok(Plane::default())
-            } else {
-                let x_axis = normalize(direction);
-                let z_axis = orthogonal_vector(direction);
-                let y_axis = normalize(cross(z_axis, x_axis));
-                Ok(Plane::normalize_axes(origin, x_axis, y_axis, z_axis))
-            }
-        }
-        Value::List(values) if values.len() == 1 => coerce_plane(&values[0], context),
-        Value::Point(point) => {
-            let mut plane = Plane::default();
-            plane.origin = *point;
-            Ok(plane)
-        }
-        Value::Vector(vector) => {
-            let normal = if vector_length_squared(*vector) < EPSILON {
-                [0.0, 0.0, 1.0]
-            } else {
-                normalize(*vector)
-            };
-            let x_axis = orthogonal_vector(normal);
-            let y_axis = normalize(cross(normal, x_axis));
-            Ok(Plane::normalize_axes(
-                [0.0, 0.0, 0.0],
-                x_axis,
-                y_axis,
-                normal,
-            ))
-        }
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een vlak, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_geo_location(value: &Value, context: &str) -> Result<(f64, f64), ComponentError> {
-    match value {
-        Value::Vector(vector) | Value::Point(vector) => Ok((vector[0], vector[1])),
-        Value::List(values) if !values.is_empty() => {
-            let longitude = coerce_number(&values[0], context)?;
-            let latitude = if values.len() > 1 {
-                coerce_number(&values[1], context)?
-            } else {
-                0.0
-            };
-            Ok((longitude, latitude))
-        }
-        Value::List(values) if values.len() == 1 => coerce_geo_location(&values[0], context),
-        Value::Number(number) => Ok((0.0, *number)),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een locatie, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_date_time(value: &Value) -> PrimitiveDateTime {
-    if let Value::DateTime(date_time) = value {
-        return date_time.primitive();
-    }
-    default_datetime()
-}
-
-fn default_datetime() -> PrimitiveDateTime {
-    let date = Date::from_calendar_date(2020, Month::January, 1).unwrap();
-    let time = Time::from_hms(12, 0, 0).unwrap();
-    PrimitiveDateTime::new(date, time)
-}
 fn compute_angle_3d(a: [f64; 3], b: [f64; 3]) -> (f64, f64) {
     let length_a = vector_length(a);
     let length_b = vector_length(b);
@@ -1093,13 +868,14 @@ mod tests {
     use super::{
         PIN_OUTPUT_ANGLE, PIN_OUTPUT_COLOUR, PIN_OUTPUT_DIRECTION, PIN_OUTPUT_DOT,
         PIN_OUTPUT_ELEVATION, PIN_OUTPUT_LENGTH, PIN_OUTPUT_REFLEX, PIN_OUTPUT_VECTOR,
-        coerce_boolean, coerce_number, coerce_plane, compute_angle_3d, compute_solar_data,
-        evaluate_addition, evaluate_amplitude, evaluate_angle, evaluate_angle_plane,
-        evaluate_cross_product, evaluate_deconstruct, evaluate_divide, evaluate_dot_product,
-        evaluate_mass_addition, evaluate_mass_addition_total, evaluate_multiply, evaluate_reverse,
-        evaluate_rotate, evaluate_solar_incidence, evaluate_unit_axis, evaluate_unit_vector,
+        compute_angle_3d, compute_solar_data, evaluate_addition, evaluate_amplitude,
+        evaluate_angle, evaluate_angle_plane, evaluate_cross_product, evaluate_deconstruct,
+        evaluate_divide, evaluate_dot_product, evaluate_mass_addition,
+        evaluate_mass_addition_total, evaluate_multiply, evaluate_reverse, evaluate_rotate,
+        evaluate_solar_incidence, evaluate_unit_axis, evaluate_unit_vector,
         evaluate_vector_length, evaluate_vector_two_point, evaluate_vector_xyz, vector_length,
     };
+    use super::coerce;
     use crate::graph::value::{DateTimeValue, Value};
 
     #[test]
@@ -1316,9 +1092,9 @@ mod tests {
 
     #[test]
     fn helper_coercions_behave() {
-        assert!(coerce_number(&Value::Boolean(true), "ctx").unwrap() > 0.0);
-        assert!(coerce_boolean(&Value::Number(0.0), "ctx").is_ok());
-        let plane = coerce_plane(
+        assert!(coerce::coerce_number(&Value::Boolean(true), Some("ctx")).unwrap() > 0.0);
+        assert!(coerce::coerce_boolean(&Value::Number(0.0)).is_ok());
+        let plane = coerce::coerce_plane(
             &Value::List(vec![
                 Value::Point([0.0, 0.0, 0.0]),
                 Value::Point([1.0, 0.0, 0.0]),

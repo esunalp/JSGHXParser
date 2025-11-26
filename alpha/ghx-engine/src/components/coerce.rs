@@ -1,12 +1,32 @@
 //! Hulpfuncties voor het converteren van `Value`-types.
 
 use crate::graph::value::{Domain, Domain1D, Domain2D, PlaneValue, Value};
-
 use super::ComponentError;
+use time::{Date, Month, PrimitiveDateTime, Time};
 
 pub struct Surface<'a> {
     pub vertices: &'a Vec<[f64; 3]>,
     pub faces: &'a Vec<Vec<u32>>,
+}
+
+/// Een genormaliseerd vlak dat gebruikt wordt bij sommige componenten.
+#[derive(Debug, Clone, Copy)]
+pub struct Plane {
+    pub origin: [f64; 3],
+    pub x_axis: [f64; 3],
+    pub y_axis: [f64; 3],
+    pub z_axis: [f64; 3],
+}
+
+impl Default for Plane {
+    fn default() -> Self {
+        Self {
+            origin: [0.0, 0.0, 0.0],
+            x_axis: [1.0, 0.0, 0.0],
+            y_axis: [0.0, 1.0, 0.0],
+            z_axis: [0.0, 0.0, 1.0],
+        }
+    }
 }
 
 pub fn create_domain(start: f64, end: f64) -> Option<Domain1D> {
@@ -275,6 +295,273 @@ pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>,
             "Verwachtte een curve-achtige invoer, kreeg {}",
             value.kind()
         ))),
+    }
+}
+
+pub fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+    match value {
+        Value::Vector(vector) => Ok(*vector),
+        Value::Point(point) => Ok(*point),
+        Value::List(values) if values.len() == 1 => coerce_vector(&values[0], context),
+        Value::List(values) if values.len() >= 3 => {
+            let x = coerce_number(values.get(0).unwrap(), Some(context))?;
+            let y = coerce_number(values.get(1).unwrap(), Some(context))?;
+            let z = coerce_number(values.get(2).unwrap(), Some(context))?;
+            Ok([x, y, z])
+        }
+        Value::List(values) if values.len() == 2 => {
+            let x = coerce_number(values.get(0).unwrap(), Some(context))?;
+            let y = coerce_number(values.get(1).unwrap(), Some(context))?;
+            Ok([x, y, 0.0])
+        }
+        Value::Number(number) => Ok([0.0, 0.0, *number]),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vector, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_point_with_context(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+    match value {
+        Value::Point(point) => Ok(*point),
+        Value::Vector(vector) => Ok(*vector),
+        Value::List(values) if values.len() == 1 => coerce_point_with_context(&values[0], context),
+        Value::List(values) if values.len() >= 3 => {
+            let x = coerce_number(values.get(0).unwrap(), Some(context))?;
+            let y = coerce_number(values.get(1).unwrap(), Some(context))?;
+            let z = coerce_number(values.get(2).unwrap(), Some(context))?;
+            Ok([x, y, z])
+        }
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een punt, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
+    match value {
+        Value::List(values) => {
+            let mut result = Vec::new();
+            for entry in values {
+                match coerce_vector(entry, context) {
+                    Ok(vector) => result.push(vector),
+                    Err(_) => {
+                        if let Value::List(nested) = entry {
+                            if let Ok(vector) = coerce_vector(&Value::List(nested.clone()), context) {
+                                result.push(vector);
+                                continue;
+                            }
+                        }
+                        return Err(ComponentError::new(format!(
+                            "{} verwacht een lijst van vectoren",
+                            context
+                        )));
+                    }
+                }
+            }
+            Ok(result)
+        }
+        other => Ok(vec![coerce_vector(other, context)?]),
+    }
+}
+
+impl Plane {
+    fn normalize_axes(
+        origin: [f64; 3],
+        x_axis: [f64; 3],
+        y_axis: [f64; 3],
+        z_axis: [f64; 3],
+    ) -> Self {
+        let z = safe_normalized(z_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or([0.0, 0.0, 1.0]);
+
+        let mut x = safe_normalized(x_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or_else(|| orthogonal_vector(z));
+
+        let mut y = safe_normalized(y_axis)
+            .map(|(vector, _)| vector)
+            .unwrap_or_else(|| normalize(cross(z, x)));
+
+        x = normalize(cross(y, z));
+        y = normalize(cross(z, x));
+
+        Self {
+            origin,
+            x_axis: x,
+            y_axis: y,
+            z_axis: z,
+        }
+    }
+
+    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
+        let ab = subtract(b, a);
+        let ac = subtract(c, a);
+        let normal = cross(ab, ac);
+        if vector_length_squared(normal) < EPSILON {
+            return Self::default();
+        }
+        let x_axis = if vector_length_squared(ab) < EPSILON {
+            orthogonal_vector(normal)
+        } else {
+            normalize(ab)
+        };
+        let z_axis = normalize(normal);
+        let y_axis = normalize(cross(z_axis, x_axis));
+        Self::normalize_axes(a, x_axis, y_axis, z_axis)
+    }
+}
+
+pub fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
+    match value {
+        Value::List(values) if values.len() >= 3 => {
+            let a = coerce_point_with_context(&values[0], context)?;
+            let b = coerce_point_with_context(&values[1], context)?;
+            let c = coerce_point_with_context(&values[2], context)?;
+            Ok(Plane::from_points(a, b, c))
+        }
+        Value::List(values) if values.len() == 2 => {
+            let origin = coerce_point_with_context(&values[0], context)?;
+            let direction = coerce_vector(&values[1], context)?;
+            if vector_length_squared(direction) < EPSILON {
+                Ok(Plane::default())
+            } else {
+                let x_axis = normalize(direction);
+                let z_axis = orthogonal_vector(direction);
+                let y_axis = normalize(cross(z_axis, x_axis));
+                Ok(Plane::normalize_axes(origin, x_axis, y_axis, z_axis))
+            }
+        }
+        Value::List(values) if values.len() == 1 => coerce_plane(&values[0], context),
+        Value::Point(point) => {
+            let mut plane = Plane::default();
+            plane.origin = *point;
+            Ok(plane)
+        }
+        Value::Vector(vector) => {
+            let normal = if vector_length_squared(*vector) < EPSILON {
+                [0.0, 0.0, 1.0]
+            } else {
+                normalize(*vector)
+            };
+            let x_axis = orthogonal_vector(normal);
+            let y_axis = normalize(cross(normal, x_axis));
+            Ok(Plane::normalize_axes(
+                [0.0, 0.0, 0.0],
+                x_axis,
+                y_axis,
+                normal,
+            ))
+        }
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een vlak, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_geo_location(value: &Value, context: &str) -> Result<(f64, f64), ComponentError> {
+    match value {
+        Value::Vector(vector) | Value::Point(vector) => Ok((vector[0], vector[1])),
+        Value::List(values) if !values.is_empty() => {
+            let longitude = coerce_number(values.get(0).unwrap(), Some(context))?;
+            let latitude = if values.len() > 1 {
+                coerce_number(values.get(1).unwrap(), Some(context))?
+            } else {
+                0.0
+            };
+            Ok((longitude, latitude))
+        }
+        Value::List(values) if values.len() == 1 => coerce_geo_location(&values[0], context),
+        Value::Number(number) => Ok((0.0, *number)),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een locatie, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_date_time(value: &Value) -> PrimitiveDateTime {
+    if let Value::DateTime(date_time) = value {
+        return date_time.primitive();
+    }
+    default_datetime()
+}
+
+pub fn default_datetime() -> PrimitiveDateTime {
+    let date = Date::from_calendar_date(2020, Month::January, 1).unwrap();
+    let time = Time::from_hms(12, 0, 0).unwrap();
+    PrimitiveDateTime::new(date, time)
+}
+
+const EPSILON: f64 = 1e-9;
+
+fn clamp_to_unit(value: f64) -> f64 {
+    value.max(-1.0).min(1.0)
+}
+
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
+    [vector[0] * factor, vector[1] * factor, vector[2] * factor]
+}
+
+fn vector_length(vector: [f64; 3]) -> f64 {
+    vector_length_squared(vector).sqrt()
+}
+
+fn vector_length_squared(vector: [f64; 3]) -> f64 {
+    dot(vector, vector)
+}
+
+fn normalize(vector: [f64; 3]) -> [f64; 3] {
+    if let Some((normalized, _)) = safe_normalized(vector) {
+        normalized
+    } else {
+        [0.0, 0.0, 0.0]
+    }
+}
+
+fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
+    let abs_x = vector[0].abs();
+    let abs_y = vector[1].abs();
+    let abs_z = vector[2].abs();
+    if abs_x <= abs_y && abs_x <= abs_z {
+        normalize([0.0, -vector[2], vector[1]])
+    } else if abs_y <= abs_x && abs_y <= abs_z {
+        normalize([-vector[2], 0.0, vector[0]])
+    } else {
+        normalize([-vector[1], vector[0], 0.0])
+    }
+}
+
+fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
+    let length = vector_length(vector);
+    if length < EPSILON {
+        None
+    } else {
+        Some((scale(vector, 1.0 / length), length))
     }
 }
 

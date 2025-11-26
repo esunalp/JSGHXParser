@@ -864,7 +864,7 @@ mod tests {
 
     #[test]
     fn addition_rejects_multiple_values_in_list() {
-        let err = coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)]))
+        let err = coerce::coerce_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)]))
             .unwrap_err();
         assert!(matches!(err, crate::components::ComponentError::Message(_)));
     }
