@@ -357,9 +357,16 @@ fn evaluate_negative(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Negative component vereist een invoer"));
     }
-    let value = coerce::coerce_number(&inputs[0], Some("Negative"))?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(-value));
+    if let Some(vector) = to_vector(&inputs[0]) {
+        outputs.insert(
+            PIN_OUTPUT_Y.to_owned(),
+            Value::Vector([-vector[0], -vector[1], -vector[2]]),
+        );
+    } else {
+        let value = coerce::coerce_number(&inputs[0], Some("Negative"))?;
+        outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(-value));
+    }
     Ok(outputs)
 }
 
@@ -809,7 +816,7 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 mod tests {
     use super::{
         ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
-        PIN_PARTIAL_RESULTS, PIN_RESULT, coerce_add_number,
+        PIN_PARTIAL_RESULTS, PIN_RESULT, PIN_OUTPUT_Y, coerce_add_number,
     };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
@@ -949,6 +956,21 @@ mod tests {
             outputs.get(PIN_RESULT),
             Some(Value::Number(total)) if (*total - 1.0).abs() < 1e-9
         ));
+    }
+
+    #[test]
+    fn negative_inverts_vectors() {
+        let component = ComponentKind::Negative;
+        let outputs = component
+            .evaluate(
+                &[Value::Vector([1.0, -2.0, 0.5])],
+                &MetaMap::new(),
+            )
+            .expect("negative handles vectors");
+        assert_eq!(
+            outputs.get(PIN_OUTPUT_Y),
+            Some(&Value::Vector([-1.0, 2.0, -0.5]))
+        );
     }
 
     #[test]
