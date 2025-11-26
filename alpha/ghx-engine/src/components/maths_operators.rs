@@ -26,6 +26,7 @@ const PIN_DIFFERENCE: &str = "dt";
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
+    Addition,
     GateAnd,
     GateOr,
     GateNot,
@@ -63,6 +64,14 @@ pub struct Registration {
 
 /// Volledige lijst van componentregistraties voor de maths-operatoren.
 pub const REGISTRATIONS: &[Registration] = &[
+    Registration {
+        guids: &[
+            "{a0d62394-a118-422d-abb3-6af115c75b25}",
+            "{d18db32b-7099-4eea-85c4-8ba675ee8ec3}",
+        ],
+        names: &["Add", "A+B"],
+        kind: ComponentKind::Addition,
+    },
     Registration {
         guids: &["{040f195d-0b4e-4fe0-901f-fedb2fd3db15}"],
         names: &["Gate And", "And"],
@@ -205,6 +214,7 @@ pub const REGISTRATIONS: &[Registration] = &[
 impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
+            Self::Addition => evaluate_addition(inputs),
             Self::GateAnd => evaluate_gate_and(inputs),
             Self::GateOr => evaluate_gate_or(inputs),
             Self::GateNot => evaluate_gate_not(inputs),
@@ -238,6 +248,7 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
+            Self::Addition => "Addition",
             Self::GateAnd => "Gate And",
             Self::GateOr => "Gate Or",
             Self::GateNot => "Gate Not",
@@ -265,6 +276,20 @@ impl ComponentKind {
             Self::Similarity => "Similarity",
         }
     }
+}
+
+fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(
+            "Add component vereist twee invoerwaarden",
+        ));
+    }
+
+    let a = coerce_add_number(&inputs[0])?;
+    let b = coerce_add_number(&inputs[1])?;
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_RESULT.to_owned(), Value::Number(a + b));
+    Ok(outputs)
 }
 
 fn evaluate_gate_and(inputs: &[Value]) -> ComponentResult {
@@ -678,6 +703,31 @@ fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     }
 }
 
+fn coerce_add_number(value: &Value) -> Result<f64, ComponentError> {
+    match value {
+        Value::Number(number) => {
+            if number.is_nan() {
+                Err(ComponentError::new("Add component ontving NaN"))
+            } else {
+                Ok(*number)
+            }
+        }
+        Value::List(values) => {
+            if values.len() == 1 {
+                coerce_add_number(&values[0])
+            } else {
+                Err(ComponentError::new(
+                    "Add component verwacht een enkel getal per pin",
+                ))
+            }
+        }
+        other => Err(ComponentError::new(format!(
+            "Add component verwacht nummers, kreeg {}",
+            other.kind()
+        ))),
+    }
+}
+
 fn optional_number(value: Option<&Value>, context: &str) -> Result<Option<f64>, ComponentError> {
     match value {
         Some(value) => coerce_number(value, context).map(Some),
@@ -853,12 +903,62 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 #[cfg(test)]
 mod tests {
     use super::{
-        ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
+        coerce_add_number, ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
         PIN_PARTIAL_RESULTS, PIN_RESULT,
     };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
+
+    #[test]
+    fn addition_sums_two_numbers() {
+        let component = ComponentKind::Addition;
+        let outputs = component
+            .evaluate(&[Value::Number(2.0), Value::Number(3.5)], &MetaMap::new())
+            .expect("add succeeded");
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Number(result)) if (*result - 5.5).abs() < 1e-9
+        ));
+    }
+
+    #[test]
+    fn addition_flattens_single_item_lists() {
+        let component = ComponentKind::Addition;
+        let inputs = [
+            Value::List(vec![Value::Number(1.0)]),
+            Value::List(vec![Value::Number(2.0)]),
+        ];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("lists collapse");
+        assert!(matches!(
+            outputs.get(PIN_RESULT),
+            Some(Value::Number(result)) if (*result - 3.0).abs() < 1e-9
+        ));
+    }
+
+    #[test]
+    fn addition_rejects_nan_input() {
+        let component = ComponentKind::Addition;
+        let err = component
+            .evaluate(
+                &[Value::Number(f64::NAN), Value::Number(1.0)],
+                &MetaMap::new(),
+            )
+            .unwrap_err();
+        assert!(err.message().contains("NaN"));
+    }
+
+    #[test]
+    fn addition_rejects_multiple_values_in_list() {
+        let err = coerce_add_number(&Value::List(vec![
+            Value::Number(1.0),
+            Value::Number(2.0),
+        ]))
+        .unwrap_err();
+        assert!(matches!(err, crate::components::ComponentError::Message(_)));
+    }
 
     #[test]
     fn gate_and_evaluates_boolean_inputs() {

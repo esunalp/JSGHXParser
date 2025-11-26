@@ -6,7 +6,6 @@ use std::fmt;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-pub mod add;
 pub mod complex;
 pub mod curve_analysis;
 pub mod curve_division;
@@ -102,7 +101,6 @@ pub trait Component {
 /// Beschikbare componenttypen binnen de registry.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
-    Add(add::ComponentImpl),
     Extrude(extrude::ComponentImpl),
     CurvePrimitive(curve_primitive::ComponentKind),
     CurveDivision(curve_division::ComponentKind),
@@ -152,7 +150,6 @@ impl ComponentKind {
     #[must_use]
     pub fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         match self {
-            Self::Add(component) => component.evaluate(inputs, meta),
             Self::Extrude(component) => component.evaluate(inputs, meta),
             Self::CurvePrimitive(component) => component.evaluate(inputs, meta),
             Self::CurveDivision(component) => component.evaluate(inputs, meta),
@@ -202,7 +199,6 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Add(_) => "Addition",
             Self::Extrude(_) => "Extrude",
             Self::CurvePrimitive(component) => component.name(),
             Self::CurveDivision(component) => component.name(),
@@ -268,11 +264,6 @@ pub struct ComponentRegistry {
 impl Default for ComponentRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-
-        let add = ComponentKind::Add(add::ComponentImpl);
-        registry.register_guid("{a0d62394-a118-422d-abb3-6af115c75b25}", add);
-        registry.register_guid("{d18db32b-7099-4eea-85c4-8ba675ee8ec3}", add);
-        registry.register_names(&["Add", "A+B"], add);
 
         let extrude = ComponentKind::Extrude(extrude::ComponentImpl);
         registry.register_guid("{962034e9-cc27-4394-afc4-5c16e3447cf9}", extrude);
@@ -684,7 +675,7 @@ fn normalize_name(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{params_input, ComponentKind, ComponentRegistry};
+    use super::{maths_operators, params_input, ComponentKind, ComponentRegistry};
 
     #[test]
     fn lookup_by_guid_and_name() {
@@ -698,7 +689,10 @@ mod tests {
         );
 
         let by_name = registry.resolve(None, Some("Add"), None).unwrap();
-        assert!(matches!(by_name, ComponentKind::Add(_)));
+        assert!(matches!(
+            by_name,
+            ComponentKind::MathsOperator(maths_operators::ComponentKind::Addition)
+        ));
 
         let by_nickname = registry.resolve(None, None, Some("extr")).unwrap();
         assert!(matches!(by_nickname, ComponentKind::Extrude(_)));
