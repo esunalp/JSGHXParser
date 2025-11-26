@@ -703,31 +703,6 @@ fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
     }
 }
 
-fn coerce_add_number(value: &Value) -> Result<f64, ComponentError> {
-    match value {
-        Value::Number(number) => {
-            if number.is_nan() {
-                Err(ComponentError::new("Add component ontving NaN"))
-            } else {
-                Ok(*number)
-            }
-        }
-        Value::List(values) => {
-            if values.len() == 1 {
-                coerce_add_number(&values[0])
-            } else {
-                Err(ComponentError::new(
-                    "Add component verwacht een enkel getal per pin",
-                ))
-            }
-        }
-        other => Err(ComponentError::new(format!(
-            "Add component verwacht nummers, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
 fn optional_number(value: Option<&Value>, context: &str) -> Result<Option<f64>, ComponentError> {
     match value {
         Some(value) => coerce_number(value, context).map(Some),
