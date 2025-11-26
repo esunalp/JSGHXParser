@@ -285,8 +285,8 @@ fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let a = coerce_number(&inputs[0], "Addition A")?;
-    let b = coerce_number(&inputs[1], "Addition B")?;
+    let a = coerce::coerce_number_with_context(&inputs[0], "Addition A")?;
+    let b = coerce::coerce_number_with_context(&inputs[1], "Addition B")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Number(a + b));
     Ok(outputs)
@@ -306,7 +306,7 @@ fn evaluate_gate_not(inputs: &[Value]) -> ComponentResult {
             "Gate Not component vereist een invoerwaarde",
         ));
     }
-    let value = coerce_boolean(&inputs[0], "Gate Not")?;
+    let value = coerce::coerce_boolean_with_context(&inputs[0], "Gate Not")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(!value));
     Ok(outputs)
@@ -334,9 +334,9 @@ fn evaluate_gate_majority(inputs: &[Value]) -> ComponentResult {
             "Gate Majority vereist drie booleaanse invoeren",
         ));
     }
-    let a = coerce_boolean(&inputs[0], "Gate Majority")?;
-    let b = coerce_boolean(&inputs[1], "Gate Majority")?;
-    let c = coerce_boolean(&inputs[2], "Gate Majority")?;
+    let a = coerce::coerce_boolean_with_context(&inputs[0], "Gate Majority")?;
+    let b = coerce::coerce_boolean_with_context(&inputs[1], "Gate Majority")?;
+    let c = coerce::coerce_boolean_with_context(&inputs[2], "Gate Majority")?;
     let majority = (a && b) || (a && c) || (b && c);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_RESULT.to_owned(), Value::Boolean(majority));
@@ -347,7 +347,7 @@ fn evaluate_absolute(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Absolute component vereist een invoer"));
     }
-    let value = coerce_number(&inputs[0], "Absolute")?;
+    let value = coerce::coerce_number_with_context(&inputs[0], "Absolute")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(value.abs()));
     Ok(outputs)
@@ -357,7 +357,7 @@ fn evaluate_negative(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Negative component vereist een invoer"));
     }
-    let value = coerce_number(&inputs[0], "Negative")?;
+    let value = coerce::coerce_number_with_context(&inputs[0], "Negative")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_Y.to_owned(), Value::Number(-value));
     Ok(outputs)
@@ -411,7 +411,7 @@ fn evaluate_factorial(inputs: &[Value]) -> ComponentResult {
             "Factorial component vereist een invoer",
         ));
     }
-    let number = coerce_number(&inputs[0], "Factorial")?;
+    let number = coerce::coerce_number_with_context(&inputs[0], "Factorial")?;
     if number < 0.0 {
         return Err(ComponentError::new(
             "Factorial verwacht een niet-negatief geheel getal",
@@ -479,10 +479,10 @@ fn evaluate_series_addition(inputs: &[Value]) -> ComponentResult {
         ));
     }
     let numbers = collect_number_list(&inputs[0]);
-    let goal = optional_number(inputs.get(1), "Series Addition doel")?;
+    let goal = coerce::coerce_optional_number(inputs.get(1), "Series Addition doel")?;
     let start = inputs
         .get(2)
-        .map(|value| coerce_number(value, "Series Addition start"))
+        .map(|value| coerce::coerce_number_with_context(value, "Series Addition start"))
         .transpose()?
         .unwrap_or(0.0);
 
@@ -552,8 +552,8 @@ fn evaluate_larger_than(inputs: &[Value]) -> ComponentResult {
             "Larger Than component vereist twee invoeren",
         ));
     }
-    let a = coerce_number(&inputs[0], "Larger Than")?;
-    let b = coerce_number(&inputs[1], "Larger Than")?;
+    let a = coerce::coerce_number_with_context(&inputs[0], "Larger Than")?;
+    let b = coerce::coerce_number_with_context(&inputs[1], "Larger Than")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_GREATER_THAN.to_owned(), Value::Boolean(a > b));
     outputs.insert(PIN_GREATER_OR_EQUAL.to_owned(), Value::Boolean(a >= b));
@@ -566,8 +566,8 @@ fn evaluate_smaller_than(inputs: &[Value]) -> ComponentResult {
             "Smaller Than component vereist twee invoeren",
         ));
     }
-    let a = coerce_number(&inputs[0], "Smaller Than")?;
-    let b = coerce_number(&inputs[1], "Smaller Than")?;
+    let a = coerce::coerce_number_with_context(&inputs[0], "Smaller Than")?;
+    let b = coerce::coerce_number_with_context(&inputs[1], "Smaller Than")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_LESS_THAN.to_owned(), Value::Boolean(a < b));
     outputs.insert(PIN_LESS_OR_EQUAL.to_owned(), Value::Boolean(a <= b));
@@ -590,8 +590,8 @@ fn evaluate_equality(inputs: &[Value]) -> ComponentResult {
             distance <= EPSILON
         }
         _ => {
-            let left_number = to_optional_number(Some(left))?;
-            let right_number = to_optional_number(Some(right))?;
+            let left_number = coerce::to_optional_number(Some(left))?;
+            let right_number = coerce::to_optional_number(Some(right))?;
             if let (Some(a), Some(b)) = (left_number, right_number) {
                 (a - b).abs() <= EPSILON
             } else {
@@ -613,9 +613,9 @@ fn evaluate_similarity(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let a = coerce_number(&inputs[0], "Similarity")?;
-    let b = coerce_number(&inputs[1], "Similarity")?;
-    let threshold = coerce_number(&inputs[2], "Similarity")?.abs();
+    let a = coerce::coerce_number_with_context(&inputs[0], "Similarity")?;
+    let b = coerce::coerce_number_with_context(&inputs[1], "Similarity")?;
+    let threshold = coerce::coerce_number_with_context(&inputs[2], "Similarity")?.abs();
     let difference = (a - b).abs();
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -648,76 +648,6 @@ fn evaluate_binary_arithmetic(
     let mut outputs = BTreeMap::new();
     outputs.insert("R".to_owned(), Value::Number(result));
     Ok(outputs)
-}
-
-fn coerce_boolean(value: &Value, context: &str) -> Result<bool, ComponentError> {
-    match value {
-        Value::Boolean(value) => Ok(*value),
-        Value::Number(number) => {
-            if number.is_nan() {
-                Err(ComponentError::new(format!(
-                    "{context} verwacht een booleaanse waarde, kreeg NaN"
-                )))
-            } else {
-                Ok(*number != 0.0)
-            }
-        }
-        Value::Text(text) => coerce::parse_boolean_text(text).ok_or_else(|| {
-            ComponentError::new(format!(
-                "{context} verwacht een booleaanse waarde, kreeg tekst '{}'",
-                text
-            ))
-        }),
-        Value::List(values) if values.len() == 1 => coerce_boolean(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{context} verwacht een booleaanse waarde, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_number(value: &Value, context: &str) -> Result<f64, ComponentError> {
-    match value {
-        Value::Number(number) => {
-            if number.is_finite() {
-                Ok(*number)
-            } else {
-                Err(ComponentError::new(format!(
-                    "{context} verwacht een eindig getal"
-                )))
-            }
-        }
-        Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-        Value::Text(text) => match coerce::parse_boolean_text(text) {
-            Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
-            None => Err(ComponentError::new(format!(
-                "{context} verwacht een numerieke waarde, kreeg tekst '{}'",
-                text
-            ))),
-        },
-        Value::List(values) if values.len() == 1 => coerce_number(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{context} verwacht een numerieke waarde, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
-fn optional_number(value: Option<&Value>, context: &str) -> Result<Option<f64>, ComponentError> {
-    match value {
-        Some(value) => coerce_number(value, context).map(Some),
-        None => Ok(None),
-    }
-}
-
-fn to_optional_number(value: Option<&Value>) -> Result<Option<f64>, ComponentError> {
-    match value {
-        Some(Value::Number(number)) if number.is_finite() => Ok(Some(*number)),
-        Some(Value::Boolean(boolean)) => Ok(Some(if *boolean { 1.0 } else { 0.0 })),
-        Some(Value::List(values)) if values.len() == 1 => to_optional_number(values.first()),
-        Some(_) => Ok(None),
-        None => Ok(None),
-    }
 }
 
 fn to_vector(value: &Value) -> Option<[f64; 3]> {
@@ -878,8 +808,8 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 #[cfg(test)]
 mod tests {
     use super::{
-        coerce_add_number, ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
-        PIN_PARTIAL_RESULTS, PIN_RESULT,
+        ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
+        PIN_PARTIAL_RESULTS, PIN_RESULT, coerce_add_number,
     };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
@@ -927,11 +857,8 @@ mod tests {
 
     #[test]
     fn addition_rejects_multiple_values_in_list() {
-        let err = coerce_add_number(&Value::List(vec![
-            Value::Number(1.0),
-            Value::Number(2.0),
-        ]))
-        .unwrap_err();
+        let err = coerce_add_number(&Value::List(vec![Value::Number(1.0), Value::Number(2.0)]))
+            .unwrap_err();
         assert!(matches!(err, crate::components::ComponentError::Message(_)));
     }
 

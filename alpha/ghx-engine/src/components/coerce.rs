@@ -74,6 +74,85 @@ pub fn coerce_number(value: &Value) -> Result<f64, ComponentError> {
     }
 }
 
+pub fn coerce_boolean_with_context(value: &Value, context: &str) -> Result<bool, ComponentError> {
+    match value {
+        Value::Boolean(value) => Ok(*value),
+        Value::Number(number) => {
+            if number.is_nan() {
+                Err(ComponentError::new(format!(
+                    "{} verwacht een booleaanse waarde, kreeg NaN",
+                    context
+                )))
+            } else {
+                Ok(*number != 0.0)
+            }
+        }
+        Value::Text(text) => parse_boolean_text(text).ok_or_else(|| {
+            ComponentError::new(format!(
+                "{} verwacht een booleaanse waarde, kreeg tekst '{}'",
+                context, text
+            ))
+        }),
+        Value::List(values) if values.len() == 1 => {
+            coerce_boolean_with_context(&values[0], context)
+        }
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een booleaanse waarde, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_number_with_context(value: &Value, context: &str) -> Result<f64, ComponentError> {
+    match value {
+        Value::Number(number) => {
+            if number.is_finite() {
+                Ok(*number)
+            } else {
+                Err(ComponentError::new(format!(
+                    "{} verwacht een eindig getal",
+                    context
+                )))
+            }
+        }
+        Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
+        Value::Text(text) => match parse_boolean_text(text) {
+            Some(boolean) => Ok(if boolean { 1.0 } else { 0.0 }),
+            None => Err(ComponentError::new(format!(
+                "{} verwacht een numerieke waarde, kreeg tekst '{}'",
+                context, text
+            ))),
+        },
+        Value::List(values) if values.len() == 1 => coerce_number_with_context(&values[0], context),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een numerieke waarde, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_optional_number(
+    value: Option<&Value>,
+    context: &str,
+) -> Result<Option<f64>, ComponentError> {
+    match value {
+        Some(value) => coerce_number_with_context(value, context).map(Some),
+        None => Ok(None),
+    }
+}
+
+pub fn to_optional_number(value: Option<&Value>) -> Result<Option<f64>, ComponentError> {
+    match value {
+        Some(Value::Number(number)) if number.is_finite() => Ok(Some(*number)),
+        Some(Value::Boolean(boolean)) => Ok(Some(if *boolean { 1.0 } else { 0.0 })),
+        Some(Value::List(values)) if values.len() == 1 => to_optional_number(values.first()),
+        Some(_) => Ok(None),
+        None => Ok(None),
+    }
+}
+
 pub fn coerce_text(value: &Value) -> Result<String, ComponentError> {
     match value {
         Value::Text(s) => Ok(s.clone()),
