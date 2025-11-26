@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::graph::value::{Value, ValueKind};
-use meval::{Context, ContextProvider, Expr};
+use meval::{Context, ContextProvider, Error as MevalError, Expr};
 use rand::Rng;
 use rand::rng;
 
@@ -48,7 +48,7 @@ pub fn apply_internal_expression(
 
     let expr: Expr = normalized
         .parse()
-        .map_err(|error| InternalExpressionError::Parse(error.to_string()))?;
+        .map_err(|error: MevalError| InternalExpressionError::Parse(error.to_string()))?;
 
     let context = build_context();
 
@@ -73,7 +73,7 @@ fn evaluate_numeric(
 
     let result = expr
         .eval_with_context((&variable_context, context))
-        .map_err(|error| InternalExpressionError::Evaluate(error.to_string()))?;
+        .map_err(|error: MevalError| InternalExpressionError::Evaluate(error.to_string()))?;
 
     Ok(Value::Number(result))
 }
