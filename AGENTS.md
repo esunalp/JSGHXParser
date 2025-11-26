@@ -30,5 +30,7 @@
 
 ## IMPORANT RULES !!!
 - DO NOT refactor or reformat lines of code without request or permission.
+- DO NOT refactor or reformat lines of code if there are no changes in the functionality of the code.
+- DO NOT, I REPEAT, DO NOT REFACTOR OR REFORMAT CODE WITHOUT REASON OR NEED 
 - Write compact and tidy, no essays in code comments please.
 - Don't try to go the extra mile and try to keep yourself within the current task.
