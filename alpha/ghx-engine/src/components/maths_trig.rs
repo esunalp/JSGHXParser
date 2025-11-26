@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const EPSILON: f64 = 1e-9;
 
@@ -1335,20 +1335,20 @@ mod tests {
     }
 }
 
-    #[test]
-    fn sine_defaults_to_zero() {
-        let component = ComponentKind::Sine;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("sine with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
-    }
+#[test]
+fn sine_defaults_to_zero() {
+    let component = ComponentKind::Sine;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("sine with no inputs succeeds");
+    assert!(matches!(outputs.get(PIN_RESULT), Some(Value::Number(r)) if r.abs() < 1e-9));
+}
 
-    #[test]
-    fn degrees_defaults_to_zero() {
-        let component = ComponentKind::Degrees;
-        let outputs = component
-            .evaluate(&[], &MetaMap::new())
-            .expect("degrees with no inputs succeeds");
-        assert!(matches!(outputs.get(PIN_DEGREES), Some(Value::Number(d)) if d.abs() < 1e-9));
-    }
+#[test]
+fn degrees_defaults_to_zero() {
+    let component = ComponentKind::Degrees;
+    let outputs = component
+        .evaluate(&[], &MetaMap::new())
+        .expect("degrees with no inputs succeeds");
+    assert!(matches!(outputs.get(PIN_DEGREES), Some(Value::Number(d)) if d.abs() < 1e-9));
+}

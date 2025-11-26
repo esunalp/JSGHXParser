@@ -5,6 +5,7 @@ use std::fmt;
 
 use crate::components::{ComponentError, ComponentRegistry, OutputMap};
 use crate::graph::Graph;
+use crate::graph::internal_expression::{InternalExpressionError, apply_internal_expression};
 use crate::graph::node::NodeId;
 use crate::graph::topo::{Topology, TopologyError};
 use crate::graph::value::{MaterialValue, Value};
@@ -125,6 +126,13 @@ pub enum EvaluationError {
         component: String,
         source: ComponentError,
     },
+    /// Fout tijdens het toepassen van een interne expressie op een input.
+    InternalExpression {
+        node_id: NodeId,
+        pin: String,
+        expression: String,
+        source: InternalExpressionError,
+    },
     /// De node kon niet teruggevonden worden in de graph (inconsistentie).
     UnknownNode(NodeId),
 }
@@ -164,6 +172,16 @@ impl fmt::Display for EvaluationError {
                 "component `{component}` (node {}) faalde: {}",
                 node_id.0, source
             ),
+            Self::InternalExpression {
+                node_id,
+                pin,
+                expression,
+                source,
+            } => write!(
+                f,
+                "node {} interne expressie op pin `{pin}` met `{expression}` faalde: {source}",
+                node_id.0
+            ),
             Self::UnknownNode(node_id) => {
                 write!(f, "node {} bestaat niet in de graph", node_id.0)
             }
@@ -176,6 +194,7 @@ impl std::error::Error for EvaluationError {
         match self {
             Self::ComponentFailed { source, .. } => Some(source),
             Self::Topology(err) => Some(err),
+            Self::InternalExpression { source, .. } => Some(source),
             _ => None,
         }
     }
@@ -227,7 +246,7 @@ pub fn evaluate_with_plan(
         let mut input_values = Vec::with_capacity(pins.len());
 
         for pin in pins {
-            let value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
+            let mut value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
                 let mut values = Vec::with_capacity(connections.len());
                 for (from_node, from_pin) in connections {
                     let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
@@ -258,6 +277,17 @@ pub fn evaluate_with_plan(
             } else {
                 Value::Null
             };
+
+            if let Some(expression) = node.input_expression(pin) {
+                value = apply_internal_expression(&value, expression).map_err(|source| {
+                    EvaluationError::InternalExpression {
+                        node_id,
+                        pin: pin.clone(),
+                        expression: expression.clone(),
+                        source,
+                    }
+                })?;
+            }
 
             input_values.push(value);
         }
@@ -313,7 +343,7 @@ pub fn evaluate_with_plan_incremental(
         let mut dependency_changed = false;
 
         for pin in pins {
-            let value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
+            let mut value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
                 let mut values = Vec::with_capacity(connections.len());
                 for (from_node, from_pin) in connections {
                     let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
@@ -349,6 +379,17 @@ pub fn evaluate_with_plan_incremental(
             } else {
                 Value::Null
             };
+
+            if let Some(expression) = node.input_expression(pin) {
+                value = apply_internal_expression(&value, expression).map_err(|source| {
+                    EvaluationError::InternalExpression {
+                        node_id,
+                        pin: pin.clone(),
+                        expression: expression.clone(),
+                        source,
+                    }
+                })?;
+            }
 
             input_values.push(value);
         }

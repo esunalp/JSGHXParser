@@ -386,10 +386,15 @@ impl Engine {
         let graph = self.graph.as_ref().unwrap();
 
         let geometry_by_node: BTreeMap<NodeId, Vec<GeometryEntry>> =
-            result.geometry.iter().fold(BTreeMap::new(), |mut acc, entry| {
-                acc.entry(entry.source_node).or_default().push(entry.clone());
-                acc
-            });
+            result
+                .geometry
+                .iter()
+                .fold(BTreeMap::new(), |mut acc, entry| {
+                    acc.entry(entry.source_node)
+                        .or_default()
+                        .push(entry.clone());
+                    acc
+                });
 
         let changed_nodes = std::mem::take(&mut self.changed_nodes_since_geometry_update);
 

@@ -1014,20 +1014,12 @@ fn compute_polyline_normals(coords: &[[f64; 3]], closed: bool) -> Vec<[f64; 3]> 
         let length = (normal[0] * normal[0] + normal[1] * normal[1]).sqrt();
         if length < EPSILON {
             let prev_index = if index == 0 {
-                if closed {
-                    count - 1
-                } else {
-                    0
-                }
+                if closed { count - 1 } else { 0 }
             } else {
                 index - 1
             };
             let next_index = if index + 1 >= count {
-                if closed {
-                    0
-                } else {
-                    count - 1
-                }
+                if closed { 0 } else { count - 1 }
             } else {
                 index + 1
             };
@@ -1809,9 +1801,9 @@ const EPSILON: f64 = 1e-9;
 #[cfg(test)]
 mod tests {
     use super::{
-        coerce_polyline, Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_FLAG,
-        PIN_OUTPUT_PARAMETER, PIN_OUTPUT_PARAMETERS, PIN_OUTPUT_POINTS, PIN_OUTPUT_POLYLINE,
-        PIN_OUTPUT_SEGMENTS, PIN_OUTPUT_SIMPLIFIED, PIN_OUTPUT_TANGENTS,
+        Component, ComponentKind, PIN_OUTPUT_CURVES, PIN_OUTPUT_FLAG, PIN_OUTPUT_PARAMETER,
+        PIN_OUTPUT_PARAMETERS, PIN_OUTPUT_POINTS, PIN_OUTPUT_POLYLINE, PIN_OUTPUT_SEGMENTS,
+        PIN_OUTPUT_SIMPLIFIED, PIN_OUTPUT_TANGENTS, coerce_polyline,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;

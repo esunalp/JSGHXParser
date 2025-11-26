@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub mod evaluator;
+pub mod internal_expression;
 pub mod node;
 pub mod topo;
 pub mod value;

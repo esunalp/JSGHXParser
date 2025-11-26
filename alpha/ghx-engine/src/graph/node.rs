@@ -111,6 +111,8 @@ pub struct Node {
     pub nickname: Option<String>,
     /// Ingangswaarden, per pinnickname.
     pub inputs: BTreeMap<String, Value>,
+    /// Interne expressies per inputpin.
+    input_expressions: BTreeMap<String, String>,
     /// Registratie van de oorspronkelijke pinnavolgorde uit het GHX-bestand.
     input_order: Vec<String>,
     /// Uitgangswaarden, per pinnickname.
@@ -133,6 +135,7 @@ impl Default for Node {
             outputs: BTreeMap::new(),
             output_order: Vec::new(),
             meta: BTreeMap::new(),
+            input_expressions: BTreeMap::new(),
         }
     }
 }
@@ -213,6 +216,21 @@ impl Node {
     #[must_use]
     pub fn input_order(&self) -> &[String] {
         &self.input_order
+    }
+
+    /// Registreer een interne expressie voor een inputpin.
+    pub fn set_input_expression<S: Into<String>, T: Into<String>>(
+        &mut self,
+        pin: S,
+        expression: T,
+    ) {
+        self.input_expressions.insert(pin.into(), expression.into());
+    }
+
+    /// Haal een interne expressie voor een inputpin op.
+    #[must_use]
+    pub fn input_expression(&self, pin: &str) -> Option<&String> {
+        self.input_expressions.get(pin)
     }
 }
 

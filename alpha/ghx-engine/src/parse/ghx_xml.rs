@@ -374,6 +374,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             false,
         );
         node.add_input_pin(info.pin_name.clone());
+        if let Some(expression) = info.internal_expression.clone() {
+            node.set_input_expression(info.pin_name.clone(), expression);
+        }
         if let Some(default_value) = info.default_value.clone() {
             node.set_input(info.pin_name.clone(), default_value);
         }
@@ -647,12 +650,14 @@ fn parse_param_chunk(
     let instance_guid = chunk
         .item_value("InstanceGuid")
         .and_then(normalize_guid_str);
+    let internal_expression = chunk.item_value("InternalExpression").map(str::to_owned);
 
     ParamInfo {
         pin_name,
         instance_guid,
         sources,
         default_value,
+        internal_expression,
     }
 }
 
@@ -1002,6 +1007,7 @@ struct ParamInfo {
     instance_guid: Option<String>,
     sources: Vec<String>,
     default_value: Option<Value>,
+    internal_expression: Option<String>,
 }
 
 impl RawChunks {

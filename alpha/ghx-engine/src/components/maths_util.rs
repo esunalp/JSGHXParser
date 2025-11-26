@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::{ComplexValue, Value};
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const PIN_RESULT: &str = "R";
 const PIN_OUTPUT_Y: &str = "y";
@@ -412,10 +412,7 @@ fn evaluate_complex_components(inputs: &[Value]) -> ComponentResult {
     let complex = coerce_complex(&inputs[0], "Complex Components")?;
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_REAL.to_owned(), Value::Number(complex.re));
-    outputs.insert(
-        PIN_OUTPUT_IMAGINARY.to_owned(),
-        Value::Number(complex.im),
-    );
+    outputs.insert(PIN_OUTPUT_IMAGINARY.to_owned(), Value::Number(complex.im));
     Ok(outputs)
 }
 
@@ -434,10 +431,7 @@ fn evaluate_complex_modulus(inputs: &[Value]) -> ComponentResult {
     ensure_input_count(inputs, 1, "Complex Modulus")?;
     let complex = coerce_complex(&inputs[0], "Complex Modulus")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_MODULUS.to_owned(),
-        Value::Number(complex.norm()),
-    );
+    outputs.insert(PIN_OUTPUT_MODULUS.to_owned(), Value::Number(complex.norm()));
     Ok(outputs)
 }
 
@@ -445,10 +439,7 @@ fn evaluate_complex_argument(inputs: &[Value]) -> ComponentResult {
     ensure_input_count(inputs, 1, "Complex Argument")?;
     let complex = coerce_complex(&inputs[0], "Complex Argument")?;
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_ARGUMENT.to_owned(),
-        Value::Number(complex.arg()),
-    );
+    outputs.insert(PIN_OUTPUT_ARGUMENT.to_owned(), Value::Number(complex.arg()));
     Ok(outputs)
 }
 

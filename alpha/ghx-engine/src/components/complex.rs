@@ -249,7 +249,10 @@ mod tests {
             .expect("addition");
 
         let result = outputs.get(super::PIN_OUTPUT_RESULT).unwrap();
-        assert_eq!(result.expect_complex().unwrap(), ComplexValue::new(4.0, 6.0));
+        assert_eq!(
+            result.expect_complex().unwrap(),
+            ComplexValue::new(4.0, 6.0)
+        );
     }
 
     #[test]

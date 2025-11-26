@@ -1,10 +1,10 @@
 //! Grasshopper Mesh Analysis componenten.
 
-use std::collections::{BTreeMap, HashMap};
-use crate::graph::node::MetaMap;
-use crate::graph::value::Value;
 use super::{Component, ComponentError, ComponentResult};
 use crate::components::coerce::{coerce_surface, coerce_text};
+use crate::graph::node::MetaMap;
+use crate::graph::value::Value;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ComponentKind {
@@ -70,7 +70,10 @@ pub const REGISTRATIONS: &[Registration] = &[
         kind: ComponentKind::MeshDepth,
     },
     Registration {
-        guids: &["08d45f16-c708-4ede-8fd3-b70a0a7abd8f", "0b4ac802-fc4a-4201-9c66-0078b837c1eb"],
+        guids: &[
+            "08d45f16-c708-4ede-8fd3-b70a0a7abd8f",
+            "0b4ac802-fc4a-4201-9c66-0078b837c1eb",
+        ],
         names: &["Face Boundaries", "FaceB"],
         kind: ComponentKind::FaceBoundaries,
     },
@@ -111,19 +114,41 @@ pub const REGISTRATIONS: &[Registration] = &[
     },
 ];
 
-#[derive(Debug, Default, Clone, Copy)] pub struct MeshInclusion;
-#[derive(Debug, Default, Clone, Copy)] pub struct MeshDepth;
-#[derive(Debug, Default, Clone, Copy)] pub struct FaceBoundaries;
-#[derive(Debug, Default, Clone, Copy)] pub struct MeshEdges;
-#[derive(Debug, Default, Clone, Copy)] pub struct MeshClosestPoint;
-#[derive(Debug, Default, Clone, Copy)] pub struct DeconstructFace;
-#[derive(Debug, Default, Clone, Copy)] pub struct MeshEval;
-#[derive(Debug, Default, Clone, Copy)] pub struct DeconstructMesh;
-#[derive(Debug, Default, Clone, Copy)] pub struct FaceNormals;
-#[derive(Debug, Default, Clone, Copy)] pub struct FaceCircles;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshInclusion;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshDepth;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FaceBoundaries;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshEdges;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshClosestPoint;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DeconstructFace;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct MeshEval;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DeconstructMesh;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FaceNormals;
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FaceCircles;
 
-impl Component for MeshInclusion { fn evaluate(&self, _: &[Value], _: &MetaMap) -> ComponentResult { Err(ComponentError::new("Component 'Mesh Inclusion' is not yet implemented.")) }}
-impl Component for MeshDepth { fn evaluate(&self, _: &[Value], _: &MetaMap) -> ComponentResult { Err(ComponentError::new("Component 'Mesh Depth' is not yet implemented.")) }}
+impl Component for MeshInclusion {
+    fn evaluate(&self, _: &[Value], _: &MetaMap) -> ComponentResult {
+        Err(ComponentError::new(
+            "Component 'Mesh Inclusion' is not yet implemented.",
+        ))
+    }
+}
+impl Component for MeshDepth {
+    fn evaluate(&self, _: &[Value], _: &MetaMap) -> ComponentResult {
+        Err(ComponentError::new(
+            "Component 'Mesh Depth' is not yet implemented.",
+        ))
+    }
+}
 
 impl Component for FaceBoundaries {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
@@ -138,9 +163,7 @@ impl Component for FaceBoundaries {
             .map(|face| {
                 let polyline_vertices: Vec<Value> = face
                     .iter()
-                    .map(|&vertex_index| {
-                        Value::Point(surface.vertices[vertex_index as usize])
-                    })
+                    .map(|&vertex_index| Value::Point(surface.vertices[vertex_index as usize]))
                     .collect();
                 Value::List(polyline_vertices)
             })
@@ -198,7 +221,9 @@ impl Component for MeshEdges {
 impl Component for MeshClosestPoint {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Inputs 'Point' and 'Mesh' are required."));
+            return Err(ComponentError::new(
+                "Inputs 'Point' and 'Mesh' are required.",
+            ));
         }
         let point = match inputs[0] {
             Value::Point(p) => p,
@@ -212,7 +237,9 @@ impl Component for MeshClosestPoint {
         let mut closest_params = [0.0, 0.0, 0.0];
 
         for (i, face) in surface.faces.iter().enumerate() {
-            if face.len() < 3 { continue; }
+            if face.len() < 3 {
+                continue;
+            }
 
             // Triangulate polygon faces for simplicity
             for j in 1..face.len() - 1 {
@@ -234,17 +261,25 @@ impl Component for MeshClosestPoint {
         let mut outputs = BTreeMap::new();
         outputs.insert("P".to_owned(), Value::Point(closest_point));
         outputs.insert("I".to_owned(), Value::Number(closest_face_index as f64));
-        outputs.insert("Parameter".to_owned(), Value::List(vec![
-            Value::Number(closest_params[0]),
-            Value::Number(closest_params[1]),
-            Value::Number(closest_params[2]),
-        ]));
+        outputs.insert(
+            "Parameter".to_owned(),
+            Value::List(vec![
+                Value::Number(closest_params[0]),
+                Value::Number(closest_params[1]),
+                Value::Number(closest_params[2]),
+            ]),
+        );
 
         Ok(outputs)
     }
 }
 
-fn closest_point_on_triangle(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> (f64, [f64; 3], [f64; 3]) {
+fn closest_point_on_triangle(
+    p: [f64; 3],
+    a: [f64; 3],
+    b: [f64; 3],
+    c: [f64; 3],
+) -> (f64, [f64; 3], [f64; 3]) {
     let ab = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
     let ac = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
     let ap = [p[0] - a[0], p[1] - a[1], p[2] - a[2]];
@@ -262,9 +297,15 @@ fn closest_point_on_triangle(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3])
     let mut w = (d3 * d2 - d5 * d1) / denom;
     let mut u = 1.0 - v - w;
 
-    if u < 0.0 { u = 0.0; }
-    if v < 0.0 { v = 0.0; }
-    if w < 0.0 { w = 0.0; }
+    if u < 0.0 {
+        u = 0.0;
+    }
+    if v < 0.0 {
+        v = 0.0;
+    }
+    if w < 0.0 {
+        w = 0.0;
+    }
 
     let sum = u + v + w;
     if sum > 1.0 {
@@ -294,27 +335,48 @@ fn dist_sq(p1: [f64; 3], p2: [f64; 3]) -> f64 {
 impl Component for MeshEval {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
-            return Err(ComponentError::new("Inputs 'Mesh' and 'Parameter' are required."));
+            return Err(ComponentError::new(
+                "Inputs 'Mesh' and 'Parameter' are required.",
+            ));
         }
         let surface = coerce_surface(&inputs[0])?;
         let (face_index_f64, u, v) = match &inputs[1] {
             Value::List(list) if list.len() == 3 => {
-                let face_idx = match list[0] { Value::Number(n) => n, _ => return Err(ComponentError::new("Invalid parameter format.")) };
-                let u_coord = match list[1] { Value::Number(n) => n, _ => return Err(ComponentError::new("Invalid parameter format.")) };
-                let v_coord = match list[2] { Value::Number(n) => n, _ => return Err(ComponentError::new("Invalid parameter format.")) };
+                let face_idx = match list[0] {
+                    Value::Number(n) => n,
+                    _ => return Err(ComponentError::new("Invalid parameter format.")),
+                };
+                let u_coord = match list[1] {
+                    Value::Number(n) => n,
+                    _ => return Err(ComponentError::new("Invalid parameter format.")),
+                };
+                let v_coord = match list[2] {
+                    Value::Number(n) => n,
+                    _ => return Err(ComponentError::new("Invalid parameter format.")),
+                };
                 (face_idx, u_coord, v_coord)
-            },
-            _ => return Err(ComponentError::new("Input 'Parameter' must be a list of three numbers [face_idx, u, v]."))
+            }
+            _ => {
+                return Err(ComponentError::new(
+                    "Input 'Parameter' must be a list of three numbers [face_idx, u, v].",
+                ));
+            }
         };
 
         let face_index = face_index_f64.round() as usize;
         if face_index >= surface.faces.len() {
-            return Err(ComponentError::new(format!("Face index {} is out of bounds.", face_index)));
+            return Err(ComponentError::new(format!(
+                "Face index {} is out of bounds.",
+                face_index
+            )));
         }
 
         let face = &surface.faces[face_index];
         if face.len() < 3 {
-            return Err(ComponentError::new(format!("Face {} is not a valid triangle.", face_index)));
+            return Err(ComponentError::new(format!(
+                "Face {} is not a valid triangle.",
+                face_index
+            )));
         }
 
         // We assume the barycentric coordinates are for the first triangle of the face.
@@ -374,9 +436,12 @@ impl Component for FaceCircles {
                 let v1 = surface.vertices[face[i] as usize];
                 let v2 = surface.vertices[face[i + 1] as usize];
 
-                let a_sq = (v2[0] - v1[0]).powi(2) + (v2[1] - v1[1]).powi(2) + (v2[2] - v1[2]).powi(2);
-                let b_sq = (v2[0] - v0[0]).powi(2) + (v2[1] - v0[1]).powi(2) + (v2[2] - v0[2]).powi(2);
-                let c_sq = (v1[0] - v0[0]).powi(2) + (v1[1] - v0[1]).powi(2) + (v1[2] - v0[2]).powi(2);
+                let a_sq =
+                    (v2[0] - v1[0]).powi(2) + (v2[1] - v1[1]).powi(2) + (v2[2] - v1[2]).powi(2);
+                let b_sq =
+                    (v2[0] - v0[0]).powi(2) + (v2[1] - v0[1]).powi(2) + (v2[2] - v0[2]).powi(2);
+                let c_sq =
+                    (v1[0] - v0[0]).powi(2) + (v1[1] - v0[1]).powi(2) + (v1[2] - v0[2]).powi(2);
 
                 let edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
                 let edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
@@ -431,13 +496,15 @@ impl Component for DeconstructMesh {
 
         let (vertices, faces) = match mesh {
             Value::Surface { vertices, faces } => (vertices, faces),
-            _ => return Err(ComponentError::new(format!("Expected a Surface, got {}", mesh.kind()))),
+            _ => {
+                return Err(ComponentError::new(format!(
+                    "Expected a Surface, got {}",
+                    mesh.kind()
+                )));
+            }
         };
 
-        let vertices_list: Vec<Value> = vertices
-            .iter()
-            .map(|&v| Value::Point(v))
-            .collect();
+        let vertices_list: Vec<Value> = vertices.iter().map(|&v| Value::Point(v)).collect();
 
         let faces_list: Vec<Value> = faces
             .iter()
@@ -579,11 +646,23 @@ impl Component for DeconstructFace {
         }
         let indices: Vec<f64> = parts.into_iter().map(|p| p.unwrap()).collect();
 
-        let a = indices.get(1).map(|&v| Value::Number(v)).unwrap_or(Value::Null);
-        let b = indices.get(2).map(|&v| Value::Number(v)).unwrap_or(Value::Null);
-        let c = indices.get(3).map(|&v| Value::Number(v)).unwrap_or(Value::Null);
+        let a = indices
+            .get(1)
+            .map(|&v| Value::Number(v))
+            .unwrap_or(Value::Null);
+        let b = indices
+            .get(2)
+            .map(|&v| Value::Number(v))
+            .unwrap_or(Value::Null);
+        let c = indices
+            .get(3)
+            .map(|&v| Value::Number(v))
+            .unwrap_or(Value::Null);
         let d = if indices.len() > 4 {
-            indices.get(4).map(|&v| Value::Number(v)).unwrap_or(Value::Null)
+            indices
+                .get(4)
+                .map(|&v| Value::Number(v))
+                .unwrap_or(Value::Null)
         } else {
             c.clone()
         };
@@ -598,10 +677,12 @@ impl Component for DeconstructFace {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::{Component, DeconstructMesh, FaceBoundaries, FaceNormals, DeconstructFace, MeshEdges, FaceCircles, MeshClosestPoint, MeshEval};
+    use super::{
+        Component, DeconstructFace, DeconstructMesh, FaceBoundaries, FaceCircles, FaceNormals,
+        MeshClosestPoint, MeshEdges, MeshEval,
+    };
     use crate::graph::{node::MetaMap, value::Value};
 
     #[test]
@@ -613,7 +694,11 @@ mod tests {
             vertices: vertices.clone(),
             faces,
         };
-        let params = Value::List(vec![Value::Number(0.0), Value::Number(0.5), Value::Number(0.5)]);
+        let params = Value::List(vec![
+            Value::Number(0.0),
+            Value::Number(0.5),
+            Value::Number(0.5),
+        ]);
 
         let outputs = component
             .evaluate(&[mesh, params], &MetaMap::new())
@@ -673,7 +758,12 @@ mod tests {
     #[test]
     fn test_face_circles() {
         let component = FaceCircles;
-        let vertices = vec![[0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]];
+        let vertices = vec![
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ];
         let faces = vec![vec![0, 1, 2], vec![0, 2, 3]]; // One triangle, one quad
         let mesh = Value::Surface {
             vertices: vertices.clone(),
@@ -702,7 +792,12 @@ mod tests {
     #[test]
     fn test_deconstruct_mesh() {
         let component = DeconstructMesh;
-        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]];
+        let vertices = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ];
         let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
         let mesh = Value::Surface {
             vertices: vertices.clone(),
@@ -759,7 +854,12 @@ mod tests {
     #[test]
     fn test_face_boundaries() {
         let component = FaceBoundaries;
-        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]];
+        let vertices = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ];
         let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
         let mesh = Value::Surface {
             vertices: vertices.clone(),
@@ -814,8 +914,8 @@ mod tests {
         if let Value::List(points) = centers {
             assert_eq!(points.len(), 1);
             if let Value::Point(p) = points[0] {
-                assert!((p[0] - 2.0/3.0).abs() < 1e-6);
-                assert!((p[1] - 1.0/3.0).abs() < 1e-6);
+                assert!((p[0] - 2.0 / 3.0).abs() < 1e-6);
+                assert!((p[1] - 1.0 / 3.0).abs() < 1e-6);
                 assert!((p[2] - 0.0).abs() < 1e-6);
             } else {
                 panic!("Expected a Point");
@@ -862,7 +962,10 @@ mod tests {
     fn test_mesh_edges() {
         let component = MeshEdges;
         let vertices = vec![
-            [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
         ];
         let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
         let mesh = Value::Surface { vertices, faces };
@@ -873,7 +976,9 @@ mod tests {
         let interior = outputs.get("E2").unwrap();
         let non_manifold = outputs.get("E3").unwrap();
 
-        if let (Value::List(naked), Value::List(interior), Value::List(non_manifold)) = (naked, interior, non_manifold) {
+        if let (Value::List(naked), Value::List(interior), Value::List(non_manifold)) =
+            (naked, interior, non_manifold)
+        {
             assert_eq!(naked.len(), 4);
             assert_eq!(interior.len(), 1);
             assert_eq!(non_manifold.len(), 0);

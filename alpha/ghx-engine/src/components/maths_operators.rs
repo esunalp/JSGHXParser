@@ -815,8 +815,8 @@ fn subtract_values(left: MathValue, right: MathValue) -> Result<MathValue, Compo
 #[cfg(test)]
 mod tests {
     use super::{
-        ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL,
-        PIN_PARTIAL_RESULTS, PIN_RESULT, PIN_OUTPUT_Y, coerce_add_number,
+        ComponentKind, PIN_DIFFERENCE, PIN_DIFFERENCES, PIN_EQUAL, PIN_NOT_EQUAL, PIN_OUTPUT_Y,
+        PIN_PARTIAL_RESULTS, PIN_RESULT, coerce_add_number,
     };
     use crate::components::Component;
     use crate::graph::node::MetaMap;
@@ -962,10 +962,7 @@ mod tests {
     fn negative_inverts_vectors() {
         let component = ComponentKind::Negative;
         let outputs = component
-            .evaluate(
-                &[Value::Vector([1.0, -2.0, 0.5])],
-                &MetaMap::new(),
-            )
+            .evaluate(&[Value::Vector([1.0, -2.0, 0.5])], &MetaMap::new())
             .expect("negative handles vectors");
         assert_eq!(
             outputs.get(PIN_OUTPUT_Y),

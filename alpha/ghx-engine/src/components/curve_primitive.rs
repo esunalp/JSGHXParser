@@ -730,7 +730,7 @@ fn evaluate_rectangle_3pt(inputs: &[Value]) -> ComponentResult {
         None => {
             return Err(ComponentError::new(
                 "Rectangle 3Pt component vereist twee verschillende punten voor AB",
-            ))
+            ));
         }
     };
 
@@ -1463,12 +1463,9 @@ mod tests {
         assert!((first[0] - 0.0).abs() < 1e-9);
         assert!((first[1] - 0.0).abs() < 1e-9);
 
-        let Value::Point(third) = points
-            .get(2)
-            .expect("third point")
-            else {
-                panic!("third value is not a point");
-            };
+        let Value::Point(third) = points.get(2).expect("third point") else {
+            panic!("third value is not a point");
+        };
         assert!((third[0] - 10.0).abs() < 1e-9);
         assert!((third[1] - 4.0).abs() < 1e-9);
 
