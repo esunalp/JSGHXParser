@@ -219,6 +219,112 @@ function createToggleElement(toggle, handlers) {
     };
   }
 
+function createValueListElement(list, handlers) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'slider value-list';
+  wrapper.dataset.sliderId = list.id;
+
+  const labelRow = document.createElement('div');
+  labelRow.className = 'slider-label';
+
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = list.name ?? list.id ?? 'Value List';
+  const valueSpan = document.createElement('span');
+  labelRow.append(nameSpan, valueSpan);
+
+  const inputsRow = document.createElement('div');
+  inputsRow.className = 'slider-inputs value-list-inputs';
+
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', nameSpan.textContent);
+
+  const rawItems = Array.isArray(list.items) ? list.items : [];
+  const options = rawItems.map((item) => {
+    if (item && typeof item.label === 'string') {
+      return item.label;
+    }
+    if (typeof item === 'string') {
+      return item;
+    }
+    return '';
+  });
+
+  if (!options.length) {
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Geen opties';
+    select.append(placeholder);
+    select.disabled = true;
+  } else {
+    options.forEach((label, index) => {
+      const optionElement = document.createElement('option');
+      optionElement.value = String(index);
+      optionElement.textContent = label;
+      select.append(optionElement);
+    });
+  }
+
+  const clampIndex = (raw) => {
+    if (!options.length) {
+      return 0;
+    }
+    let index = Number(raw);
+    if (!Number.isFinite(index)) {
+      index = 0;
+    }
+    index = Math.trunc(index);
+    if (index < 0) {
+      index = 0;
+    }
+    if (index >= options.length) {
+      index = options.length - 1;
+    }
+    return index;
+  };
+
+  const updateDisplay = (value) => {
+    const index = clampIndex(value);
+    if (options.length) {
+      select.value = String(index);
+      valueSpan.textContent = options[index];
+    } else {
+      select.value = '';
+      valueSpan.textContent = 'Geen opties';
+    }
+    return index;
+  };
+
+  const initialIndex = Number.isFinite(list.selectedIndex)
+    ? list.selectedIndex
+    : Number.isFinite(list.value)
+      ? list.value
+      : 0;
+  updateDisplay(initialIndex);
+
+  select.addEventListener('change', (event) => {
+    if (!options.length) {
+      return;
+    }
+    const selected = Number(event.target.value);
+    const index = updateDisplay(selected);
+    if (typeof handlers.onSliderChange === 'function') {
+      handlers.onSliderChange(list.id, index);
+    }
+  });
+
+  inputsRow.append(select);
+  wrapper.append(labelRow, inputsRow);
+
+  return {
+    element: wrapper,
+    controller: {
+      update(value) {
+        updateDisplay(value);
+      },
+    },
+  };
+}
+
 export function setupUi() {
   const canvas = document.getElementById('viewport');
   const fileInput = document.getElementById('ghx-input');
@@ -292,6 +398,8 @@ export function setupUi() {
       let result;
       if (control.type === 'toggle') {
         result = createToggleElement(control, handlers);
+      } else if (control.type === 'value-list') {
+        result = createValueListElement(control, handlers);
       } else {
         // Default to slider
         result = createSliderElement(control, handlers);

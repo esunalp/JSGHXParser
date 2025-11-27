@@ -93,6 +93,7 @@ struct InputBinding {
 enum InputKind {
     Slider,
     Toggle,
+    ValueList,
 }
 
 #[derive(Debug, Serialize)]
@@ -116,6 +117,19 @@ enum InputControl {
         name: String,
         value: bool,
     },
+    #[serde(rename = "value-list")]
+    ValueList {
+        id: String,
+        name: String,
+        items: Vec<ValueListItem>,
+        selected_index: usize,
+        value: f64,
+    },
+}
+
+#[derive(Debug, Serialize)]
+struct ValueListItem {
+    label: String,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -532,6 +546,9 @@ fn collect_input_bindings(graph: &Graph, registry: &ComponentRegistry) -> Vec<In
             Some(ComponentKind::ParamsInput(
                 components::params_input::ComponentKind::BooleanToggle,
             )) => Some(InputKind::Toggle),
+            Some(ComponentKind::ParamsInput(
+                components::params_input::ComponentKind::ValueList,
+            )) => Some(InputKind::ValueList),
             _ => None,
         };
 
@@ -592,6 +609,18 @@ fn input_control_state(graph: &Graph, binding: &InputBinding) -> Result<InputCon
                 value,
             })
         }
+        InputKind::ValueList => {
+            let items = value_list_items(&node.meta);
+            let selected_index = value_list_selected_index(&node.meta, items.len());
+
+            Ok(InputControl::ValueList {
+                id: binding.id.clone(),
+                name,
+                items,
+                selected_index,
+                value: selected_index as f64,
+            })
+        }
         InputKind::Toggle => {
             let value = node
                 .meta("Value")
@@ -607,6 +636,98 @@ fn input_control_state(graph: &Graph, binding: &InputBinding) -> Result<InputCon
                 value,
             })
         }
+    }
+}
+
+fn value_list_items(meta: &MetaMap) -> Vec<ValueListItem> {
+    let list_values = match meta
+        .get_normalized("ListItems")
+        .or_else(|| meta.get_normalized("Values"))
+    {
+        Some(MetaValue::List(entries)) => entries,
+        _ => return Vec::new(),
+    };
+
+    list_values
+        .iter()
+        .filter_map(meta_value_to_value)
+        .map(|value| ValueListItem {
+            label: format_value_label(&value),
+        })
+        .collect()
+}
+
+fn value_list_selected_index(meta: &MetaMap, total_items: usize) -> usize {
+    let mut index = meta
+        .get_normalized("SelectedIndex")
+        .or_else(|| meta.get_normalized("Value"))
+        .and_then(meta_value_to_index)
+        .unwrap_or(0);
+
+    if total_items == 0 {
+        return 0;
+    }
+
+    if index >= total_items {
+        index = total_items - 1;
+    }
+
+    index
+}
+
+fn meta_value_to_value(value: &MetaValue) -> Option<Value> {
+    match value {
+        MetaValue::Number(n) => Some(Value::Number(*n)),
+        MetaValue::Integer(i) => Some(Value::Number(*i as f64)),
+        MetaValue::Boolean(b) => Some(Value::Boolean(*b)),
+        MetaValue::Text(t) => Some(Value::Text(t.clone())),
+        MetaValue::List(list) => {
+            let values: Vec<Value> = list.iter().filter_map(meta_value_to_value).collect();
+
+            if values.len() == list.len() {
+                Some(Value::List(values))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn meta_value_to_index(value: &MetaValue) -> Option<usize> {
+    if let MetaValue::Integer(i) = value {
+        if *i >= 0 {
+            return Some(*i as usize);
+        }
+        return None;
+    }
+
+    if let MetaValue::Number(n) = value {
+        if n.is_finite() && *n >= 0.0 {
+            return Some(*n as usize);
+        }
+    }
+
+    None
+}
+
+fn format_value_label(value: &Value) -> String {
+    match value {
+        Value::Null => "Null".to_string(),
+        Value::Text(text) => format!("Text: \"{text}\""),
+        Value::Number(number) => format!("Number: {}", number),
+        Value::Boolean(flag) => {
+            if *flag {
+                "True".to_string()
+            } else {
+                "False".to_string()
+            }
+        }
+        Value::Point(point) => format!("Point: ({}, {}, {})", point[0], point[1], point[2]),
+        Value::Vector(vector) => {
+            format!("Vector: ({}, {}, {})", vector[0], vector[1], vector[2])
+        }
+        Value::List(list) => format!("List ({} items)", list.len()),
+        _ => value.to_string(),
     }
 }
 

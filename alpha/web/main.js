@@ -13,6 +13,7 @@ function normalizeSliders(value) {
   return value
     .filter((entry) => entry && typeof entry === 'object')
     .map((entry) => {
+      const entryType = entry.type || 'slider';
       const base = {
         id: String(entry.id ?? ''),
         name:
@@ -21,11 +22,36 @@ function normalizeSliders(value) {
             : entry.id !== undefined && entry.id !== null
               ? String(entry.id)
               : 'Control',
-        type: entry.type || 'slider',
+        type: entryType,
       };
 
-      if (entry.type === 'toggle') {
+      if (entryType === 'toggle') {
         base.value = Boolean(entry.value);
+      } else if (entryType === 'value-list') {
+        const items = Array.isArray(entry.items) ? entry.items : [];
+        const normalizedItems = items
+          .map((item) => {
+            if (item && typeof item.label === 'string') {
+              return { label: item.label };
+            }
+            if (typeof item === 'string') {
+              return { label: item };
+            }
+            return { label: '' };
+          })
+          .filter((item) => typeof item.label === 'string');
+
+        const rawIndex =
+          Number.isFinite(entry.selected_index)
+            ? entry.selected_index
+            : Number.isFinite(entry.selectedIndex)
+              ? entry.selectedIndex
+              : NaN;
+        const selectedIndex = Number.isFinite(rawIndex) ? rawIndex : 0;
+
+        base.items = normalizedItems;
+        base.selectedIndex = selectedIndex;
+        base.value = selectedIndex;
       } else {
         base.min = toNumericOrNull(entry.min);
         base.max = toNumericOrNull(entry.max);
