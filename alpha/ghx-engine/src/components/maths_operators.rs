@@ -281,14 +281,18 @@ impl ComponentKind {
 fn evaluate_addition(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(
-            "Add component vereist twee invoerwaarden",
+            "Add component vereist minstens twee invoerwaarden",
         ));
     }
 
-    let a = coerce::coerce_number(&inputs[0], Some("Addition A"))?;
-    let b = coerce::coerce_number(&inputs[1], Some("Addition B"))?;
+    let mut sum = coerce::coerce_number(&inputs[0], Some("Addition A"))?
+        + coerce::coerce_number(&inputs[1], Some("Addition B"))?;
+    for (index, input) in inputs.iter().enumerate().skip(2) {
+        let context = format!("Addition {}", index + 1);
+        sum += coerce::coerce_number(input, Some(context.as_str()))?;
+    }
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_RESULT.to_owned(), Value::Number(a + b));
+    outputs.insert(PIN_RESULT.to_owned(), Value::Number(sum));
     Ok(outputs)
 }
 
