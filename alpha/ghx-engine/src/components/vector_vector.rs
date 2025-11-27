@@ -473,16 +473,38 @@ fn evaluate_amplitude(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_unit_axis(inputs: &[Value], axis: [f64; 3], name: &str) -> ComponentResult {
-    let factor = inputs
-        .get(0)
-        .map(|value| coerce::coerce_number(value, Some(name)))
-        .transpose()?
-        .unwrap_or(1.0);
+    let Some(first) = inputs.get(0) else {
+        return Ok(single_output(
+            PIN_OUTPUT_VECTOR,
+            Value::Vector(scale(axis, 1.0)),
+        ));
+    };
 
-    Ok(single_output(
-        PIN_OUTPUT_VECTOR,
-        Value::Vector(scale(axis, factor)),
-    ))
+    match first {
+        Value::Null => Ok(single_output(
+            PIN_OUTPUT_VECTOR,
+            Value::Vector(scale(axis, 1.0)),
+        )),
+        Value::List(items) => {
+            if items.is_empty() {
+                return Ok(single_output(PIN_OUTPUT_VECTOR, Value::List(Vec::new())));
+            }
+
+            let mut vectors = Vec::with_capacity(items.len());
+            for item in items {
+                let factor = coerce::coerce_number(item, Some(name))?;
+                vectors.push(Value::Vector(scale(axis, factor)));
+            }
+            Ok(single_output(PIN_OUTPUT_VECTOR, Value::List(vectors)))
+        }
+        other => {
+            let factor = coerce::coerce_number(other, Some(name))?;
+            Ok(single_output(
+                PIN_OUTPUT_VECTOR,
+                Value::Vector(scale(axis, factor)),
+            ))
+        }
+    }
 }
 
 fn evaluate_vector_two_point(inputs: &[Value]) -> ComponentResult {

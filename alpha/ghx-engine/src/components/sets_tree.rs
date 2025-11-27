@@ -715,7 +715,12 @@ impl Component for MergeComponent {
         }
 
         let mut outputs = BTreeMap::new();
-        outputs.insert("S".to_string(), Value::List(merged));
+        // Grasshopper labels the merge output pin as "R" (Result), but we also
+        // keep the legacy "S" key to stay backwards compatible with earlier
+        // assumptions in our engine.
+        let merged_value = Value::List(merged);
+        outputs.insert("R".to_string(), merged_value.clone());
+        outputs.insert("S".to_string(), merged_value);
         Ok(outputs)
     }
 }
