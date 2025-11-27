@@ -126,6 +126,28 @@ pub fn coerce_number(value: &Value, context: Option<&str>) -> Result<f64, Compon
     }
 }
 
+pub fn coerce_count(
+    value: Option<&Value>,
+    fallback: usize,
+    context: &str,
+) -> Result<usize, ComponentError> {
+    match value {
+        None => Ok(fallback),
+        Some(entry) => {
+            let number = coerce_number(Some(entry), context)?;
+            if !number.is_finite() {
+                return Ok(fallback);
+            }
+            let floored = number.floor();
+            if floored < 1.0 {
+                Ok(1)
+            } else {
+                Ok(floored as usize)
+            }
+        }
+    }
+}
+
 pub fn coerce_boolean_with_context(value: &Value, context: &str) -> Result<bool, ComponentError> {
     match value {
         Value::Boolean(value) => Ok(*value),
@@ -228,12 +250,19 @@ pub fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
     }
 }
 
-pub fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
+pub fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
-        Value::Point(p) => Ok(*p),
-        Value::List(l) if l.len() == 1 => coerce_point(&l[0]),
+        Value::Point(point) | Value::Vector(point) => Ok(*point),
+        Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
+        Value::List(values) if values.len() >= 3 => {
+            let x = coerce_number(Some(&values[0]), context)?;
+            let y = coerce_number(Some(&values[1]), context)?;
+            let z = coerce_number(Some(&values[2]), context)?;
+            Ok([x, y, z])
+        }
         other => Err(ComponentError::new(format!(
-            "Verwachtte een punt, kreeg {}",
+            "{} verwacht een punt, kreeg {}",
+            context,
             other.kind()
         ))),
     }
@@ -483,6 +512,29 @@ pub fn coerce_geo_location(value: &Value, context: &str) -> Result<(f64, f64), C
         Value::Number(number) => Ok((0.0, *number)),
         other => Err(ComponentError::new(format!(
             "{} verwacht een locatie, kreeg {}",
+            context,
+            other.kind()
+        ))),
+    }
+}
+
+pub fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError> {
+    match value {
+        Value::CurveLine { p1, p2 } => Ok(Line {
+            start: *p1,
+            end: *p2,
+        }),
+        Value::List(values) if values.len() >= 2 => {
+            let start = coerce_point(&values[0], context)?;
+            let mut end = coerce_point(&values[1], context)?;
+            if vector_length_squared(subtract(end, start)) < EPSILON && values.len() > 2 {
+                end = add(start, coerce_vector(&values[2], context)?);
+            }
+            Ok(Line { start, end })
+        }
+        Value::List(values) if values.len() == 1 => coerce_line(&values[0], context),
+        other => Err(ComponentError::new(format!(
+            "{} verwacht een curve, kreeg {}",
             context,
             other.kind()
         ))),

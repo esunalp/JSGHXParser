@@ -365,7 +365,7 @@ fn evaluate_deconstruct(inputs: &[Value]) -> ComponentResult {
         if let Value::Null = system {
             point
         } else {
-            let plane = coerce_plane(system, "Deconstruct Point")?;
+            let plane = coerce::coerce_plane(system, "Deconstruct Point")?;
             plane_coordinates(point, &plane)
         }
     } else {
@@ -428,7 +428,7 @@ fn evaluate_closest_points(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let count = coerce_count(inputs.get(2), 1, context)?;
+    let count = coerce::coerce_count(inputs.get(2), 1, context)?;
 
     let mut entries: Vec<(usize, [f64; 3], f64)> = candidates
         .iter()
@@ -497,7 +497,7 @@ fn evaluate_cull_duplicates(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = collect_points(inputs.get(0), context)?;
-    let tolerance = coerce_number(inputs.get(1), context)
+    let tolerance = coerce::coerce_number(inputs.get(1), context)
         .unwrap_or(0.001)
         .max(0.0);
 
@@ -571,10 +571,10 @@ fn evaluate_construct_point_oriented(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let x = coerce_number(Some(&inputs[0]), context)?;
-    let y = coerce_number(Some(&inputs[1]), context)?;
-    let z = coerce_number(Some(&inputs[2]), context)?;
-    let plane = coerce_plane(&inputs[3], context)?;
+    let x = coerce::coerce_number(Some(&inputs[0]), context)?;
+    let y = coerce::coerce_number(Some(&inputs[1]), context)?;
+    let z = coerce::coerce_number(Some(&inputs[2]), context)?;
+    let plane = coerce::coerce_plane(&inputs[3], context)?;
     let point = apply_plane(&plane, x, y, z);
 
     let mut outputs = BTreeMap::new();
@@ -591,10 +591,10 @@ fn evaluate_point_oriented(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let plane = coerce_plane(&inputs[0], context)?;
-    let u = coerce_number(inputs.get(1), context)?;
-    let v = coerce_number(inputs.get(2), context)?;
-    let w = coerce_number(inputs.get(3), context).unwrap_or(0.0);
+    let plane = coerce::coerce_plane(&inputs[0], context)?;
+    let u = coerce::coerce_number(inputs.get(1), context)?;
+    let v = coerce::coerce_number(inputs.get(2), context)?;
+    let w = coerce::coerce_number(inputs.get(3), context).unwrap_or(0.0);
     let point = apply_plane(&plane, u, v, w);
 
     let mut outputs = BTreeMap::new();
@@ -611,10 +611,10 @@ fn evaluate_point_cylindrical(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let plane = coerce_plane(&inputs[0], context)?;
-    let angle = coerce_number(Some(&inputs[1]), context)?;
-    let radius = coerce_number(Some(&inputs[2]), context)?;
-    let elevation = coerce_number(Some(&inputs[3]), context)?;
+    let plane = coerce::coerce_plane(&inputs[0], context)?;
+    let angle = coerce::coerce_number(Some(&inputs[1]), context)?;
+    let radius = coerce::coerce_number(Some(&inputs[2]), context)?;
+    let elevation = coerce::coerce_number(Some(&inputs[3]), context)?;
     let x = angle.cos() * radius;
     let y = angle.sin() * radius;
     let point = apply_plane(&plane, x, y, elevation);
@@ -633,10 +633,10 @@ fn evaluate_point_polar(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let plane = coerce_plane(&inputs[0], context)?;
-    let phi = coerce_number(Some(&inputs[1]), context)?;
-    let theta = coerce_number(Some(&inputs[2]), context)?;
-    let distance = coerce_number(Some(&inputs[3]), context)?;
+    let plane = coerce::coerce_plane(&inputs[0], context)?;
+    let phi = coerce::coerce_number(Some(&inputs[1]), context)?;
+    let theta = coerce::coerce_number(Some(&inputs[2]), context)?;
+    let distance = coerce::coerce_number(Some(&inputs[3]), context)?;
     let horizontal = distance * theta.cos();
     let x = phi.cos() * horizontal;
     let y = phi.sin() * horizontal;
@@ -657,9 +657,9 @@ fn evaluate_to_polar(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let point = coerce_point(&inputs[0], context)?;
+    let point = coerce::coerce_point(&inputs[0], context)?;
     let plane = if let Some(system) = inputs.get(1) {
-        coerce_plane(system, context)?
+        coerce::coerce_plane(system, context)?
     } else {
         Plane::default()
     };
@@ -740,7 +740,7 @@ fn evaluate_point_groups(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = collect_points(inputs.get(0), context)?;
-    let distance = coerce_number(inputs.get(1), context)
+    let distance = coerce::coerce_number(inputs.get(1), context)
         .unwrap_or(0.1)
         .max(0.0);
     let mut outputs = BTreeMap::new();
@@ -796,8 +796,8 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let origin = coerce_point(&inputs[0], context)?;
-    let mut direction = coerce_vector(&inputs[1], context)?;
+    let origin = coerce::coerce_point(&inputs[0], context)?;
+    let mut direction = coerce::coerce_vector(&inputs[1], context)?;
     let length_sq = vector_length_squared(direction);
     if length_sq < EPSILON {
         return Err(ComponentError::new(
@@ -906,46 +906,6 @@ fn distance_squared(a: [f64; 3], b: [f64; 3]) -> f64 {
     dx * dx + dy * dy + dz * dz
 }
 
-fn coerce_count(
-    value: Option<&Value>,
-    fallback: usize,
-    context: &str,
-) -> Result<usize, ComponentError> {
-    match value {
-        None => Ok(fallback),
-        Some(entry) => {
-            let number = coerce_number(Some(entry), context)?;
-            if !number.is_finite() {
-                return Ok(fallback);
-            }
-            let floored = number.floor();
-            if floored < 1.0 {
-                Ok(1)
-            } else {
-                Ok(floored as usize)
-            }
-        }
-    }
-}
-
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Point(point) | Value::Vector(point) => Ok(*point),
-        Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(Some(&values[0]), context)?;
-            let y = coerce_number(Some(&values[1]), context)?;
-            let z = coerce_number(Some(&values[2]), context)?;
-            Ok([x, y, z])
-        }
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een punt, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
 fn collect_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, ComponentError> {
     let mut points = Vec::new();
     if let Some(value) = value {
@@ -965,7 +925,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::List(values) => {
-            if let Ok(point) = coerce_point(value, context) {
+            if let Ok(point) = coerce::coerce_point(value, context) {
                 output.push(point);
                 return Ok(());
             }
@@ -1351,7 +1311,7 @@ fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentE
         Some(value) => match value {
             Value::Number(number) => Ok(*number),
             Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-            Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
+            Value::List(values) if values.len() == 1 => coerce::coerce_number(values.get(0), context),
             Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
                 ComponentError::new(format!(
                     "{} kon tekst '{}' niet als getal interpreteren",
@@ -1420,16 +1380,16 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
 fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Value::Vector(vector) | Value::Point(vector) => Ok(*vector),
-        Value::List(values) if values.len() == 1 => coerce_vector(&values[0], context),
+        Value::List(values) if values.len() == 1 => coerce::coerce_vector(&values[0], context),
         Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(Some(&values[0]), context)?;
-            let y = coerce_number(Some(&values[1]), context)?;
-            let z = coerce_number(Some(&values[2]), context)?;
+            let x = coerce::coerce_number(Some(&values[0]), context)?;
+            let y = coerce::coerce_number(Some(&values[1]), context)?;
+            let z = coerce::coerce_number(Some(&values[2]), context)?;
             Ok([x, y, z])
         }
         Value::List(values) if values.len() == 2 => {
-            let x = coerce_number(Some(&values[0]), context)?;
-            let y = coerce_number(Some(&values[1]), context)?;
+            let x = coerce::coerce_number(Some(&values[0]), context)?;
+            let y = coerce::coerce_number(Some(&values[1]), context)?;
             Ok([x, y, 0.0])
         }
         Value::Number(number) => Ok([0.0, 0.0, *number]),
@@ -1449,7 +1409,7 @@ fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, Componen
         ))),
         Some(Value::Boolean(boolean)) => Ok(*boolean),
         Some(Value::Number(number)) => Ok(*number != 0.0),
-        Some(Value::List(values)) if values.len() == 1 => coerce_boolean(values.get(0), context),
+        Some(Value::List(values)) if values.len() == 1 => coerce::coerce_boolean(values.get(0), context),
         Some(other) => Err(ComponentError::new(format!(
             "{} verwacht een booleaanse waarde, kreeg {}",
             context,
@@ -1473,7 +1433,7 @@ fn collect_planes_into(
 ) -> Result<(), ComponentError> {
     match value {
         Value::List(values) => {
-            if let Ok(plane) = coerce_plane(value, context) {
+            if let Ok(plane) = coerce::coerce_plane(value, context) {
                 output.push(plane);
                 Ok(())
             } else {
@@ -1488,78 +1448,6 @@ fn collect_planes_into(
             output.push(coerce_plane(value, context)?);
             Ok(())
         }
-    }
-}
-
-fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
-    match value {
-        Value::List(values) if values.len() >= 3 => {
-            let a = coerce_point(&values[0], context)?;
-            let b = coerce_point(&values[1], context)?;
-            let c = coerce_point(&values[2], context)?;
-            Ok(Plane::from_points(a, b, c))
-        }
-        Value::List(values) if values.len() == 2 => {
-            let origin = coerce_point(&values[0], context)?;
-            let direction = coerce_vector(&values[1], context)?;
-            if vector_length_squared(direction) < EPSILON {
-                Ok(Plane::default())
-            } else {
-                let x_axis = normalize(direction);
-                let z_axis = orthogonal_vector(x_axis);
-                let y_axis = normalize(cross(z_axis, x_axis));
-                Ok(Plane::normalize_axes(origin, x_axis, y_axis, z_axis))
-            }
-        }
-        Value::List(values) if values.len() == 1 => coerce_plane(&values[0], context),
-        Value::Point(point) => {
-            let mut plane = Plane::default();
-            plane.origin = *point;
-            Ok(plane)
-        }
-        Value::Vector(vector) => {
-            let normal = if vector_length_squared(*vector) < EPSILON {
-                [0.0, 0.0, 1.0]
-            } else {
-                normalize(*vector)
-            };
-            let x_axis = orthogonal_vector(normal);
-            let y_axis = normalize(cross(normal, x_axis));
-            Ok(Plane::normalize_axes(
-                [0.0, 0.0, 0.0],
-                x_axis,
-                y_axis,
-                normal,
-            ))
-        }
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een vlak, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError> {
-    match value {
-        Value::CurveLine { p1, p2 } => Ok(Line {
-            start: *p1,
-            end: *p2,
-        }),
-        Value::List(values) if values.len() >= 2 => {
-            let start = coerce_point(&values[0], context)?;
-            let mut end = coerce_point(&values[1], context)?;
-            if vector_length_squared(subtract(end, start)) < EPSILON && values.len() > 2 {
-                end = add(start, coerce_vector(&values[2], context)?);
-            }
-            Ok(Line { start, end })
-        }
-        Value::List(values) if values.len() == 1 => coerce_line(&values[0], context),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een curve, kreeg {}",
-            context,
-            other.kind()
-        ))),
     }
 }
 
