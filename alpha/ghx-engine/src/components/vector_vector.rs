@@ -8,8 +8,8 @@ use time::PrimitiveDateTime;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult, coerce};
 use super::coerce::Plane;
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const EPSILON: f64 = 1e-9;
 
@@ -607,10 +607,6 @@ fn single_output(pin: &str, value: Value) -> BTreeMap<String, Value> {
     outputs
 }
 
-
-
-
-
 fn compute_angle_3d(a: [f64; 3], b: [f64; 3]) -> (f64, f64) {
     let length_a = vector_length(a);
     let length_b = vector_length(b);
@@ -865,6 +861,7 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
 mod tests {
     use time::macros::datetime;
 
+    use super::coerce;
     use super::{
         PIN_OUTPUT_ANGLE, PIN_OUTPUT_COLOUR, PIN_OUTPUT_DIRECTION, PIN_OUTPUT_DOT,
         PIN_OUTPUT_ELEVATION, PIN_OUTPUT_LENGTH, PIN_OUTPUT_REFLEX, PIN_OUTPUT_VECTOR,
@@ -872,10 +869,9 @@ mod tests {
         evaluate_angle, evaluate_angle_plane, evaluate_cross_product, evaluate_deconstruct,
         evaluate_divide, evaluate_dot_product, evaluate_mass_addition,
         evaluate_mass_addition_total, evaluate_multiply, evaluate_reverse, evaluate_rotate,
-        evaluate_solar_incidence, evaluate_unit_axis, evaluate_unit_vector,
-        evaluate_vector_length, evaluate_vector_two_point, evaluate_vector_xyz, vector_length,
+        evaluate_solar_incidence, evaluate_unit_axis, evaluate_unit_vector, evaluate_vector_length,
+        evaluate_vector_two_point, evaluate_vector_xyz, vector_length,
     };
-    use super::coerce;
     use crate::graph::value::{DateTimeValue, Value};
 
     #[test]

@@ -640,21 +640,22 @@ fn input_control_state(graph: &Graph, binding: &InputBinding) -> Result<InputCon
 }
 
 fn value_list_items(meta: &MetaMap) -> Vec<ValueListItem> {
-    let list_values = match meta
+    value_list_values(meta)
+        .iter()
+        .map(|value| ValueListItem {
+            label: format_value_label(value),
+        })
+        .collect()
+}
+
+fn value_list_values(meta: &MetaMap) -> Vec<Value> {
+    match meta
         .get_normalized("ListItems")
         .or_else(|| meta.get_normalized("Values"))
     {
-        Some(MetaValue::List(entries)) => entries,
-        _ => return Vec::new(),
-    };
-
-    list_values
-        .iter()
-        .filter_map(meta_value_to_value)
-        .map(|value| ValueListItem {
-            label: format_value_label(&value),
-        })
-        .collect()
+        Some(MetaValue::List(entries)) => entries.iter().filter_map(meta_value_to_value).collect(),
+        _ => Vec::new(),
+    }
 }
 
 fn value_list_selected_index(meta: &MetaMap, total_items: usize) -> usize {
@@ -729,6 +730,27 @@ fn format_value_label(value: &Value) -> String {
         Value::List(list) => format!("List ({} items)", list.len()),
         _ => value.to_string(),
     }
+}
+
+fn clamp_value_list_index(raw: f64, total_items: usize) -> usize {
+    if total_items == 0 {
+        return 0;
+    }
+    if !raw.is_finite() {
+        return 0;
+    }
+
+    let mut index = raw.trunc();
+    if index < 0.0 {
+        index = 0.0;
+    }
+
+    let max_index = (total_items - 1) as f64;
+    if index > max_index {
+        index = max_index;
+    }
+
+    index as usize
 }
 
 fn append_geometry_items<'a>(entry: &'a GeometryEntry, items: &mut Vec<GeometryItem<'a>>) {
@@ -981,6 +1003,25 @@ impl Engine {
 
                 node.insert_meta("Value", value_bool);
                 node.set_output(binding.output_pin, Value::Boolean(value_bool));
+            }
+            InputKind::ValueList => {
+                let index_value = match value {
+                    Value::Number(n) => n,
+                    _ => return Err("Value List waarde moet een getal zijn".to_string()),
+                };
+
+                if !index_value.is_finite() {
+                    return Err("Value List index moet een eindig getal zijn".to_string());
+                }
+
+                let items = value_list_values(&node.meta);
+                let selected_index = clamp_value_list_index(index_value, items.len());
+
+                node.insert_meta("SelectedIndex", selected_index as f64);
+                node.insert_meta("Value", selected_index as f64);
+
+                let output_value = items.get(selected_index).cloned().unwrap_or(Value::Null);
+                node.set_output(binding.output_pin, output_value);
             }
         }
 

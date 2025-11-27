@@ -1,7 +1,7 @@
 //! Hulpfuncties voor het converteren van `Value`-types.
 
-use crate::graph::value::{Domain, Domain1D, Domain2D, PlaneValue, Value};
 use super::ComponentError;
+use crate::graph::value::{Domain, Domain1D, Domain2D, PlaneValue, Value};
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 pub struct Surface<'a> {
@@ -351,7 +351,8 @@ pub fn coerce_vector_list(value: &Value, context: &str) -> Result<Vec<[f64; 3]>,
                     Ok(vector) => result.push(vector),
                     Err(_) => {
                         if let Value::List(nested) = entry {
-                            if let Ok(vector) = coerce_vector(&Value::List(nested.clone()), context) {
+                            if let Ok(vector) = coerce_vector(&Value::List(nested.clone()), context)
+                            {
                                 result.push(vector);
                                 continue;
                             }
