@@ -250,19 +250,12 @@ pub fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
     }
 }
 
-pub fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
+pub fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
     match value {
-        Value::Point(point) | Value::Vector(point) => Ok(*point),
-        Value::List(values) if values.len() == 1 => coerce_point(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce_number(Some(&values[0]), context)?;
-            let y = coerce_number(Some(&values[1]), context)?;
-            let z = coerce_number(Some(&values[2]), context)?;
-            Ok([x, y, z])
-        }
+        Value::Point(p) => Ok(*p),
+        Value::List(l) if l.len() == 1 => coerce_point(&l[0]),
         other => Err(ComponentError::new(format!(
-            "{} verwacht een punt, kreeg {}",
-            context,
+            "Verwachtte een punt, kreeg {}",
             other.kind()
         ))),
     }

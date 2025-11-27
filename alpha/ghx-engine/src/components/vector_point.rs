@@ -657,7 +657,7 @@ fn evaluate_to_polar(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let point = coerce::coerce_point(&inputs[0], context)?;
+    let point = coerce::coerce_point_with_context(&inputs[0], context)?;
     let plane = if let Some(system) = inputs.get(1) {
         coerce::coerce_plane(system, context)?
     } else {
@@ -796,7 +796,7 @@ fn evaluate_project_point(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let origin = coerce::coerce_point(&inputs[0], context)?;
+    let origin = coerce::coerce_point_with_context(&inputs[0], context)?;
     let mut direction = coerce::coerce_vector(&inputs[1], context)?;
     let length_sq = vector_length_squared(direction);
     if length_sq < EPSILON {
@@ -925,7 +925,7 @@ fn collect_points_into(
             Ok(())
         }
         Value::List(values) => {
-            if let Ok(point) = coerce::coerce_point(value, context) {
+            if let Ok(point) = coerce::coerce_point_with_context(value, context) {
                 output.push(point);
                 return Ok(());
             }
@@ -1016,7 +1016,7 @@ fn collect_tag_planes(value: Option<&Value>, context: &str) -> Result<Vec<Plane>
     let mut planes = collect_planes(value, context)?;
     if planes.is_empty() {
         if let Some(value) = value {
-            planes.push(coerce_plane(value, context)?);
+            planes.push(coerce::coerce_plane(value, context)?);
         } else {
             planes.push(Plane::default());
         }
@@ -1445,7 +1445,7 @@ fn collect_planes_into(
         }
         Value::Point(_) | Value::Vector(_) => Ok(()),
         _ => {
-            output.push(coerce_plane(value, context)?);
+            output.push(coerce::coerce_plane(value, context)?);
             Ok(())
         }
     }
