@@ -497,7 +497,8 @@ fn evaluate_cull_duplicates(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = collect_points(inputs.get(0), context)?;
-    let tolerance = coerce::coerce_number(inputs.get(1), context)
+    let tolerance = coerce::coerce_optional_number(inputs.get(1), context)
+        .unwrap_or(None)
         .unwrap_or(0.001)
         .max(0.0);
 
@@ -571,9 +572,9 @@ fn evaluate_construct_point_oriented(inputs: &[Value]) -> ComponentResult {
         )));
     }
 
-    let x = coerce::coerce_number(Some(&inputs[0]), context)?;
-    let y = coerce::coerce_number(Some(&inputs[1]), context)?;
-    let z = coerce::coerce_number(Some(&inputs[2]), context)?;
+    let x = coerce::coerce_number(&inputs[0], Some(context))?;
+    let y = coerce::coerce_number(&inputs[1], Some(context))?;
+    let z = coerce::coerce_number(&inputs[2], Some(context))?;
     let plane = coerce::coerce_plane(&inputs[3], context)?;
     let point = apply_plane(&plane, x, y, z);
 
@@ -592,9 +593,11 @@ fn evaluate_point_oriented(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = coerce::coerce_plane(&inputs[0], context)?;
-    let u = coerce::coerce_number(inputs.get(1), context)?;
-    let v = coerce::coerce_number(inputs.get(2), context)?;
-    let w = coerce::coerce_number(inputs.get(3), context).unwrap_or(0.0);
+    let u = coerce::coerce_number(&inputs[1], Some(context))?;
+    let v = coerce::coerce_number(&inputs[2], Some(context))?;
+    let w = coerce::coerce_optional_number(inputs.get(3), context)
+        .unwrap_or(None)
+        .unwrap_or(0.0);
     let point = apply_plane(&plane, u, v, w);
 
     let mut outputs = BTreeMap::new();
@@ -612,9 +615,9 @@ fn evaluate_point_cylindrical(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = coerce::coerce_plane(&inputs[0], context)?;
-    let angle = coerce::coerce_number(Some(&inputs[1]), context)?;
-    let radius = coerce::coerce_number(Some(&inputs[2]), context)?;
-    let elevation = coerce::coerce_number(Some(&inputs[3]), context)?;
+    let angle = coerce::coerce_number(&inputs[1], Some(context))?;
+    let radius = coerce::coerce_number(&inputs[2], Some(context))?;
+    let elevation = coerce::coerce_number(&inputs[3], Some(context))?;
     let x = angle.cos() * radius;
     let y = angle.sin() * radius;
     let point = apply_plane(&plane, x, y, elevation);
@@ -634,9 +637,9 @@ fn evaluate_point_polar(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = coerce::coerce_plane(&inputs[0], context)?;
-    let phi = coerce::coerce_number(Some(&inputs[1]), context)?;
-    let theta = coerce::coerce_number(Some(&inputs[2]), context)?;
-    let distance = coerce::coerce_number(Some(&inputs[3]), context)?;
+    let phi = coerce::coerce_number(&inputs[1], Some(context))?;
+    let theta = coerce::coerce_number(&inputs[2], Some(context))?;
+    let distance = coerce::coerce_number(&inputs[3], Some(context))?;
     let horizontal = distance * theta.cos();
     let x = phi.cos() * horizontal;
     let y = phi.sin() * horizontal;
@@ -740,7 +743,8 @@ fn evaluate_point_groups(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = collect_points(inputs.get(0), context)?;
-    let distance = coerce::coerce_number(inputs.get(1), context)
+    let distance = coerce::coerce_optional_number(inputs.get(1), context)
+        .unwrap_or(None)
         .unwrap_or(0.1)
         .max(0.0);
     let mut outputs = BTreeMap::new();
@@ -1302,31 +1306,6 @@ fn named_color(text: &str) -> Option<ColorValue> {
     }
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
-    match value {
-        None => Err(ComponentError::new(format!(
-            "{} vereist een numerieke waarde",
-            context
-        ))),
-        Some(value) => match value {
-            Value::Number(number) => Ok(*number),
-            Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-            Value::List(values) if values.len() == 1 => coerce::coerce_number(values.get(0), context),
-            Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
-                ComponentError::new(format!(
-                    "{} kon tekst '{}' niet als getal interpreteren",
-                    context, text
-                ))
-            }),
-            other => Err(ComponentError::new(format!(
-                "{} verwacht een getal, kreeg {}",
-                context,
-                other.kind()
-            ))),
-        },
-    }
-}
-
 fn parse_mask(value: Option<&Value>) -> Vec<char> {
     let mut axes = Vec::new();
     if let Some(value) = value {
@@ -1374,47 +1353,6 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
         | Value::Tag(_) => {
             // Geen maskinformatie aanwezig.
         }
-    }
-}
-
-fn coerce_vector(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Vector(vector) | Value::Point(vector) => Ok(*vector),
-        Value::List(values) if values.len() == 1 => coerce::coerce_vector(&values[0], context),
-        Value::List(values) if values.len() >= 3 => {
-            let x = coerce::coerce_number(Some(&values[0]), context)?;
-            let y = coerce::coerce_number(Some(&values[1]), context)?;
-            let z = coerce::coerce_number(Some(&values[2]), context)?;
-            Ok([x, y, z])
-        }
-        Value::List(values) if values.len() == 2 => {
-            let x = coerce::coerce_number(Some(&values[0]), context)?;
-            let y = coerce::coerce_number(Some(&values[1]), context)?;
-            Ok([x, y, 0.0])
-        }
-        Value::Number(number) => Ok([0.0, 0.0, *number]),
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een vector, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, ComponentError> {
-    match value {
-        None => Err(ComponentError::new(format!(
-            "{} vereist een booleaanse waarde",
-            context
-        ))),
-        Some(Value::Boolean(boolean)) => Ok(*boolean),
-        Some(Value::Number(number)) => Ok(*number != 0.0),
-        Some(Value::List(values)) if values.len() == 1 => coerce::coerce_boolean(values.get(0), context),
-        Some(other) => Err(ComponentError::new(format!(
-            "{} verwacht een booleaanse waarde, kreeg {}",
-            context,
-            other.kind()
-        ))),
     }
 }
 
