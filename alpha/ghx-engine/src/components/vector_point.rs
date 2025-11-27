@@ -25,6 +25,8 @@ const PIN_OUTPUT_RADIUS: &str = "R";
 const PIN_OUTPUT_TAGS: &str = "Tag";
 
 const EPSILON: f64 = 1e-9;
+type Plane = coerce::Plane;
+type Line = coerce::Line;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -696,7 +698,7 @@ fn evaluate_sort_along_curve(inputs: &[Value]) -> ComponentResult {
         return Ok(outputs);
     }
 
-    let curve = coerce_line(
+    let curve = coerce::coerce_line(
         inputs.get(1).ok_or_else(|| {
             ComponentError::new(format!("{} vereist een curve als tweede invoer", context))
         })?,
@@ -1510,89 +1512,6 @@ fn union_sets(parents: &mut [usize], ranks: &mut [u8], a: usize, b: usize) {
     parents[root_b] = root_a;
     if ranks[root_a] == ranks[root_b] {
         ranks[root_a] = ranks[root_a].saturating_add(1);
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
-}
-
-impl Default for Plane {
-    fn default() -> Self {
-        Self {
-            origin: [0.0, 0.0, 0.0],
-            x_axis: [1.0, 0.0, 0.0],
-            y_axis: [0.0, 1.0, 0.0],
-            z_axis: [0.0, 0.0, 1.0],
-        }
-    }
-}
-
-impl Plane {
-    fn normalize_axes(
-        origin: [f64; 3],
-        x_axis: [f64; 3],
-        y_axis: [f64; 3],
-        z_axis: [f64; 3],
-    ) -> Self {
-        let z = safe_normalized(z_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or([0.0, 0.0, 1.0]);
-
-        let mut x = safe_normalized(x_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or_else(|| orthogonal_vector(z));
-
-        let mut y = safe_normalized(y_axis)
-            .map(|(vector, _)| vector)
-            .unwrap_or_else(|| normalize(cross(z, x)));
-
-        x = normalize(cross(y, z));
-        y = normalize(cross(z, x));
-
-        Self {
-            origin,
-            x_axis: x,
-            y_axis: y,
-            z_axis: z,
-        }
-    }
-
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
-        let ab = subtract(b, a);
-        let ac = subtract(c, a);
-        let normal = cross(ab, ac);
-        if vector_length_squared(normal) < EPSILON {
-            return Self::default();
-        }
-        let x_axis = if vector_length_squared(ab) < EPSILON {
-            orthogonal_vector(normal)
-        } else {
-            normalize(ab)
-        };
-        let z_axis = normalize(normal);
-        let y_axis = normalize(cross(z_axis, x_axis));
-        Self::normalize_axes(a, x_axis, y_axis, z_axis)
-    }
-
-    fn to_value(self) -> PlaneValue {
-        PlaneValue::new(self.origin, self.x_axis, self.y_axis, self.z_axis)
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Line {
-    start: [f64; 3],
-    end: [f64; 3],
-}
-
-impl Line {
-    fn direction(self) -> [f64; 3] {
-        subtract(self.end, self.start)
     }
 }
 

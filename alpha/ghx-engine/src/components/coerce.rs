@@ -1,12 +1,25 @@
 //! Hulpfuncties voor het converteren van `Value`-types.
 
 use super::ComponentError;
-use crate::graph::value::{Domain, Domain1D, Domain2D, PlaneValue, Value};
+use crate::graph::value::{Domain, Domain1D, PlaneValue, Value};
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 pub struct Surface<'a> {
     pub vertices: &'a Vec<[f64; 3]>,
     pub faces: &'a Vec<Vec<u32>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Line {
+    pub start: [f64; 3],
+    pub end: [f64; 3],
+}
+
+impl Line {
+    #[must_use]
+    pub fn direction(self) -> [f64; 3] {
+        subtract(self.end, self.start)
+    }
 }
 
 /// Een genormaliseerd vlak dat gebruikt wordt bij sommige componenten.
@@ -134,7 +147,7 @@ pub fn coerce_count(
     match value {
         None => Ok(fallback),
         Some(entry) => {
-            let number = coerce_number(Some(entry), context)?;
+            let number = coerce_number(entry, Some(context))?;
             if !number.is_finite() {
                 return Ok(fallback);
             }
@@ -438,6 +451,11 @@ impl Plane {
         let y_axis = normalize(cross(z_axis, x_axis));
         Self::normalize_axes(a, x_axis, y_axis, z_axis)
     }
+
+    #[must_use]
+    pub fn to_value(self) -> PlaneValue {
+        PlaneValue::new(self.origin, self.x_axis, self.y_axis, self.z_axis)
+    }
 }
 
 pub fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
@@ -518,8 +536,8 @@ pub fn coerce_line(value: &Value, context: &str) -> Result<Line, ComponentError>
             end: *p2,
         }),
         Value::List(values) if values.len() >= 2 => {
-            let start = coerce_point(&values[0], context)?;
-            let mut end = coerce_point(&values[1], context)?;
+            let start = coerce_point_with_context(&values[0], context)?;
+            let mut end = coerce_point_with_context(&values[1], context)?;
             if vector_length_squared(subtract(end, start)) < EPSILON && values.len() > 2 {
                 end = add(start, coerce_vector(&values[2], context)?);
             }
@@ -563,6 +581,10 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     ]
+}
+
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
 fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
