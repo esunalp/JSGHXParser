@@ -694,14 +694,16 @@ impl Component for MergeComponent {
 
         let lists: Vec<_> = inputs
             .iter()
-            .map(|v| {
-                if let Value::List(l) = v {
-                    l.clone()
-                } else {
-                    vec![v.clone()]
-                }
+            .filter_map(|value| match value {
+                Value::Null => None,
+                Value::List(list) => Some(list.clone()),
+                other => Some(vec![other.clone()]),
             })
             .collect();
+
+        if lists.is_empty() {
+            return Ok(BTreeMap::new());
+        }
 
         let max_len = lists.iter().map(|l| l.len()).max().unwrap_or(0);
         let mut merged = Vec::with_capacity(max_len * lists.len());
