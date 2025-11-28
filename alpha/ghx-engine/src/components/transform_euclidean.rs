@@ -113,11 +113,34 @@ fn evaluate_move(inputs: &[Value], include_transform: bool) -> ComponentResult {
         .get(0)
         .cloned()
         .ok_or_else(|| ComponentError::new("Move vereist geometrie"))?;
-    let translation = coerce_vector(inputs.get(1), "Move translatie")?;
+    let translations = coerce_translation_list(inputs.get(1), "Move translatie")?;
 
-    let mut point_fn = |point: [f64; 3]| add(point, translation);
-    let mut vector_fn = |vector: [f64; 3]| vector; // Translation does not affect vectors
-    let transformed = map_geometry(&geometry, &mut point_fn, &mut vector_fn);
+    let transformed = if translations.len() == 1 {
+        apply_translation(&geometry, translations[0])
+    } else if let Value::List(items) = &geometry {
+        if items.len() == translations.len() {
+            let mapped = items
+                .iter()
+                .zip(translations.iter())
+                .map(|(item, translation)| apply_translation(item, *translation))
+                .collect();
+            Value::List(mapped)
+        } else {
+            Value::List(
+                translations
+                    .iter()
+                    .map(|translation| apply_translation(&geometry, *translation))
+                    .collect(),
+            )
+        }
+    } else {
+        Value::List(
+            translations
+                .iter()
+                .map(|translation| apply_translation(&geometry, *translation))
+                .collect(),
+        )
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_GEOMETRY.to_owned(), transformed);
@@ -125,7 +148,21 @@ fn evaluate_move(inputs: &[Value], include_transform: bool) -> ComponentResult {
     if include_transform {
         outputs.insert(
             PIN_OUTPUT_TRANSFORM.to_owned(),
-            Value::List(vec![Value::Text("Move".into()), Value::Vector(translation)]),
+            if translations.len() == 1 {
+                Value::List(vec![Value::Text("Move".into()), Value::Vector(translations[0])])
+            } else {
+                Value::List(
+                    translations
+                        .iter()
+                        .map(|translation| {
+                            Value::List(vec![
+                                Value::Text("Move".into()),
+                                Value::Vector(*translation),
+                            ])
+                        })
+                        .collect(),
+                )
+            },
         );
     }
 
@@ -287,6 +324,12 @@ where
     }
 }
 
+fn apply_translation(value: &Value, translation: [f64; 3]) -> Value {
+    let mut point_fn = |point: [f64; 3]| add(point, translation);
+    let mut vector_fn = |vector: [f64; 3]| vector;
+    map_geometry(value, &mut point_fn, &mut vector_fn)
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Plane {
     origin: [f64; 3],
@@ -402,6 +445,26 @@ fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compon
 fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
         Some(value) => coerce::coerce_vector(value, context),
+        None => Err(ComponentError::new(format!(
+            "{} vereist een vector",
+            context
+        ))),
+    }
+}
+
+fn coerce_translation_list(
+    value: Option<&Value>,
+    context: &str,
+) -> Result<Vec<[f64; 3]>, ComponentError> {
+    match value {
+        Some(value) => {
+            let vectors = coerce::coerce_vector_list(value, context)?;
+            if vectors.is_empty() {
+                Err(ComponentError::new(format!("{} vereist een vector", context)))
+            } else {
+                Ok(vectors)
+            }
+        }
         None => Err(ComponentError::new(format!(
             "{} vereist een vector",
             context
@@ -549,6 +612,84 @@ mod tests {
         };
         assert!((p1[1] - 10.0).abs() < 1e-6);
         assert!((p2[1] - 10.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn move_with_translation_list_single_geometry() {
+        let component = ComponentKind::Move;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Point([1.0, 2.0, 3.0]),
+                    Value::List(vec![
+                        Value::Vector([0.0, 0.0, 1.0]),
+                        Value::Vector([0.0, 0.0, 2.0]),
+                    ]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("move");
+        let Value::List(result_list) = outputs
+            .get(super::PIN_OUTPUT_GEOMETRY)
+            .cloned()
+            .expect("geometry output")
+        else {
+            panic!("expected list output");
+        };
+        assert_eq!(result_list.len(), 2);
+
+        match &result_list[0] {
+            Value::Point(point) => assert!((point[2] - 4.0).abs() < 1e-9),
+            other => panic!("expected point output, got {}", other.kind()),
+        }
+        match &result_list[1] {
+            Value::Point(point) => assert!((point[2] - 5.0).abs() < 1e-9),
+            other => panic!("expected point output, got {}", other.kind()),
+        }
+    }
+
+    #[test]
+    fn move_with_translation_list_zipped_geometry() {
+        let component = ComponentKind::Move;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::List(vec![
+                        Value::Point([0.0, 0.0, 0.0]),
+                        Value::Point([1.0, 0.0, 0.0]),
+                    ]),
+                    Value::List(vec![
+                        Value::Vector([0.0, 1.0, 0.0]),
+                        Value::Vector([0.0, 2.0, 0.0]),
+                    ]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("move zipped");
+        let Value::List(result_list) = outputs
+            .get(super::PIN_OUTPUT_GEOMETRY)
+            .cloned()
+            .expect("geometry output")
+        else {
+            panic!("expected list output");
+        };
+        assert_eq!(result_list.len(), 2);
+
+        match &result_list[0] {
+            Value::Point(point) => {
+                assert!((point[0]).abs() < 1e-9);
+                assert!((point[1] - 1.0).abs() < 1e-9);
+            }
+            other => panic!("expected point output, got {}", other.kind()),
+        }
+
+        match &result_list[1] {
+            Value::Point(point) => {
+                assert!((point[0] - 1.0).abs() < 1e-9);
+                assert!((point[1] - 2.0).abs() < 1e-9);
+            }
+            other => panic!("expected point output, got {}", other.kind()),
+        }
     }
 
     #[test]
