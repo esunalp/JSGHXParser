@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{Component, ComponentError, ComponentResult};
+use super::{coerce, Component, ComponentError, ComponentResult};
 
 const PIN_OUTPUT_GEOMETRY: &str = "G";
 const PIN_OUTPUT_TRANSFORM: &str = "X";
@@ -305,6 +305,10 @@ impl Plane {
         }
     }
 
+    fn from_coerce_plane(plane: coerce::Plane) -> Self {
+        Self::normalize_axes(plane.origin, plane.x_axis, plane.y_axis, plane.z_axis)
+    }
+
     fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
         let x_axis = safe_normalize(subtract(b, a))
             .map(|(axis, _)| axis)
@@ -384,85 +388,20 @@ impl Plane {
 fn coerce_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentError> {
     match value {
         None => Ok(Plane::default()),
-        Some(Value::List(values)) if values.len() >= 3 => {
-            let a = coerce_point(values.get(0), context)?;
-            let b = coerce_point(values.get(1), context)?;
-            let c = coerce_point(values.get(2), context)?;
-            Ok(Plane::from_points(a, b, c))
-        }
-        Some(Value::List(values)) if values.len() == 2 => {
-            let origin = coerce_point(values.get(0), context)?;
-            let direction = coerce_vector(values.get(1), context)?;
-            if length_squared(direction) < 1e-9 {
-                Ok(Plane::from_origin(origin))
-            } else {
-                let x_axis = normalize(direction);
-                let y_axis = orthogonal_vector(x_axis);
-                let z_axis = normalize(cross(x_axis, y_axis));
-                Ok(Plane::normalize_axes(origin, x_axis, y_axis, z_axis))
-            }
-        }
-        Some(Value::List(values)) if values.len() == 1 => coerce_plane(values.get(0), context),
-        Some(Value::Point(point)) => Ok(Plane::from_origin(*point)),
-        Some(Value::Vector(vector)) => {
-            let normal = if length_squared(*vector) < 1e-9 {
-                [0.0, 0.0, 1.0]
-            } else {
-                normalize(*vector)
-            };
-            let x_axis = orthogonal_vector(normal);
-            let y_axis = normalize(cross(normal, x_axis));
-            Ok(Plane::normalize_axes(
-                [0.0, 0.0, 0.0],
-                x_axis,
-                y_axis,
-                normal,
-            ))
-        }
-        Some(other) => Err(ComponentError::new(format!(
-            "{} verwacht een vlak, kreeg {}",
-            context,
-            other.kind()
-        ))),
+        Some(value) => coerce::coerce_plane(value, context).map(Plane::from_coerce_plane),
     }
 }
 
 fn coerce_point(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
-        Some(Value::Point(point)) => Ok(*point),
-        Some(Value::Vector(vector)) => Ok(*vector),
-        Some(Value::List(values)) if values.len() == 1 => coerce_point(values.get(0), context),
-        Some(Value::List(values)) if values.len() >= 3 => {
-            let x = coerce_number(values.get(0), context)?;
-            let y = coerce_number(values.get(1), context)?;
-            let z = coerce_number(values.get(2), context)?;
-            Ok([x, y, z])
-        }
-        Some(other) => Err(ComponentError::new(format!(
-            "{} verwacht een punt, kreeg {}",
-            context,
-            other.kind()
-        ))),
+        Some(value) => coerce::coerce_point_with_context(value, context),
         None => Err(ComponentError::new(format!("{} vereist een punt", context))),
     }
 }
 
 fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], ComponentError> {
     match value {
-        Some(Value::Vector(vector)) => Ok(*vector),
-        Some(Value::Point(point)) => Ok(*point),
-        Some(Value::List(values)) if values.len() == 1 => coerce_vector(values.get(0), context),
-        Some(Value::List(values)) if values.len() >= 3 => {
-            let x = coerce_number(values.get(0), context)?;
-            let y = coerce_number(values.get(1), context)?;
-            let z = coerce_number(values.get(2), context)?;
-            Ok([x, y, z])
-        }
-        Some(other) => Err(ComponentError::new(format!(
-            "{} verwacht een vector, kreeg {}",
-            context,
-            other.kind()
-        ))),
+        Some(value) => coerce::coerce_vector(value, context),
         None => Err(ComponentError::new(format!(
             "{} vereist een vector",
             context
@@ -472,14 +411,7 @@ fn coerce_vector(value: Option<&Value>, context: &str) -> Result<[f64; 3], Compo
 
 fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
     match value {
-        Some(Value::Number(number)) => Ok(*number),
-        Some(Value::Boolean(flag)) => Ok(if *flag { 1.0 } else { 0.0 }),
-        Some(Value::List(values)) if !values.is_empty() => coerce_number(values.get(0), context),
-        Some(other) => Err(ComponentError::new(format!(
-            "{} verwacht een numerieke waarde, kreeg {}",
-            context,
-            other.kind()
-        ))),
+        Some(value) => coerce::coerce_number(value, Some(context)),
         None => Err(ComponentError::new(format!(
             "{} vereist een numerieke waarde",
             context
