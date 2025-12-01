@@ -171,7 +171,93 @@ define_param_component!(PointComponent, "Pt", ValueKind::Point);
 define_param_component!(VectorComponent, "Vec", ValueKind::Vector);
 define_param_component!(LineComponent, "Line", ValueKind::CurveLine);
 define_param_component!(MeshComponent, "Mesh", ValueKind::Surface);
-define_param_component!(SurfaceComponent, "Srf", ValueKind::Surface);
+
+#[derive(Debug, Default, Clone, Copy)]
+struct SurfaceComponent;
+
+impl Component for SurfaceComponent {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            let mut outputs = BTreeMap::new();
+            outputs.insert("Srf".to_owned(), Value::Null);
+            return Ok(outputs);
+        }
+
+        let input_value = &inputs[0];
+        let surface_value = if matches!(input_value, Value::Null) {
+            Value::Null
+        } else if matches!(input_value, Value::Surface { .. }) {
+            input_value.clone()
+        } else if list_contains_only_surfaces_or_null(input_value) {
+            input_value.clone()
+        } else if matches!(input_value, Value::List(_)) {
+            create_surface_from_point_list(input_value)?
+        } else {
+            return Err(ComponentError::new(format!(
+                "Expected {} or a List of {}, but got {}.",
+                ValueKind::Surface,
+                ValueKind::Surface,
+                input_value.kind()
+            )));
+        };
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("Srf".to_owned(), surface_value);
+        Ok(outputs)
+    }
+}
+
+fn list_contains_only_surfaces_or_null(value: &Value) -> bool {
+    matches!(value, Value::List(items) if items.iter().all(|item| matches!(item, Value::Surface { .. } | Value::Null)))
+}
+
+fn create_surface_from_point_list(value: &Value) -> Result<Value, ComponentError> {
+    let mut points = Vec::new();
+    collect_points_from_value(value, &mut points)?;
+
+    if points.len() > 1 && points.first() == points.last() {
+        points.pop();
+    }
+
+    if points.len() < 3 {
+        return Err(ComponentError::new(format!(
+            "Surface requires at least three points, got {}.",
+            points.len()
+        )));
+    }
+
+    let faces: Vec<Vec<u32>> = (1..points.len() - 1)
+        .map(|i| vec![0, i as u32, (i + 1) as u32])
+        .collect();
+
+    Ok(Value::Surface { vertices: points, faces })
+}
+
+fn collect_points_from_value(value: &Value, output: &mut Vec<[f64; 3]>) -> Result<(), ComponentError> {
+    match value {
+        Value::Point(point) | Value::Vector(point) => {
+            output.push(*point);
+            Ok(())
+        }
+        Value::CurveLine { p1, p2 } => {
+            output.push(*p1);
+            output.push(*p2);
+            Ok(())
+        }
+        Value::List(entries) => {
+            for entry in entries {
+                collect_points_from_value(entry, output)?;
+            }
+            Ok(())
+        }
+        Value::Null => Ok(()),
+        other => Err(ComponentError::new(format!(
+            "Surface expected points, but got {}.",
+            other.kind()
+        ))),
+    }
+}
+
 define_param_component!(CurveComponent, "Crv", ValueKind::CurveLine);
 define_param_component!(MeshFaceComponent, "Face", ValueKind::Text);
 
