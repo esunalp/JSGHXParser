@@ -1,10 +1,14 @@
 //! Implements parameter components for geometry types.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use crate::components::{Component, ComponentError, ComponentResult};
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Value, ValueKind};
+
+const SURFACE_EPSILON: f64 = 1e-9;
+const SURFACE_EPSILON_SQUARED: f64 = SURFACE_EPSILON * SURFACE_EPSILON;
 
 /// Defines a component's registration information.
 pub struct Registration<T> {
@@ -184,21 +188,18 @@ impl Component for SurfaceComponent {
         }
 
         let input_value = &inputs[0];
-        let surface_value = if matches!(input_value, Value::Null) {
-            Value::Null
-        } else if matches!(input_value, Value::Surface { .. }) {
-            input_value.clone()
-        } else if list_contains_only_surfaces_or_null(input_value) {
-            input_value.clone()
-        } else if matches!(input_value, Value::List(_)) {
-            create_surface_from_point_list(input_value)?
-        } else {
-            return Err(ComponentError::new(format!(
-                "Expected {} or a List of {}, but got {}.",
-                ValueKind::Surface,
-                ValueKind::Surface,
-                input_value.kind()
-            )));
+        let surface_value = match input_value {
+            Value::Null => Value::Null,
+            Value::Surface { .. } => input_value.clone(),
+            Value::List(_) => convert_list_value(input_value)?,
+            other => {
+                return Err(ComponentError::new(format!(
+                    "Expected {} or a List of {}, but got {}.",
+                    ValueKind::Surface,
+                    ValueKind::Surface,
+                    other.kind()
+                )));
+            }
         };
 
         let mut outputs = BTreeMap::new();
@@ -211,50 +212,229 @@ fn list_contains_only_surfaces_or_null(value: &Value) -> bool {
     matches!(value, Value::List(items) if items.iter().all(|item| matches!(item, Value::Surface { .. } | Value::Null)))
 }
 
-fn create_surface_from_point_list(value: &Value) -> Result<Value, ComponentError> {
+fn convert_list_value(value: &Value) -> Result<Value, ComponentError> {
+    let entries = match value {
+        Value::List(entries) => entries,
+        _ => unreachable!(),
+    };
+
+    if list_contains_only_surfaces_or_null(value) {
+        return Ok(value.clone());
+    }
+
+    if is_flat_geometry_list(entries) {
+        return create_surface_from_flat_list(entries);
+    }
+
+    let mut converted = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let converted_entry = match entry {
+            Value::Surface { .. } => entry.clone(),
+            Value::Null => Value::Null,
+            Value::List(_) => convert_list_value(entry)?,
+            other => {
+                return Err(ComponentError::new(format!(
+                    "Expected {} or a List of {}, but got {}.",
+                    ValueKind::Surface,
+                    ValueKind::Surface,
+                    other.kind()
+                )));
+            }
+        };
+        converted.push(converted_entry);
+    }
+
+    Ok(Value::List(converted))
+}
+
+fn is_flat_geometry_list(entries: &[Value]) -> bool {
+    let mut has_geometry = false;
+    for entry in entries {
+        match entry {
+            Value::Point(_) | Value::Vector(_) | Value::CurveLine { .. } => has_geometry = true,
+            Value::Null => {}
+            _ => {
+                return false;
+            }
+        }
+    }
+    has_geometry
+}
+
+fn create_surface_from_flat_list(entries: &[Value]) -> Result<Value, ComponentError> {
     let mut points = Vec::new();
-    collect_points_from_value(value, &mut points)?;
+    for entry in entries {
+        match entry {
+            Value::Point(point) | Value::Vector(point) => points.push(*point),
+            Value::CurveLine { p1, p2 } => {
+                points.push(*p1);
+                points.push(*p2);
+            }
+            Value::Null => {}
+            other => {
+                return Err(ComponentError::new(format!(
+                    "Surface expected points, but got {}.",
+                    other.kind()
+                )));
+            }
+        }
+    }
 
     if points.len() > 1 && points.first() == points.last() {
         points.pop();
     }
 
-    if points.len() < 3 {
+    let unique_points = deduplicate_points(&points);
+    if unique_points.len() < 3 {
         return Err(ComponentError::new(format!(
             "Surface requires at least three points, got {}.",
-            points.len()
+            unique_points.len()
         )));
     }
 
-    let faces: Vec<Vec<u32>> = (1..points.len() - 1)
+    let normal = compute_plane_normal(&unique_points).ok_or_else(|| {
+        ComponentError::new("Surface requires at least three non-collinear points.")
+    })?;
+    let centroid = compute_centroid(&unique_points);
+    let (axis_x, axis_y) = find_plane_axes(&unique_points, centroid, normal).ok_or_else(|| {
+        ComponentError::new("Surface geometry could not determine an orientation.")
+    })?;
+
+    let sorted = sort_points_by_angle(&unique_points, centroid, axis_x, axis_y);
+    let faces: Vec<Vec<u32>> = (1..sorted.len() - 1)
         .map(|i| vec![0, i as u32, (i + 1) as u32])
         .collect();
 
-    Ok(Value::Surface { vertices: points, faces })
+    Ok(Value::Surface {
+        vertices: sorted,
+        faces,
+    })
 }
 
-fn collect_points_from_value(value: &Value, output: &mut Vec<[f64; 3]>) -> Result<(), ComponentError> {
-    match value {
-        Value::Point(point) | Value::Vector(point) => {
-            output.push(*point);
-            Ok(())
-        }
-        Value::CurveLine { p1, p2 } => {
-            output.push(*p1);
-            output.push(*p2);
-            Ok(())
-        }
-        Value::List(entries) => {
-            for entry in entries {
-                collect_points_from_value(entry, output)?;
+fn deduplicate_points(points: &[[f64; 3]]) -> Vec<[f64; 3]> {
+    let mut unique = Vec::new();
+    'outer: for &point in points {
+        for existing in &unique {
+            if point_distance_squared(existing, &point) <= SURFACE_EPSILON_SQUARED {
+                continue 'outer;
             }
-            Ok(())
         }
-        Value::Null => Ok(()),
-        other => Err(ComponentError::new(format!(
-            "Surface expected points, but got {}.",
-            other.kind()
-        ))),
+        unique.push(point);
+    }
+    unique
+}
+
+fn compute_centroid(points: &[[f64; 3]]) -> [f64; 3] {
+    let mut centroid = [0.0; 3];
+    for point in points {
+        centroid[0] += point[0];
+        centroid[1] += point[1];
+        centroid[2] += point[2];
+    }
+    let count = points.len() as f64;
+    centroid[0] /= count;
+    centroid[1] /= count;
+    centroid[2] /= count;
+    centroid
+}
+
+fn compute_plane_normal(points: &[[f64; 3]]) -> Option<[f64; 3]> {
+    for i in 1..points.len() {
+        let a = subtract(points[i], points[0]);
+        if vector_length_squared(a) <= SURFACE_EPSILON_SQUARED {
+            continue;
+        }
+        for j in i + 1..points.len() {
+            let b = subtract(points[j], points[0]);
+            if vector_length_squared(b) <= SURFACE_EPSILON_SQUARED {
+                continue;
+            }
+            let normal = cross(a, b);
+            if vector_length_squared(normal) > SURFACE_EPSILON_SQUARED {
+                return Some(normalize(normal));
+            }
+        }
+    }
+    None
+}
+
+fn find_plane_axes(
+    points: &[[f64; 3]],
+    centroid: [f64; 3],
+    normal: [f64; 3],
+) -> Option<([f64; 3], [f64; 3])> {
+    for point in points {
+        let diff = subtract(*point, centroid);
+        if vector_length_squared(diff) <= SURFACE_EPSILON_SQUARED {
+            continue;
+        }
+        let axis_x = normalize(diff);
+        let axis_y = cross(normal, axis_x);
+        if vector_length_squared(axis_y) <= SURFACE_EPSILON_SQUARED {
+            continue;
+        }
+        return Some((axis_x, normalize(axis_y)));
+    }
+    None
+}
+
+fn sort_points_by_angle(
+    points: &[[f64; 3]],
+    centroid: [f64; 3],
+    axis_x: [f64; 3],
+    axis_y: [f64; 3],
+) -> Vec<[f64; 3]> {
+    let mut entries: Vec<(f64, [f64; 3])> = points
+        .iter()
+        .map(|point| {
+            let diff = subtract(*point, centroid);
+            let x = dot(diff, axis_x);
+            let y = dot(diff, axis_y);
+            (y.atan2(x), *point)
+        })
+        .collect();
+
+    entries.sort_by(|a, b| match a.0.partial_cmp(&b.0) {
+        Some(order) => order,
+        None => Ordering::Equal,
+    });
+
+    entries.into_iter().map(|entry| entry.1).collect()
+}
+
+fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+fn vector_length_squared(v: [f64; 3]) -> f64 {
+    v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
+}
+
+fn point_distance_squared(a: &[f64; 3], b: &[f64; 3]) -> f64 {
+    let dx = a[0] - b[0];
+    let dy = a[1] - b[1];
+    let dz = a[2] - b[2];
+    dx * dx + dy * dy + dz * dz
+}
+
+fn normalize(v: [f64; 3]) -> [f64; 3] {
+    let len = vector_length_squared(v).sqrt();
+    if len <= SURFACE_EPSILON {
+        [0.0, 0.0, 0.0]
+    } else {
+        [v[0] / len, v[1] / len, v[2] / len]
     }
 }
 
