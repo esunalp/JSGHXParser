@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
-use super::{coerce, Component, ComponentError, ComponentResult};
+use super::{Component, ComponentError, ComponentResult, coerce};
 
 const PIN_OUTPUT_GEOMETRY: &str = "G";
 const PIN_OUTPUT_TRANSFORM: &str = "X";
@@ -149,7 +149,10 @@ fn evaluate_move(inputs: &[Value], include_transform: bool) -> ComponentResult {
         outputs.insert(
             PIN_OUTPUT_TRANSFORM.to_owned(),
             if translations.len() == 1 {
-                Value::List(vec![Value::Text("Move".into()), Value::Vector(translations[0])])
+                Value::List(vec![
+                    Value::Text("Move".into()),
+                    Value::Vector(translations[0]),
+                ])
             } else {
                 Value::List(
                     translations
@@ -460,7 +463,10 @@ fn coerce_translation_list(
         Some(value) => {
             let vectors = coerce::coerce_vector_list(value, context)?;
             if vectors.is_empty() {
-                Err(ComponentError::new(format!("{} vereist een vector", context)))
+                Err(ComponentError::new(format!(
+                    "{} vereist een vector",
+                    context
+                )))
             } else {
                 Ok(vectors)
             }

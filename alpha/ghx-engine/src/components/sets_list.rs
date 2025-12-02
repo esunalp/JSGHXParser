@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 
-use crate::graph::node::MetaMap;
+use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
 
 use super::{Component, ComponentError, ComponentResult};
@@ -16,6 +16,7 @@ const PIN_OUTPUT_KEYS: &str = "K";
 const PIN_OUTPUT_RESULT: &str = "R";
 const PIN_OUTPUT_WEAVE: &str = "W";
 const PIN_OUTPUT_CHUNKS: &str = "C";
+const META_OUTPUT_PINS: &str = "OutputPins";
 
 /// Beschikbare componenten binnen Sets -> List.
 #[derive(Debug, Clone, Copy)]
@@ -183,7 +184,38 @@ impl ComponentKind {
     }
 }
 
-fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+fn wrap_index(index: i64, len: usize) -> usize {
+    if len == 0 {
+        return 0;
+    }
+
+    let len_i64 = len as i64;
+    ((index % len_i64 + len_i64) as usize) % len
+}
+
+fn relative_output_offsets(meta: &MetaMap) -> Vec<(String, i64)> {
+    let mut offsets = Vec::new();
+
+    if let Some(MetaValue::List(entries)) = meta.get_normalized(META_OUTPUT_PINS) {
+        for entry in entries {
+            if let MetaValue::Text(text) = entry {
+                let trimmed = text.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+                if let Ok(offset) = trimmed.parse::<i64>() {
+                    offsets.push((trimmed.to_owned(), offset));
+                }
+            }
+        }
+    }
+
+    offsets.sort_by_key(|(_, offset)| *offset);
+    offsets
+}
+
+fn evaluate_list_item(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(
             "List Item vereist een lijst en een index",
@@ -201,7 +233,7 @@ fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     }
 
     let final_index = if wrap {
-        (index % list.len() as i64 + list.len() as i64) as usize % list.len()
+        wrap_index(index, list.len())
     } else {
         index as usize
     };
@@ -217,6 +249,22 @@ fn evaluate_list_item(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     let item = list[final_index].clone();
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_ELEMENT.to_owned(), item);
+    let relative_outputs = relative_output_offsets(meta);
+    let base_index = final_index as i64;
+    for (pin_name, offset) in relative_outputs {
+        let value = if wrap {
+            let target_index = wrap_index(base_index + offset, list.len());
+            list[target_index].clone()
+        } else {
+            let target_index = base_index + offset;
+            if target_index < 0 || target_index >= list.len() as i64 {
+                Value::Null
+            } else {
+                list[target_index as usize].clone()
+            }
+        };
+        outputs.insert(pin_name, value);
+    }
     // Sommige GHX-bestanden gebruiken andere pinnamen (bijv. "Item"/"i") voor de List Item-output.
     // Voeg aliases toe zodat verbindingen via die pinnamen ook een waarde ontvangen.
     outputs.insert(
@@ -674,11 +722,27 @@ fn coerce_boolean(value: Option<&Value>, context: &str) -> Result<bool, Componen
 #[cfg(test)]
 mod tests {
     use super::{
-        Component, ComponentKind, PIN_OUTPUT_CHUNKS, PIN_OUTPUT_ELEMENT, PIN_OUTPUT_KEYS,
-        PIN_OUTPUT_LIST, PIN_OUTPUT_LIST_A, PIN_OUTPUT_LIST_B, PIN_OUTPUT_RESULT, PIN_OUTPUT_WEAVE,
+        Component, ComponentKind, META_OUTPUT_PINS, PIN_OUTPUT_CHUNKS, PIN_OUTPUT_ELEMENT,
+        PIN_OUTPUT_KEYS, PIN_OUTPUT_LIST, PIN_OUTPUT_LIST_A, PIN_OUTPUT_LIST_B, PIN_OUTPUT_RESULT,
+        PIN_OUTPUT_WEAVE,
     };
-    use crate::graph::node::MetaMap;
+    use crate::graph::node::{MetaMap, MetaValue};
     use crate::graph::value::Value;
+
+    fn meta_with_output_pins(pins: &[&str]) -> MetaMap {
+        let mut meta = MetaMap::new();
+        if pins.is_empty() {
+            return meta;
+        }
+
+        let pin_values = pins
+            .iter()
+            .map(|pin| MetaValue::Text(pin.to_string()))
+            .collect::<Vec<_>>();
+
+        meta.insert(META_OUTPUT_PINS.to_owned(), MetaValue::List(pin_values));
+        meta
+    }
 
     #[test]
     fn list_length_correct() {
@@ -732,6 +796,58 @@ mod tests {
         ];
         let err = component.evaluate(inputs, &MetaMap::new()).unwrap_err();
         assert!(err.message().contains("buiten de grenzen"));
+    }
+
+    #[test]
+    fn list_item_additional_outputs_relative() {
+        let component = ComponentKind::ListItem;
+        let meta = meta_with_output_pins(&["i", "+1", "-1"]);
+        let inputs = &[
+            Value::List(vec![
+                Value::Number(10.0),
+                Value::Number(20.0),
+                Value::Number(30.0),
+                Value::Number(40.0),
+            ]),
+            Value::Number(1.0),
+        ];
+        let outputs = component.evaluate(inputs, &meta).unwrap();
+        let plus_one = outputs.get("+1").expect("contains +1 pin");
+        assert!(matches!(plus_one, Value::Number(x) if (*x - 30.0).abs() < 1e-6));
+        let minus_one = outputs.get("-1").expect("contains -1 pin");
+        assert!(matches!(minus_one, Value::Number(x) if (*x - 10.0).abs() < 1e-6));
+    }
+
+    #[test]
+    fn list_item_additional_outputs_wraps() {
+        let component = ComponentKind::ListItem;
+        let meta = meta_with_output_pins(&["+1", "-1"]);
+        let inputs = &[
+            Value::List(vec![
+                Value::Number(11.0),
+                Value::Number(22.0),
+                Value::Number(33.0),
+            ]),
+            Value::Number(2.0),
+            Value::Boolean(true),
+        ];
+        let outputs = component.evaluate(inputs, &meta).unwrap();
+        let plus_one = outputs.get("+1").expect("contains +1 pin");
+        assert!(matches!(plus_one, Value::Number(x) if (*x - 11.0).abs() < 1e-6));
+        let minus_one = outputs.get("-1").expect("contains -1 pin");
+        assert!(matches!(minus_one, Value::Number(x) if (*x - 22.0).abs() < 1e-6));
+    }
+
+    #[test]
+    fn list_item_additional_output_out_of_range_is_null() {
+        let component = ComponentKind::ListItem;
+        let meta = meta_with_output_pins(&["+1"]);
+        let inputs = &[
+            Value::List(vec![Value::Number(1.0), Value::Number(2.0)]),
+            Value::Number(1.0),
+        ];
+        let outputs = component.evaluate(inputs, &meta).unwrap();
+        assert_eq!(outputs.get("+1"), Some(&Value::Null));
     }
 
     #[test]

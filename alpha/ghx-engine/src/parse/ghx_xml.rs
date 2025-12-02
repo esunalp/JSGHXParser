@@ -10,6 +10,8 @@ use crate::graph::{Graph, GraphError};
 
 use crate::components::coerce::parse_boolean_text;
 
+const META_OUTPUT_PINS: &str = "OutputPins";
+
 use quick_xml::de::from_str;
 use serde::Deserialize;
 use thiserror::Error;
@@ -133,6 +135,8 @@ fn build_simple_node(object: GhxObject) -> (usize, Node) {
         let output_pin = slider.output_pin().unwrap_or_else(|| "OUT".to_string());
         node.set_output(output_pin, Value::Number(slider.value));
     }
+
+    register_output_pin_names(&mut node);
 
     (object.id, node)
 }
@@ -413,6 +417,8 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         None
     };
 
+    register_output_pin_names(&mut node);
+
     Ok(ArchiveObjectParseResult {
         node,
         instance_guid: instance_guid_norm,
@@ -420,6 +426,20 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
         default_output_pin,
         pending_inputs,
     })
+}
+
+fn register_output_pin_names(node: &mut Node) {
+    if node.outputs.is_empty() {
+        return;
+    }
+
+    let pin_names: Vec<MetaValue> = node
+        .outputs
+        .keys()
+        .map(|pin| MetaValue::Text(pin.clone()))
+        .collect();
+
+    node.insert_meta(META_OUTPUT_PINS, MetaValue::List(pin_names));
 }
 
 fn identify_floating_param(guid: Option<&str>) -> Option<String> {
