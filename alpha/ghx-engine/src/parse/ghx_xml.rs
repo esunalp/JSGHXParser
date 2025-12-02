@@ -360,6 +360,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             component_guid_norm.as_deref(),
             true,
         );
+        apply_pin_mapping_meta(&mut node, "output", &info.pin_name, &info.mapping);
         let pin_name = info.pin_name.clone();
         node.set_output(pin_name.clone(), Value::Null);
         outputs.push(OutputInfo {
@@ -378,6 +379,7 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             false,
         );
         node.add_input_pin(info.pin_name.clone());
+        apply_pin_mapping_meta(&mut node, "input", &info.pin_name, &info.mapping);
         if let Some(expression) = info.internal_expression.clone() {
             node.set_input_expression(info.pin_name.clone(), expression);
         }
@@ -671,6 +673,7 @@ fn parse_param_chunk(
         .item_value("InstanceGuid")
         .and_then(normalize_guid_str);
     let internal_expression = chunk.item_value("InternalExpression").map(str::to_owned);
+    let mapping = parse_param_mapping(chunk);
 
     ParamInfo {
         pin_name,
@@ -678,6 +681,7 @@ fn parse_param_chunk(
         sources,
         default_value,
         internal_expression,
+        mapping,
     }
 }
 
@@ -1028,6 +1032,44 @@ struct ParamInfo {
     sources: Vec<String>,
     default_value: Option<Value>,
     internal_expression: Option<String>,
+    mapping: ParamMapping,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct ParamMapping {
+    mapping: Option<i64>,
+    reverse: bool,
+    simplify: bool,
+}
+
+fn parse_param_mapping(chunk: &RawChunk) -> ParamMapping {
+    ParamMapping {
+        mapping: chunk
+            .item_value("Mapping")
+            .and_then(|value| value.parse::<i64>().ok()),
+        reverse: chunk
+            .item_value("ReverseData")
+            .and_then(parse_boolean_text)
+            .unwrap_or(false),
+        simplify: chunk
+            .item_value("SimplifyData")
+            .and_then(parse_boolean_text)
+            .unwrap_or(false),
+    }
+}
+
+fn apply_pin_mapping_meta(node: &mut Node, direction: &str, pin: &str, mapping: &ParamMapping) {
+    let base = format!("{direction}.{pin}");
+
+    if let Some(value) = mapping.mapping {
+        node.insert_meta(format!("{base}.mapping"), MetaValue::Integer(value));
+    }
+    if mapping.reverse {
+        node.insert_meta(format!("{base}.reverse"), true);
+    }
+    if mapping.simplify {
+        node.insert_meta(format!("{base}.simplify"), true);
+    }
 }
 
 impl RawChunks {
@@ -1484,5 +1526,94 @@ mod tests {
         assert!(relay_node.outputs.contains_key("Output"));
         // `add_input_pin` adds to input_order, but doesn't necessarily populate the inputs map if no value is set.
         assert!(relay_node.input_order().contains(&"Input".to_string()));
+    }
+
+    #[test]
+    fn captures_pin_mapping_metadata() {
+        let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<Archive name="Root">
+  <items count="0" />
+  <chunks count="1">
+    <chunk name="Definition">
+      <items count="0" />
+      <chunks count="1">
+        <chunk name="DefinitionObjects">
+          <items count="1">
+            <item name="ObjectCount" type_name="gh_int32" type_code="3">1</item>
+          </items>
+          <chunks count="1">
+            <chunk name="Object" index="0">
+              <items count="1">
+                <item name="GUID" type_name="gh_guid" type_code="9">aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa</item>
+              </items>
+              <chunks count="1">
+                <chunk name="Container">
+                  <items count="0" />
+                  <chunks count="1">
+                    <chunk name="ParameterData">
+                      <items count="2">
+                        <item name="InputCount" type_name="gh_int32" type_code="3">1</item>
+                        <item name="OutputCount" type_name="gh_int32" type_code="3">1</item>
+                      </items>
+                      <chunks count="2">
+                        <chunk name="InputParam" index="0">
+                          <items count="5">
+                            <item name="Name" type_name="gh_string" type_code="10">Input</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">I</item>
+                            <item name="Mapping" type_name="gh_int32" type_code="3">1</item>
+                            <item name="ReverseData" type_name="gh_bool" type_code="1">true</item>
+                            <item name="SimplifyData" type_name="gh_bool" type_code="1">false</item>
+                          </items>
+                        </chunk>
+                        <chunk name="OutputParam" index="0">
+                          <items count="5">
+                            <item name="Name" type_name="gh_string" type_code="10">Output</item>
+                            <item name="NickName" type_name="gh_string" type_code="10">O</item>
+                            <item name="Mapping" type_name="gh_int32" type_code="3">2</item>
+                            <item name="ReverseData" type_name="gh_bool" type_code="1">true</item>
+                            <item name="SimplifyData" type_name="gh_bool" type_code="1">true</item>
+                          </items>
+                        </chunk>
+                      </chunks>
+                    </chunk>
+                  </chunks>
+                </chunk>
+              </chunks>
+            </chunk>
+          </chunks>
+        </chunk>
+      </chunks>
+    </chunk>
+  </chunks>
+</Archive>
+"#;
+
+        let graph = parse_str(xml).expect("parsed mapping metadata");
+        let node = graph.nodes().first().unwrap();
+
+        match node.meta("input.I.mapping") {
+            Some(MetaValue::Integer(value)) => assert_eq!(*value, 1),
+            other => panic!("expected mapping integer for input, got {other:?}"),
+        }
+        assert_eq!(
+            node.meta("input.I.reverse").and_then(MetaValue::as_boolean),
+            Some(true)
+        );
+        assert!(node.meta("input.I.simplify").is_none());
+
+        match node.meta("output.O.mapping") {
+            Some(MetaValue::Integer(value)) => assert_eq!(*value, 2),
+            other => panic!("expected mapping integer for output, got {other:?}"),
+        }
+        assert_eq!(
+            node.meta("output.O.reverse")
+                .and_then(MetaValue::as_boolean),
+            Some(true)
+        );
+        assert_eq!(
+            node.meta("output.O.simplify")
+                .and_then(MetaValue::as_boolean),
+            Some(true)
+        );
     }
 }
