@@ -335,6 +335,11 @@ export function setupUi() {
   const overlayToggle = document.getElementById('overlay-toggle');
   const overlayState = document.getElementById('overlay-state');
   const loadingOverlay = document.getElementById('loading-overlay');
+  const errorToggle = document.getElementById('error-toggle');
+  const errorDropdown = document.getElementById('error-dropdown');
+  const errorList = document.getElementById('error-list');
+  const errorEmpty = document.getElementById('error-empty');
+  const errorCountLabel = document.getElementById('error-count-label');
 
   const sliderElements = new Map();
   const handlers = {
@@ -446,6 +451,78 @@ export function setupUi() {
     });
   }
 
+  const closeErrorDropdown = () => {
+    if (!errorDropdown || !errorToggle) return;
+    errorDropdown.classList.remove('error-dropdown--open');
+    errorDropdown.setAttribute('aria-hidden', 'true');
+    errorToggle.setAttribute('aria-expanded', 'false');
+  };
+
+  const openErrorDropdown = () => {
+    if (!errorDropdown || !errorToggle) return;
+    errorDropdown.classList.add('error-dropdown--open');
+    errorDropdown.setAttribute('aria-hidden', 'false');
+    errorToggle.setAttribute('aria-expanded', 'true');
+  };
+
+  if (errorToggle) {
+    errorToggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (errorDropdown?.classList.contains('error-dropdown--open')) {
+        closeErrorDropdown();
+      } else {
+        openErrorDropdown();
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    if (!errorDropdown || !errorToggle) {
+      return;
+    }
+    if (
+      errorDropdown.classList.contains('error-dropdown--open') &&
+      !errorDropdown.contains(event.target) &&
+      event.target !== errorToggle
+    ) {
+      closeErrorDropdown();
+    }
+  });
+
+  const setErrors = (errors = []) => {
+    const list = Array.isArray(errors) ? errors.filter((entry) => typeof entry === 'string') : [];
+    const count = list.length;
+
+    if (errorToggle) {
+      errorToggle.textContent = `Errors (${count})`;
+      errorToggle.classList.toggle('error-button--active', count > 0);
+    }
+
+    if (errorCountLabel) {
+      errorCountLabel.textContent = count === 1 ? '1 fout gevonden' : `${count} fouten gevonden`;
+    }
+
+    if (!errorList || !errorEmpty) {
+      return;
+    }
+
+    errorList.innerHTML = '';
+
+    if (!count) {
+      errorEmpty.style.display = 'block';
+      return;
+    }
+
+    errorEmpty.style.display = 'none';
+
+    for (const error of list) {
+      const item = document.createElement('li');
+      item.className = 'error-list__item';
+      item.textContent = error;
+      errorList.appendChild(item);
+    }
+  };
+
   return {
     canvas,
     setHandlers,
@@ -454,6 +531,7 @@ export function setupUi() {
     setStatus,
     showLoading,
     setOverlayState,
+    setErrors,
   };
 }
 

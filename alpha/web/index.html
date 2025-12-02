@@ -47,6 +47,7 @@
         flex-wrap: wrap;
         gap: 0.9rem;
         align-items: center;
+        position: relative;
       }
 
       input[type="file"] {
@@ -233,6 +234,86 @@
           min-height: 55vh;
         }
       }
+
+      .error-button {
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: inherit;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+      }
+
+      .error-button:hover {
+        border-color: rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .error-button--active {
+        border-color: rgba(255, 85, 85, 0.6);
+        color: #ffb4b4;
+        background: rgba(255, 85, 85, 0.08);
+      }
+
+      .error-dropdown {
+        position: absolute;
+        top: calc(100% + 0.5rem);
+        right: 0;
+        width: min(420px, 80vw);
+        background: rgba(12, 14, 20, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        padding: 0.85rem 1rem;
+        display: none;
+        z-index: 10;
+      }
+
+      .error-dropdown--open {
+        display: block;
+      }
+
+      .error-dropdown__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+
+      .error-dropdown__header h3 {
+        margin: 0;
+        font-size: 1rem;
+        letter-spacing: 0.02em;
+      }
+
+      .error-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        max-height: 45vh;
+        overflow-y: auto;
+      }
+
+      .error-list__item {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.95rem;
+        line-height: 1.4;
+      }
+
+      .error-empty {
+        opacity: 0.7;
+        font-size: 0.95rem;
+      }
     </style>
   </head>
   <body>
@@ -243,6 +324,17 @@
           <span class="visually-hidden">GHX-bestand</span>
           <input id="ghx-input" type="file" accept=".ghx,.xml" />
         </label>
+        <button id="error-toggle" class="error-button" type="button" aria-expanded="false" aria-controls="error-dropdown">
+          Errors (0)
+        </button>
+        <div id="error-dropdown" class="error-dropdown" role="status" aria-live="polite">
+          <div class="error-dropdown__header">
+            <h3>Evaluatiefouten</h3>
+            <span id="error-count-label">0 gevonden</span>
+          </div>
+          <ul id="error-list" class="error-list"></ul>
+          <p id="error-empty" class="error-empty">Geen fouten gedetecteerd.</p>
+        </div>
         <output id="status" class="status" aria-live="polite">Selecteer een GHX-bestand om te starten.</output>
       </div>
     </header>

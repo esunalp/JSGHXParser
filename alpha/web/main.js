@@ -117,6 +117,7 @@ async function init() {
     setSliderValue: engine.set_slider_value.bind(engine),
     evaluate: engine.evaluate.bind(engine),
     getGeometry: engine.get_geometry.bind(engine),
+    getErrors: engine.get_errors.bind(engine),
   });
 
   const invokeLoadGhx = wasmApi.loadGhx;
@@ -124,6 +125,7 @@ async function init() {
   const invokeSetSliderValue = wasmApi.setSliderValue;
   const invokeEvaluate = wasmApi.evaluate;
   const invokeGetGeometry = wasmApi.getGeometry;
+  const invokeGetErrors = wasmApi.getErrors;
 
   function fetchSliderSnapshot() {
     return invokeGetSliders();
@@ -135,6 +137,15 @@ async function init() {
 
   function fetchGeometrySnapshot() {
     return invokeGetGeometry();
+  }
+
+  function fetchErrorsSnapshot() {
+    try {
+      return invokeGetErrors();
+    } catch (error) {
+      console.warn('Kon fouten niet ophalen:', error);
+      return [];
+    }
   }
 
   function applySliderValue(sliderId, value) {
@@ -201,12 +212,16 @@ async function init() {
         refitCamera,
       });
 
+      const errors = fetchErrorsSnapshot();
+      ui.setErrors(errors);
+
       if (announce) {
         ui.setStatus(announce);
       }
     } catch (error) {
       console.error('Evaluatiefout:', error);
       three.updateGeometry([]);
+      ui.setErrors([error?.message ?? String(error)]);
       ui.setStatus('Evaluatie mislukt: ' + (error?.message ?? String(error)));
     } finally {
       ui.showLoading(false);
@@ -219,6 +234,7 @@ async function init() {
       return;
     }
 
+    ui.setErrors([]);
     ui.showLoading(true);
 
     await new Promise((resolve) => {
@@ -235,8 +251,12 @@ async function init() {
       console.error('Fout bij het laden van GHX:', error);
       ui.renderSliders([]);
       three.updateGeometry([]);
+      ui.setErrors([error?.message ?? String(error)]);
       ui.setStatus('Fout bij het laden van het GHX-bestand: ' + (error?.message ?? String(error)));
     } finally {
+      if (!label) {
+        ui.setErrors([]);
+      }
       syncSliders();
       ui.showLoading(false);
     }
