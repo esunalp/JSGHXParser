@@ -9,7 +9,7 @@ use rand::Rng;
 use rand::rng;
 
 /// Fouttype bij het evalueren van een interne expressie.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum InternalExpressionError {
     Parse(String),
     Evaluate(String),

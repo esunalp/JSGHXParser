@@ -10,7 +10,7 @@ use std::fmt;
 
 use components::{ComponentKind, ComponentRegistry};
 use graph::Graph;
-use graph::evaluator::{self, EvaluationPlan, EvaluationResult, GeometryEntry};
+use graph::evaluator::{self, EvaluationError, EvaluationPlan, EvaluationResult, GeometryEntry};
 use graph::node::{MetaLookupExt, MetaMap, MetaValue, NodeId};
 use graph::value::{ColorValue, MaterialValue, Value};
 use serde::Serialize;
@@ -237,6 +237,7 @@ pub struct Engine {
     registry: ComponentRegistry,
     graph: Option<Graph>,
     last_result: Option<EvaluationResult>,
+    last_errors: Vec<EvaluationError>,
     input_bindings: Vec<InputBinding>,
     evaluation_plan: Option<EvaluationPlan>,
     dirty_nodes: HashSet<NodeId>,
@@ -254,6 +255,7 @@ impl Engine {
             registry: ComponentRegistry::default(),
             graph: None,
             last_result: None,
+            last_errors: Vec::new(),
             input_bindings: Vec::new(),
             evaluation_plan: None,
             dirty_nodes: HashSet::new(),
@@ -280,6 +282,7 @@ impl Engine {
         self.graph = Some(graph);
         self.input_bindings = input_bindings;
         self.last_result = None;
+        self.last_errors.clear();
         self.evaluation_plan = Some(evaluation_plan);
         self.dirty_nodes.clear();
         self.dirty_nodes.extend(node_ids);
@@ -361,11 +364,13 @@ impl Engine {
 
         match evaluation {
             Ok((result, changed)) => {
+                self.last_errors = result.errors.clone();
                 self.last_result = Some(result);
                 self.result_dirty = false;
                 self.changed_nodes_since_geometry_update.extend(changed);
             }
             Err(error) => {
+                self.last_errors = vec![error.clone()];
                 self.dirty_nodes = dirty_nodes;
                 return Err(to_js_error(error));
             }
@@ -455,6 +460,14 @@ impl Engine {
         }
 
         serde_wasm_bindgen::to_value(&diff).map_err(|err| JsError::new(&err.to_string()).into())
+    }
+
+    /// Haal de fouten van de laatste evaluatie op als leesbare strings.
+    #[wasm_bindgen]
+    pub fn get_errors(&self) -> Result<JsValue, JsValue> {
+        let messages: Vec<String> = self.last_errors.iter().map(ToString::to_string).collect();
+        serde_wasm_bindgen::to_value(&messages)
+            .map_err(|err| JsError::new(&err.to_string()).into())
     }
 
     /// Haalt een tekstuele weergave op van de topologisch gesorteerde graaf.

@@ -20,6 +20,10 @@ pub struct EvaluationResult {
     pub node_outputs: HashMap<NodeId, BTreeMap<String, Value>>,
     /// Verzameling van renderbare geometrie-waarden.
     pub geometry: Vec<GeometryEntry>,
+    /// Verzamelde fouten per evaluatieronde, zonder de volledige run te stoppen.
+    pub errors: Vec<EvaluationError>,
+    /// Nodes die niet succesvol geëvalueerd konden worden.
+    pub failed_nodes: HashSet<NodeId>,
 }
 
 /// Een geometrie-item dat optioneel van materiaalinformatie is voorzien.
@@ -101,7 +105,7 @@ impl EvaluationPlan {
 }
 
 /// Fouttype voor evaluatieproblemen.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EvaluationError {
     /// Topologiesortering is mislukt.
     Topology(TopologyError),
@@ -222,6 +226,7 @@ pub fn evaluate_with_plan(
     plan: &EvaluationPlan,
 ) -> Result<EvaluationResult, EvaluationError> {
     let mut result = EvaluationResult::default();
+    let mut failed_nodes = HashSet::new();
 
     for &node_id in plan.order() {
         let node = graph
@@ -242,32 +247,49 @@ pub fn evaluate_with_plan(
         })?;
 
         let pins = plan.pins(node_id);
-        let optional_inputs = component.optional_input_pins();
         let mut input_values = Vec::with_capacity(pins.len());
+        let mut skip_node = false;
 
         for pin in pins {
             let mut value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
                 let mut values = Vec::with_capacity(connections.len());
                 for (from_node, from_pin) in connections {
-                    let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
-                        EvaluationError::MissingDependencyOutput {
+                    if failed_nodes.contains(from_node) {
+                        result.errors.push(EvaluationError::MissingDependencyOutput {
                             node_id,
                             dependency: *from_node,
                             pin: from_pin.clone(),
-                        }
-                    })?;
+                        });
+                        skip_node = true;
+                        break;
+                    }
 
-                    let value = outputs.get(from_pin).ok_or_else(|| {
-                        EvaluationError::MissingDependencyOutput {
+                    let Some(outputs) = result.node_outputs.get(from_node) else {
+                        result.errors.push(EvaluationError::MissingDependencyOutput {
                             node_id,
                             dependency: *from_node,
                             pin: from_pin.clone(),
-                        }
-                    })?;
+                        });
+                        skip_node = true;
+                        break;
+                    };
+
+                    let Some(value) = outputs.get(from_pin) else {
+                        result.errors.push(EvaluationError::MissingDependencyOutput {
+                            node_id,
+                            dependency: *from_node,
+                            pin: from_pin.clone(),
+                        });
+                        skip_node = true;
+                        break;
+                    };
+
                     values.push(value.clone());
                 }
 
-                if values.len() == 1 {
+                if skip_node {
+                    Value::Null
+                } else if values.len() == 1 {
                     values.into_iter().next().unwrap()
                 } else {
                     Value::List(values)
@@ -278,32 +300,55 @@ pub fn evaluate_with_plan(
                 Value::Null
             };
 
-            if let Some(expression) = node.input_expression(pin) {
-                value = apply_internal_expression(&value, expression).map_err(|source| {
-                    EvaluationError::InternalExpression {
-                        node_id,
-                        pin: pin.clone(),
-                        expression: expression.clone(),
-                        source,
-                    }
-                })?;
+            if skip_node {
+                continue;
             }
 
-            input_values.push(value);
+            if let Some(expression) = node.input_expression(pin) {
+                match apply_internal_expression(&value, expression) {
+                    Ok(transformed) => {
+                        value = transformed;
+                    }
+                    Err(source) => {
+                        result.errors.push(EvaluationError::InternalExpression {
+                            node_id,
+                            pin: pin.clone(),
+                            expression: expression.clone(),
+                            source,
+                        });
+                        skip_node = true;
+                    }
+                }
+            }
+
+            if !skip_node {
+                input_values.push(value);
+            }
         }
 
-        let outputs = component
-            .evaluate(&input_values, &node.meta)
-            .map_err(|error| EvaluationError::ComponentFailed {
-                node_id,
-                component: component.name().to_owned(),
-                source: error,
-            })?;
+        if skip_node {
+            failed_nodes.insert(node_id);
+            continue;
+        }
 
-        let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
-        collect_geometry(node_id, &stored_outputs, &mut result.geometry);
-        result.node_outputs.insert(node_id, stored_outputs);
+        match component.evaluate(&input_values, &node.meta) {
+            Ok(outputs) => {
+                let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
+                collect_geometry(node_id, &stored_outputs, &mut result.geometry);
+                result.node_outputs.insert(node_id, stored_outputs);
+            }
+            Err(error) => {
+                result.errors.push(EvaluationError::ComponentFailed {
+                    node_id,
+                    component: component.name().to_owned(),
+                    source: error,
+                });
+                failed_nodes.insert(node_id);
+            }
+        }
     }
+
+    result.failed_nodes = failed_nodes;
 
     Ok(result)
 }
@@ -318,6 +363,10 @@ pub fn evaluate_with_plan_incremental(
 ) -> Result<(EvaluationResult, HashSet<NodeId>), EvaluationError> {
     let mut result = EvaluationResult::default();
     let mut changed_nodes = HashSet::new();
+    let mut failed_nodes = HashSet::new();
+    let previous_failed = previous
+        .map(|prev| prev.failed_nodes.clone())
+        .unwrap_or_default();
 
     for &node_id in plan.order() {
         let node = graph
@@ -330,37 +379,75 @@ pub fn evaluate_with_plan_incremental(
             node.nickname.as_deref(),
         );
 
-        let component = component.ok_or_else(|| EvaluationError::ComponentNotFound {
-            node_id,
-            guid: node.guid.clone(),
-            name: node.name.clone(),
-            nickname: node.nickname.clone(),
-        })?;
+        let component = if let Some(component) = component {
+            component
+        } else {
+            result.errors.push(EvaluationError::ComponentNotFound {
+                node_id,
+                guid: node.guid.clone(),
+                name: node.name.clone(),
+                nickname: node.nickname.clone(),
+            });
+            failed_nodes.insert(node_id);
+            changed_nodes.insert(node_id);
+            continue;
+        };
 
         let pins = plan.pins(node_id);
-        let optional_inputs = component.optional_input_pins();
         let mut input_values = Vec::with_capacity(pins.len());
         let mut dependency_changed = false;
+        let mut skip_node = false;
 
         for pin in pins {
             let mut value = if let Some(connections) = plan.incoming_connections(node_id, pin) {
                 let mut values = Vec::with_capacity(connections.len());
                 for (from_node, from_pin) in connections {
-                    let outputs = result.node_outputs.get(from_node).ok_or_else(|| {
-                        EvaluationError::MissingDependencyOutput {
-                            node_id,
-                            dependency: *from_node,
-                            pin: from_pin.clone(),
-                        }
-                    })?;
+                    if failed_nodes.contains(from_node)
+                        || (previous_failed.contains(from_node)
+                            && !result.node_outputs.contains_key(from_node))
+                    {
+                        result
+                            .errors
+                            .push(EvaluationError::MissingDependencyOutput {
+                                node_id,
+                                dependency: *from_node,
+                                pin: from_pin.clone(),
+                            });
+                        skip_node = true;
+                        dependency_changed = true;
+                        break;
+                    }
 
-                    let value = outputs.get(from_pin).ok_or_else(|| {
-                        EvaluationError::MissingDependencyOutput {
-                            node_id,
-                            dependency: *from_node,
-                            pin: from_pin.clone(),
-                        }
-                    })?;
+                    let outputs = result
+                        .node_outputs
+                        .get(from_node)
+                        .or_else(|| previous.and_then(|prev| prev.node_outputs.get(from_node)));
+
+                    let Some(outputs) = outputs else {
+                        result
+                            .errors
+                            .push(EvaluationError::MissingDependencyOutput {
+                                node_id,
+                                dependency: *from_node,
+                                pin: from_pin.clone(),
+                            });
+                        skip_node = true;
+                        dependency_changed = true;
+                        break;
+                    };
+
+                    let Some(value) = outputs.get(from_pin) else {
+                        result
+                            .errors
+                            .push(EvaluationError::MissingDependencyOutput {
+                                node_id,
+                                dependency: *from_node,
+                                pin: from_pin.clone(),
+                            });
+                        skip_node = true;
+                        dependency_changed = true;
+                        break;
+                    };
 
                     if changed_nodes.contains(from_node) {
                         dependency_changed = true;
@@ -369,7 +456,9 @@ pub fn evaluate_with_plan_incremental(
                     values.push(value.clone());
                 }
 
-                if values.len() == 1 {
+                if skip_node {
+                    Value::Null
+                } else if values.len() == 1 {
                     values.into_iter().next().unwrap()
                 } else {
                     Value::List(values)
@@ -380,22 +469,43 @@ pub fn evaluate_with_plan_incremental(
                 Value::Null
             };
 
-            if let Some(expression) = node.input_expression(pin) {
-                value = apply_internal_expression(&value, expression).map_err(|source| {
-                    EvaluationError::InternalExpression {
-                        node_id,
-                        pin: pin.clone(),
-                        expression: expression.clone(),
-                        source,
-                    }
-                })?;
+            if skip_node {
+                continue;
             }
 
-            input_values.push(value);
+            if let Some(expression) = node.input_expression(pin) {
+                match apply_internal_expression(&value, expression) {
+                    Ok(transformed) => {
+                        value = transformed;
+                    }
+                    Err(source) => {
+                        result.errors.push(EvaluationError::InternalExpression {
+                            node_id,
+                            pin: pin.clone(),
+                            expression: expression.clone(),
+                            source,
+                        });
+                        skip_node = true;
+                        dependency_changed = true;
+                    }
+                }
+            }
+
+            if !skip_node {
+                input_values.push(value);
+            }
         }
 
-        let needs_recompute =
-            dirty_nodes.contains(&node_id) || dependency_changed || previous.is_none();
+        let needs_recompute = dirty_nodes.contains(&node_id)
+            || dependency_changed
+            || previous.is_none()
+            || previous_failed.contains(&node_id);
+
+        if skip_node {
+            failed_nodes.insert(node_id);
+            changed_nodes.insert(node_id);
+            continue;
+        }
 
         if !needs_recompute {
             if let Some(previous_outputs) =
@@ -408,24 +518,31 @@ pub fn evaluate_with_plan_incremental(
             }
         }
 
-        let outputs = component
-            .evaluate(&input_values, &node.meta)
-            .map_err(|error| EvaluationError::ComponentFailed {
-                node_id,
-                component: component.name().to_owned(),
-                source: error,
-            })?;
+        match component.evaluate(&input_values, &node.meta) {
+            Ok(outputs) => {
+                let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
 
-        let stored_outputs = merge_outputs(node.outputs.clone(), outputs);
+                let previous_outputs = previous.and_then(|prev| prev.node_outputs.get(&node_id));
+                if previous_outputs.map_or(true, |prev| prev != &stored_outputs) {
+                    changed_nodes.insert(node_id);
+                }
 
-        let previous_outputs = previous.and_then(|prev| prev.node_outputs.get(&node_id));
-        if previous_outputs.map_or(true, |prev| prev != &stored_outputs) {
-            changed_nodes.insert(node_id);
+                collect_geometry(node_id, &stored_outputs, &mut result.geometry);
+                result.node_outputs.insert(node_id, stored_outputs);
+            }
+            Err(error) => {
+                result.errors.push(EvaluationError::ComponentFailed {
+                    node_id,
+                    component: component.name().to_owned(),
+                    source: error,
+                });
+                failed_nodes.insert(node_id);
+                changed_nodes.insert(node_id);
+            }
         }
-
-        collect_geometry(node_id, &stored_outputs, &mut result.geometry);
-        result.node_outputs.insert(node_id, stored_outputs);
     }
+
+    result.failed_nodes = failed_nodes;
 
     Ok((result, changed_nodes))
 }
@@ -567,15 +684,88 @@ mod tests {
             .unwrap();
         let registry = ComponentRegistry::default();
 
-        let err = evaluate(&graph, &registry).expect_err("component ontbreekt");
-        match err {
-            EvaluationError::ComponentNotFound {
-                node_id: err_node, ..
-            } => {
-                assert_eq!(err_node, node_id);
-            }
-            other => panic!("unexpected error: {other:?}"),
-        }
+        let result = evaluate(&graph, &registry).expect("evaluatie faalt niet hard");
+        assert!(result.node_outputs.get(&node_id).is_none());
+        assert!(result.failed_nodes.contains(&node_id));
+        assert!(result
+            .errors
+            .iter()
+            .any(|err| matches!(err, EvaluationError::ComponentNotFound { node_id: err_node, .. } if *err_node == node_id)));
+    }
+
+    #[test]
+    fn continues_after_component_failure() {
+        let mut graph = Graph::new();
+
+        let mut failing_node = Node::new(NodeId::new(0));
+        failing_node.guid = Some("non-existent-guid".to_string());
+        let failing_id = graph.add_node(failing_node).unwrap();
+
+        let mut point = Node::new(NodeId::new(1));
+        point.guid = Some("{3581f42a-9592-4549-bd6b-1c0fc39d067b}".to_string());
+        point.add_input_pin("X");
+        point.add_input_pin("Y");
+        point.add_input_pin("Z");
+        point.set_input("X", Value::Number(1.0));
+        point.set_input("Y", Value::Number(2.0));
+        point.set_input("Z", Value::Number(3.0));
+        let point_id = graph.add_node(point).unwrap();
+
+        let registry = ComponentRegistry::default();
+        let result = evaluate(&graph, &registry).expect("evaluatie levert gedeeltelijke resultaten");
+
+        assert!(result.failed_nodes.contains(&failing_id));
+        assert!(!result.errors.is_empty());
+        let point_outputs = result.node_outputs.get(&point_id).expect("point heeft outputs");
+        assert_eq!(
+            point_outputs.get("P"),
+            Some(&Value::Point([1.0, 2.0, 3.0]))
+        );
+        assert_eq!(result.geometry.len(), 1);
+        assert_eq!(result.geometry[0].source_node, point_id);
+    }
+
+    #[test]
+    fn incremental_marks_failed_nodes_as_changed() {
+        let mut graph = Graph::new();
+
+        let mut point = Node::new(NodeId::new(0));
+        point.guid = Some("{3581f42a-9592-4549-bd6b-1c0fc39d067b}".to_string());
+        point.add_input_pin("X");
+        point.add_input_pin("Y");
+        point.add_input_pin("Z");
+        point.set_input("X", Value::Number(0.0));
+        point.set_input("Y", Value::Number(0.0));
+        point.set_input("Z", Value::Number(0.0));
+        let point_id = graph.add_node(point).unwrap();
+
+        let registry = ComponentRegistry::default();
+        let plan = EvaluationPlan::new(&graph).expect("plan beschikbaar");
+        let dirty: HashSet<NodeId> = HashSet::from([point_id]);
+        let (initial_result, initial_changed) =
+            evaluate_with_plan_incremental(&graph, &registry, &plan, None, &dirty)
+                .expect("initiële evaluatie");
+        assert!(initial_changed.contains(&point_id));
+        assert!(initial_result.failed_nodes.is_empty());
+
+        let point_node = graph
+            .node_mut(point_id)
+            .expect("node beschikbaar voor update");
+        point_node.guid = Some("invalid-guid-afterwards".to_string());
+
+        let dirty_after_change: HashSet<NodeId> = HashSet::from([point_id]);
+        let (second_result, changed_nodes) = evaluate_with_plan_incremental(
+            &graph,
+            &registry,
+            &plan,
+            Some(&initial_result),
+            &dirty_after_change,
+        )
+        .expect("tweede evaluatie");
+
+        assert!(changed_nodes.contains(&point_id));
+        assert!(second_result.failed_nodes.contains(&point_id));
+        assert!(second_result.node_outputs.get(&point_id).is_none());
     }
 
     #[test]
