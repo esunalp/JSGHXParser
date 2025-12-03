@@ -866,17 +866,6 @@ fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
     Value::List(vertices.into_iter().map(Value::Point).collect())
 }
 
-fn push_face(faces: &mut Vec<Vec<u32>>, indices: &[u32], reversed: bool) {
-    if indices.len() < 3 {
-        return;
-    }
-    if reversed {
-        faces.push(indices.iter().rev().copied().collect());
-    } else {
-        faces.push(indices.to_vec());
-    }
-}
-
 fn create_box_rectangle_surface(
     plane: &Plane,
     profile: &[[f64; 2]],
@@ -896,29 +885,37 @@ fn create_box_rectangle_surface(
     let base_indices: Vec<u32> = (0..vertex_count).map(|index| index as u32).collect();
     let top_indices: Vec<u32> = (vertex_count as u32..(vertex_count * 2) as u32).collect();
 
-    let mut faces = Vec::with_capacity(2 + vertex_count);
-    push_face(&mut faces, &base_indices, height >= 0.0);
-    push_face(&mut faces, &top_indices, height < 0.0);
+    let mut faces = Vec::with_capacity((vertex_count - 2) * 2 + vertex_count * 2);
 
+    // Triangulate base cap
+    let mut base_loop = base_indices.clone();
+    if height >= 0.0 {
+        base_loop.reverse();
+    }
+    for i in 1..base_loop.len() - 1 {
+        faces.push(vec![base_loop[0], base_loop[i], base_loop[i + 1]]);
+    }
+
+    // Triangulate top cap
+    let mut top_loop = top_indices.clone();
+    if height < 0.0 {
+        top_loop.reverse();
+    }
+    for i in 1..top_loop.len() - 1 {
+        faces.push(vec![top_loop[0], top_loop[i], top_loop[i + 1]]);
+    }
+
+    // Side faces (two triangles per edge)
     let height_positive = height >= 0.0;
     for i in 0..vertex_count {
         let next = (i + 1) % vertex_count;
-        let face = if height_positive {
-            vec![
-                base_indices[i],
-                base_indices[next],
-                top_indices[next],
-                top_indices[i],
-            ]
+        if height_positive {
+            faces.push(vec![base_indices[i], base_indices[next], top_indices[next]]);
+            faces.push(vec![base_indices[i], top_indices[next], top_indices[i]]);
         } else {
-            vec![
-                base_indices[next],
-                base_indices[i],
-                top_indices[i],
-                top_indices[next],
-            ]
-        };
-        faces.push(face);
+            faces.push(vec![base_indices[next], base_indices[i], top_indices[i]]);
+            faces.push(vec![base_indices[next], top_indices[i], top_indices[next]]);
+        }
     }
 
     Value::Surface { vertices, faces }
@@ -1581,10 +1578,15 @@ mod tests {
                 &MetaMap::new(),
             )
             .expect("box rectangle succeeded");
-        assert!(matches!(
-            outputs.get(PIN_OUTPUT_BOX),
-            Some(Value::Surface { .. })
-        ));
+        let Value::Surface { vertices, faces } = outputs
+            .get(PIN_OUTPUT_BOX)
+            .expect("surface output")
+        else {
+            panic!("expected surface mesh");
+        };
+        assert_eq!(vertices.len(), 8);
+        assert_eq!(faces.len(), 12); // 2 caps * 2 triangles + 4 sides * 2 triangles
+        assert!(faces.iter().all(|face| face.len() == 3));
     }
 
     #[test]
