@@ -814,12 +814,12 @@ fn create_box_from_extents(min: [f64; 3], max: [f64; 3]) -> Value {
 }
 
 const ORIENTED_BOX_FACE_INDICES: [[u32; 4]; 6] = [
-    [0, 1, 2, 3],
-    [4, 5, 6, 7],
-    [0, 1, 5, 4],
-    [2, 3, 7, 6],
-    [1, 2, 6, 5],
-    [0, 3, 7, 4],
+    [0, 2, 3, 1], // bottom (normal -z)
+    [4, 5, 7, 6], // top (normal +z)
+    [0, 1, 5, 4], // front (normal -y)
+    [2, 6, 7, 3], // back (normal +y)
+    [0, 4, 6, 2], // left (normal -x)
+    [1, 3, 7, 5], // right (normal +x)
 ];
 
 fn create_oriented_box_vertices(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Vec<[f64; 3]> {
@@ -836,11 +836,10 @@ fn create_oriented_box_vertices(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> 
 
 fn create_oriented_box_surface(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
     let vertices = create_oriented_box_vertices(plane, min, max);
-    let mut faces = Vec::with_capacity(ORIENTED_BOX_FACE_INDICES.len() * 2);
-    for quad in ORIENTED_BOX_FACE_INDICES {
-        faces.push(vec![quad[0], quad[1], quad[2]]);
-        faces.push(vec![quad[0], quad[2], quad[3]]);
-    }
+    let faces = ORIENTED_BOX_FACE_INDICES
+        .iter()
+        .map(|quad| quad.to_vec())
+        .collect();
     Value::Surface { vertices, faces }
 }
 
