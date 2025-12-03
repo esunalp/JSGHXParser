@@ -238,7 +238,7 @@ impl Component for ComponentKind {
             Self::LineSDL => evaluate_line_sdl(inputs),
             Self::CircleTanTan => not_implemented(self.name()),
             Self::Line2Plane => not_implemented(self.name()),
-            Self::Rectangle2Pt => not_implemented(self.name()),
+            Self::Rectangle2Pt => evaluate_rectangle_2pt(inputs),
             Self::InEllipse => not_implemented(self.name()),
             Self::BiArc => not_implemented(self.name()),
             Self::Polygon => evaluate_polygon(inputs),
@@ -767,6 +767,56 @@ fn evaluate_rectangle_3pt(inputs: &[Value]) -> ComponentResult {
         Value::List(points.into_iter().map(Value::Point).collect()),
     );
     outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(perimeter));
+    Ok(outputs)
+}
+
+fn evaluate_rectangle_2pt(inputs: &[Value]) -> ComponentResult {
+    if inputs.len() < 3 {
+        return Err(ComponentError::new(
+            "Rectangle 2Pt component vereist twee punten",
+        ));
+    }
+
+    const CONTEXT: &str = "Rectangle 2Pt";
+    let plane_input = inputs.get(0).unwrap_or(&Value::Null);
+    let base_plane = parse_plane(Some(plane_input), CONTEXT)?;
+    let point_a = coerce_point(inputs.get(1).unwrap(), CONTEXT)?;
+    let point_b = coerce_point(inputs.get(2).unwrap(), CONTEXT)?;
+    let radius = coerce_number(inputs.get(3), CONTEXT).unwrap_or(0.0);
+
+    let (u_a, v_a) = base_plane.project(point_a);
+    let (u_b, v_b) = base_plane.project(point_b);
+
+    let u_min = u_a.min(u_b);
+    let u_max = u_a.max(u_b);
+    let v_min = v_a.min(v_b);
+    let v_max = v_a.max(v_b);
+
+    let x_size = u_max - u_min;
+    let y_size = v_max - v_min;
+
+    if x_size <= EPSILON || y_size <= EPSILON {
+        return Err(ComponentError::new(format!(
+            "{} vereist twee verschillende punten om een rechthoek te definiëren",
+            CONTEXT
+        )));
+    }
+
+    let center_u = (u_min + u_max) / 2.0;
+    let center_v = (v_min + v_max) / 2.0;
+    let center = base_plane.apply(center_u, center_v);
+    let rectangle_plane =
+        Plane::from_axes(center, base_plane.x_axis, base_plane.y_axis, base_plane._z_axis);
+
+    let (points, length) =
+        create_rectangle_points(&rectangle_plane, x_size, y_size, radius);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_RECTANGLE.to_owned(),
+        Value::List(points.into_iter().map(Value::Point).collect()),
+    );
+    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
     Ok(outputs)
 }
 
@@ -1436,6 +1486,111 @@ mod tests {
             panic!("expected point");
         };
         assert!((point[2] - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_2pt_generates_points_and_length() {
+        let component = ComponentKind::Rectangle2Pt;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Null,
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([10.0, 20.0, 0.0]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle 2pt generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        assert_eq!(points.len(), 5);
+
+        let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected length");
+        };
+        assert!((length - 60.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_2pt_with_radius_generates_points_and_length() {
+        let component = ComponentKind::Rectangle2Pt;
+        let outputs = component
+            .evaluate(
+                &[
+                    Value::Null,
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([10.0, 20.0, 0.0]),
+                    Value::Number(2.0),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle 2pt generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        let segments_per_corner = segments_for_angle(std::f64::consts::TAU / 4.0);
+        assert_eq!(points.len(), 4 * segments_per_corner + 2);
+
+        let Some(Value::Number(length)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected length");
+        };
+        assert!(
+            (length - (2.0 * (10.0 - 4.0) + 2.0 * (20.0 - 4.0) + std::f64::consts::TAU * 2.0))
+                .abs()
+                < 1e-9
+        );
+    }
+
+    #[test]
+    fn rectangle_2pt_respects_plane() {
+        let component = ComponentKind::Rectangle2Pt;
+        let plane = Value::List(vec![
+            Value::Point([1.0, 2.0, 3.0]),
+            Value::Point([2.0, 2.0, 3.0]),
+            Value::Point([1.0, 3.0, 3.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[
+                    plane,
+                    Value::Point([1.0, 2.0, 3.0]),
+                    Value::Point([11.0, 22.0, 3.0]),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle 2pt generated");
+
+        let Some(Value::List(points)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        let Some(Value::Point(first)) = points.first() else {
+            panic!("expected point");
+        };
+        assert!((first[2] - 3.0).abs() < 1e-9);
+
+        let Some(Value::Point(last)) = points.last() else {
+            panic!("expected point");
+        };
+        assert!((last[2] - 3.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_2pt_requires_distinct_points() {
+        let component = ComponentKind::Rectangle2Pt;
+        let err = component
+            .evaluate(
+                &[
+                    Value::Null,
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([0.0, 0.0, 0.0]),
+                ],
+                &MetaMap::new(),
+            )
+            .unwrap_err();
+        assert!(err.message().contains("twee verschillende"));
     }
 
     #[test]
