@@ -1,5 +1,6 @@
 //! Implementaties van Grasshopper "Surface → Primitive" componenten.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
@@ -382,26 +383,61 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
         Plane::default()
     };
 
-    let mut min = [f64::INFINITY; 3];
-    let mut max = [f64::NEG_INFINITY; 3];
+    let mut uvs = Vec::with_capacity(rectangle_points.len());
+    let mut min_uv = [f64::INFINITY; 2];
+    let mut max_uv = [f64::NEG_INFINITY; 2];
     for point in rectangle_points {
         let coords = plane.coordinates(point);
-        for axis in 0..2 {
-            min[axis] = min[axis].min(coords[axis]);
-            max[axis] = max[axis].max(coords[axis]);
-        }
+        min_uv[0] = min_uv[0].min(coords[0]);
+        min_uv[1] = min_uv[1].min(coords[1]);
+        max_uv[0] = max_uv[0].max(coords[0]);
+        max_uv[1] = max_uv[1].max(coords[1]);
+        uvs.push([coords[0], coords[1]]);
     }
 
-    if !min[0].is_finite() || !min[1].is_finite() {
+    let mut unique_uv = Vec::new();
+    for uv in uvs {
+        if unique_uv.iter().any(|existing| {
+            (existing[0] - uv[0]).abs() <= EPSILON && (existing[1] - uv[1]).abs() <= EPSILON
+        }) {
+            continue;
+        }
+        unique_uv.push(uv);
+    }
+
+    if unique_uv.len() < 3 {
+        unique_uv = vec![
+            [min_uv[0], min_uv[1]],
+            [max_uv[0], min_uv[1]],
+            [max_uv[0], max_uv[1]],
+            [min_uv[0], max_uv[1]],
+        ];
+    }
+
+    let centroid = unique_uv.iter().fold([0.0, 0.0], |mut acc, uv| {
+        acc[0] += uv[0];
+        acc[1] += uv[1];
+        acc
+    });
+    let centroid = [centroid[0] / unique_uv.len() as f64, centroid[1] / unique_uv.len() as f64];
+
+    let mut entries: Vec<([f64; 2], f64)> = unique_uv
+        .into_iter()
+        .map(|uv| {
+            let angle = (uv[1] - centroid[1]).atan2(uv[0] - centroid[0]);
+            (uv, angle)
+        })
+        .collect();
+    entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+    let profile_loop: Vec<[f64; 2]> = entries.into_iter().map(|(uv, _)| uv).collect();
+
+    if profile_loop.len() < 3 {
         return Err(ComponentError::new(
             "Box Rectangle kon de rechthoek niet projecteren",
         ));
     }
 
-    min[2] = 0.0_f64.min(height);
-    max[2] = 0.0_f64.max(height);
-
-    let box_value = create_oriented_box_surface(&plane, min, max);
+    let box_value = create_box_rectangle_surface(&plane, &profile_loop, height);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BOX.to_owned(), box_value);
@@ -813,15 +849,6 @@ fn create_box_from_extents(min: [f64; 3], max: [f64; 3]) -> Value {
     Value::List(corners.into_iter().map(Value::Point).collect())
 }
 
-const ORIENTED_BOX_FACE_INDICES: [[u32; 4]; 6] = [
-    [0, 2, 3, 1], // bottom (normal -z)
-    [4, 5, 7, 6], // top (normal +z)
-    [0, 1, 5, 4], // front (normal -y)
-    [2, 6, 7, 3], // back (normal +y)
-    [0, 4, 6, 2], // left (normal -x)
-    [1, 3, 7, 5], // right (normal +x)
-];
-
 fn create_oriented_box_vertices(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Vec<[f64; 3]> {
     let mut corners = Vec::with_capacity(8);
     for &z in &[min[2], max[2]] {
@@ -834,18 +861,67 @@ fn create_oriented_box_vertices(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> 
     corners
 }
 
-fn create_oriented_box_surface(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
-    let vertices = create_oriented_box_vertices(plane, min, max);
-    let faces = ORIENTED_BOX_FACE_INDICES
-        .iter()
-        .map(|quad| quad.to_vec())
-        .collect();
-    Value::Surface { vertices, faces }
-}
-
 fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
     let vertices = create_oriented_box_vertices(plane, min, max);
     Value::List(vertices.into_iter().map(Value::Point).collect())
+}
+
+fn push_face(faces: &mut Vec<Vec<u32>>, indices: &[u32], reversed: bool) {
+    if indices.len() < 3 {
+        return;
+    }
+    if reversed {
+        faces.push(indices.iter().rev().copied().collect());
+    } else {
+        faces.push(indices.to_vec());
+    }
+}
+
+fn create_box_rectangle_surface(
+    plane: &Plane,
+    profile: &[[f64; 2]],
+    height: f64,
+) -> Value {
+    let vertex_count = profile.len();
+    let mut vertices = Vec::with_capacity(vertex_count * 2);
+    let base_z = 0.0;
+    let top_z = height;
+    for uv in profile {
+        vertices.push(plane.apply(uv[0], uv[1], base_z));
+    }
+    for uv in profile {
+        vertices.push(plane.apply(uv[0], uv[1], top_z));
+    }
+
+    let base_indices: Vec<u32> = (0..vertex_count).map(|index| index as u32).collect();
+    let top_indices: Vec<u32> = (vertex_count as u32..(vertex_count * 2) as u32).collect();
+
+    let mut faces = Vec::with_capacity(2 + vertex_count);
+    push_face(&mut faces, &base_indices, height >= 0.0);
+    push_face(&mut faces, &top_indices, height < 0.0);
+
+    let height_positive = height >= 0.0;
+    for i in 0..vertex_count {
+        let next = (i + 1) % vertex_count;
+        let face = if height_positive {
+            vec![
+                base_indices[i],
+                base_indices[next],
+                top_indices[next],
+                top_indices[i],
+            ]
+        } else {
+            vec![
+                base_indices[next],
+                base_indices[i],
+                top_indices[i],
+                top_indices[next],
+            ]
+        };
+        faces.push(face);
+    }
+
+    Value::Surface { vertices, faces }
 }
 
 fn collect_top_level_items(value: Option<&Value>) -> Vec<&Value> {
