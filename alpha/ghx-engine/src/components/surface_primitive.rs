@@ -384,52 +384,29 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
     };
 
     let mut uvs = Vec::with_capacity(rectangle_points.len());
-    let mut min_uv = [f64::INFINITY; 2];
-    let mut max_uv = [f64::NEG_INFINITY; 2];
     for point in rectangle_points {
         let coords = plane.coordinates(point);
-        min_uv[0] = min_uv[0].min(coords[0]);
-        min_uv[1] = min_uv[1].min(coords[1]);
-        max_uv[0] = max_uv[0].max(coords[0]);
-        max_uv[1] = max_uv[1].max(coords[1]);
         uvs.push([coords[0], coords[1]]);
     }
 
-    let mut unique_uv = Vec::new();
+    // Remove duplicate closing point while preserving input order.
+    if uvs.len() > 1 {
+        let first = uvs.first().unwrap();
+        let last = uvs.last().unwrap();
+        if (first[0] - last[0]).abs() <= EPSILON && (first[1] - last[1]).abs() <= EPSILON {
+            uvs.pop();
+        }
+    }
+
+    let mut profile_loop = Vec::new();
     for uv in uvs {
-        if unique_uv.iter().any(|existing: &[f64; 2]| {
-            (existing[0] - uv[0]).abs() <= EPSILON && (existing[1] - uv[1]).abs() <= EPSILON
+        if profile_loop.last().map_or(false, |last: &[f64; 2]| {
+            (last[0] - uv[0]).abs() <= EPSILON && (last[1] - uv[1]).abs() <= EPSILON
         }) {
             continue;
         }
-        unique_uv.push(uv);
+        profile_loop.push(uv);
     }
-
-    if unique_uv.len() < 3 {
-        unique_uv = vec![
-            [min_uv[0], min_uv[1]],
-            [max_uv[0], min_uv[1]],
-            [max_uv[0], max_uv[1]],
-            [min_uv[0], max_uv[1]],
-        ];
-    }
-
-    let centroid = unique_uv.iter().fold([0.0, 0.0], |mut acc, uv| {
-        acc[0] += uv[0];
-        acc[1] += uv[1];
-        acc
-    });
-    let centroid = [centroid[0] / unique_uv.len() as f64, centroid[1] / unique_uv.len() as f64];
-
-    let mut entries: Vec<([f64; 2], f64)> = unique_uv
-        .into_iter()
-        .map(|uv| {
-            let angle = (uv[1] - centroid[1]).atan2(uv[0] - centroid[0]);
-            (uv, angle)
-        })
-        .collect();
-    entries.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
-    let profile_loop: Vec<[f64; 2]> = entries.into_iter().map(|(uv, _)| uv).collect();
 
     if profile_loop.len() < 3 {
         return Err(ComponentError::new(
@@ -437,7 +414,15 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let box_value = create_box_rectangle_surface(&plane, &profile_loop, height);
+    // Determine extrusion direction from polygon winding so flipping the input curve flips the box.
+    let mut signed_area = 0.0;
+    for i in 0..profile_loop.len() {
+        let j = (i + 1) % profile_loop.len();
+        signed_area += profile_loop[i][0] * profile_loop[j][1]
+            - profile_loop[j][0] * profile_loop[i][1];
+    }
+    let direction = if signed_area >= 0.0 { 1.0 } else { -1.0 };
+    let box_value = create_box_rectangle_surface(&plane, &profile_loop, height * direction);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BOX.to_owned(), box_value);
@@ -916,6 +901,11 @@ fn create_box_rectangle_surface(
             faces.push(vec![base_indices[next], base_indices[i], top_indices[i]]);
             faces.push(vec![base_indices[next], top_indices[i], top_indices[next]]);
         }
+    }
+
+    // Flip normals: reverse winding of all faces.
+    for face in &mut faces {
+        face.reverse();
     }
 
     Value::Surface { vertices, faces }
