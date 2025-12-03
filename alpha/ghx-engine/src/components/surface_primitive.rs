@@ -397,7 +397,7 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
 
     let mut unique_uv = Vec::new();
     for uv in uvs {
-        if unique_uv.iter().any(|existing| {
+        if unique_uv.iter().any(|existing: &[f64; 2]| {
             (existing[0] - uv[0]).abs() <= EPSILON && (existing[1] - uv[1]).abs() <= EPSILON
         }) {
             continue;
