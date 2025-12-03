@@ -401,7 +401,7 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
     min[2] = 0.0_f64.min(height);
     max[2] = 0.0_f64.max(height);
 
-    let box_value = create_oriented_box(&plane, min, max);
+    let box_value = create_oriented_box_surface(&plane, min, max);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BOX.to_owned(), box_value);
@@ -813,7 +813,16 @@ fn create_box_from_extents(min: [f64; 3], max: [f64; 3]) -> Value {
     Value::List(corners.into_iter().map(Value::Point).collect())
 }
 
-fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
+const ORIENTED_BOX_FACE_INDICES: [[u32; 4]; 6] = [
+    [0, 1, 2, 3],
+    [4, 5, 6, 7],
+    [0, 1, 5, 4],
+    [2, 3, 7, 6],
+    [1, 2, 6, 5],
+    [0, 3, 7, 4],
+];
+
+fn create_oriented_box_vertices(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Vec<[f64; 3]> {
     let mut corners = Vec::with_capacity(8);
     for &z in &[min[2], max[2]] {
         for &y in &[min[1], max[1]] {
@@ -822,7 +831,22 @@ fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
             }
         }
     }
-    Value::List(corners.into_iter().map(Value::Point).collect())
+    corners
+}
+
+fn create_oriented_box_surface(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
+    let vertices = create_oriented_box_vertices(plane, min, max);
+    let mut faces = Vec::with_capacity(ORIENTED_BOX_FACE_INDICES.len() * 2);
+    for quad in ORIENTED_BOX_FACE_INDICES {
+        faces.push(vec![quad[0], quad[1], quad[2]]);
+        faces.push(vec![quad[0], quad[2], quad[3]]);
+    }
+    Value::Surface { vertices, faces }
+}
+
+fn create_oriented_box(plane: &Plane, min: [f64; 3], max: [f64; 3]) -> Value {
+    let vertices = create_oriented_box_vertices(plane, min, max);
+    Value::List(vertices.into_iter().map(Value::Point).collect())
 }
 
 fn collect_top_level_items(value: Option<&Value>) -> Vec<&Value> {
@@ -1463,6 +1487,27 @@ mod tests {
             .expect("plane surface succeeded");
         assert!(matches!(
             outputs.get(PIN_OUTPUT_PLANE),
+            Some(Value::Surface { .. })
+        ));
+    }
+
+    #[test]
+    fn box_rectangle_creates_surface_mesh() {
+        let component = ComponentKind::BoxRectangle;
+        let rectangle = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+        ]);
+        let outputs = component
+            .evaluate(
+                &[rectangle, Value::Number(2.0)],
+                &MetaMap::new(),
+            )
+            .expect("box rectangle succeeded");
+        assert!(matches!(
+            outputs.get(PIN_OUTPUT_BOX),
             Some(Value::Surface { .. })
         ));
     }
