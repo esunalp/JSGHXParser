@@ -307,7 +307,7 @@ fn evaluate_flip_curve(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Flip Curve")?;
     let closed = is_closed_polyline(&points);
-    let mut should_flip = !closed;
+    let mut should_flip = true;
 
     if !closed {
         if let Some(guide_value) = inputs.get(1) {
@@ -1879,6 +1879,37 @@ mod tests {
         assert_eq!(
             flipped,
             vec![Value::Point([3.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 0.0]),]
+        );
+        assert_eq!(outputs.get(PIN_OUTPUT_FLAG), Some(&Value::Boolean(true)));
+    }
+
+    #[test]
+    fn flip_curve_reverses_closed_winding() {
+        let component = ComponentKind::FlipCurve;
+        let inputs = vec![Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 0.0]),
+        ])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("flip closed curve");
+
+        let curve = outputs
+            .get(PIN_OUTPUT_CURVES)
+            .and_then(|value| value.expect_list().ok())
+            .expect("curve output");
+        let flipped: Vec<Value> = curve.to_vec();
+        assert_eq!(
+            flipped,
+            vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]),
+            ]
         );
         assert_eq!(outputs.get(PIN_OUTPUT_FLAG), Some(&Value::Boolean(true)));
     }
