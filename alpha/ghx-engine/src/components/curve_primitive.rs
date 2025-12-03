@@ -2,8 +2,9 @@
 
 use std::collections::BTreeMap;
 
+use crate::components::coerce;
 use crate::graph::node::MetaMap;
-use crate::graph::value::{Domain, Value, ValueKind};
+use crate::graph::value::{Domain, Value};
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -305,9 +306,9 @@ fn evaluate_arc_3pt(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Arc 3Pt component vereist drie punten"));
     }
 
-    let p1_res = coerce_point(inputs.get(0).unwrap(), "Arc 3Pt");
-    let p2_res = coerce_point(inputs.get(1).unwrap(), "Arc 3Pt");
-    let p3_res = coerce_point(inputs.get(2).unwrap(), "Arc 3Pt");
+    let p1_res = coerce::coerce_point_with_context(inputs.get(0).unwrap(), "Arc 3Pt");
+    let p2_res = coerce::coerce_point_with_context(inputs.get(1).unwrap(), "Arc 3Pt");
+    let p3_res = coerce::coerce_point_with_context(inputs.get(2).unwrap(), "Arc 3Pt");
 
     if p1_res.is_err() || p2_res.is_err() || p3_res.is_err() {
         let mut outputs = BTreeMap::new();
@@ -418,9 +419,9 @@ fn evaluate_circle_cnr(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let center = coerce_point(inputs.get(0).unwrap(), "CircleCNR")?;
-    let normal = coerce_point(inputs.get(1).unwrap(), "CircleCNR")?;
-    let radius = coerce_number(inputs.get(2), "CircleCNR")?;
+    let center = coerce::coerce_point_with_context(inputs.get(0).unwrap(), "CircleCNR")?;
+    let normal = coerce::coerce_point_with_context(inputs.get(1).unwrap(), "CircleCNR")?;
+    let radius = require_number(inputs.get(2), "CircleCNR")?;
 
     if radius <= 0.0 {
         return Err(ComponentError::new(
@@ -446,9 +447,10 @@ fn evaluate_line_sdl(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let start = coerce_point(inputs.get(0).unwrap(), "LineSDL")?;
-    let direction = coerce_point(inputs.get(1).unwrap(), "LineSDL")?;
-    let length = coerce_number(inputs.get(2), "LineSDL")?;
+    let start = coerce::coerce_point_with_context(inputs.get(0).unwrap(), "LineSDL")?;
+    let direction =
+        coerce::coerce_point_with_context(inputs.get(1).unwrap(), "LineSDL")?;
+    let length = require_number(inputs.get(2), "LineSDL")?;
 
     let end = add(start, scale(normalize(direction), length));
 
@@ -520,8 +522,8 @@ fn evaluate_arc(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = parse_plane(inputs.get(0), "Arc")?;
-    let radius = coerce_number(inputs.get(1), "Arc")?;
-    let angle = coerce_number(inputs.get(2), "Arc")?;
+    let radius = require_number(inputs.get(1), "Arc")?;
+    let angle = require_number(inputs.get(2), "Arc")?;
 
     if radius <= 0.0 {
         return Err(ComponentError::new(
@@ -581,9 +583,9 @@ fn evaluate_polygon(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = parse_plane(inputs.get(0), "Polygon")?;
-    let radius = coerce_number(inputs.get(1), "Polygon")?;
-    let segments = coerce_number(inputs.get(2), "Polygon")? as usize;
-    let fillet_radius = coerce_number(inputs.get(3), "Polygon").unwrap_or(0.0);
+    let radius = require_number(inputs.get(1), "Polygon")?;
+    let segments = require_number(inputs.get(2), "Polygon")? as usize;
+    let fillet_radius = coerce::coerce_optional_number(inputs.get(3), "Polygon")?.unwrap_or(0.0);
 
     if radius <= 0.0 {
         return Err(ComponentError::new(
@@ -659,7 +661,10 @@ fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, 
         .ok_or_else(|| ComponentError::new(format!("{} vereist een lijst van punten", context)))?;
 
     match value {
-        Value::List(values) => values.iter().map(|v| coerce_point(v, context)).collect(),
+        Value::List(values) => values
+            .iter()
+            .map(|v| coerce::coerce_point_with_context(v, context))
+            .collect(),
         Value::Point(p) => Ok(vec![*p]),
         other => Err(ComponentError::new(format!(
             "{} verwacht een lijst van punten, kreeg {}",
@@ -667,6 +672,14 @@ fn coerce_points(value: Option<&Value>, context: &str) -> Result<Vec<[f64; 3]>, 
             other.kind()
         ))),
     }
+}
+
+fn require_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
+    let value = value.ok_or_else(|| ComponentError::new(format!(
+        "{} vereist een numerieke waarde",
+        context
+    )))?;
+    coerce::coerce_number(value, Some(context))
 }
 
 fn find_farthest_points(points: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
@@ -699,15 +712,10 @@ fn coerce_size_from_domain_or_number(
         ))),
         Some(value) => match value {
             Value::Domain(Domain::One(d)) => Ok(d.length),
-            Value::Number(n) => Ok(*n),
             Value::List(values) if values.len() == 1 => {
                 coerce_size_from_domain_or_number(values.get(0), context)
             }
-            other => Err(ComponentError::new(format!(
-                "{} verwacht een getal of domein, kreeg {}",
-                context,
-                other.kind()
-            ))),
+            other => coerce::coerce_number(other, Some(context)),
         },
     }
 }
@@ -720,9 +728,9 @@ fn evaluate_rectangle_3pt(inputs: &[Value]) -> ComponentResult {
     }
 
     const CONTEXT: &str = "Rectangle 3Pt";
-    let p1 = coerce_point(inputs.get(0).unwrap(), CONTEXT)?;
-    let p2 = coerce_point(inputs.get(1).unwrap(), CONTEXT)?;
-    let p3 = coerce_point(inputs.get(2).unwrap(), CONTEXT)?;
+    let p1 = coerce::coerce_point_with_context(inputs.get(0).unwrap(), CONTEXT)?;
+    let p2 = coerce::coerce_point_with_context(inputs.get(1).unwrap(), CONTEXT)?;
+    let p3 = coerce::coerce_point_with_context(inputs.get(2).unwrap(), CONTEXT)?;
 
     let ab = subtract(p2, p1);
     let (ab_dir, ab_length) = match safe_normalized(ab) {
@@ -780,9 +788,10 @@ fn evaluate_rectangle_2pt(inputs: &[Value]) -> ComponentResult {
     const CONTEXT: &str = "Rectangle 2Pt";
     let plane_input = inputs.get(0).unwrap_or(&Value::Null);
     let base_plane = parse_plane(Some(plane_input), CONTEXT)?;
-    let point_a = coerce_point(inputs.get(1).unwrap(), CONTEXT)?;
-    let point_b = coerce_point(inputs.get(2).unwrap(), CONTEXT)?;
-    let radius = coerce_number(inputs.get(3), CONTEXT).unwrap_or(0.0);
+    let point_a = coerce::coerce_point_with_context(inputs.get(1).unwrap(), CONTEXT)?;
+    let point_b = coerce::coerce_point_with_context(inputs.get(2).unwrap(), CONTEXT)?;
+    let radius = coerce::coerce_optional_number(inputs.get(3), CONTEXT)?
+        .unwrap_or(0.0);
 
     let (u_a, v_a) = base_plane.project(point_a);
     let (u_b, v_b) = base_plane.project(point_b);
@@ -835,7 +844,8 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
     };
     let x_size = coerce_size_from_domain_or_number(inputs.get(1), "Rectangle X")?;
     let y_size = coerce_size_from_domain_or_number(inputs.get(2), "Rectangle Y")?;
-    let radius = coerce_number(inputs.get(3), "Rectangle").unwrap_or(0.0);
+    let radius = coerce::coerce_optional_number(inputs.get(3), "Rectangle")?
+        .unwrap_or(0.0);
 
     if x_size <= 0.0 || y_size <= 0.0 {
         return Err(ComponentError::new(
@@ -950,7 +960,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
     }
 
     let plane = parse_plane(inputs.get(0), "Circle")?;
-    let radius = coerce_number(inputs.get(1), "Circle")?;
+    let radius = require_number(inputs.get(1), "Circle")?;
 
     if radius <= 0.0 {
         return Err(ComponentError::new(
@@ -983,81 +993,21 @@ fn sample_circle_points(plane: &Plane, radius: f64, segments: usize) -> Vec<[f64
     points
 }
 
-fn coerce_number(value: Option<&Value>, context: &str) -> Result<f64, ComponentError> {
-    match value {
-        None => Err(ComponentError::new(format!(
-            "{} vereist een numerieke waarde",
-            context
-        ))),
-        Some(value) => match value {
-            Value::Number(number) => Ok(*number),
-            Value::Boolean(boolean) => Ok(if *boolean { 1.0 } else { 0.0 }),
-            Value::List(values) if values.len() == 1 => coerce_number(values.get(0), context),
-            Value::Text(text) => text.trim().parse::<f64>().map_err(|_| {
-                ComponentError::new(format!(
-                    "{} kon tekst '{}' niet als getal interpreteren",
-                    context, text
-                ))
-            }),
-            other => Err(ComponentError::new(format!(
-                "{} verwacht een getal, kreeg {}",
-                context,
-                other.kind()
-            ))),
-        },
-    }
-}
-
 fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentError> {
-    let Some(value) = value else {
-        return Ok(Plane::default());
-    };
     match value {
-        Value::Null => return Ok(Plane::default()),
-        Value::List(values) if values.is_empty() => return Ok(Plane::default()),
-        Value::List(values) if values.len() >= 3 => {
-            let origin = coerce_point(&values[0], context)?;
-            let point_x = coerce_point(&values[1], context)?;
-            let point_y = coerce_point(&values[2], context)?;
+        None => return Ok(Plane::default()),
+        Some(Value::Null) => return Ok(Plane::default()),
+        Some(Value::List(values)) if values.is_empty() => return Ok(Plane::default()),
+        Some(Value::List(values)) if values.len() >= 3 => {
+            let origin = coerce::coerce_point_with_context(&values[0], context)?;
+            let point_x = coerce::coerce_point_with_context(&values[1], context)?;
+            let point_y = coerce::coerce_point_with_context(&values[2], context)?;
             Ok(Plane::from_points(origin, point_x, point_y))
         }
-        Value::Point(point) => Ok(Plane::from_origin(*point)),
-        Value::List(values) if values.len() == 1 => parse_plane(values.get(0), context),
-        other => Err(ComponentError::new(format!(
+        Some(Value::List(values)) if values.len() == 1 => parse_plane(values.get(0), context),
+        Some(Value::Point(point)) => Ok(Plane::from_origin(*point)),
+        Some(other) => Err(ComponentError::new(format!(
             "{} verwacht een vlak, kreeg {}",
-            context,
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_point(value: &Value, context: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Point(point) | Value::Vector(point) => Ok(*point),
-        Value::List(values) => {
-            if values.len() == 1 {
-                return coerce_point(&values[0], context);
-            }
-
-            if let Some(point) = try_point_from_list(values, context)? {
-                return Ok(point);
-            }
-
-            if values.len() >= 3 {
-                let x = coerce_number(Some(&values[0]), context)?;
-                let y = coerce_number(Some(&values[1]), context)?;
-                let z = coerce_number(Some(&values[2]), context)?;
-                return Ok([x, y, z]);
-            }
-
-            Err(ComponentError::new(format!(
-                "{} verwacht een punt, kreeg {}",
-                context,
-                ValueKind::List
-            )))
-        }
-        other => Err(ComponentError::new(format!(
-            "{} verwacht een punt, kreeg {}",
             context,
             other.kind()
         ))),
@@ -1093,7 +1043,7 @@ fn collect_points_recursive(
             Ok(())
         }
         other => {
-            output.push(coerce_point(other, context)?);
+            output.push(coerce::coerce_point_with_context(other, context)?);
             Ok(())
         }
     }
@@ -1107,15 +1057,15 @@ fn try_point_from_list(
         return Ok(None);
     }
 
-    let x = match coerce_number(Some(&values[0]), context) {
+    let x = match coerce::coerce_number(&values[0], Some(context)) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
-    let y = match coerce_number(Some(&values[1]), context) {
+    let y = match coerce::coerce_number(&values[1], Some(context)) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
-    let z = match coerce_number(Some(&values[2]), context) {
+    let z = match coerce::coerce_number(&values[2], Some(context)) {
         Ok(value) => value,
         Err(_) => return Ok(None),
     };
@@ -1347,7 +1297,7 @@ mod tests {
     use super::{
         CURVE_SEGMENTS, Component, ComponentKind, PIN_OUTPUT_ARC, PIN_OUTPUT_CIRCLE,
         PIN_OUTPUT_LENGTH, PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
-        segments_for_angle,
+        parse_plane, segments_for_angle,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -1591,6 +1541,14 @@ mod tests {
             )
             .unwrap_err();
         assert!(err.message().contains("twee verschillende"));
+    }
+
+    #[test]
+    fn parse_plane_defaults_to_xy_when_missing() {
+        let plane = parse_plane(None, "Test").expect("plane parsing");
+        assert_eq!(plane.origin, [0.0, 0.0, 0.0]);
+        assert_eq!(plane.x_axis, [1.0, 0.0, 0.0]);
+        assert_eq!(plane.y_axis, [0.0, 1.0, 0.0]);
     }
 
     #[test]
