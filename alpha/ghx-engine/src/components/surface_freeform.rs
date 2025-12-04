@@ -1540,25 +1540,31 @@ fn sweep_polyline_along_rail(
         )));
     }
 
-    if profile.len() >= 3 {
-        let winding_normal = polyline_normal(&profile);
-        if polyline_winding_direction(&profile, winding_normal) < 0.0 {
-            // Align the profile winding so that generated faces follow the primitive's orientation.
-            profile.reverse();
-        }
-    }
-
     let translation = subtract_points(rail_polyline[0], profile[0]);
     for point in &mut profile {
         *point = add_vector(*point, translation);
     }
 
     let layer_size = profile.len();
+    let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
+    let ordered_profile = if layer_size >= 3 {
+        let normal = polyline_normal(&profile);
+        let winding = polyline_winding_direction(&profile, normal);
+        if winding < 0.0 {
+            let mut reversed = profile_indices.clone();
+            reversed.reverse();
+            reversed
+        } else {
+            profile_indices.clone()
+        }
+    } else {
+        profile_indices.clone()
+    };
     let mut vertices = profile.clone();
     let mut faces: Vec<Vec<u32>> = Vec::new();
 
     if layer_size >= 3 {
-        faces.push((0..layer_size as u32).collect());
+        faces.push(ordered_profile.clone());
     }
 
     let mut last_layer_start = 0u32;
@@ -1579,12 +1585,13 @@ fn sweep_polyline_along_rail(
         vertices.extend(new_layer_vertices.iter());
 
         for i in 0..layer_size {
-            let next = (i + 1) % layer_size;
+            let current_idx = ordered_profile[i];
+            let next_idx = ordered_profile[(i + 1) % layer_size];
             faces.push(vec![
-                last_layer_start + i as u32,
-                last_layer_start + next as u32,
-                new_layer_start + next as u32,
-                new_layer_start + i as u32,
+                last_layer_start + current_idx,
+                last_layer_start + next_idx,
+                new_layer_start + next_idx,
+                new_layer_start + current_idx,
             ]);
         }
 
@@ -1594,11 +1601,11 @@ fn sweep_polyline_along_rail(
 
     if layer_size >= 3 {
         let mut top_face = Vec::with_capacity(layer_size);
-        for i in (0..layer_size).rev() {
-            top_face.push(last_layer_start + i as u32);
+        for &index in ordered_profile.iter().rev() {
+            top_face.push(last_layer_start + index);
         }
-        faces.push(top_face);
-    }
+            faces.push(top_face);
+        }
 
     Ok(Value::Surface { vertices, faces })
 }
