@@ -1540,6 +1540,14 @@ fn sweep_polyline_along_rail(
         )));
     }
 
+    if profile.len() >= 3 {
+        let winding_normal = polyline_normal(&profile);
+        if polyline_winding_direction(&profile, winding_normal) < 0.0 {
+            // Align the profile winding so that generated faces follow the primitive's orientation.
+            profile.reverse();
+        }
+    }
+
     let translation = subtract_points(rail_polyline[0], profile[0]);
     for point in &mut profile {
         *point = add_vector(*point, translation);
