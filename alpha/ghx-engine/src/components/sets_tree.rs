@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::components::coerce::{coerce_boolean, coerce_integer, coerce_text};
-use crate::graph::node::{MetaMap, MetaValue};
+use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
 use crate::graph::value::Value;
 use wildmatch::WildMatch;
 
