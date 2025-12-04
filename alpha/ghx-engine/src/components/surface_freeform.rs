@@ -1290,6 +1290,21 @@ fn is_zero_vector(vector: [f64; 3]) -> bool {
     vector.iter().all(|component| component.abs() < EPSILON)
 }
 
+fn offset_rail_polyline(
+    rail_polyline: &[[f64; 3]],
+    section_origin: [f64; 3],
+) -> Vec<[f64; 3]> {
+    if rail_polyline.is_empty() {
+        return Vec::new();
+    }
+
+    let translation = subtract_points(section_origin, rail_polyline[0]);
+    rail_polyline
+        .iter()
+        .map(|point| add_vector(*point, translation))
+        .collect()
+}
+
 fn into_output(pin: &str, value: Value) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), value);
@@ -1440,6 +1455,8 @@ fn sweep_surface_along_polyline(
 
     let surface_normal = calculate_surface_normal(&surface);
     let boundary_polylines_indices = find_boundary_polylines(&surface);
+    let section_origin = surface.vertices[0];
+    let offset_rail = offset_rail_polyline(rail_polyline, section_origin);
 
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
     let mut faces = surface.faces.clone();
@@ -1448,7 +1465,7 @@ fn sweep_surface_along_polyline(
     let mut last_layer_vertices = vertices.clone();
     let base_faces = surface.faces.clone();
 
-    for window in rail_polyline.windows(2) {
+    for window in offset_rail.windows(2) {
         let direction = subtract_points(window[1], window[0]);
         if is_zero_vector(direction) {
             continue;
@@ -1529,6 +1546,13 @@ fn sweep_polyline_along_rail(
         profile.pop();
     }
 
+    if profile.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een sectiepolyline",
+        )));
+    }
+    let section_origin = profile[0];
+
     if profile.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} verwacht een sectiepolyline met minstens twee punten",
@@ -1540,10 +1564,7 @@ fn sweep_polyline_along_rail(
         )));
     }
 
-    let translation = subtract_points(rail_polyline[0], profile[0]);
-    for point in &mut profile {
-        *point = add_vector(*point, translation);
-    }
+    let offset_rail = offset_rail_polyline(rail_polyline, section_origin);
 
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
@@ -1570,7 +1591,7 @@ fn sweep_polyline_along_rail(
     let mut last_layer_start = 0u32;
     let mut last_layer_vertices = profile;
 
-    for window in rail_polyline.windows(2) {
+    for window in offset_rail.windows(2) {
         let direction = subtract_points(window[1], window[0]);
         if is_zero_vector(direction) {
             continue;
@@ -1604,8 +1625,8 @@ fn sweep_polyline_along_rail(
         for &index in ordered_profile.iter().rev() {
             top_face.push(last_layer_start + index);
         }
-            faces.push(top_face);
-        }
+        faces.push(top_face);
+    }
 
     Ok(Value::Surface { vertices, faces })
 }
