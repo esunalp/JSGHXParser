@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 
 use crate::components::coerce::{coerce_boolean, coerce_integer, coerce_text};
-use crate::graph::node::MetaMap;
+use crate::graph::node::{MetaMap, MetaValue};
 use crate::graph::value::Value;
 use wildmatch::WildMatch;
 
@@ -931,8 +931,25 @@ impl Component for TreeBranchComponent {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct StreamFilterComponent;
 
+fn stream_filter_output_pin(meta: &MetaMap) -> String {
+    meta.get_normalized("OutputPins")
+        .and_then(|value| match value {
+            MetaValue::List(list) => list.iter().find_map(|entry| {
+                if let MetaValue::Text(text) = entry {
+                    if !text.is_empty() {
+                        return Some(text.clone());
+                    }
+                }
+                None
+            }),
+            MetaValue::Text(text) if !text.is_empty() => Some(text.clone()),
+            _ => None,
+        })
+        .unwrap_or_else(|| "S".to_owned())
+}
+
 impl Component for StreamFilterComponent {
-    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+    fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         if inputs.len() < 2 {
             return Err(ComponentError::new(
                 "Stream Filter component requires at least two inputs.",
@@ -941,7 +958,8 @@ impl Component for StreamFilterComponent {
         let gate = coerce_integer(&inputs[0])? as usize;
         if gate < inputs.len() - 1 {
             let mut outputs = BTreeMap::new();
-            outputs.insert("S".to_string(), inputs[gate + 1].clone());
+            let output_pin = stream_filter_output_pin(meta);
+            outputs.insert(output_pin, inputs[gate + 1].clone());
             Ok(outputs)
         } else {
             Err(ComponentError::new("Gate index out of bounds."))
