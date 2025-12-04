@@ -836,12 +836,7 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane_input = inputs.get(0).unwrap_or(&Value::Null);
-    let plane = if matches!(plane_input, Value::Null) {
-        Plane::default()
-    } else {
-        parse_plane(Some(plane_input), "Rectangle")?
-    };
+    let plane = parse_plane(inputs.get(0), "Rectangle")?;
     let x_size = coerce_size_from_domain_or_number(inputs.get(1), "Rectangle X")?;
     let y_size = coerce_size_from_domain_or_number(inputs.get(2), "Rectangle Y")?;
     let radius = coerce::coerce_optional_number(inputs.get(3), "Rectangle")?
@@ -1299,6 +1294,7 @@ mod tests {
         PIN_OUTPUT_LENGTH, PIN_OUTPUT_LINE, PIN_OUTPUT_POLYGON, PIN_OUTPUT_RECTANGLE,
         parse_plane, segments_for_angle,
     };
+    use crate::components::vector_plane;
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
 
@@ -1436,6 +1432,43 @@ mod tests {
             panic!("expected point");
         };
         assert!((point[2] - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_uses_plane_origin_from_plane_input() {
+        let plane_outputs = vector_plane::ComponentKind::XYPlane
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Number(3.0),
+                    Value::Number(4.0),
+                    Value::Number(5.0),
+                ])],
+                &MetaMap::new(),
+            )
+            .expect("plane generated");
+
+        let plane_value = plane_outputs
+            .get("P")
+            .cloned()
+            .expect("expected plane output");
+
+        let rectangle_outputs = ComponentKind::Rectangle
+            .evaluate(
+                &[plane_value, Value::Number(2.0), Value::Number(4.0)],
+                &MetaMap::new(),
+            )
+            .expect("rectangle generated");
+
+        let Some(Value::List(points)) = rectangle_outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        let Some(Value::Point(first_point)) = points.first() else {
+            panic!("expected point");
+        };
+
+        assert!((first_point[0] - 4.0).abs() < 1e-9);
+        assert!((first_point[1] - 6.0).abs() < 1e-9);
+        assert!((first_point[2] - 5.0).abs() < 1e-9);
     }
 
     #[test]
