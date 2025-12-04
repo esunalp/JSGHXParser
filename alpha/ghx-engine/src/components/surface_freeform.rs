@@ -881,18 +881,23 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     }
 
     let sections = collect_ruled_surface_curves(&inputs[1])?;
-    let Some(profile) = pick_longest_polyline(sections) else {
+    if sections.is_empty() {
         return Err(ComponentError::new(
             "Sweep1 verwacht minstens één sectiepolyline",
         ));
-    };
+    }
 
     if let Some(value) = inputs.get(2) {
         coerce_number(value, component, "Miter")?;
     }
 
-    let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
-    into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]))
+    let mut sweeps = Vec::new();
+    for profile in sections {
+        let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
+        sweeps.push(surface);
+    }
+
+    into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps))
 }
 
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
@@ -1608,12 +1613,12 @@ fn sweep_polyline_along_rail(
         for i in 0..layer_size {
             let current_idx = ordered_profile[i];
             let next_idx = ordered_profile[(i + 1) % layer_size];
-            faces.push(vec![
-                last_layer_start + current_idx,
-                last_layer_start + next_idx,
-                new_layer_start + next_idx,
-                new_layer_start + current_idx,
-            ]);
+            let v1 = last_layer_start + current_idx;
+            let v2 = last_layer_start + next_idx;
+            let v3 = new_layer_start + next_idx;
+            let v4 = new_layer_start + current_idx;
+            faces.push(vec![v1, v4, v2]);
+            faces.push(vec![v2, v4, v3]);
         }
 
         last_layer_start = new_layer_start;
