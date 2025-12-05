@@ -836,7 +836,7 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane = parse_plane(inputs.get(0), "Rectangle")?;
+    let planes = collect_planes(inputs.get(0), "Rectangle")?;
     let x_size = coerce_size_from_domain_or_number(inputs.get(1), "Rectangle X")?;
     let y_size = coerce_size_from_domain_or_number(inputs.get(2), "Rectangle Y")?;
     let radius = coerce::coerce_optional_number(inputs.get(3), "Rectangle")?
@@ -848,14 +848,30 @@ fn evaluate_rectangle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let (points, length) = create_rectangle_points(&plane, x_size, y_size, radius);
+    let mut rectangle_values = Vec::new();
+    let mut lengths = Vec::new();
+
+    for plane in planes {
+        let (points, length) = create_rectangle_points(&plane, x_size, y_size, radius);
+        rectangle_values.push(Value::List(points.into_iter().map(Value::Point).collect()));
+        lengths.push(Value::Number(length));
+    }
+
+    let rectangle_output = if rectangle_values.len() == 1 {
+        rectangle_values.into_iter().next().unwrap()
+    } else {
+        Value::List(rectangle_values)
+    };
+
+    let length_output = if lengths.len() == 1 {
+        lengths.into_iter().next().unwrap()
+    } else {
+        Value::List(lengths)
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_RECTANGLE.to_owned(),
-        Value::List(points.into_iter().map(Value::Point).collect()),
-    );
-    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
+    outputs.insert(PIN_OUTPUT_RECTANGLE.to_owned(), rectangle_output);
+    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), length_output);
 
     Ok(outputs)
 }
@@ -1026,6 +1042,54 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
             context,
             other.kind()
         ))),
+    }
+}
+
+fn collect_planes(value: Option<&Value>, context: &str) -> Result<Vec<Plane>, ComponentError> {
+    match value {
+        None | Some(Value::Null) => Ok(vec![Plane::default()]),
+        Some(Value::List(values)) if values.is_empty() => Ok(vec![Plane::default()]),
+        Some(Value::List(values)) => {
+            if let Some(plane) = plane_from_point_list(values, context)? {
+                return Ok(vec![plane]);
+            }
+
+            let mut planes = Vec::new();
+            for entry in values {
+                if let Ok(plane) = parse_plane(Some(entry), context) {
+                    planes.push(plane);
+                }
+            }
+
+            if planes.is_empty() {
+                Err(ComponentError::new(format!(
+                    "{} verwacht een vlak, kreeg lijst met {} items",
+                    context,
+                    values.len()
+                )))
+            } else {
+                Ok(planes)
+            }
+        }
+        other => Ok(vec![parse_plane(value, context)?]),
+    }
+}
+
+fn plane_from_point_list(
+    values: &[Value],
+    context: &str,
+) -> Result<Option<Plane>, ComponentError> {
+    if values.len() < 3 {
+        return Ok(None);
+    }
+
+    let origin = coerce::coerce_point_with_context(&values[0], context);
+    let point_x = coerce::coerce_point_with_context(&values[1], context);
+    let point_y = coerce::coerce_point_with_context(&values[2], context);
+
+    match (origin, point_x, point_y) {
+        (Ok(o), Ok(px), Ok(py)) => Ok(Some(Plane::from_points(o, px, py))),
+        _ => Ok(None),
     }
 }
 
@@ -1530,6 +1594,55 @@ mod tests {
         assert!((first_point[0] - 10.0).abs() < 1e-9);
         assert!((first_point[1] - 10.0).abs() < 1e-9);
         assert!((first_point[2] - 9.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_instances_for_plane_list() {
+        let plane_a = vector_plane::ComponentKind::XYPlane
+            .evaluate(&[Value::Point([1.0, 1.0, 0.0])], &MetaMap::new())
+            .unwrap()["P"]
+            .clone();
+        let plane_b = vector_plane::ComponentKind::XYPlane
+            .evaluate(&[Value::Point([10.0, 0.0, 0.0])], &MetaMap::new())
+            .unwrap()["P"]
+            .clone();
+
+        let outputs = ComponentKind::Rectangle
+            .evaluate(
+                &[Value::List(vec![plane_a, plane_b]), Value::Number(2.0), Value::Number(4.0)],
+                &MetaMap::new(),
+            )
+            .expect("rectangle generated");
+
+        let Some(Value::List(rectangles)) = outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of rectangles");
+        };
+        assert_eq!(rectangles.len(), 2);
+
+        let first = rectangles.get(0).unwrap();
+        let Some(Value::List(first_points)) = first else {
+            panic!("expected list of points");
+        };
+        let Some(Value::Point(p0)) = first_points.first() else {
+            panic!("expected point");
+        };
+        assert!((p0[0] - 2.0).abs() < 1e-9);
+        assert!((p0[1] - 3.0).abs() < 1e-9);
+
+        let second = rectangles.get(1).unwrap();
+        let Some(Value::List(second_points)) = second else {
+            panic!("expected list of points");
+        };
+        let Some(Value::Point(p1)) = second_points.first() else {
+            panic!("expected point");
+        };
+        assert!((p1[0] - 11.0).abs() < 1e-9);
+        assert!((p1[1] - 2.0).abs() < 1e-9);
+
+        let Some(Value::List(lengths)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected list of lengths");
+        };
+        assert_eq!(lengths.len(), 2);
     }
 
     #[test]
