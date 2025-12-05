@@ -210,9 +210,19 @@ impl ComponentKind {
 }
 
 fn evaluate_xy_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = coerce_point_with_default(inputs.get(0));
-    let plane = Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
-    Ok(single_plane_output(plane))
+    let origins = collect_points(inputs.get(0), "XY Plane")?;
+    if origins.len() <= 1 {
+        let origin = origins.first().copied().unwrap_or_else(|| coerce_point_with_default(None));
+        let plane =
+            Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]);
+        Ok(single_plane_output(plane))
+    } else {
+        let planes = origins
+            .into_iter()
+            .map(|origin| Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]))
+            .collect();
+        Ok(single_planes_output(planes))
+    }
 }
 
 fn evaluate_align_planes(inputs: &[Value]) -> ComponentResult {
@@ -327,9 +337,19 @@ fn evaluate_plane_origin(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_xz_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = coerce_point_with_default(inputs.get(0));
-    let plane = Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]);
-    Ok(single_plane_output(plane))
+    let origins = collect_points(inputs.get(0), "XZ Plane")?;
+    if origins.len() <= 1 {
+        let origin = origins.first().copied().unwrap_or_else(|| coerce_point_with_default(None));
+        let plane =
+            Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]);
+        Ok(single_plane_output(plane))
+    } else {
+        let planes = origins
+            .into_iter()
+            .map(|origin| Plane::normalize_axes(origin, [1.0, 0.0, 0.0], [0.0, 0.0, -1.0], [0.0, 1.0, 0.0]))
+            .collect();
+        Ok(single_planes_output(planes))
+    }
 }
 
 fn evaluate_adjust_plane(inputs: &[Value]) -> ComponentResult {
@@ -484,7 +504,7 @@ fn evaluate_line_point(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_plane_normal(inputs: &[Value]) -> ComponentResult {
-    let origin = coerce_point_with_default(inputs.get(0));
+    let origins = collect_points(inputs.get(0), "Plane Normal")?;
     let mut normal = inputs
         .get(1)
         .map(|value| coerce_vector(value, "Plane Normal"))
@@ -495,10 +515,19 @@ fn evaluate_plane_normal(inputs: &[Value]) -> ComponentResult {
     } else {
         normal = normalize(normal);
     }
-    let x_axis = orthogonal_vector(normal);
-    let y_axis = normalize(cross(normal, x_axis));
-    let plane = Plane::normalize_axes(origin, x_axis, y_axis, normal);
-    Ok(single_plane_output(plane))
+    let make_plane = |origin: [f64; 3]| {
+        let x_axis = orthogonal_vector(normal);
+        let y_axis = normalize(cross(normal, x_axis));
+        Plane::normalize_axes(origin, x_axis, y_axis, normal)
+    };
+
+    if origins.len() <= 1 {
+        let origin = origins.first().copied().unwrap_or_else(|| coerce_point_with_default(None));
+        Ok(single_plane_output(make_plane(origin)))
+    } else {
+        let planes = origins.into_iter().map(make_plane).collect();
+        Ok(single_planes_output(planes))
+    }
 }
 
 fn evaluate_line_line(inputs: &[Value]) -> ComponentResult {
@@ -569,9 +598,19 @@ fn evaluate_rotate_plane(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_yz_plane(inputs: &[Value]) -> ComponentResult {
-    let origin = coerce_point_with_default(inputs.get(0));
-    let plane = Plane::normalize_axes(origin, [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
-    Ok(single_plane_output(plane))
+    let origins = collect_points(inputs.get(0), "YZ Plane")?;
+    if origins.len() <= 1 {
+        let origin = origins.first().copied().unwrap_or_else(|| coerce_point_with_default(None));
+        let plane =
+            Plane::normalize_axes(origin, [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]);
+        Ok(single_plane_output(plane))
+    } else {
+        let planes = origins
+            .into_iter()
+            .map(|origin| Plane::normalize_axes(origin, [0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]))
+            .collect();
+        Ok(single_planes_output(planes))
+    }
 }
 
 fn single_plane_output(plane: Plane) -> BTreeMap<String, Value> {
@@ -1320,6 +1359,25 @@ mod tests {
         assert!((origin[0] - 5.0).abs() < 1e-9);
         assert!((origin[1] - 6.0).abs() < 1e-9);
         assert!((origin[2] - 7.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn xy_plane_outputs_multiple_planes_for_point_list() {
+        let component = ComponentKind::XYPlane;
+        let outputs = component
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Point([0.0, 0.0, 0.0]),
+                    Value::Point([10.0, 0.0, 0.0]),
+                ])],
+                &MetaMap::new(),
+            )
+            .expect("component slaagt");
+
+        let Some(Value::List(planes)) = outputs.get("P") else {
+            panic!("verwacht plane lijst");
+        };
+        assert_eq!(planes.len(), 2);
     }
 
     #[test]
