@@ -521,7 +521,7 @@ fn evaluate_arc(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane = parse_plane(inputs.get(0), "Arc")?;
+    let planes = collect_planes(inputs.get(0), "Arc")?;
     let radius = require_number(inputs.get(1), "Arc")?;
     let angle = require_number(inputs.get(2), "Arc")?;
 
@@ -531,14 +531,29 @@ fn evaluate_arc(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let (points, length) = create_arc_points(&plane, radius, angle);
+    let mut arcs = Vec::new();
+    let mut lengths = Vec::new();
+    for plane in planes {
+        let (points, length) = create_arc_points(&plane, radius, angle);
+        arcs.push(Value::List(points.into_iter().map(Value::Point).collect()));
+        lengths.push(Value::Number(length));
+    }
+
+    let arc_output = if arcs.len() == 1 {
+        arcs.into_iter().next().unwrap()
+    } else {
+        Value::List(arcs)
+    };
+
+    let length_output = if lengths.len() == 1 {
+        lengths.into_iter().next().unwrap()
+    } else {
+        Value::List(lengths)
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_ARC.to_owned(),
-        Value::List(points.into_iter().map(Value::Point).collect()),
-    );
-    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
+    outputs.insert(PIN_OUTPUT_ARC.to_owned(), arc_output);
+    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), length_output);
 
     Ok(outputs)
 }
@@ -582,7 +597,7 @@ fn evaluate_polygon(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane = parse_plane(inputs.get(0), "Polygon")?;
+    let planes = collect_planes(inputs.get(0), "Polygon")?;
     let radius = require_number(inputs.get(1), "Polygon")?;
     let segments = require_number(inputs.get(2), "Polygon")? as usize;
     let fillet_radius = coerce::coerce_optional_number(inputs.get(3), "Polygon")?.unwrap_or(0.0);
@@ -598,14 +613,29 @@ fn evaluate_polygon(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let (points, length) = create_polygon_points(&plane, radius, segments, fillet_radius);
+    let mut polygons = Vec::new();
+    let mut lengths = Vec::new();
+    for plane in planes {
+        let (points, length) = create_polygon_points(&plane, radius, segments, fillet_radius);
+        polygons.push(Value::List(points.into_iter().map(Value::Point).collect()));
+        lengths.push(Value::Number(length));
+    }
+
+    let polygon_output = if polygons.len() == 1 {
+        polygons.into_iter().next().unwrap()
+    } else {
+        Value::List(polygons)
+    };
+
+    let length_output = if lengths.len() == 1 {
+        lengths.into_iter().next().unwrap()
+    } else {
+        Value::List(lengths)
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_POLYGON.to_owned(),
-        Value::List(points.into_iter().map(Value::Point).collect()),
-    );
-    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
+    outputs.insert(PIN_OUTPUT_POLYGON.to_owned(), polygon_output);
+    outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), length_output);
 
     Ok(outputs)
 }
@@ -970,7 +1000,7 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let plane = parse_plane(inputs.get(0), "Circle")?;
+    let planes = collect_planes(inputs.get(0), "Circle")?;
     let radius = require_number(inputs.get(1), "Circle")?;
 
     if radius <= 0.0 {
@@ -979,13 +1009,20 @@ fn evaluate_circle(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let points = sample_circle_points(&plane, radius, CURVE_SEGMENTS);
+    let mut circles = Vec::new();
+    for plane in planes {
+        let points = sample_circle_points(&plane, radius, CURVE_SEGMENTS);
+        circles.push(Value::List(points.into_iter().map(Value::Point).collect()));
+    }
+
+    let circle_output = if circles.len() == 1 {
+        circles.into_iter().next().unwrap()
+    } else {
+        Value::List(circles)
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_CIRCLE.to_owned(),
-        Value::List(points.into_iter().map(Value::Point).collect()),
-    );
+    outputs.insert(PIN_OUTPUT_CIRCLE.to_owned(), circle_output);
     Ok(outputs)
 }
 
@@ -1656,6 +1693,86 @@ mod tests {
         };
         assert!((p1[0] - 11.0).abs() < 1e-9);
         assert!((p1[1] - 2.0).abs() < 1e-9);
+
+        let Some(Value::List(lengths)) = outputs.get(PIN_OUTPUT_LENGTH) else {
+            panic!("expected list of lengths");
+        };
+        assert_eq!(lengths.len(), 2);
+    }
+
+    #[test]
+    fn circle_instances_for_plane_list() {
+        let plane_list = Value::List(vec![
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([0.0, 0.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([10.0, 0.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+        ]);
+
+        let outputs = ComponentKind::Circle
+            .evaluate(&[plane_list, Value::Number(1.0)], &MetaMap::new())
+            .expect("circle generated");
+
+        let Some(Value::List(circles)) = outputs.get(PIN_OUTPUT_CIRCLE) else {
+            panic!("expected list of circles");
+        };
+        assert_eq!(circles.len(), 2);
+    }
+
+    #[test]
+    fn polygon_instances_for_plane_list() {
+        let plane_list = Value::List(vec![
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([0.0, 0.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([5.0, 5.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+        ]);
+
+        let outputs = ComponentKind::Polygon
+            .evaluate(
+                &[plane_list, Value::Number(1.0), Value::Number(4.0)],
+                &MetaMap::new(),
+            )
+            .expect("polygon generated");
+
+        let Some(Value::List(polygons)) = outputs.get(PIN_OUTPUT_POLYGON) else {
+            panic!("expected list of polygons");
+        };
+        assert_eq!(polygons.len(), 2);
+    }
+
+    #[test]
+    fn arc_instances_for_plane_list() {
+        let plane_list = Value::List(vec![
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([0.0, 0.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+            vector_plane::ComponentKind::XYPlane
+                .evaluate(&[Value::Point([0.0, 5.0, 0.0])], &MetaMap::new())
+                .unwrap()["P"]
+                .clone(),
+        ]);
+
+        let outputs = ComponentKind::Arc
+            .evaluate(
+                &[plane_list, Value::Number(1.0), Value::Number(std::f64::consts::PI)],
+                &MetaMap::new(),
+            )
+            .expect("arc generated");
+
+        let Some(Value::List(arcs)) = outputs.get(PIN_OUTPUT_ARC) else {
+            panic!("expected list of arcs");
+        };
+        assert_eq!(arcs.len(), 2);
 
         let Some(Value::List(lengths)) = outputs.get(PIN_OUTPUT_LENGTH) else {
             panic!("expected list of lengths");
