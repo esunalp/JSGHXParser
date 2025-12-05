@@ -660,8 +660,15 @@ pub fn parse_boolean_text(input: &str) -> Option<bool> {
 pub fn coerce_point_with_default(value: Option<&Value>) -> [f64; 3] {
     match value {
         Some(Value::Null) => [0.0, 0.0, 0.0],
-        Some(v) => coerce_point_with_context(v, "point")
-            .unwrap_or([0.0, 0.0, 0.0]),
+        Some(Value::List(values)) => {
+            for entry in values {
+                if let Ok(point) = coerce_point_with_context(entry, "point") {
+                    return point;
+                }
+            }
+            [0.0, 0.0, 0.0]
+        }
+        Some(v) => coerce_point_with_context(v, "point").unwrap_or([0.0, 0.0, 0.0]),
         None => [0.0, 0.0, 0.0],
     }
 }

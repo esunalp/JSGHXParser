@@ -1298,6 +1298,31 @@ mod tests {
     }
 
     #[test]
+    fn xy_plane_accepts_point_list_for_origin() {
+        let component = ComponentKind::XYPlane;
+        let outputs = component
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Point([5.0, 6.0, 7.0]),
+                    Value::Point([8.0, 9.0, 10.0]),
+                ])],
+                &MetaMap::new(),
+            )
+            .expect("component slaagt");
+
+        let plane = &outputs["P"];
+        let Some(Value::List(entries)) = plane else {
+            panic!("verwacht lijstrepresentatie van vlak");
+        };
+        let Some(Value::Point(origin)) = entries.get(0) else {
+            panic!("verwacht oorsprong als punt");
+        };
+        assert!((origin[0] - 5.0).abs() < 1e-9);
+        assert!((origin[1] - 6.0).abs() < 1e-9);
+        assert!((origin[2] - 7.0).abs() < 1e-9);
+    }
+
+    #[test]
     fn plane_fit_returns_deviation() {
         let component = ComponentKind::PlaneFit;
         let inputs = Value::List(vec![
