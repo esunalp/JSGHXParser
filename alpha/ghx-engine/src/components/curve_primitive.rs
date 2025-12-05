@@ -993,13 +993,33 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
         None => return Ok(Plane::default()),
         Some(Value::Null) => return Ok(Plane::default()),
         Some(Value::List(values)) if values.is_empty() => return Ok(Plane::default()),
-        Some(Value::List(values)) if values.len() >= 3 => {
-            let origin = coerce::coerce_point_with_context(&values[0], context)?;
-            let point_x = coerce::coerce_point_with_context(&values[1], context)?;
-            let point_y = coerce::coerce_point_with_context(&values[2], context)?;
-            Ok(Plane::from_points(origin, point_x, point_y))
+        Some(Value::List(values)) => {
+            if values.len() >= 3 {
+                if let (Ok(origin), Ok(point_x), Ok(point_y)) = (
+                    coerce::coerce_point_with_context(&values[0], context),
+                    coerce::coerce_point_with_context(&values[1], context),
+                    coerce::coerce_point_with_context(&values[2], context),
+                ) {
+                    return Ok(Plane::from_points(origin, point_x, point_y));
+                }
+            }
+
+            if values.len() == 1 {
+                return parse_plane(values.get(0), context);
+            }
+
+            if let Some(first) = values.first() {
+                if let Ok(plane) = parse_plane(Some(first), context) {
+                    return Ok(plane);
+                }
+            }
+
+            Err(ComponentError::new(format!(
+                "{} verwacht een vlak, kreeg lijst met {} items",
+                context,
+                values.len()
+            )))
         }
-        Some(Value::List(values)) if values.len() == 1 => parse_plane(values.get(0), context),
         Some(Value::Point(point)) => Ok(Plane::from_origin(*point)),
         Some(other) => Err(ComponentError::new(format!(
             "{} verwacht een vlak, kreeg {}",
@@ -1469,6 +1489,47 @@ mod tests {
         assert!((first_point[0] - 4.0).abs() < 1e-9);
         assert!((first_point[1] - 6.0).abs() < 1e-9);
         assert!((first_point[2] - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rectangle_uses_first_plane_when_list_is_provided() {
+        let plane_outputs = vector_plane::ComponentKind::XYPlane
+            .evaluate(
+                &[Value::List(vec![
+                    Value::Number(7.0),
+                    Value::Number(8.0),
+                    Value::Number(9.0),
+                ])],
+                &MetaMap::new(),
+            )
+            .expect("plane generated");
+
+        let plane_value = plane_outputs
+            .get("P")
+            .cloned()
+            .expect("expected plane output");
+
+        let rectangle_outputs = ComponentKind::Rectangle
+            .evaluate(
+                &[
+                    Value::List(vec![plane_value, Value::Null]),
+                    Value::Number(6.0),
+                    Value::Number(4.0),
+                ],
+                &MetaMap::new(),
+            )
+            .expect("rectangle generated");
+
+        let Some(Value::List(points)) = rectangle_outputs.get(PIN_OUTPUT_RECTANGLE) else {
+            panic!("expected list of points");
+        };
+        let Some(Value::Point(first_point)) = points.first() else {
+            panic!("expected point");
+        };
+
+        assert!((first_point[0] - 10.0).abs() < 1e-9);
+        assert!((first_point[1] - 10.0).abs() < 1e-9);
+        assert!((first_point[2] - 9.0).abs() < 1e-9);
     }
 
     #[test]
