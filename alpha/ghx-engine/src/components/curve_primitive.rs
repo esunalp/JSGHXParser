@@ -1046,33 +1046,16 @@ fn parse_plane(value: Option<&Value>, context: &str) -> Result<Plane, ComponentE
 }
 
 fn collect_planes(value: Option<&Value>, context: &str) -> Result<Vec<Plane>, ComponentError> {
-    match value {
-        None | Some(Value::Null) => Ok(vec![Plane::default()]),
-        Some(Value::List(values)) if values.is_empty() => Ok(vec![Plane::default()]),
-        Some(Value::List(values)) => {
-            if let Some(plane) = plane_from_point_list(values, context)? {
-                return Ok(vec![plane]);
-            }
-
-            let mut planes = Vec::new();
-            for entry in values {
-                if let Ok(plane) = parse_plane(Some(entry), context) {
-                    planes.push(plane);
-                }
-            }
-
-            if planes.is_empty() {
-                Err(ComponentError::new(format!(
-                    "{} verwacht een vlak, kreeg lijst met {} items",
-                    context,
-                    values.len()
-                )))
-            } else {
-                Ok(planes)
-            }
-        }
-        other => Ok(vec![parse_plane(value, context)?]),
+    let mut planes = Vec::new();
+    if let Some(value) = value {
+        collect_planes_into(value, context, &mut planes)?;
     }
+
+    if planes.is_empty() {
+        planes.push(Plane::default());
+    }
+
+    Ok(planes)
 }
 
 fn plane_from_point_list(
@@ -1090,6 +1073,41 @@ fn plane_from_point_list(
     match (origin, point_x, point_y) {
         (Ok(o), Ok(px), Ok(py)) => Ok(Some(Plane::from_points(o, px, py))),
         _ => Ok(None),
+    }
+}
+
+fn collect_planes_into(
+    value: &Value,
+    context: &str,
+    output: &mut Vec<Plane>,
+) -> Result<(), ComponentError> {
+    match value {
+        Value::Null => Ok(()),
+        Value::List(values) => {
+            if values.is_empty() {
+                return Ok(());
+            }
+
+            if values.len() == 1 {
+                return collect_planes_into(&values[0], context, output);
+            }
+
+            if values.len() == 3 {
+                if let Some(plane) = plane_from_point_list(values, context)? {
+                    output.push(plane);
+                    return Ok(());
+                }
+            }
+
+            for entry in values {
+                collect_planes_into(entry, context, output)?;
+            }
+            Ok(())
+        }
+        _ => {
+            output.push(parse_plane(Some(value), context)?);
+            Ok(())
+        }
     }
 }
 
