@@ -595,7 +595,11 @@ fn group_segments_into_polylines(segments: Vec<([f64; 3], [f64; 3])>) -> Vec<Vec
     let mut edges: Vec<(usize, usize)> = Vec::new();
     let mut edge_used: Vec<bool> = Vec::new();
 
-    let mut find_or_insert_node = |p: [f64; 3]| -> usize {
+    fn find_or_insert_node(
+        nodes: &mut Vec<[f64; 3]>,
+        adjacency: &mut Vec<Vec<usize>>,
+        p: [f64; 3],
+    ) -> usize {
         if let Some((idx, _)) = nodes
             .iter()
             .enumerate()
@@ -608,11 +612,11 @@ fn group_segments_into_polylines(segments: Vec<([f64; 3], [f64; 3])>) -> Vec<Vec
             adjacency.push(Vec::new());
             idx
         }
-    };
+    }
 
     for (start, end) in segments {
-        let a = find_or_insert_node(start);
-        let b = find_or_insert_node(end);
+        let a = find_or_insert_node(&mut nodes, &mut adjacency, start);
+        let b = find_or_insert_node(&mut nodes, &mut adjacency, end);
         let edge_idx = edges.len();
         edges.push((a, b));
         edge_used.push(false);
