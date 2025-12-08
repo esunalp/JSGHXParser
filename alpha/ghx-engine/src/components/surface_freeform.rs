@@ -1459,6 +1459,42 @@ fn project_point_on_polyline(point: [f64; 3], polyline: &[[f64; 3]]) -> (f64, f6
     (best_t, best_dist)
 }
 
+fn point_on_polyline_fraction(polyline: &[[f64; 3]], t: f64) -> [f64; 3] {
+    if polyline.is_empty() {
+        return [0.0; 3];
+    }
+    if polyline.len() == 1 {
+        return polyline[0];
+    }
+    let total_length = polyline_length(polyline);
+    if total_length <= EPSILON {
+        return polyline[0];
+    }
+
+    let target_len = (t.clamp(0.0, 1.0)) * total_length;
+    let mut accumulated = 0.0;
+
+    for window in polyline.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        let seg_len = distance(a, b);
+        if seg_len < EPSILON {
+            continue;
+        }
+        if accumulated + seg_len >= target_len {
+            let local_t = (target_len - accumulated) / seg_len;
+            return add_vector(a, [
+                (b[0] - a[0]) * local_t,
+                (b[1] - a[1]) * local_t,
+                (b[2] - a[2]) * local_t,
+            ]);
+        }
+        accumulated += seg_len;
+    }
+
+    *polyline.last().unwrap()
+}
+
 fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let n = {
         let n = normalize(normal);
@@ -1885,35 +1921,35 @@ fn sweep_sections_along_rail(
         *closed = *closed && poly.len() >= 3;
     }
 
-    // Sorteer secties volgens hun projectie langs de rail.
-    let mut indexed: Vec<(usize, f64, f64)> = sections
-        .iter()
-        .enumerate()
-        .map(|(i, poly)| {
-            let centroid = poly.iter().fold([0.0; 3], |acc, p| add_vector(acc, *p));
-            let n = poly.len() as f64;
-            let centroid = [centroid[0] / n, centroid[1] / n, centroid[2] / n];
-            let (t, dist) = project_point_on_polyline(centroid, &rail_polyline);
-            (i, t, dist)
-        })
-        .collect();
-    indexed.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
-
-    let mut ordered_sections: Vec<Vec<[f64; 3]>> = indexed.iter().map(|(i, _, _)| sections[*i].clone()).collect();
-    let mut ordered_closed: Vec<bool> = indexed.iter().map(|(i, _, _)| section_closed[*i]).collect();
+    // Plaats secties langs de rail met gelijke verdeling over de rail lengte.
+    let mut positioned_sections = Vec::with_capacity(sections.len());
+    let mut positioned_closed = Vec::with_capacity(sections.len());
+    for (idx, (poly, closed)) in sections.into_iter().zip(section_closed).enumerate() {
+        let t = if sections.len() == 1 {
+            0.0
+        } else {
+            idx as f64 / ((sections.len() - 1) as f64)
+        };
+        let target_point = point_on_polyline_fraction(&rail_polyline, t);
+        let origin = poly.first().copied().unwrap_or([0.0; 3]);
+        let translation = subtract_points(target_point, origin);
+        let translated: Vec<[f64; 3]> = poly.iter().map(|p| add_vector(*p, translation)).collect();
+        positioned_sections.push(translated);
+        positioned_closed.push(closed);
+    }
 
     // Zorg voor consistente oriëntatie per sectie.
-    unify_curve_directions(&mut ordered_sections);
+    unify_curve_directions(&mut positioned_sections);
 
     // Bepaal doel sample-grootte.
-    let target_count = ordered_sections.iter().map(|p| p.len()).max().unwrap_or(0);
+    let target_count = positioned_sections.iter().map(|p| p.len()).max().unwrap_or(0);
     if target_count < 2 {
         return Err(ComponentError::new(format!(
             "{component} kon geen secties met voldoende punten vinden",
         )));
     }
 
-    let resampled_sections: Vec<Vec<[f64; 3]>> = ordered_sections
+    let resampled_sections: Vec<Vec<[f64; 3]>> = positioned_sections
         .iter()
         .map(|p| {
             let dummy_target = vec![[0.0; 3]; target_count];
@@ -1934,7 +1970,7 @@ fn sweep_sections_along_rail(
     for i in 0..(num_sections - 1) {
         let base = i as u32 * pts_per_section;
         let next_base = (i as u32 + 1) * pts_per_section;
-        let closed = ordered_closed[i] && ordered_closed[i + 1];
+        let closed = positioned_closed[i] && positioned_closed[i + 1];
         let edge_count = if closed {
             pts_per_section
         } else {
@@ -1953,14 +1989,14 @@ fn sweep_sections_along_rail(
     }
 
     // Caps voor gesloten secties.
-    if ordered_closed.first().copied().unwrap_or(false) {
+    if positioned_closed.first().copied().unwrap_or(false) {
         let mut first_face = Vec::with_capacity(pts_per_section as usize);
         for idx in 0..pts_per_section {
             first_face.push(idx);
         }
         faces.push(first_face);
     }
-    if ordered_closed.last().copied().unwrap_or(false) {
+    if positioned_closed.last().copied().unwrap_or(false) {
         let mut last_face = Vec::with_capacity(pts_per_section as usize);
         let start = (num_sections as u32 - 1) * pts_per_section;
         for idx in (0..pts_per_section).rev() {
