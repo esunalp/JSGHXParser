@@ -1699,19 +1699,16 @@ fn sweep_polyline_along_rail(
     component: &str,
 ) -> Result<Value, ComponentError> {
     let mut profile = profile.to_vec();
-    let mut profile_closed =
-        profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap());
-    if profile_closed || (profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()))
-    {
-        profile.pop();
-        // Treat very short "closed" inputs (only two equal points) as open to avoid degeneracy.
-        profile_closed = profile.len() >= 3 && profile_closed;
+    let mut profile_closed = false;
+    if profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap()) {
+        profile.pop(); // remove duplicate closing point, keep closed flag
+        profile_closed = true;
+    } else if profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()) {
+        profile.pop(); // degenerate "closed" with only two equal points -> treat as open
     }
 
     // Verwijder opeenvolgende dubbele punten om degeneratie te voorkomen.
     profile = dedup_consecutive_points(profile, profile_closed);
-    profile_closed =
-        profile_closed && profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap());
 
     // Zorg voor een consistente CCW-winding zoals in BoxRectangle zodat front-faces correct zijn.
     if profile_closed && profile.len() >= 3 {
