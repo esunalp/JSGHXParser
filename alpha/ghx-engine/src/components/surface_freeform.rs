@@ -871,13 +871,20 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Sweep1 vereist een rail met lengte"));
     }
 
-    if let Some(surface) = extract_first_surface(&inputs[1])? {
+    let mut section_surfaces = Vec::new();
+    collect_surfaces_recursive(&inputs[1], &mut section_surfaces)?;
+
+    if !section_surfaces.is_empty() {
         if let Some(value) = inputs.get(2) {
             coerce_number(value, component, "Miter")?;
         }
 
-        let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
-        return into_output(PIN_OUTPUT_SURFACE, Value::List(vec![solid]));
+        let mut sweeps = Vec::new();
+        for surface in section_surfaces {
+            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
+            sweeps.push(solid);
+        }
+        return into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps));
     }
 
     let sections = collect_ruled_surface_curves(&inputs[1])?;
@@ -1316,19 +1323,20 @@ fn into_output(pin: &str, value: Value) -> ComponentResult {
     Ok(outputs)
 }
 
-fn extract_first_surface(value: &Value) -> Result<Option<coerce::Surface<'_>>, ComponentError> {
+fn collect_surfaces_recursive<'a>(
+    value: &'a Value,
+    surfaces: &mut Vec<coerce::Surface<'a>>,
+) -> Result<(), ComponentError> {
     match value {
-        Value::Surface { .. } => Ok(Some(coerce::coerce_surface(value)?)),
+        Value::Surface { .. } => surfaces.push(coerce::coerce_surface(value)?),
         Value::List(values) => {
             for entry in values {
-                if let Some(surface) = extract_first_surface(entry)? {
-                    return Ok(Some(surface));
-                }
+                collect_surfaces_recursive(entry, surfaces)?;
             }
-            Ok(None)
         }
-        _ => Ok(None),
+        _ => {}
     }
+    Ok(())
 }
 
 fn pick_longest_polyline(polylines: Vec<Vec<[f64; 3]>>) -> Option<Vec<[f64; 3]>> {
@@ -1989,6 +1997,54 @@ mod tests {
         assert_eq!(vertices.len(), 8, "should duplicate vertices for extrusion");
         assert!(vertices.iter().any(|vertex| (vertex[2] - 2.0).abs() < 1e-9));
         assert!(faces.len() >= 6, "solid should include caps and side faces");
+    }
+
+    #[test]
+    fn sweep_one_handles_grafted_surfaces() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [0.0, 0.0, 1.0],
+        };
+
+        let surface_a = Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]],
+        };
+        let surface_b = Value::Surface {
+            vertices: vec![
+                [1.0, 0.0, 0.0],
+                [2.0, 0.0, 0.0],
+                [2.0, 1.0, 0.0],
+                [1.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]],
+        };
+
+        let inputs = [
+            rail,
+            Value::List(vec![
+                Value::List(vec![surface_a]),
+                Value::List(vec![surface_b]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep grafted surfaces");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        assert_eq!(solids.len(), 2, "expected a sweep per grafted surface");
+        for solid in solids {
+            assert!(matches!(solid, Value::Surface { .. }), "expected surface output");
+        }
     }
 
     #[test]
