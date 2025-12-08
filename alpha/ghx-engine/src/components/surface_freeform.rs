@@ -980,13 +980,16 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
         coerce_number(value, component, "Miter")?;
     }
 
-    if sections.len() == 1 {
-        let surface = sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?;
-        return into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]));
+    let mut sections = sections;
+    unify_curve_directions(&mut sections);
+
+    let mut sweeps = Vec::new();
+    for profile in sections {
+        let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
+        sweeps.push(surface);
     }
 
-    let surface = sweep_sections_along_rail(sections, &rail_polyline, component)?;
-    into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]))
+    into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps))
 }
 
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
@@ -1841,7 +1844,15 @@ fn sweep_polyline_along_rail(
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
     let ordered_profile = if profile_closed && layer_size >= 3 {
-        profile_indices.clone()
+        let normal = polyline_normal(&profile);
+        let winding = polyline_winding_direction(&profile, normal);
+        if winding < 0.0 {
+            let mut reversed = profile_indices.clone();
+            reversed.reverse();
+            reversed
+        } else {
+            profile_indices.clone()
+        }
     } else {
         profile_indices.clone()
     };
