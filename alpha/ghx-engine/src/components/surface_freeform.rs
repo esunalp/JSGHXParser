@@ -981,7 +981,8 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     }
 
     let mut sweeps = Vec::new();
-    for profile in sections {
+    let merged_sections = merge_section_polylines(sections);
+    for profile in merged_sections {
         let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
         sweeps.push(surface);
     }
@@ -1465,6 +1466,32 @@ fn into_output(pin: &str, value: Value) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), value);
     Ok(outputs)
+}
+
+fn merge_section_polylines(polylines: Vec<Vec<[f64; 3]>>) -> Vec<Vec<[f64; 3]>> {
+    if polylines.len() <= 1 {
+        return polylines;
+    }
+
+    // Verzamel alle segmenten en probeer ze als één of enkele doorlopende polylines te reconstrueren.
+    let mut segments = Vec::new();
+    for poly in &polylines {
+        for pair in poly.windows(2) {
+            segments.push((pair[0], pair[1]));
+        }
+        if is_closed(poly) {
+            if let (Some(first), Some(last)) = (poly.first(), poly.last()) {
+                segments.push((*last, *first));
+            }
+        }
+    }
+
+    let merged = group_segments_into_polylines(segments);
+    if merged.is_empty() {
+        polylines
+    } else {
+        merged
+    }
 }
 
 fn collect_surfaces_recursive<'a>(
@@ -2352,6 +2379,52 @@ mod tests {
             faces.iter().all(|f| !(f.contains(&0) && f.contains(&3))),
             "open profile should not wrap between ends"
         );
+    }
+
+    #[test]
+    fn sweep_one_merges_curve_primitive_rectangle() {
+        // Four separate lines forming a rectangle (like Curve Primitives output).
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 1.0]),
+            ]),
+            Value::List(vec![
+                Value::CurveLine {
+                    p1: [0.0, 0.0, 0.0],
+                    p2: [1.0, 0.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [1.0, 0.0, 0.0],
+                    p2: [1.0, 1.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [1.0, 1.0, 0.0],
+                    p2: [0.0, 1.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [0.0, 1.0, 0.0],
+                    p2: [0.0, 0.0, 0.0],
+                },
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep merged rectangle");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        assert_eq!(vertices.len(), 8, "single rectangle swept along one segment");
+        assert_eq!(faces.len(), 10, "caps plus four sides (triangulated)");
+        // Should have one closed profile (no duplicate strips).
+        assert!(faces.iter().all(|f| f.len() == 3), "triangulated faces expected");
     }
 
     #[test]
