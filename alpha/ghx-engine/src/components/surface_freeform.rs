@@ -1610,10 +1610,17 @@ fn sweep_surface_along_polyline(
         )));
     }
 
+    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee unieke punten",
+        )));
+    }
+
     let surface_normal = calculate_surface_normal(&surface);
     let boundary_polylines_indices = find_boundary_polylines(&surface);
     let section_origin = surface.vertices[0];
-    let offset_rail = offset_rail_polyline(rail_polyline, section_origin);
+    let offset_rail = offset_rail_polyline(&rail_polyline, section_origin);
 
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
     let mut faces = surface.faces.clone();
@@ -1744,7 +1751,14 @@ fn sweep_polyline_along_rail(
         )));
     }
 
-    let offset_rail = offset_rail_polyline(rail_polyline, section_origin);
+    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee unieke punten",
+        )));
+    }
+
+    let offset_rail = offset_rail_polyline(&rail_polyline, section_origin);
 
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
@@ -2338,6 +2352,38 @@ mod tests {
             faces.iter().all(|f| !(f.contains(&0) && f.contains(&3))),
             "open profile should not wrap between ends"
         );
+    }
+
+    #[test]
+    fn sweep_one_ignores_duplicate_rail_points() {
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]), // duplicate
+                Value::Point([0.0, 0.0, 1.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep with duplicate rail points");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        assert_eq!(vertices.len(), 8, "duplicate rail points should be ignored");
+        assert_eq!(faces.len(), 6, "should still form one strip of faces");
     }
 
     #[test]
