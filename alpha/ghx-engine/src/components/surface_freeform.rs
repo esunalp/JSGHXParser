@@ -1399,6 +1399,68 @@ fn offset_rail_polyline(
         .collect()
 }
 
+fn dedup_consecutive_points(mut points: Vec<[f64; 3]>, closed: bool) -> Vec<[f64; 3]> {
+    let mut deduped = Vec::with_capacity(points.len());
+    for point in points.drain(..) {
+        if deduped
+            .last()
+            .map_or(true, |last| !points_equal(*last, point))
+        {
+            deduped.push(point);
+        }
+    }
+
+    if closed && deduped.len() > 2 && points_equal(deduped[0], *deduped.last().unwrap()) {
+        deduped.pop();
+    }
+
+    deduped
+}
+
+fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
+    let n = {
+        let n = normalize(normal);
+        if is_zero_vector(n) {
+            [0.0, 0.0, 1.0]
+        } else {
+            n
+        }
+    };
+
+    let mut tangent = cross_product(n, [1.0, 0.0, 0.0]);
+    if is_zero_vector(tangent) {
+        tangent = cross_product(n, [0.0, 1.0, 0.0]);
+    }
+    if is_zero_vector(tangent) {
+        tangent = [1.0, 0.0, 0.0];
+    }
+    tangent = normalize(tangent);
+    let bitangent = normalize(cross_product(n, tangent));
+    (tangent, bitangent)
+}
+
+fn signed_area_in_plane(polyline: &[[f64; 3]], normal: [f64; 3]) -> f64 {
+    if polyline.len() < 3 {
+        return 0.0;
+    }
+    let (x_axis, y_axis) = plane_basis(normal);
+    let origin = polyline[0];
+
+    let mut area = 0.0;
+    for i in 0..polyline.len() {
+        let j = (i + 1) % polyline.len();
+        let vi = subtract_points(polyline[i], origin);
+        let vj = subtract_points(polyline[j], origin);
+        let ui = dot_product(vi, x_axis);
+        let wi = dot_product(vi, y_axis);
+        let uj = dot_product(vj, x_axis);
+        let wj = dot_product(vj, y_axis);
+        area += ui * wj - uj * wi;
+    }
+
+    area * 0.5
+}
+
 fn into_output(pin: &str, value: Value) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), value);
@@ -1646,6 +1708,27 @@ fn sweep_polyline_along_rail(
         profile_closed = profile.len() >= 3 && profile_closed;
     }
 
+    // Verwijder opeenvolgende dubbele punten om degeneratie te voorkomen.
+    profile = dedup_consecutive_points(profile, profile_closed);
+    profile_closed =
+        profile_closed && profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap());
+
+    // Zorg voor een consistente CCW-winding zoals in BoxRectangle zodat front-faces correct zijn.
+    if profile_closed && profile.len() >= 3 {
+        let normal = {
+            let n = polyline_normal(&profile);
+            if is_zero_vector(n) {
+                [0.0, 0.0, 1.0]
+            } else {
+                n
+            }
+        };
+        let signed_area = signed_area_in_plane(&profile, normal);
+        if signed_area < 0.0 {
+            profile.reverse();
+        }
+    }
+
     if profile.is_empty() {
         return Err(ComponentError::new(format!(
             "{component} verwacht een sectiepolyline",
@@ -1669,15 +1752,7 @@ fn sweep_polyline_along_rail(
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
     let ordered_profile = if profile_closed && layer_size >= 3 {
-        let normal = polyline_normal(&profile);
-        let winding = polyline_winding_direction(&profile, normal);
-        if winding < 0.0 {
-            let mut reversed = profile_indices.clone();
-            reversed.reverse();
-            reversed
-        } else {
-            profile_indices.clone()
-        }
+        profile_indices.clone()
     } else {
         profile_indices.clone()
     };
@@ -1846,7 +1921,7 @@ mod tests {
     use super::{
         Component, ComponentKind, EPSILON, PIN_OUTPUT_EXTRUSION, PIN_OUTPUT_LOFT,
         PIN_OUTPUT_OPTIONS, PIN_OUTPUT_PIPE, PIN_OUTPUT_SURFACE, add_vector, is_closed,
-        polyline_normal, polyline_winding_direction,
+        polyline_normal, polyline_winding_direction, signed_area_in_plane,
     };
     use crate::graph::node::MetaMap;
     use crate::graph::value::Value;
@@ -2033,6 +2108,25 @@ mod tests {
             });
             assert!(found, "polyline edge must map to original segment");
         }
+    }
+
+    #[test]
+    fn signed_area_detects_winding() {
+        let ccw = vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ];
+        assert!(signed_area_in_plane(&ccw, [0.0, 0.0, 1.0]) > 0.0);
+
+        let cw = vec![
+            [0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [1.0, 1.0, 0.0],
+            [1.0, 0.0, 0.0],
+        ];
+        assert!(signed_area_in_plane(&cw, [0.0, 0.0, 1.0]) < 0.0);
     }
 
     #[test]
