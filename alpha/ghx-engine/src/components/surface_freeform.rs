@@ -980,14 +980,13 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
         coerce_number(value, component, "Miter")?;
     }
 
-    let mut sweeps = Vec::new();
-    let merged_sections = merge_section_polylines(sections);
-    for profile in merged_sections {
-        let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
-        sweeps.push(surface);
+    if sections.len() == 1 {
+        let surface = sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?;
+        return into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]));
     }
 
-    into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps))
+    let surface = sweep_sections_along_rail(sections, &rail_polyline, component)?;
+    into_output(PIN_OUTPUT_SURFACE, Value::List(vec![surface]))
 }
 
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
@@ -1418,6 +1417,48 @@ fn dedup_consecutive_points(mut points: Vec<[f64; 3]>, closed: bool) -> Vec<[f64
     deduped
 }
 
+fn project_point_on_polyline(point: [f64; 3], polyline: &[[f64; 3]]) -> (f64, f64) {
+    if polyline.len() < 2 {
+        return (0.0, distance(point, polyline.get(0).copied().unwrap_or([0.0; 3])));
+    }
+
+    let mut best_t = 0.0;
+    let mut best_dist = f64::MAX;
+    let mut accumulated = 0.0;
+    let total_length = polyline_length(polyline);
+
+    for window in polyline.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        let ab = subtract_points(b, a);
+        let ab_len_sq = dot_product(ab, ab);
+        if ab_len_sq < EPSILON {
+            continue;
+        }
+        let ap = subtract_points(point, a);
+        let t_seg = (dot_product(ap, ab) / ab_len_sq).clamp(0.0, 1.0);
+        let closest = add_vector(a, [
+            ab[0] * t_seg,
+            ab[1] * t_seg,
+            ab[2] * t_seg,
+        ]);
+        let dist = distance(point, closest);
+        if dist < best_dist {
+            best_dist = dist;
+            let seg_length = ab_len_sq.sqrt();
+            let seg_t = accumulated + seg_length * t_seg;
+            best_t = if total_length > 0.0 {
+                seg_t / total_length
+            } else {
+                0.0
+            };
+        }
+        accumulated += ab_len_sq.sqrt();
+    }
+
+    (best_t, best_dist)
+}
+
 fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let n = {
         let n = normalize(normal);
@@ -1466,32 +1507,6 @@ fn into_output(pin: &str, value: Value) -> ComponentResult {
     let mut outputs = BTreeMap::new();
     outputs.insert(pin.to_owned(), value);
     Ok(outputs)
-}
-
-fn merge_section_polylines(polylines: Vec<Vec<[f64; 3]>>) -> Vec<Vec<[f64; 3]>> {
-    if polylines.len() <= 1 {
-        return polylines;
-    }
-
-    // Verzamel alle segmenten en probeer ze als één of enkele doorlopende polylines te reconstrueren.
-    let mut segments = Vec::new();
-    for poly in &polylines {
-        for pair in poly.windows(2) {
-            segments.push((pair[0], pair[1]));
-        }
-        if is_closed(poly) {
-            if let (Some(first), Some(last)) = (poly.first(), poly.last()) {
-                segments.push((*last, *first));
-            }
-        }
-    }
-
-    let merged = group_segments_into_polylines(segments);
-    if merged.is_empty() {
-        polylines
-    } else {
-        merged
-    }
 }
 
 fn collect_surfaces_recursive<'a>(
@@ -1840,6 +1855,118 @@ fn sweep_polyline_along_rail(
             top_face.push(last_layer_start + index);
         }
         faces.push(top_face);
+    }
+
+    Ok(Value::Surface { vertices, faces })
+}
+
+fn sweep_sections_along_rail(
+    mut sections: Vec<Vec<[f64; 3]>>,
+    rail_polyline: &[[f64; 3]],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee punten",
+        )));
+    }
+    if sections.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht minstens twee sectiecurves",
+        )));
+    }
+
+    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
+
+    // Note closed flags before deduplication.
+    let mut section_closed: Vec<bool> = sections.iter().map(|p| is_closed(p)).collect();
+    for (poly, closed) in sections.iter_mut().zip(section_closed.iter_mut()) {
+        *poly = dedup_consecutive_points(std::mem::take(poly), *closed);
+        *closed = *closed && poly.len() >= 3;
+    }
+
+    // Sorteer secties volgens hun projectie langs de rail.
+    let mut indexed: Vec<(usize, f64, f64)> = sections
+        .iter()
+        .enumerate()
+        .map(|(i, poly)| {
+            let centroid = poly.iter().fold([0.0; 3], |acc, p| add_vector(acc, *p));
+            let n = poly.len() as f64;
+            let centroid = [centroid[0] / n, centroid[1] / n, centroid[2] / n];
+            let (t, dist) = project_point_on_polyline(centroid, &rail_polyline);
+            (i, t, dist)
+        })
+        .collect();
+    indexed.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Equal));
+
+    let mut ordered_sections: Vec<Vec<[f64; 3]>> = indexed.iter().map(|(i, _, _)| sections[*i].clone()).collect();
+    let mut ordered_closed: Vec<bool> = indexed.iter().map(|(i, _, _)| section_closed[*i]).collect();
+
+    // Zorg voor consistente oriëntatie per sectie.
+    unify_curve_directions(&mut ordered_sections);
+
+    // Bepaal doel sample-grootte.
+    let target_count = ordered_sections.iter().map(|p| p.len()).max().unwrap_or(0);
+    if target_count < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} kon geen secties met voldoende punten vinden",
+        )));
+    }
+
+    let resampled_sections: Vec<Vec<[f64; 3]>> = ordered_sections
+        .iter()
+        .map(|p| {
+            let dummy_target = vec![[0.0; 3]; target_count];
+            super::curve_sampler::resample_polylines(p, &dummy_target).0
+        })
+        .collect();
+
+    let mut vertices = Vec::new();
+    let mut faces: Vec<Vec<u32>> = Vec::new();
+
+    for section in &resampled_sections {
+        vertices.extend_from_slice(section);
+    }
+
+    let num_sections = resampled_sections.len();
+    let pts_per_section = target_count as u32;
+
+    for i in 0..(num_sections - 1) {
+        let base = i as u32 * pts_per_section;
+        let next_base = (i as u32 + 1) * pts_per_section;
+        let closed = ordered_closed[i] && ordered_closed[i + 1];
+        let edge_count = if closed {
+            pts_per_section
+        } else {
+            pts_per_section.saturating_sub(1)
+        };
+
+        for j in 0..edge_count {
+            let j_next = (j + 1) % pts_per_section;
+            let v1 = base + j;
+            let v2 = base + j_next;
+            let v3 = next_base + j_next;
+            let v4 = next_base + j;
+            faces.push(vec![v1, v4, v2]);
+            faces.push(vec![v2, v4, v3]);
+        }
+    }
+
+    // Caps voor gesloten secties.
+    if ordered_closed.first().copied().unwrap_or(false) {
+        let mut first_face = Vec::with_capacity(pts_per_section as usize);
+        for idx in 0..pts_per_section {
+            first_face.push(idx);
+        }
+        faces.push(first_face);
+    }
+    if ordered_closed.last().copied().unwrap_or(false) {
+        let mut last_face = Vec::with_capacity(pts_per_section as usize);
+        let start = (num_sections as u32 - 1) * pts_per_section;
+        for idx in (0..pts_per_section).rev() {
+            last_face.push(start + idx);
+        }
+        faces.push(last_face);
     }
 
     Ok(Value::Surface { vertices, faces })
