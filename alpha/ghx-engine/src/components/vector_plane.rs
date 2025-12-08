@@ -1350,8 +1350,8 @@ mod tests {
             .expect("component slaagt");
 
         let plane = &outputs["P"];
-        let Some(Value::List(entries)) = plane else {
-            panic!("verwacht lijstrepresentatie van vlak");
+        let Value::List(entries) = plane else {
+            panic!("Expected list of planes");
         };
         let Some(Value::Point(origin)) = entries.get(0) else {
             panic!("verwacht oorsprong als punt");

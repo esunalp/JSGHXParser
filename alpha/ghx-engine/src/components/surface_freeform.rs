@@ -1860,7 +1860,9 @@ fn sweep_polyline_along_rail(
     let mut faces: Vec<Vec<u32>> = Vec::new();
 
     if profile_closed && layer_size >= 3 {
-        faces.push(ordered_profile.clone());
+        let mut bottom = ordered_profile.clone();
+        bottom.reverse();
+        faces.push(bottom);
     }
 
     let mut last_layer_start = 0u32;
@@ -1888,8 +1890,8 @@ fn sweep_polyline_along_rail(
             let v2 = last_layer_start + next_idx;
             let v3 = new_layer_start + next_idx;
             let v4 = new_layer_start + current_idx;
-            faces.push(vec![v1, v4, v2]);
-            faces.push(vec![v2, v4, v3]);
+            faces.push(vec![v1, v2, v4]);
+            faces.push(vec![v2, v3, v4]);
         }
 
         last_layer_start = new_layer_start;
@@ -1898,7 +1900,7 @@ fn sweep_polyline_along_rail(
 
     if profile_closed && layer_size >= 3 {
         let mut top_face = Vec::with_capacity(layer_size);
-        for &index in ordered_profile.iter().rev() {
+        for &index in ordered_profile.iter() {
             top_face.push(last_layer_start + index);
         }
         faces.push(top_face);
@@ -1995,8 +1997,8 @@ fn sweep_sections_along_rail(
             let v2 = base + j_next;
             let v3 = next_base + j_next;
             let v4 = next_base + j;
-            faces.push(vec![v1, v4, v2]);
-            faces.push(vec![v2, v4, v3]);
+            faces.push(vec![v1, v2, v4]);
+            faces.push(vec![v2, v3, v4]);
         }
     }
 

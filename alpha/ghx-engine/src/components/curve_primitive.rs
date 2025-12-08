@@ -1675,7 +1675,7 @@ mod tests {
         assert_eq!(rectangles.len(), 2);
 
         let first = rectangles.get(0).unwrap();
-        let Some(Value::List(first_points)) = first else {
+        let Value::List(first_points) = first else {
             panic!("expected list of points");
         };
         let Some(Value::Point(p0)) = first_points.first() else {
@@ -1685,7 +1685,7 @@ mod tests {
         assert!((p0[1] - 3.0).abs() < 1e-9);
 
         let second = rectangles.get(1).unwrap();
-        let Some(Value::List(second_points)) = second else {
+        let Value::List(second_points) = second else {
             panic!("expected list of points");
         };
         let Some(Value::Point(p1)) = second_points.first() else {
