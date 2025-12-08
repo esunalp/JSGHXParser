@@ -588,34 +588,112 @@ fn group_segments_into_polylines(segments: Vec<([f64; 3], [f64; 3])>) -> Vec<Vec
         return Vec::new();
     }
 
-    let mut polylines: Vec<Vec<[f64; 3]>> = Vec::new();
-    let mut current: Vec<[f64; 3]> = Vec::new();
-    let mut last_end: Option<[f64; 3]> = None;
+    // Maak een graaf van verbonden segmenten zodat we een consistente volgorde krijgen
+    // ongeacht de volgorde van de inputsegmenten.
+    let mut nodes: Vec<[f64; 3]> = Vec::new();
+    let mut adjacency: Vec<Vec<usize>> = Vec::new(); // edge indices per node
+    let mut edges: Vec<(usize, usize)> = Vec::new();
+    let mut edge_used: Vec<bool> = Vec::new();
+
+    let mut find_or_insert_node = |p: [f64; 3]| -> usize {
+        if let Some((idx, _)) = nodes
+            .iter()
+            .enumerate()
+            .find(|(_, existing)| points_equal(**existing, p))
+        {
+            idx
+        } else {
+            let idx = nodes.len();
+            nodes.push(p);
+            adjacency.push(Vec::new());
+            idx
+        }
+    };
 
     for (start, end) in segments {
-        if let Some(last) = last_end {
-            if !points_equal(last, start) {
-                if current.len() >= 2 {
-                    polylines.push(current);
-                }
-                current = vec![start, end];
-            } else {
-                if current.is_empty() {
-                    current.push(start);
-                } else if !points_equal(*current.last().unwrap(), start) {
-                    current.push(start);
-                }
-                current.push(end);
-            }
-        } else {
-            current.push(start);
-            current.push(end);
-        }
-        last_end = Some(end);
+        let a = find_or_insert_node(start);
+        let b = find_or_insert_node(end);
+        let edge_idx = edges.len();
+        edges.push((a, b));
+        edge_used.push(false);
+        adjacency[a].push(edge_idx);
+        adjacency[b].push(edge_idx);
     }
 
-    if current.len() >= 2 {
-        polylines.push(current);
+    let mut polylines = Vec::new();
+
+    // Greedy traversal to build each polyline from unvisited edges.
+    while let Some((edge_idx, &(start, end))) = edge_used
+        .iter()
+        .enumerate()
+        .find(|(_, used)| !**used)
+        .and_then(|(i, _)| edges.get(i).map(|edge| (i, edge)))
+    {
+        edge_used[edge_idx] = true;
+
+        // Kies een startnode die een open einde heeft indien beschikbaar.
+        let start_node = if adjacency[start].len() == 1 {
+            start
+        } else if adjacency[end].len() == 1 {
+            end
+        } else {
+            start
+        };
+        let mut current_node = if start_node == start { end } else { start };
+        let mut prev_node = start_node;
+
+        let mut polyline = vec![nodes[start_node], nodes[current_node]];
+
+        loop {
+            // Zoek een onbenutte edge vanaf current_node.
+            let next_edge_idx = adjacency[current_node]
+                .iter()
+                .copied()
+                .find(|&idx| !edge_used[idx] && {
+                    let (a, b) = edges[idx];
+                    // Vermijd direct teruggaan over dezelfde edge; kies andere richting indien mogelijk.
+                    let other = if a == current_node { b } else { a };
+                    !points_equal(nodes[other], nodes[prev_node])
+                })
+                .or_else(|| {
+                    adjacency[current_node]
+                        .iter()
+                        .copied()
+                        .find(|&idx| !edge_used[idx])
+                });
+
+            let Some(next_idx) = next_edge_idx else {
+                break;
+            };
+
+            edge_used[next_idx] = true;
+            let (a, b) = edges[next_idx];
+            let next_node = if a == current_node { b } else { a };
+            prev_node = current_node;
+            current_node = next_node;
+
+            if !points_equal(*polyline.last().unwrap(), nodes[current_node]) {
+                polyline.push(nodes[current_node]);
+            }
+        }
+
+        // Sluit de polyline als het een echte gesloten lus is.
+        if polyline.len() > 2 && !points_equal(polyline[0], *polyline.last().unwrap()) {
+            let all_degree_two = polyline.iter().all(|point| {
+                nodes
+                    .iter()
+                    .position(|p| points_equal(*p, *point))
+                    .map(|idx| adjacency[idx].len() == 2)
+                    .unwrap_or(false)
+            });
+            if all_degree_two {
+                polyline.push(polyline[0]);
+            }
+        }
+
+        if polyline.len() >= 2 {
+            polylines.push(polyline);
+        }
     }
 
     polylines
@@ -1915,6 +1993,42 @@ mod tests {
             panic!("expected list of surfaces");
         };
         assert_eq!(values.len(), 1);
+    }
+
+    #[test]
+    fn group_segments_orders_unsorted_segments() {
+        // Unsorted triangle edges should produce a closed, ordered polyline.
+        let segments = vec![
+            ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
+            ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+            ([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]),
+        ];
+        let polylines = group_segments_into_polylines(segments);
+        assert_eq!(polylines.len(), 1);
+        let polyline = &polylines[0];
+        assert!(
+            polyline.len() == 4 && points_equal(polyline[0], *polyline.last().unwrap()),
+            "polyline should close and use all edges"
+        );
+        // Every edge from the polyline should correspond to one of the original segments.
+        for w in polyline.windows(2) {
+            let found = [
+                ([w[0][0], w[0][1], w[0][2]], [w[1][0], w[1][1], w[1][2]]),
+                ([w[1][0], w[1][1], w[1][2]], [w[0][0], w[0][1], w[0][2]]),
+            ]
+            .iter()
+            .any(|pair| {
+                let original = vec![
+                    ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]),
+                    ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+                    ([0.0, 1.0, 0.0], [0.0, 0.0, 0.0]),
+                ];
+                original
+                    .iter()
+                    .any(|s| points_equal(s.0, pair.0) && points_equal(s.1, pair.1))
+            });
+            assert!(found, "polyline edge must map to original segment");
+        }
     }
 
     #[test]
