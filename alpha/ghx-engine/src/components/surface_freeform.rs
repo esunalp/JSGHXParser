@@ -1888,8 +1888,8 @@ fn sweep_polyline_along_rail(
             let v2 = last_layer_start + next_idx;
             let v3 = new_layer_start + next_idx;
             let v4 = new_layer_start + current_idx;
-            faces.push(vec![v1, v2, v4]);
-            faces.push(vec![v2, v3, v4]);
+            faces.push(vec![v1, v4, v2]);
+            faces.push(vec![v2, v4, v3]);
         }
 
         last_layer_start = new_layer_start;
@@ -1995,8 +1995,8 @@ fn sweep_sections_along_rail(
             let v2 = base + j_next;
             let v3 = next_base + j_next;
             let v4 = next_base + j;
-            faces.push(vec![v1, v2, v4]);
-            faces.push(vec![v2, v3, v4]);
+            faces.push(vec![v1, v4, v2]);
+            faces.push(vec![v2, v4, v3]);
         }
     }
 
