@@ -1555,8 +1555,13 @@ fn sweep_polyline_along_rail(
     component: &str,
 ) -> Result<Value, ComponentError> {
     let mut profile = profile.to_vec();
-    if profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()) {
+    let mut profile_closed =
+        profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap());
+    if profile_closed || (profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()))
+    {
         profile.pop();
+        // Treat very short "closed" inputs (only two equal points) as open to avoid degeneracy.
+        profile_closed = profile.len() >= 3 && profile_closed;
     }
 
     if profile.is_empty() {
@@ -1581,7 +1586,7 @@ fn sweep_polyline_along_rail(
 
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
-    let ordered_profile = if layer_size >= 3 {
+    let ordered_profile = if profile_closed && layer_size >= 3 {
         let normal = polyline_normal(&profile);
         let winding = polyline_winding_direction(&profile, normal);
         if winding < 0.0 {
@@ -1597,7 +1602,7 @@ fn sweep_polyline_along_rail(
     let mut vertices = profile.clone();
     let mut faces: Vec<Vec<u32>> = Vec::new();
 
-    if layer_size >= 3 {
+    if profile_closed && layer_size >= 3 {
         faces.push(ordered_profile.clone());
     }
 
@@ -1618,7 +1623,8 @@ fn sweep_polyline_along_rail(
 
         vertices.extend(new_layer_vertices.iter());
 
-        for i in 0..layer_size {
+        let edge_count = if profile_closed { layer_size } else { layer_size.saturating_sub(1) };
+        for i in 0..edge_count {
             let current_idx = ordered_profile[i];
             let next_idx = ordered_profile[(i + 1) % layer_size];
             let v1 = last_layer_start + current_idx;
@@ -1633,7 +1639,7 @@ fn sweep_polyline_along_rail(
         last_layer_vertices = new_layer_vertices;
     }
 
-    if layer_size >= 3 {
+    if profile_closed && layer_size >= 3 {
         let mut top_face = Vec::with_capacity(layer_size);
         for &index in ordered_profile.iter().rev() {
             top_face.push(last_layer_start + index);
@@ -2088,6 +2094,41 @@ mod tests {
             "sweep should reach end of second segment",
         );
         assert!(faces.len() >= 10, "caps and side faces should be present");
+    }
+
+    #[test]
+    fn sweep_one_does_not_close_open_profile() {
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [0.0, 0.0, 1.0],
+            },
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep open profile");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        assert_eq!(vertices.len(), 8, "one segment should duplicate profile vertices once");
+        assert_eq!(faces.len(), 6, "open profile should only create side strips without caps");
+        assert!(
+            faces.iter().all(|f| !(f.contains(&0) && f.contains(&3))),
+            "open profile should not wrap between ends"
+        );
     }
 
     #[test]
