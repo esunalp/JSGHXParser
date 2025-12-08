@@ -1924,11 +1924,12 @@ fn sweep_sections_along_rail(
     // Plaats secties langs de rail met gelijke verdeling over de rail lengte.
     let mut positioned_sections = Vec::with_capacity(sections.len());
     let mut positioned_closed = Vec::with_capacity(sections.len());
+    let section_count = sections.len().max(1);
     for (idx, (poly, closed)) in sections.into_iter().zip(section_closed).enumerate() {
-        let t = if sections.len() == 1 {
+        let t = if section_count == 1 {
             0.0
         } else {
-            idx as f64 / ((sections.len() - 1) as f64)
+            idx as f64 / ((section_count - 1) as f64)
         };
         let target_point = point_on_polyline_fraction(&rail_polyline, t);
         let origin = poly.first().copied().unwrap_or([0.0; 3]);
