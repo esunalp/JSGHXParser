@@ -174,7 +174,7 @@ pub const REGISTRATIONS: &[Registration] = &[
 ];
 
 impl Component for ComponentKind {
-    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+    fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         match self {
             Self::FitLoft => evaluate_loft(inputs, meta, "Fit Loft", PIN_OUTPUT_SURFACE),
             Self::EdgeSurface => evaluate_edge_surface(inputs),
