@@ -193,7 +193,7 @@ impl Component for ComponentKind {
             Self::ExtrudeLinear => evaluate_extrude_linear(inputs),
             Self::Loft => evaluate_loft(inputs, meta, "Loft", PIN_OUTPUT_LOFT),
             Self::ExtrudeAngled => evaluate_extrude_angled(inputs),
-            Self::Sweep1 => evaluate_sweep_one(inputs),
+            Self::Sweep1 => evaluate_sweep_one(inputs, meta),
             Self::ExtrudePoint => evaluate_extrude_point(inputs),
             Self::Pipe => evaluate_pipe(inputs),
             Self::FourPointSurface => evaluate_four_point_surface(inputs),
@@ -1128,7 +1128,7 @@ fn evaluate_extrude_angled(inputs: &[Value]) -> ComponentResult {
     into_output(PIN_OUTPUT_SHAPE, surface)
 }
 
-fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
+fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
     let component = "Sweep1";
     if inputs.len() < 2 {
         return Err(ComponentError::new("Sweep1 vereist een rail en secties"));
@@ -1157,27 +1157,35 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
         return into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps));
     }
 
-    let sections = collect_ruled_surface_curves(&inputs[1])?;
-    if sections.is_empty() {
-        return Err(ComponentError::new(
-            "Sweep1 verwacht minstens één sectiepolyline",
-        ));
-    }
-
     if let Some(value) = inputs.get(2) {
         coerce_number(value, component, "Miter")?;
     }
 
-    let mut sections = sections;
-    unify_curve_directions(&mut sections);
-
+    let multi_source = input_source_count(meta, 1) >= 2;
+    let branch_values = collect_loft_branch_values(&inputs[1], multi_source);
     let mut sweeps = Vec::new();
-    if sections.len() == 1 {
-        let surface = sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?;
+    let mut found_sections = false;
+
+    for branch in branch_values {
+        let mut sections = collect_ruled_surface_curves(&branch)?;
+        if sections.is_empty() {
+            continue;
+        }
+        found_sections = true;
+        unify_curve_directions(&mut sections);
+
+        let surface = if sections.len() == 1 {
+            sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?
+        } else {
+            build_loft_surface(sections, component)?
+        };
         sweeps.push(surface);
-    } else {
-        let surface = sweep_sections_along_rail(sections, &rail_polyline, component)?;
-        sweeps.push(surface);
+    }
+
+    if !found_sections {
+        return Err(ComponentError::new(
+            "Sweep1 verwacht minstens één sectiepolyline",
+        ));
     }
 
     into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps))
@@ -1668,42 +1676,6 @@ fn project_point_on_polyline(point: [f64; 3], polyline: &[[f64; 3]]) -> (f64, f6
     (best_t, best_dist)
 }
 
-fn point_on_polyline_fraction(polyline: &[[f64; 3]], t: f64) -> [f64; 3] {
-    if polyline.is_empty() {
-        return [0.0; 3];
-    }
-    if polyline.len() == 1 {
-        return polyline[0];
-    }
-    let total_length = polyline_length(polyline);
-    if total_length <= EPSILON {
-        return polyline[0];
-    }
-
-    let target_len = (t.clamp(0.0, 1.0)) * total_length;
-    let mut accumulated = 0.0;
-
-    for window in polyline.windows(2) {
-        let a = window[0];
-        let b = window[1];
-        let seg_len = distance(a, b);
-        if seg_len < EPSILON {
-            continue;
-        }
-        if accumulated + seg_len >= target_len {
-            let local_t = (target_len - accumulated) / seg_len;
-            return add_vector(a, [
-                (b[0] - a[0]) * local_t,
-                (b[1] - a[1]) * local_t,
-                (b[2] - a[2]) * local_t,
-            ]);
-        }
-        accumulated += seg_len;
-    }
-
-    *polyline.last().unwrap()
-}
-
 fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let n = {
         let n = normalize(normal);
@@ -2115,118 +2087,6 @@ fn sweep_polyline_along_rail(
     Ok(Value::Surface { vertices, faces })
 }
 
-fn sweep_sections_along_rail(
-    mut sections: Vec<Vec<[f64; 3]>>,
-    rail_polyline: &[[f64; 3]],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee punten",
-        )));
-    }
-    if sections.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht minstens twee sectiecurves",
-        )));
-    }
-
-    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
-
-    // Note closed flags before deduplication.
-    let mut section_closed: Vec<bool> = sections.iter().map(|p| is_closed(p)).collect();
-    for (poly, closed) in sections.iter_mut().zip(section_closed.iter_mut()) {
-        *poly = dedup_consecutive_points(std::mem::take(poly), *closed);
-        *closed = *closed && poly.len() >= 3;
-    }
-
-    // Plaats secties langs de rail met gelijke verdeling over de rail lengte.
-    let mut positioned_sections = Vec::with_capacity(sections.len());
-    let mut positioned_closed = Vec::with_capacity(sections.len());
-    let section_count = sections.len().max(1);
-    for (idx, (poly, closed)) in sections.into_iter().zip(section_closed).enumerate() {
-        let t = if section_count == 1 {
-            0.0
-        } else {
-            idx as f64 / ((section_count - 1) as f64)
-        };
-        let target_point = point_on_polyline_fraction(&rail_polyline, t);
-        let origin = poly.first().copied().unwrap_or([0.0; 3]);
-        let translation = subtract_points(target_point, origin);
-        let translated: Vec<[f64; 3]> = poly.iter().map(|p| add_vector(*p, translation)).collect();
-        positioned_sections.push(translated);
-        positioned_closed.push(closed);
-    }
-
-    // Zorg voor consistente oriëntatie per sectie.
-    unify_curve_directions(&mut positioned_sections);
-
-    // Bepaal doel sample-grootte.
-    let target_count = positioned_sections.iter().map(|p| p.len()).max().unwrap_or(0);
-    if target_count < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} kon geen secties met voldoende punten vinden",
-        )));
-    }
-
-    let resampled_sections: Vec<Vec<[f64; 3]>> = positioned_sections
-        .iter()
-        .map(|p| {
-            let dummy_target = vec![[0.0; 3]; target_count];
-            super::curve_sampler::resample_polylines(p, &dummy_target).0
-        })
-        .collect();
-
-    let mut vertices = Vec::new();
-    let mut faces: Vec<Vec<u32>> = Vec::new();
-
-    for section in &resampled_sections {
-        vertices.extend_from_slice(section);
-    }
-
-    let num_sections = resampled_sections.len();
-    let pts_per_section = target_count as u32;
-
-    for i in 0..(num_sections - 1) {
-        let base = i as u32 * pts_per_section;
-        let next_base = (i as u32 + 1) * pts_per_section;
-        let closed = positioned_closed[i] && positioned_closed[i + 1];
-        let edge_count = if closed {
-            pts_per_section
-        } else {
-            pts_per_section.saturating_sub(1)
-        };
-
-        for j in 0..edge_count {
-            let j_next = (j + 1) % pts_per_section;
-            let v1 = base + j;
-            let v2 = base + j_next;
-            let v3 = next_base + j_next;
-            let v4 = next_base + j;
-            faces.push(vec![v1, v2, v4]);
-            faces.push(vec![v2, v3, v4]);
-        }
-    }
-
-    // Caps voor gesloten secties.
-    if positioned_closed.first().copied().unwrap_or(false) {
-        let mut first_face = Vec::with_capacity(pts_per_section as usize);
-        for idx in 0..pts_per_section {
-            first_face.push(idx);
-        }
-        faces.push(first_face);
-    }
-    if positioned_closed.last().copied().unwrap_or(false) {
-        let mut last_face = Vec::with_capacity(pts_per_section as usize);
-        let start = (num_sections as u32 - 1) * pts_per_section;
-        for idx in (0..pts_per_section).rev() {
-            last_face.push(start + idx);
-        }
-        faces.push(last_face);
-    }
-
-    Ok(Value::Surface { vertices, faces })
-}
 
 #[allow(dead_code)]
 fn extrude_surface_along_vector(
@@ -2947,38 +2807,104 @@ mod tests {
         let base_section = Value::List(vec![
             Value::Point([0.0, 0.0, 0.0]),
             Value::Point([1.0, 0.0, 0.0]),
-            Value::Point([1.0, 1.0, 0.0]),
-            Value::Point([0.0, 1.0, 0.0]),
-            Value::Point([0.0, 0.0, 0.0]),
         ]);
-        let scaled_section = Value::List(vec![
-            Value::Point([0.0, 0.0, 0.0]),
-            Value::Point([2.0, 0.0, 0.0]),
-            Value::Point([2.0, 1.0, 0.0]),
-            Value::Point([0.0, 1.0, 0.0]),
-            Value::Point([0.0, 0.0, 0.0]),
+        let elevated_section = Value::List(vec![
+            Value::Point([0.0, 0.0, 2.0]),
+            Value::Point([1.0, 0.0, 2.0]),
         ]);
-        let inputs = [rail, Value::List(vec![base_section, scaled_section])];
+        let inputs = [rail, Value::List(vec![base_section, elevated_section])];
 
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
-            .expect("sweep multiple sections");
+            .expect("sweep lofted sections");
 
         let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
             panic!("expected list output");
         };
-        assert_eq!(solids.len(), 1, "multiple section curves build one sweep");
+        assert_eq!(solids.len(), 1, "sections should combine into one sweep");
         let Value::Surface { vertices, faces } = &solids[0] else {
             panic!("expected surface solid");
         };
 
-        assert_eq!(vertices.len(), 8, "two four-point sections should be merged");
-        assert_eq!(faces.len(), 10, "closed sections should add caps and side faces");
-        assert_eq!(
-            vertices[5],
-            [2.0, 0.0, 5.0],
-            "second section should be positioned at end of rail"
-        );
+        assert_eq!(vertices.len(), 4, "two two-point sections should loft to 4 vertices");
+        assert_eq!(faces.len(), 2, "lofted section should create a single quad (2 triangles)");
+        assert_eq!(vertices[0], [0.0, 0.0, 0.0]);
+        assert_eq!(vertices[3], [1.0, 0.0, 2.0]);
+    }
+
+    #[test]
+    fn sweep_one_handles_grafted_curve_branches() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [0.0, 0.0, 2.0],
+        };
+
+        let rectangle = |offset: f64| {
+            Value::List(vec![
+                Value::Point([offset, 0.0, 0.0]),
+                Value::Point([offset + 1.0, 0.0, 0.0]),
+                Value::Point([offset + 1.0, 1.0, 0.0]),
+                Value::Point([offset, 1.0, 0.0]),
+                Value::Point([offset, 0.0, 0.0]),
+            ])
+        };
+
+        let inputs = [
+            rail,
+            Value::List(vec![
+                Value::List(vec![rectangle(0.0)]),
+                Value::List(vec![rectangle(2.0)]),
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep grafted curves");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        assert_eq!(solids.len(), 2, "expected a sweep per grafted branch");
+        for solid in solids {
+            assert!(
+                matches!(solid, Value::Surface { .. }),
+                "each branch should create a surface"
+            );
+        }
+    }
+
+    #[test]
+    fn sweep_one_closes_circle_profiles() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [0.0, 0.0, 1.0],
+        };
+        let circle = Value::List(vec![
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([-1.0, 0.0, 0.0]),
+            Value::Point([0.0, -1.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+        ]);
+        let inputs = [rail, circle];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep circle");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        assert_eq!(vertices.len(), 8, "circle should duplicate vertices along rail");
+        assert_eq!(faces.len(), 10, "circle should form caps plus four side quads");
+        let quad_faces = faces.iter().filter(|face| face.len() == 4).count();
+        assert_eq!(quad_faces, 2, "closed profile should add a cap on both ends");
     }
 
     #[test]
