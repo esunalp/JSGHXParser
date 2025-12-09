@@ -476,19 +476,10 @@ fn collect_branches_from_source(value: &Value) -> Vec<Value> {
                     })
                     .collect()
             } else {
-                items
-                    .iter()
-                    .filter_map(|entry| {
-                        if matches!(entry, Value::Null) {
-                            None
-                        } else {
-                            Some(Value::List(vec![entry.clone()]))
-                        }
-                    })
-                    .collect()
+                vec![Value::List(items.clone())]
             }
         }
-        _ => vec![Value::List(vec![value.clone()])],
+        _ => vec![value.clone()],
     }
 }
 
