@@ -397,32 +397,57 @@ fn build_loft_surface(
 
 fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
     match value {
-        Value::List(items) => {
-            let nested_count = items.iter().filter(|entry| matches!(entry, Value::List(_))).count();
-            let mut branches = Vec::new();
+        Value::List(items) if should_expand_loft_branches(items) => items
+            .iter()
+            .filter_map(|entry| match entry {
+                Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
+                _ => None,
+            })
+            .collect(),
+        _ => vec![value.clone()],
+    }
+}
 
-            for entry in items {
-                if matches!(entry, Value::Null) {
-                    continue;
+fn should_expand_loft_branches(items: &[Value]) -> bool {
+    let mut found_branch = false;
+    for entry in items {
+        if matches!(entry, Value::Null) {
+            continue;
+        }
+
+        match entry {
+            Value::List(list) if !list.is_empty() => {
+                if value_is_curve(entry) {
+                    return false;
                 }
-                if matches!(entry, Value::List(_)) {
-                    if let Value::List(inner) = entry {
-                        if !inner.is_empty() {
-                            branches.push(Value::List(inner.clone()));
-                        }
-                    }
-                } else {
-                    branches.push(Value::List(vec![entry.clone()]));
-                }
+                found_branch = true;
             }
+            _ => return false,
+        }
+    }
+    found_branch
+}
 
-            if nested_count == items.len() && items.len() > 1 {
-                branches
+fn value_is_curve(value: &Value) -> bool {
+    match value {
+        Value::CurveLine { .. } => true,
+        Value::List(items) => {
+            if items.len() < 2 {
+                false
+            } else if items.iter().all(|item| matches!(item, Value::Point(_))) {
+                true
+            } else if items.iter().all(|item| matches!(item, Value::CurveLine { .. })) {
+                true
+            } else if items
+                .iter()
+                .all(|item| matches!(item, Value::List(_) | Value::Null))
+            {
+                false
             } else {
-                vec![value.clone()]
+                false
             }
         }
-        _ => vec![value.clone()],
+        _ => false,
     }
 }
 
@@ -2463,28 +2488,20 @@ mod tests {
     #[test]
     fn loft_handles_grafted_lists() {
         let component = ComponentKind::Loft;
-        let group_a = Value::List(vec![
-            Value::CurveLine {
-                p1: [0.0, 0.0, 0.0],
-                p2: [1.0, 0.0, 0.0],
-            },
-            Value::CurveLine {
-                p1: [0.0, 1.0, 0.0],
-                p2: [1.0, 1.0, 0.0],
-            },
-        ]);
-        let group_b = Value::List(vec![
-            Value::CurveLine {
-                p1: [0.0, 0.0, 1.0],
-                p2: [1.0, 0.0, 1.0],
-            },
-            Value::CurveLine {
-                p1: [0.0, 1.0, 1.0],
-                p2: [1.0, 1.0, 1.0],
-            },
-        ]);
+        let branch = |z_start: f64| {
+            Value::List(vec![
+                Value::List(vec![
+                    Value::Point([0.0, 0.0, z_start]),
+                    Value::Point([1.0, 0.0, z_start]),
+                ]),
+                Value::List(vec![
+                    Value::Point([0.0, 1.0, z_start + 1.0]),
+                    Value::Point([1.0, 1.0, z_start + 1.0]),
+                ]),
+            ])
+        };
 
-        let inputs = [Value::List(vec![group_a, group_b])];
+        let inputs = [Value::List(vec![branch(0.0), branch(1.0)])];
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
             .expect("grafted loft");
@@ -2502,20 +2519,20 @@ mod tests {
     fn loft_skips_empty_branches() {
         let component = ComponentKind::Loft;
         let branch = Value::List(vec![
-            Value::CurveLine {
-                p1: [0.0, 0.0, 0.0],
-                p2: [1.0, 0.0, 0.0],
-            },
-            Value::CurveLine {
-                p1: [0.0, 1.0, 0.0],
-                p2: [1.0, 1.0, 0.0],
-            },
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+            ]),
+            Value::List(vec![
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+            ]),
         ]);
 
-        let inputs = [Value::List(vec![
-            Value::List(vec![branch.clone(), Value::List(vec![])]),
+        let inputs = [Value::List(vec![Value::List(vec![
+            branch.clone(),
             Value::List(vec![]),
-        ])];
+        ])])];
 
         let outputs = component
             .evaluate(&inputs, &MetaMap::new())
