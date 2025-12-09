@@ -307,7 +307,40 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
 
 fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let mut polylines = collect_ruled_surface_curves(curves_value)?;
+    let mut grafted_groups = Vec::new();
+    let mut invalid_branch = false;
+    collect_grafted_loft_branches(curves_value, &mut grafted_groups, &mut invalid_branch, true)?;
+
+    if !grafted_groups.is_empty() {
+        if invalid_branch {
+            return Err(ComponentError::new(format!(
+                "{component} vereist minimaal twee sectiecurves per tak"
+            )));
+        }
+
+        let mut lofts = Vec::new();
+        for polylines in grafted_groups {
+            let surface = build_loft_surface(polylines, component)?;
+            lofts.push(surface);
+        }
+        return into_output(output, Value::List(lofts));
+    }
+
+    if invalid_branch {
+        return Err(ComponentError::new(format!(
+            "{component} vereist minimaal twee sectiecurves per tak"
+        )));
+    }
+
+    let polylines = collect_ruled_surface_curves(curves_value)?;
+    let surface = build_loft_surface(polylines, component)?;
+    into_output(output, surface)
+}
+
+fn build_loft_surface(
+    mut polylines: Vec<Vec<[f64; 3]>>,
+    component: &str,
+) -> Result<Value, ComponentError> {
     if polylines.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} vereist minimaal twee sectiecurves"
@@ -316,20 +349,16 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
 
     unify_curve_directions(&mut polylines);
 
-    // Bepaal het doelaantal punten door het maximum van alle polylines te nemen.
     let target_count = polylines.iter().map(|p| p.len()).max().unwrap_or(0);
-
     if target_count < 2 {
         return Err(ComponentError::new(format!(
             "{component} kon geen curves met voldoende punten vinden"
         )));
     }
 
-    // Hersample alle polylines naar het doelaantal.
     let resampled_polylines: Vec<Vec<[f64; 3]>> = polylines
         .iter()
         .map(|p| {
-            // Maak een dummy polyline met het doelaantal punten om de resample-functie te gebruiken.
             let dummy_target = vec![[0.0; 3]; target_count];
             super::curve_sampler::resample_polylines(p, &dummy_target).0
         })
@@ -361,7 +390,38 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
         }
     }
 
-    into_output(output, Value::Surface { vertices, faces })
+    Ok(Value::Surface { vertices, faces })
+}
+
+fn collect_grafted_loft_branches(
+    value: &Value,
+    branches: &mut Vec<Vec<Vec<[f64; 3]>>>,
+    invalid_branch: &mut bool,
+    is_root: bool,
+) -> Result<bool, ComponentError> {
+    if let Value::List(values) = value {
+        let mut child_had_branch = false;
+        for entry in values {
+            if collect_grafted_loft_branches(entry, branches, invalid_branch, false)? {
+                child_had_branch = true;
+            }
+        }
+
+        if !is_root && !child_had_branch {
+            let polylines = collect_ruled_surface_curves(value)?;
+            if polylines.len() >= 2 {
+                branches.push(polylines);
+                return Ok(true);
+            } else if polylines.len() == 1 {
+                *invalid_branch = true;
+                return Ok(true);
+            }
+        }
+
+        return Ok(child_had_branch);
+    }
+
+    Ok(false)
 }
 
 fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
@@ -2396,6 +2456,44 @@ mod tests {
             outputs.get(PIN_OUTPUT_LOFT),
             Some(Value::Surface { .. })
         ));
+    }
+
+    #[test]
+    fn loft_handles_grafted_lists() {
+        let component = ComponentKind::Loft;
+        let group_a = Value::List(vec![
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [1.0, 0.0, 0.0],
+            },
+            Value::CurveLine {
+                p1: [0.0, 1.0, 0.0],
+                p2: [1.0, 1.0, 0.0],
+            },
+        ]);
+        let group_b = Value::List(vec![
+            Value::CurveLine {
+                p1: [0.0, 0.0, 1.0],
+                p2: [1.0, 0.0, 1.0],
+            },
+            Value::CurveLine {
+                p1: [0.0, 1.0, 1.0],
+                p2: [1.0, 1.0, 1.0],
+            },
+        ]);
+
+        let inputs = [Value::List(vec![group_a, group_b])];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("grafted loft");
+
+        let Value::List(lofts) = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected list of lofts");
+        };
+        assert_eq!(lofts.len(), 2, "expected a loft per grafted branch");
+        for loft in lofts {
+            assert!(matches!(loft, Value::Surface { .. }), "expected surface output");
+        }
     }
 
     #[test]
