@@ -396,50 +396,35 @@ fn build_loft_surface(
 }
 
 fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
-    fn recurse(value: &Value, branches: &mut Vec<Value>) {
-        match value {
-            Value::List(items) => {
-                if items.is_empty() {
-                    return;
-                }
+    match value {
+        Value::List(items) => {
+            let nested_count = items.iter().filter(|entry| matches!(entry, Value::List(_))).count();
+            let mut branches = Vec::new();
 
-                let mut has_nested = false;
-                let mut branch_items = Vec::new();
-                for entry in items {
-                    if matches!(entry, Value::Null) {
-                        continue;
-                    }
-                    if matches!(entry, Value::List(_)) {
-                        has_nested = true;
-                    }
-                    branch_items.push(entry.clone());
+            for entry in items {
+                if matches!(entry, Value::Null) {
+                    continue;
                 }
-
-                if branch_items.is_empty() {
-                    return;
-                }
-
-                if has_nested {
-                    for entry in branch_items {
-                        if matches!(entry, Value::Null) {
-                            continue;
+                if matches!(entry, Value::List(_)) {
+                    has_nested_lists = true;
+                    if let Value::List(inner) = entry {
+                        if !inner.is_empty() {
+                            branches.push(Value::List(inner.clone()));
                         }
-                        recurse(&entry, branches);
                     }
                 } else {
-                    branches.push(Value::List(branch_items));
+                    branches.push(Value::List(vec![entry.clone()]));
                 }
             }
-            other => branches.push(Value::List(vec![other.clone()])),
-        }
-    }
 
-    let mut branches = Vec::new();
-    recurse(value, &mut branches);
-    if branches.is_empty() && !matches!(value, Value::Null) {
-        branches.push(Value::List(vec![value.clone()]));
+            if nested_count == items.len() && items.len() > 1 {
+                branches
+            } else {
+                vec![value.clone()]
+            }
+        }
+        _ => vec![value.clone()],
     }
-    branches
 }
 
 fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
