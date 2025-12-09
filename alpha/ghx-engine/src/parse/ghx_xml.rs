@@ -379,6 +379,9 @@ fn parse_archive_object(chunk: &RawChunk, index: usize) -> ParseResult<ArchiveOb
             false,
         );
         node.add_input_pin(info.pin_name.clone());
+        if info.source_count > 0 {
+            insert_input_source_count_meta(&mut node, input_index, &info.pin_name, info.source_count);
+        }
         apply_pin_mapping_meta(&mut node, "input", &info.pin_name, &info.mapping);
         if let Some(expression) = info.internal_expression.clone() {
             node.set_input_expression(info.pin_name.clone(), expression);
@@ -662,11 +665,15 @@ fn parse_param_chunk(
 
     let pin_name = normalize_pin_name(pin_name_raw, component_guid, is_output);
 
-    let sources = chunk
+    let sources: Vec<String> = chunk
         .item_values("Source")
         .into_iter()
         .filter_map(normalize_guid_str)
         .collect();
+    let source_count = chunk
+        .item_value("SourceCount")
+        .and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or_else(|| sources.len());
 
     let default_value = parse_persistent_value(chunk);
     let instance_guid = chunk
@@ -679,6 +686,7 @@ fn parse_param_chunk(
         pin_name,
         instance_guid,
         sources,
+        source_count,
         default_value,
         internal_expression,
         mapping,
@@ -1070,6 +1078,14 @@ fn apply_pin_mapping_meta(node: &mut Node, direction: &str, pin: &str, mapping: 
     if mapping.simplify {
         node.insert_meta(format!("{base}.simplify"), true);
     }
+}
+
+fn insert_input_source_count_meta(node: &mut Node, index: usize, pin: &str, count: usize) {
+    let index_key = format!("input.{index}.source_count");
+    node.insert_meta(index_key, count as i64);
+
+    let name_key = format!("input.{pin}.source_count");
+    node.insert_meta(name_key, count as i64);
 }
 
 impl RawChunks {

@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::graph::node::MetaMap;
+use crate::graph::node::{MetaMap, MetaValue};
 use crate::graph::value::{Domain, Value};
 
 use super::{Component, ComponentError, ComponentResult, coerce};
@@ -176,14 +176,14 @@ pub const REGISTRATIONS: &[Registration] = &[
 impl Component for ComponentKind {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         match self {
-            Self::FitLoft => evaluate_loft(inputs, "Fit Loft", PIN_OUTPUT_SURFACE),
+            Self::FitLoft => evaluate_loft(inputs, meta, "Fit Loft", PIN_OUTPUT_SURFACE),
             Self::EdgeSurface => evaluate_edge_surface(inputs),
             Self::ExtrudeAlong => evaluate_extrude_along(inputs),
             Self::LoftOptions => evaluate_loft_options(inputs),
             Self::SurfaceFromPoints => evaluate_surface_from_points(inputs, "Surface From Points"),
             Self::Patch => evaluate_patch(inputs),
             Self::ControlPointLoft => {
-                evaluate_loft(inputs, "Control Point Loft", PIN_OUTPUT_SURFACE)
+                evaluate_loft(inputs, meta, "Control Point Loft", PIN_OUTPUT_SURFACE)
             }
             Self::SumSurface => evaluate_sum_surface(inputs),
             Self::RuledSurface => evaluate_ruled_surface(inputs),
@@ -191,7 +191,7 @@ impl Component for ComponentKind {
             Self::Sweep2 => evaluate_sweep_two(inputs),
             Self::PipeVariable => evaluate_pipe_variable(inputs),
             Self::ExtrudeLinear => evaluate_extrude_linear(inputs),
-            Self::Loft => evaluate_loft(inputs, "Loft", PIN_OUTPUT_LOFT),
+            Self::Loft => evaluate_loft(inputs, meta, "Loft", PIN_OUTPUT_LOFT),
             Self::ExtrudeAngled => evaluate_extrude_angled(inputs),
             Self::Sweep1 => evaluate_sweep_one(inputs),
             Self::ExtrudePoint => evaluate_extrude_point(inputs),
@@ -305,9 +305,10 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
     }
 }
 
-fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
+fn evaluate_loft(inputs: &[Value], meta: &MetaMap, component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let branch_values = collect_loft_branch_values(curves_value);
+    let multi_source = input_source_count(meta, 0) >= 2;
+    let branch_values = collect_loft_branch_values(curves_value, multi_source);
 
     if branch_values.len() > 1 {
         let mut lofts = Vec::new();
@@ -395,45 +396,50 @@ fn build_loft_surface(
     Ok(Value::Surface { vertices, faces })
 }
 
-fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
-    match value {
-        Value::List(items) => {
+fn collect_loft_branch_values(value: &Value, multi_source: bool) -> Vec<Value> {
+    if multi_source {
+        if let Value::List(items) = value {
             if let Some(merged) = merge_grafted_branch_sources(items) {
                 return merged;
             }
-
-            if should_expand_loft_branches(items) {
-                return items
-                    .iter()
-                    .filter_map(|entry| match entry {
-                        Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
-                        _ => None,
-                    })
-                    .collect();
-            }
-            vec![value.clone()]
         }
+    }
+
+    match value {
+        Value::List(items) if should_expand_loft_branches(items) => items
+            .iter()
+            .filter_map(|entry| match entry {
+                Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
+                _ => None,
+            })
+            .collect(),
         _ => vec![value.clone()],
     }
 }
 
 fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
-    let mut sources: Vec<&[Value]> = Vec::new();
+    let mut sources: Vec<Vec<Value>> = Vec::new();
     for entry in items {
-        match entry {
-            Value::Null => {}
-            Value::List(list) if should_expand_loft_branches(list) => {
-                sources.push(list);
-            }
-            _ => return None,
+        let branches = collect_branches_from_source(entry);
+        if branches.is_empty() {
+            continue;
         }
+        sources.push(branches);
     }
 
     if sources.len() < 2 {
         return None;
     }
 
-    let max_branches = sources.iter().map(|list| list.len()).max().unwrap_or(0);
+    let max_branches = sources
+        .iter()
+        .map(|branches| branches.len())
+        .max()
+        .unwrap_or(0);
+    if max_branches == 0 {
+        return None;
+    }
+
     let mut merged = Vec::with_capacity(max_branches);
 
     for branch_index in 0..max_branches {
@@ -453,6 +459,36 @@ fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
         None
     } else {
         Some(merged)
+    }
+}
+
+fn collect_branches_from_source(value: &Value) -> Vec<Value> {
+    match value {
+        Value::Null => Vec::new(),
+        Value::List(items) => {
+            if should_expand_loft_branches(items) {
+                items
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        Value::Null => None,
+                        Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
+                        other => Some(Value::List(vec![other.clone()])),
+                    })
+                    .collect()
+            } else {
+                items
+                    .iter()
+                    .filter_map(|entry| {
+                        if matches!(entry, Value::Null) {
+                            None
+                        } else {
+                            Some(Value::List(vec![entry.clone()]))
+                        }
+                    })
+                    .collect()
+            }
+        }
+        _ => vec![Value::List(vec![value.clone()])],
     }
 }
 
@@ -1493,6 +1529,21 @@ fn expect_input<'a>(
     })
 }
 
+fn input_source_count(meta: &MetaMap, index: usize) -> usize {
+    let key = format!("input.{index}.source_count");
+    meta.get(&key)
+        .and_then(meta_value_to_usize)
+        .unwrap_or(0)
+}
+
+fn meta_value_to_usize(value: &MetaValue) -> Option<usize> {
+    match value {
+        MetaValue::Integer(i) => (*i).try_into().ok(),
+        MetaValue::Number(n) if *n >= 0.0 => Some(*n as usize),
+        _ => None,
+    }
+}
+
 fn add_vector(point: [f64; 3], direction: [f64; 3]) -> [f64; 3] {
     [
         point[0] + direction[0],
@@ -2288,7 +2339,7 @@ mod tests {
         polyline_normal, polyline_winding_direction, signed_area_in_plane,
         group_segments_into_polylines, points_equal,
     };
-    use crate::graph::node::MetaMap;
+    use crate::graph::node::{MetaMap, MetaValue};
     use crate::graph::value::Value;
 
     #[test]
@@ -2596,8 +2647,13 @@ mod tests {
 
         // Simulate two grafted wires connected to the loft input.
         let inputs = [Value::List(vec![first_input, second_input])];
+        let mut meta = MetaMap::new();
+        meta.insert(
+            "input.0.source_count".to_owned(),
+            MetaValue::Integer(2),
+        );
         let outputs = component
-            .evaluate(&inputs, &MetaMap::new())
+            .evaluate(&inputs, &meta)
             .expect("loft should combine grafted inputs");
 
         let Value::List(lofts) = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
