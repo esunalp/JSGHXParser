@@ -418,9 +418,13 @@ fn collect_loft_branch_values(value: &Value, multi_source: bool) -> Vec<Value> {
 }
 
 fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
-    let mut sources: Vec<Vec<Value>> = Vec::new();
+    let mut sources: Vec<Vec<Vec<Value>>> = Vec::new();
     for entry in items {
-        let branches = collect_branches_from_source(entry);
+        if matches!(entry, Value::Null) {
+            continue;
+        }
+
+        let branches = collect_source_branches(entry);
         if branches.is_empty() {
             continue;
         }
@@ -436,17 +440,17 @@ fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
         .map(|branches| branches.len())
         .max()
         .unwrap_or(0);
+
     if max_branches == 0 {
         return None;
     }
 
     let mut merged = Vec::with_capacity(max_branches);
-
     for branch_index in 0..max_branches {
         let mut combined_entries = Vec::new();
         for source in &sources {
-            if let Some(branch_value) = source.get(branch_index) {
-                append_branch_entries(branch_value, &mut combined_entries);
+            if let Some(branch_curves) = source.get(branch_index) {
+                combined_entries.extend(branch_curves.clone());
             }
         }
 
@@ -462,39 +466,47 @@ fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
     }
 }
 
-fn collect_branches_from_source(value: &Value) -> Vec<Value> {
-    match value {
-        Value::Null => Vec::new(),
-        Value::List(items) => {
-            if should_expand_loft_branches(items) {
-                items
-                    .iter()
-                    .filter_map(|entry| match entry {
-                        Value::Null => None,
-                        Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
-                        other => Some(Value::List(vec![other.clone()])),
-                    })
-                    .collect()
-            } else {
-                vec![Value::List(items.clone())]
-            }
-        }
-        _ => vec![value.clone()],
+fn collect_source_branches(value: &Value) -> Vec<Vec<Value>> {
+    if matches!(value, Value::Null) {
+        return Vec::new();
     }
-}
 
-fn append_branch_entries(branch_value: &Value, combined: &mut Vec<Value>) {
-    match branch_value {
-        Value::Null => {}
-        Value::List(entries) => {
-            for entry in entries {
-                if !matches!(entry, Value::Null) {
-                    combined.push(entry.clone());
+    if value_is_curve(value) {
+        return vec![vec![value.clone()]];
+    }
+
+    if let Value::List(items) = value {
+        if should_expand_loft_branches(items) {
+            let mut branches = Vec::new();
+            for entry in items {
+                match entry {
+                    Value::Null => continue,
+                    Value::List(list) if !list.is_empty() => {
+                        let curves: Vec<Value> = list
+                            .iter()
+                            .filter(|curve| !matches!(curve, Value::Null))
+                            .cloned()
+                            .collect();
+                        if !curves.is_empty() {
+                            branches.push(curves);
+                        }
+                    }
+                    other => branches.push(vec![other.clone()]),
                 }
             }
+            return branches;
         }
-        other => combined.push(other.clone()),
+
+        if items.iter().all(|entry| value_is_curve(entry)) {
+            return items
+                .iter()
+                .filter(|entry| !matches!(entry, Value::Null))
+                .map(|entry| vec![entry.clone()])
+                .collect();
+        }
     }
+
+    vec![vec![value.clone()]]
 }
 
 fn should_expand_loft_branches(items: &[Value]) -> bool {
