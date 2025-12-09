@@ -307,29 +307,28 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
 
 fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentResult {
     let curves_value = expect_input(inputs, 0, component, "curveverzameling")?;
-    let mut grafted_groups = Vec::new();
-    let mut invalid_branch = false;
-    collect_grafted_loft_branches(curves_value, &mut grafted_groups, &mut invalid_branch, true)?;
+    let branch_values = collect_loft_branch_values(curves_value);
 
-    if !grafted_groups.is_empty() {
+    if branch_values.len() > 1 {
+        let mut lofts = Vec::new();
+        let mut invalid_branch = false;
+
+        for branch in branch_values {
+            let polylines = collect_ruled_surface_curves(&branch)?;
+            if polylines.len() < 2 {
+                invalid_branch = true;
+                continue;
+            }
+            lofts.push(build_loft_surface(polylines, component)?);
+        }
+
         if invalid_branch {
             return Err(ComponentError::new(format!(
                 "{component} vereist minimaal twee sectiecurves per tak"
             )));
         }
 
-        let mut lofts = Vec::new();
-        for polylines in grafted_groups {
-            let surface = build_loft_surface(polylines, component)?;
-            lofts.push(surface);
-        }
         return into_output(output, Value::List(lofts));
-    }
-
-    if invalid_branch {
-        return Err(ComponentError::new(format!(
-            "{component} vereist minimaal twee sectiecurves per tak"
-        )));
     }
 
     let polylines = collect_ruled_surface_curves(curves_value)?;
@@ -393,35 +392,41 @@ fn build_loft_surface(
     Ok(Value::Surface { vertices, faces })
 }
 
-fn collect_grafted_loft_branches(
-    value: &Value,
-    branches: &mut Vec<Vec<Vec<[f64; 3]>>>,
-    invalid_branch: &mut bool,
-    is_root: bool,
-) -> Result<bool, ComponentError> {
-    if let Value::List(values) = value {
-        let mut child_had_branch = false;
-        for entry in values {
-            if collect_grafted_loft_branches(entry, branches, invalid_branch, false)? {
-                child_had_branch = true;
+fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
+    fn recurse(value: &Value, branches: &mut Vec<Value>) {
+        match value {
+            Value::List(items) => {
+                if items.iter().all(|entry| !matches!(entry, Value::List(_))) {
+                    branches.push(Value::List(items.clone()));
+                } else {
+                    for entry in items {
+                        if matches!(entry, Value::Null) {
+                            continue;
+                        }
+                        recurse(entry, branches);
+                    }
+                }
             }
+            other => branches.push(Value::List(vec![other.clone()])),
         }
-
-        if !is_root && !child_had_branch {
-            let polylines = collect_ruled_surface_curves(value)?;
-            if polylines.len() >= 2 {
-                branches.push(polylines);
-                return Ok(true);
-            } else if polylines.len() == 1 {
-                *invalid_branch = true;
-                return Ok(true);
-            }
-        }
-
-        return Ok(child_had_branch);
     }
 
-    Ok(false)
+    let mut branches = Vec::new();
+    match value {
+        Value::List(items) if items.iter().all(|entry| !matches!(entry, Value::List(_))) => {
+            branches.push(Value::List(items.clone()));
+        }
+        Value::List(items) => {
+            for entry in items {
+                if matches!(entry, Value::Null) {
+                    continue;
+                }
+                recurse(entry, &mut branches);
+            }
+        }
+        _ => branches.push(Value::List(vec![value.clone()])),
+    }
+    branches
 }
 
 fn evaluate_edge_surface(inputs: &[Value]) -> ComponentResult {
