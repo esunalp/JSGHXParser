@@ -315,6 +315,9 @@ fn evaluate_loft(inputs: &[Value], component: &str, output: &str) -> ComponentRe
 
         for branch in branch_values {
             let polylines = collect_ruled_surface_curves(&branch)?;
+            if polylines.is_empty() {
+                continue;
+            }
             if polylines.len() < 2 {
                 invalid_branch = true;
                 continue;
@@ -396,15 +399,35 @@ fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
     fn recurse(value: &Value, branches: &mut Vec<Value>) {
         match value {
             Value::List(items) => {
-                if items.iter().all(|entry| !matches!(entry, Value::List(_))) {
-                    branches.push(Value::List(items.clone()));
-                } else {
-                    for entry in items {
+                if items.is_empty() {
+                    return;
+                }
+
+                let mut has_nested = false;
+                let mut branch_items = Vec::new();
+                for entry in items {
+                    if matches!(entry, Value::Null) {
+                        continue;
+                    }
+                    if matches!(entry, Value::List(_)) {
+                        has_nested = true;
+                    }
+                    branch_items.push(entry.clone());
+                }
+
+                if branch_items.is_empty() {
+                    return;
+                }
+
+                if has_nested {
+                    for entry in branch_items {
                         if matches!(entry, Value::Null) {
                             continue;
                         }
-                        recurse(entry, branches);
+                        recurse(&entry, branches);
                     }
+                } else {
+                    branches.push(Value::List(branch_items));
                 }
             }
             other => branches.push(Value::List(vec![other.clone()])),
@@ -412,19 +435,9 @@ fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
     }
 
     let mut branches = Vec::new();
-    match value {
-        Value::List(items) if items.iter().all(|entry| !matches!(entry, Value::List(_))) => {
-            branches.push(Value::List(items.clone()));
-        }
-        Value::List(items) => {
-            for entry in items {
-                if matches!(entry, Value::Null) {
-                    continue;
-                }
-                recurse(entry, &mut branches);
-            }
-        }
-        _ => branches.push(Value::List(vec![value.clone()])),
+    recurse(value, &mut branches);
+    if branches.is_empty() && !matches!(value, Value::Null) {
+        branches.push(Value::List(vec![value.clone()]));
     }
     branches
 }
@@ -2499,6 +2512,35 @@ mod tests {
         for loft in lofts {
             assert!(matches!(loft, Value::Surface { .. }), "expected surface output");
         }
+    }
+
+    #[test]
+    fn loft_skips_empty_branches() {
+        let component = ComponentKind::Loft;
+        let branch = Value::List(vec![
+            Value::CurveLine {
+                p1: [0.0, 0.0, 0.0],
+                p2: [1.0, 0.0, 0.0],
+            },
+            Value::CurveLine {
+                p1: [0.0, 1.0, 0.0],
+                p2: [1.0, 1.0, 0.0],
+            },
+        ]);
+
+        let inputs = [Value::List(vec![
+            Value::List(vec![branch.clone(), Value::List(vec![])]),
+            Value::List(vec![]),
+        ])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft with empty branches");
+
+        let Value::List(lofts) = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected list of lofts");
+        };
+        assert_eq!(lofts.len(), 1, "only one valid branch should be lofted");
     }
 
     #[test]
