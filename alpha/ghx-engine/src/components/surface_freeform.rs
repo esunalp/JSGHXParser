@@ -1172,8 +1172,11 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     unify_curve_directions(&mut sections);
 
     let mut sweeps = Vec::new();
-    for profile in sections {
-        let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
+    if sections.len() == 1 {
+        let surface = sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?;
+        sweeps.push(surface);
+    } else {
+        let surface = sweep_sections_along_rail(sections, &rail_polyline, component)?;
         sweeps.push(surface);
     }
 
@@ -2932,6 +2935,50 @@ mod tests {
 
         assert_eq!(vertices.len(), 8, "duplicate rail points should be ignored");
         assert_eq!(faces.len(), 6, "should still form one strip of faces");
+    }
+
+    #[test]
+    fn sweep_one_lofts_multiple_curve_sections() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [0.0, 0.0, 5.0],
+        };
+        let base_section = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([1.0, 0.0, 0.0]),
+            Value::Point([1.0, 1.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 0.0]),
+        ]);
+        let scaled_section = Value::List(vec![
+            Value::Point([0.0, 0.0, 0.0]),
+            Value::Point([2.0, 0.0, 0.0]),
+            Value::Point([2.0, 1.0, 0.0]),
+            Value::Point([0.0, 1.0, 0.0]),
+            Value::Point([0.0, 0.0, 0.0]),
+        ]);
+        let inputs = [rail, Value::List(vec![base_section, scaled_section])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep multiple sections");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        assert_eq!(solids.len(), 1, "multiple section curves build one sweep");
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface solid");
+        };
+
+        assert_eq!(vertices.len(), 8, "two four-point sections should be merged");
+        assert_eq!(faces.len(), 10, "closed sections should add caps and side faces");
+        assert_eq!(
+            vertices[5],
+            [2.0, 0.0, 5.0],
+            "second section should be positioned at end of rail"
+        );
     }
 
     #[test]
