@@ -1038,6 +1038,7 @@ struct ParamInfo {
     pin_name: String,
     instance_guid: Option<String>,
     sources: Vec<String>,
+    source_count: usize,
     default_value: Option<Value>,
     internal_expression: Option<String>,
     mapping: ParamMapping,
