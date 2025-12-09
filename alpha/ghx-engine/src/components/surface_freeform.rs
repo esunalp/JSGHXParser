@@ -397,14 +397,76 @@ fn build_loft_surface(
 
 fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
     match value {
-        Value::List(items) if should_expand_loft_branches(items) => items
-            .iter()
-            .filter_map(|entry| match entry {
-                Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
-                _ => None,
-            })
-            .collect(),
+        Value::List(items) => {
+            if let Some(merged) = merge_grafted_branch_sources(items) {
+                return merged;
+            }
+
+            if should_expand_loft_branches(items) {
+                return items
+                    .iter()
+                    .filter_map(|entry| match entry {
+                        Value::List(list) if !list.is_empty() => Some(Value::List(list.clone())),
+                        _ => None,
+                    })
+                    .collect();
+            }
+            vec![value.clone()]
+        }
         _ => vec![value.clone()],
+    }
+}
+
+fn merge_grafted_branch_sources(items: &[Value]) -> Option<Vec<Value>> {
+    let mut sources: Vec<&[Value]> = Vec::new();
+    for entry in items {
+        match entry {
+            Value::Null => {}
+            Value::List(list) if should_expand_loft_branches(list) => {
+                sources.push(list);
+            }
+            _ => return None,
+        }
+    }
+
+    if sources.len() < 2 {
+        return None;
+    }
+
+    let max_branches = sources.iter().map(|list| list.len()).max().unwrap_or(0);
+    let mut merged = Vec::with_capacity(max_branches);
+
+    for branch_index in 0..max_branches {
+        let mut combined_entries = Vec::new();
+        for source in &sources {
+            if let Some(branch_value) = source.get(branch_index) {
+                append_branch_entries(branch_value, &mut combined_entries);
+            }
+        }
+
+        if !combined_entries.is_empty() {
+            merged.push(Value::List(combined_entries));
+        }
+    }
+
+    if merged.is_empty() {
+        None
+    } else {
+        Some(merged)
+    }
+}
+
+fn append_branch_entries(branch_value: &Value, combined: &mut Vec<Value>) {
+    match branch_value {
+        Value::Null => {}
+        Value::List(entries) => {
+            for entry in entries {
+                if !matches!(entry, Value::Null) {
+                    combined.push(entry.clone());
+                }
+            }
+        }
+        other => combined.push(other.clone()),
     }
 }
 
@@ -2513,6 +2575,36 @@ mod tests {
         for loft in lofts {
             assert!(matches!(loft, Value::Surface { .. }), "expected surface output");
         }
+    }
+
+    #[test]
+    fn loft_pairs_grafted_lists_from_multiple_inputs() {
+        let component = ComponentKind::Loft;
+
+        let branch_curve = |z: f64| {
+            Value::List(vec![
+                Value::Point([0.0, 0.0, z]),
+                Value::Point([1.0, 0.0, z]),
+                Value::Point([1.0, 1.0, z]),
+            ])
+        };
+
+        let single_branch = |z: f64| Value::List(vec![branch_curve(z)]);
+
+        let first_input = Value::List(vec![single_branch(0.0), single_branch(10.0)]);
+        let second_input = Value::List(vec![single_branch(1.0), single_branch(11.0)]);
+
+        // Simulate two grafted wires connected to the loft input.
+        let inputs = [Value::List(vec![first_input, second_input])];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft should combine grafted inputs");
+
+        let Value::List(lofts) = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected list of lofts");
+        };
+        assert_eq!(lofts.len(), 2, "branches should pair by index");
+        assert!(lofts.iter().all(|value| matches!(value, Value::Surface { .. })));
     }
 
     #[test]
