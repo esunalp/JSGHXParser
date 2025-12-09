@@ -984,8 +984,11 @@ fn evaluate_sweep_one(inputs: &[Value]) -> ComponentResult {
     unify_curve_directions(&mut sections);
 
     let mut sweeps = Vec::new();
-    for profile in sections {
-        let surface = sweep_polyline_along_rail(&profile, &rail_polyline, component)?;
+    if sections.len() == 1 {
+        let surface = sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?;
+        sweeps.push(surface);
+    } else {
+        let surface = sweep_sections_along_rail(sections, &rail_polyline, component)?;
         sweeps.push(surface);
     }
 
@@ -1356,6 +1359,15 @@ fn subtract_points(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
+fn scale_vector(v: [f64; 3], factor: f64) -> [f64; 3] {
+    [v[0] * factor, v[1] * factor, v[2] * factor]
+}
+
+fn project_vector_onto_plane(vector: [f64; 3], normal: [f64; 3]) -> [f64; 3] {
+    let n_dot_v = dot_product(vector, normal);
+    subtract_points(vector, scale_vector(normal, n_dot_v))
+}
+
 fn cross_product(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
         a[1] * b[2] - a[2] * b[1],
@@ -1498,6 +1510,39 @@ fn point_on_polyline_fraction(polyline: &[[f64; 3]], t: f64) -> [f64; 3] {
     *polyline.last().unwrap()
 }
 
+fn sample_polyline_tangent(polyline: &[[f64; 3]], t: f64) -> [f64; 3] {
+    if polyline.len() < 2 {
+        return [0.0, 0.0, 1.0];
+    }
+
+    let total_length = polyline_length(polyline);
+    if total_length <= EPSILON {
+        return normalize(subtract_points(polyline[1], polyline[0]));
+    }
+
+    let target_len = (t.clamp(0.0, 1.0)) * total_length;
+    let mut accumulated = 0.0;
+
+    for window in polyline.windows(2) {
+        let a = window[0];
+        let b = window[1];
+        let seg_len = distance(a, b);
+        if seg_len < EPSILON {
+            continue;
+        }
+        if accumulated + seg_len >= target_len {
+            return normalize(subtract_points(b, a));
+        }
+        accumulated += seg_len;
+    }
+
+    let last = *polyline.last().unwrap();
+    let prev = *polyline
+        .get(polyline.len().saturating_sub(2))
+        .unwrap_or(&last);
+    normalize(subtract_points(last, prev))
+}
+
 fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let n = {
         let n = normalize(normal);
@@ -1518,6 +1563,43 @@ fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     tangent = normalize(tangent);
     let bitangent = normalize(cross_product(n, tangent));
     (tangent, bitangent)
+}
+
+fn section_local_basis(
+    polyline: &[[f64; 3]],
+) -> ([f64; 3], [f64; 3], [f64; 3], [f64; 3]) {
+    let origin = polyline[0];
+    let mut normal = polyline_normal(polyline);
+    if is_zero_vector(normal) {
+        normal = [0.0, 0.0, 1.0];
+    }
+
+    let mut x_axis = if polyline.len() > 1 {
+        subtract_points(polyline[1], polyline[0])
+    } else {
+        [1.0, 0.0, 0.0]
+    };
+    x_axis = project_vector_onto_plane(x_axis, normal);
+    if is_zero_vector(x_axis) {
+        x_axis = if normal[0].abs() < 0.9 {
+            [1.0, 0.0, 0.0]
+        } else {
+            [0.0, 1.0, 0.0]
+        };
+        x_axis = project_vector_onto_plane(x_axis, normal);
+    }
+    x_axis = normalize(x_axis);
+
+    let mut y_axis = cross_product(normal, x_axis);
+    if is_zero_vector(y_axis) {
+        let (tan, bitan) = plane_basis(normal);
+        x_axis = tan;
+        y_axis = bitan;
+    } else {
+        y_axis = normalize(y_axis);
+    }
+
+    (origin, x_axis, y_axis, normal)
 }
 
 fn signed_area_in_plane(polyline: &[[f64; 3]], normal: [f64; 3]) -> f64 {
@@ -1919,73 +2001,138 @@ fn sweep_sections_along_rail(
             "{component} vereist een rail met minstens twee punten",
         )));
     }
-    if sections.len() < 2 {
+    if sections.is_empty() {
         return Err(ComponentError::new(format!(
-            "{component} verwacht minstens twee sectiecurves",
+            "{component} verwacht minstens één sectiecurve"
         )));
     }
 
     let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
-
-    // Note closed flags before deduplication.
-    let mut section_closed: Vec<bool> = sections.iter().map(|p| is_closed(p)).collect();
-    for (poly, closed) in sections.iter_mut().zip(section_closed.iter_mut()) {
-        *poly = dedup_consecutive_points(std::mem::take(poly), *closed);
-        *closed = *closed && poly.len() >= 3;
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee unieke punten",
+        )));
     }
 
-    // Plaats secties langs de rail met gelijke verdeling over de rail lengte.
-    let mut positioned_sections = Vec::with_capacity(sections.len());
-    let mut positioned_closed = Vec::with_capacity(sections.len());
-    let section_count = sections.len().max(1);
-    for (idx, (poly, closed)) in sections.into_iter().zip(section_closed).enumerate() {
-        let t = if section_count == 1 {
-            0.0
-        } else {
-            idx as f64 / ((section_count - 1) as f64)
-        };
-        let target_point = point_on_polyline_fraction(&rail_polyline, t);
-        let origin = poly.first().copied().unwrap_or([0.0; 3]);
-        let translation = subtract_points(target_point, origin);
-        let translated: Vec<[f64; 3]> = poly.iter().map(|p| add_vector(*p, translation)).collect();
-        positioned_sections.push(translated);
-        positioned_closed.push(closed);
+    // Bepaal de positie langs de rail per sectie (op basis van projectie van het eerste punt).
+    struct SectionData {
+        coords: Vec<[f64; 2]>,
+        t: f64,
+        closed: bool,
+        local_x: [f64; 3],
     }
 
-    // Zorg voor consistente oriëntatie per sectie.
-    unify_curve_directions(&mut positioned_sections);
+    let mut section_data = Vec::with_capacity(sections.len());
+    for mut poly in sections {
+        let closed = is_closed(&poly);
+        poly = dedup_consecutive_points(poly, closed);
+        if poly.len() < 2 {
+            continue;
+        }
 
-    // Bepaal doel sample-grootte.
-    let target_count = positioned_sections.iter().map(|p| p.len()).max().unwrap_or(0);
+        let (origin, x_axis, y_axis, _) = section_local_basis(&poly);
+        let coords: Vec<[f64; 2]> = poly
+            .iter()
+            .map(|p| {
+                let v = subtract_points(*p, origin);
+                [dot_product(v, x_axis), dot_product(v, y_axis)]
+            })
+            .collect();
+
+        let (t, _) = project_point_on_polyline(origin, &rail_polyline);
+        section_data.push(SectionData {
+            coords,
+            t,
+            closed: closed && poly.len() >= 3,
+            local_x: x_axis,
+        });
+    }
+
+    if section_data.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} kon geen sectiepunten interpreteren"
+        )));
+    }
+
+    // Sorteer secties langs de rail zodat faces steeds naar de volgende sectie lopen.
+    section_data.sort_by(|a, b| a
+        .t
+        .partial_cmp(&b.t)
+        .unwrap_or(Ordering::Equal));
+
+    // Resample alle secties naar het grootste aantal punten zodat vertex-indices uitlijnen.
+    let target_count = section_data
+        .iter()
+        .map(|s| s.coords.len())
+        .max()
+        .unwrap_or(0);
     if target_count < 2 {
         return Err(ComponentError::new(format!(
             "{component} kon geen secties met voldoende punten vinden",
         )));
     }
 
-    let resampled_sections: Vec<Vec<[f64; 3]>> = positioned_sections
-        .iter()
-        .map(|p| {
+    for data in section_data.iter_mut() {
+        if data.coords.len() != target_count {
+            let coords3d: Vec<[f64; 3]> =
+                data.coords.iter().map(|uv| [uv[0], uv[1], 0.0]).collect();
             let dummy_target = vec![[0.0; 3]; target_count];
-            super::curve_sampler::resample_polylines(p, &dummy_target).0
-        })
-        .collect();
+            data.coords = super::curve_sampler::resample_polylines(&coords3d, &dummy_target)
+                .0
+                .into_iter()
+                .map(|p| [p[0], p[1]])
+                .collect();
+        }
+    }
 
     let mut vertices = Vec::new();
     let mut faces: Vec<Vec<u32>> = Vec::new();
+    let mut prev_x_axis: Option<[f64; 3]> = None;
+    let pts_per_section = target_count as u32;
+    let mut section_closed_flags = Vec::with_capacity(section_data.len());
 
-    for section in &resampled_sections {
-        vertices.extend_from_slice(section);
+    for data in &section_data {
+        let origin_on_rail = point_on_polyline_fraction(&rail_polyline, data.t);
+        let tangent = sample_polyline_tangent(&rail_polyline, data.t);
+
+        // Projecteer de lokale x-as op het vlak loodrecht op de railrichting voor consistente rotatie.
+        let mut x_axis = project_vector_onto_plane(data.local_x, tangent);
+        if is_zero_vector(x_axis) {
+            x_axis = prev_x_axis.unwrap_or_else(|| plane_basis(tangent).0);
+        }
+        x_axis = normalize(x_axis);
+        if let Some(prev) = prev_x_axis {
+            if dot_product(x_axis, prev) < 0.0 {
+                x_axis = [-x_axis[0], -x_axis[1], -x_axis[2]];
+            }
+        }
+        let mut y_axis = cross_product(tangent, x_axis);
+        if is_zero_vector(y_axis) {
+            y_axis = plane_basis(tangent).1;
+        }
+        y_axis = normalize(y_axis);
+        if dot_product(cross_product(x_axis, y_axis), tangent) < 0.0 {
+            x_axis = [-x_axis[0], -x_axis[1], -x_axis[2]];
+            y_axis = [-y_axis[0], -y_axis[1], -y_axis[2]];
+        }
+        prev_x_axis = Some(x_axis);
+
+        for uv in &data.coords {
+            let offset = add_vector(
+                scale_vector(x_axis, uv[0]),
+                scale_vector(y_axis, uv[1]),
+            );
+            vertices.push(add_vector(origin_on_rail, offset));
+        }
+        section_closed_flags.push(data.closed);
     }
 
-    let num_sections = resampled_sections.len();
-    let pts_per_section = target_count as u32;
-
+    let num_sections = section_data.len();
     for i in 0..(num_sections - 1) {
         let base = i as u32 * pts_per_section;
         let next_base = (i as u32 + 1) * pts_per_section;
-        let closed = positioned_closed[i] && positioned_closed[i + 1];
-        let edge_count = if closed {
+        let closed_pair = section_closed_flags[i] && section_closed_flags[i + 1];
+        let edge_count = if closed_pair {
             pts_per_section
         } else {
             pts_per_section.saturating_sub(1)
@@ -2003,14 +2150,14 @@ fn sweep_sections_along_rail(
     }
 
     // Caps voor gesloten secties.
-    if positioned_closed.first().copied().unwrap_or(false) {
+    if section_closed_flags.first().copied().unwrap_or(false) {
         let mut first_face = Vec::with_capacity(pts_per_section as usize);
         for idx in 0..pts_per_section {
             first_face.push(idx);
         }
         faces.push(first_face);
     }
-    if positioned_closed.last().copied().unwrap_or(false) {
+    if section_closed_flags.last().copied().unwrap_or(false) {
         let mut last_face = Vec::with_capacity(pts_per_section as usize);
         let start = (num_sections as u32 - 1) * pts_per_section;
         for idx in (0..pts_per_section).rev() {
@@ -2603,6 +2750,70 @@ mod tests {
         assert_eq!(faces.len(), 10, "caps plus four sides (triangulated)");
         // Should have one closed profile (no duplicate strips).
         assert!(faces.iter().all(|f| f.len() == 3), "triangulated faces expected");
+    }
+
+    #[test]
+    fn sweep_one_stitches_multiple_curve_sections() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::List(vec![Value::Point([0.0, 0.0, 0.0]), Value::Point([0.0, 0.0, 2.0])]);
+
+        let rect_start = Value::List(vec![
+            Value::CurveLine {
+                p1: [0.0, -0.5, 0.0],
+                p2: [1.0, -0.5, 0.0],
+            },
+            Value::CurveLine {
+                p1: [1.0, -0.5, 0.0],
+                p2: [1.0, 0.5, 0.0],
+            },
+            Value::CurveLine {
+                p1: [1.0, 0.5, 0.0],
+                p2: [0.0, 0.5, 0.0],
+            },
+            Value::CurveLine {
+                p1: [0.0, 0.5, 0.0],
+                p2: [0.0, -0.5, 0.0],
+            },
+        ]);
+
+        let rect_end = Value::List(vec![
+            Value::CurveLine {
+                p1: [0.0, -0.25, 2.0],
+                p2: [1.0, -0.25, 2.0],
+            },
+            Value::CurveLine {
+                p1: [1.0, -0.25, 2.0],
+                p2: [1.0, 0.75, 2.0],
+            },
+            Value::CurveLine {
+                p1: [1.0, 0.75, 2.0],
+                p2: [0.0, 0.75, 2.0],
+            },
+            Value::CurveLine {
+                p1: [0.0, 0.75, 2.0],
+                p2: [0.0, -0.25, 2.0],
+            },
+        ]);
+
+        let inputs = [rail, Value::List(vec![rect_start, rect_end])];
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep stitched sections");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        assert_eq!(solids.len(), 1, "should return a single stitched sweep");
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        assert_eq!(vertices.len(), 8, "two sections resampled to same count");
+        assert_eq!(faces.len(), 10, "caps plus stitched sides");
+        assert!(
+            vertices.iter().any(|v| (v[2] - 2.0).abs() < EPSILON),
+            "end section should sit at the rail end"
+        );
     }
 
     #[test]
