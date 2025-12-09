@@ -406,7 +406,6 @@ fn collect_loft_branch_values(value: &Value) -> Vec<Value> {
                     continue;
                 }
                 if matches!(entry, Value::List(_)) {
-                    has_nested_lists = true;
                     if let Value::List(inner) = entry {
                         if !inner.is_empty() {
                             branches.push(Value::List(inner.clone()));
