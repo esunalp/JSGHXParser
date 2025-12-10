@@ -1180,8 +1180,8 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
             let closed_curve_surface_value = create_surface_from_closed_curve(&sections[0], component)?;
             // Convert the surface value to a coerce::Surface for sweep_surface_along_polyline
             let closed_curve_surface = coerce::coerce_surface(&closed_curve_surface_value)?;
-            // Apply sweep on the newly created surface
-            sweep_surface_along_polyline(closed_curve_surface, &rail_polyline, component)?
+            // Apply sweep on the newly created surface along the rail
+            sweep_surface_along_polyline_with_origin(closed_curve_surface, &rail_polyline, component)?
         } else if sections.len() == 1 {
             sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?
         } else {
@@ -1920,6 +1920,122 @@ fn calculate_surface_normal(surface: &coerce::Surface<'_>) -> [f64; 3] {
     let v2 = subtract_points(p3, p1);
 
     normalize(cross_product(v1, v2))
+}
+
+/// Sweeps a surface along a rail polyline, ensuring proper positioning relative to the rail origin.
+fn sweep_surface_along_polyline_with_origin(
+    surface: coerce::Surface<'_>,
+    rail_polyline: &[[f64; 3]],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    if surface.vertices.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één vertex",
+        )));
+    }
+    if surface.faces.is_empty() {
+        return Err(ComponentError::new(format!(
+            "{component} verwacht een surface met minstens één face",
+        )));
+    }
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee punten",
+        )));
+    }
+
+    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
+    if rail_polyline.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist een rail met minstens twee unieke punten",
+        )));
+    }
+
+    let surface_normal = calculate_surface_normal(&surface);
+    let boundary_polylines_indices = find_boundary_polylines(&surface);
+
+    let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
+    let mut faces = surface.faces.clone();
+
+    let mut last_layer_start = 0u32;
+    let base_faces = surface.faces.clone();
+
+    // Sweep along the rail by positioning the original surface at each rail point
+    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
+        let prev_rail_point = rail_polyline[i - 1];
+        let rail_direction = subtract_points(rail_point, prev_rail_point);
+        
+        if is_zero_vector(rail_direction) {
+            continue;
+        }
+
+        // Calculate the transformation from the original section to the current rail position
+        // Use the rail start point as reference, not the surface's first vertex
+        let rail_start = rail_polyline[0];
+        let translation = subtract_points(rail_point, rail_start);
+        
+        let new_layer_start = vertices.len() as u32;
+        let new_layer_vertices: Vec<[f64; 3]> = surface.vertices
+            .iter()
+            .map(|vertex| add_vector(*vertex, translation))
+            .collect();
+        vertices.extend(new_layer_vertices.iter());
+
+        for polyline_indices in &boundary_polylines_indices {
+            let polyline_vertices: Vec<[f64; 3]> = polyline_indices
+                .iter()
+                .map(|&i| vertices[i as usize])
+                .collect();
+
+            // Bereken de normaal van de polyline
+            let p1 = polyline_vertices[0];
+            let p2 = polyline_vertices[1];
+            let p3 = *polyline_vertices.get(2).unwrap_or(&p1);
+            let v1 = subtract_points(p2, p1);
+            let v2 = subtract_points(p3, p1);
+            let polyline_normal = normalize(cross_product(v1, v2));
+
+            let mut corrected_indices = polyline_indices.clone();
+            // Keer de polyline om als de normaal in de tegenovergestelde richting van de oppervlaknormaal wijst
+            if dot_product(polyline_normal, surface_normal) < 0.0 {
+                corrected_indices.reverse();
+            }
+
+            let n = corrected_indices.len();
+            if n < 2 {
+                continue;
+            }
+
+            for j in 0..n {
+                let current_idx = corrected_indices[j];
+                let next_idx = corrected_indices[(j + 1) % n];
+
+                let v1 = last_layer_start + current_idx;
+                let v2 = last_layer_start + next_idx;
+                let v3 = new_layer_start + next_idx;
+                let v4 = new_layer_start + current_idx;
+
+                // Gebruik een consistente winding order voor de vlakken
+                faces.push(vec![v1, v4, v2]);
+                faces.push(vec![v2, v4, v3]);
+            }
+        }
+
+        last_layer_start = new_layer_start;
+    }
+
+    for face in &base_faces {
+        if face.len() < 2 {
+            continue;
+        }
+        let mut top_face = Vec::with_capacity(face.len());
+        for &index in face.iter().rev() {
+            top_face.push(last_layer_start + index);
+        }
+        faces.push(top_face);
+    }
+
+    Ok(Value::Surface { vertices, faces })
 }
 
 fn sweep_surface_along_polyline(
@@ -2892,6 +3008,55 @@ mod tests {
         // Check that we have vertices at both the start and end of the rail
         assert!(vertices.iter().any(|v| v[2].abs() < 1e-9), "should have vertices at rail start");
         assert!(vertices.iter().any(|v| (v[2] - 2.0).abs() < 1e-9), "should have vertices at rail end");
+        
+        // Verify that the sweep follows the rail path properly
+        // The surface should have vertices at intermediate positions along the rail
+        let z_positions: Vec<f64> = vertices.iter().map(|v| v[2]).collect();
+        let min_z = z_positions.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+        let max_z = z_positions.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+        
+        assert!((min_z - 0.0).abs() < 1e-6, "should start at rail origin z=0");
+        assert!((max_z - 2.0).abs() < 1e-6, "should end at rail endpoint z=2");
+    }
+
+    #[test]
+    fn sweep_one_closed_curve_follows_complex_rail() {
+        // Test that closed curve sweeps follow complex rail paths correctly
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            // Rail: a more complex path with multiple segments
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 1.0]),
+                Value::Point([2.0, 0.0, 1.5]),
+            ]),
+            // Closed curve: a triangle in the XY plane
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.5, 1.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]), // Duplicate to close
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep closed curve along complex rail");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        // Should have vertices at all rail positions
+        assert!(vertices.iter().any(|v| v[0].abs() < 1e-9 && v[1].abs() < 1e-9 && v[2].abs() < 1e-9), "should have vertices at rail start");
+        assert!(vertices.iter().any(|v| (v[0] - 1.0).abs() < 1e-9 && v[1].abs() < 1e-9 && (v[2] - 1.0).abs() < 1e-9), "should have vertices at first rail segment");
+        assert!(vertices.iter().any(|v| (v[0] - 2.0).abs() < 1e-9 && v[1].abs() < 1e-9 && (v[2] - 1.5).abs() < 1e-9), "should have vertices at rail end");
+        
+        // Should have more vertices than just the original curve (indicating sweep occurred)
+        assert!(vertices.len() > 3, "sweep should create additional vertices");
     }
 
     #[test]
