@@ -1151,7 +1151,7 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 
         let mut sweeps = Vec::new();
         for surface in section_surfaces {
-            let solid = sweep_surface_along_polyline_with_origin(surface, &rail_polyline, component)?;
+            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
             sweeps.push(solid);
         }
         return into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps));
@@ -1181,7 +1181,7 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
             // Convert the surface value to a coerce::Surface for sweep_surface_along_polyline
             let closed_curve_surface = coerce::coerce_surface(&closed_curve_surface_value)?;
             // Apply sweep on the newly created surface along the rail
-            sweep_surface_along_polyline_with_origin(closed_curve_surface, &rail_polyline, component)?
+            sweep_surface_along_polyline(closed_curve_surface, &rail_polyline, component)?
         } else if sections.len() == 1 {
             sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?
         } else {
@@ -1923,7 +1923,7 @@ fn calculate_surface_normal(surface: &coerce::Surface<'_>) -> [f64; 3] {
 }
 
 /// Sweeps a surface along a rail polyline, ensuring proper positioning relative to the rail origin.
-fn sweep_surface_along_polyline_with_origin(
+fn sweep_surface_along_polyline(
     surface: coerce::Surface<'_>,
     rail_polyline: &[[f64; 3]],
     component: &str,
@@ -1973,120 +1973,6 @@ fn sweep_surface_along_polyline_with_origin(
         // Use the rail start point as reference, not the surface's first vertex
         let rail_start = rail_polyline[0];
         let translation = subtract_points(rail_point, rail_start);
-        
-        let new_layer_start = vertices.len() as u32;
-        let new_layer_vertices: Vec<[f64; 3]> = surface.vertices
-            .iter()
-            .map(|vertex| add_vector(*vertex, translation))
-            .collect();
-        vertices.extend(new_layer_vertices.iter());
-
-        for polyline_indices in &boundary_polylines_indices {
-            let polyline_vertices: Vec<[f64; 3]> = polyline_indices
-                .iter()
-                .map(|&i| vertices[i as usize])
-                .collect();
-
-            // Bereken de normaal van de polyline
-            let p1 = polyline_vertices[0];
-            let p2 = polyline_vertices[1];
-            let p3 = *polyline_vertices.get(2).unwrap_or(&p1);
-            let v1 = subtract_points(p2, p1);
-            let v2 = subtract_points(p3, p1);
-            let polyline_normal = normalize(cross_product(v1, v2));
-
-            let mut corrected_indices = polyline_indices.clone();
-            // Keer de polyline om als de normaal in de tegenovergestelde richting van de oppervlaknormaal wijst
-            if dot_product(polyline_normal, surface_normal) < 0.0 {
-                corrected_indices.reverse();
-            }
-
-            let n = corrected_indices.len();
-            if n < 2 {
-                continue;
-            }
-
-            for j in 0..n {
-                let current_idx = corrected_indices[j];
-                let next_idx = corrected_indices[(j + 1) % n];
-
-                let v1 = last_layer_start + current_idx;
-                let v2 = last_layer_start + next_idx;
-                let v3 = new_layer_start + next_idx;
-                let v4 = new_layer_start + current_idx;
-
-                // Gebruik een consistente winding order voor de vlakken
-                faces.push(vec![v1, v4, v2]);
-                faces.push(vec![v2, v4, v3]);
-            }
-        }
-
-        last_layer_start = new_layer_start;
-    }
-
-    for face in &base_faces {
-        if face.len() < 2 {
-            continue;
-        }
-        let mut top_face = Vec::with_capacity(face.len());
-        for &index in face.iter().rev() {
-            top_face.push(last_layer_start + index);
-        }
-        faces.push(top_face);
-    }
-
-    Ok(Value::Surface { vertices, faces })
-}
-
-fn sweep_surface_along_polyline(
-    surface: coerce::Surface<'_>,
-    rail_polyline: &[[f64; 3]],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    if surface.vertices.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één vertex",
-        )));
-    }
-    if surface.faces.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één face",
-        )));
-    }
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee punten",
-        )));
-    }
-
-    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee unieke punten",
-        )));
-    }
-
-    let surface_normal = calculate_surface_normal(&surface);
-    let boundary_polylines_indices = find_boundary_polylines(&surface);
-    let section_origin = surface.vertices[0];
-
-    let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
-    let mut faces = surface.faces.clone();
-
-    let mut last_layer_start = 0u32;
-    let base_faces = surface.faces.clone();
-
-    // Sweep along the rail by positioning the original surface at each rail point
-    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
-        let prev_rail_point = rail_polyline[i - 1];
-        let rail_direction = subtract_points(rail_point, prev_rail_point);
-        
-        if is_zero_vector(rail_direction) {
-            continue;
-        }
-
-        // Calculate the transformation from the original section to the current rail position
-        let translation = subtract_points(rail_point, section_origin);
         
         let new_layer_start = vertices.len() as u32;
         let new_layer_vertices: Vec<[f64; 3]> = surface.vertices
