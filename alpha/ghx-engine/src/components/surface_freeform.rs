@@ -413,6 +413,12 @@ fn collect_loft_branch_values(value: &Value, multi_source: bool) -> Vec<Value> {
                 _ => None,
             })
             .collect(),
+        Value::List(_) => {
+            if let Some(branches) = split_closed_curve_branches(value) {
+                return branches;
+            }
+            vec![value.clone()]
+        }
         _ => vec![value.clone()],
     }
 }
@@ -527,6 +533,33 @@ fn should_expand_loft_branches(items: &[Value]) -> bool {
         }
     }
     found_branch
+}
+
+/// Detects grafted branches containing closed curve primitives.
+/// This is needed because closed primitives are often represented as lists of curve segments,
+/// which would otherwise be treated as section curves in a single branch.
+fn split_closed_curve_branches(value: &Value) -> Option<Vec<Value>> {
+    let Value::List(items) = value else {
+        return None;
+    };
+
+    let mut branches = Vec::new();
+    for entry in items {
+        if matches!(entry, Value::Null) {
+            continue;
+        }
+        let curves = collect_ruled_surface_curves(entry).ok()?;
+        if curves.len() != 1 || !is_closed(&curves[0]) {
+            return None;
+        }
+        branches.push(entry.clone());
+    }
+
+    if branches.len() > 1 {
+        Some(branches)
+    } else {
+        None
+    }
 }
 
 fn value_is_curve(value: &Value) -> bool {
@@ -3050,6 +3083,56 @@ mod tests {
             assert!(
                 matches!(solid, Value::Surface { .. }),
                 "each branch should create a surface"
+            );
+        }
+    }
+
+    #[test]
+    fn sweep_one_handles_grafted_closed_curve_primitives() {
+        let component = ComponentKind::Sweep1;
+        let rail = Value::CurveLine {
+            p1: [0.0, 0.0, 0.0],
+            p2: [0.0, 0.0, 1.0],
+        };
+
+        let closed_curve = |offset: f64| {
+            Value::List(vec![
+                Value::CurveLine {
+                    p1: [offset, 0.0, 0.0],
+                    p2: [offset + 1.0, 0.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [offset + 1.0, 0.0, 0.0],
+                    p2: [offset + 1.0, 1.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [offset + 1.0, 1.0, 0.0],
+                    p2: [offset, 1.0, 0.0],
+                },
+                Value::CurveLine {
+                    p1: [offset, 1.0, 0.0],
+                    p2: [offset, 0.0, 0.0],
+                },
+            ])
+        };
+
+        let inputs = [
+            rail,
+            Value::List(vec![closed_curve(0.0), closed_curve(2.0)]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep grafted closed curve primitives");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        assert_eq!(solids.len(), 2, "expected a sweep per closed curve branch");
+        for solid in solids {
+            assert!(
+                matches!(solid, Value::Surface { .. }),
+                "each closed curve branch should produce a surface"
             );
         }
     }
