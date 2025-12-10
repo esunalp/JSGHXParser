@@ -1174,7 +1174,15 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         found_sections = true;
         unify_curve_directions(&mut sections);
 
-        let surface = if sections.len() == 1 {
+        // Check if we have a single closed curve and convert it to a surface
+        let surface = if sections.len() == 1 && is_closed(&sections[0]) {
+            // Create a surface from the closed curve
+            let closed_curve_surface_value = create_surface_from_closed_curve(&sections[0], component)?;
+            // Convert the surface value to a coerce::Surface for sweep_surface_along_polyline
+            let closed_curve_surface = coerce::coerce_surface(&closed_curve_surface_value)?;
+            // Apply sweep on the newly created surface
+            sweep_surface_along_polyline(closed_curve_surface, &rail_polyline, component)?
+        } else if sections.len() == 1 {
             sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?
         } else {
             build_loft_surface(sections, component)?
@@ -1530,6 +1538,72 @@ fn create_surface_from_points_with_padding(
 
     let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
     Ok(Value::Surface { vertices, faces })
+}
+
+/// Creates a surface from a closed curve, similar to the Surface component behavior.
+/// This function is used when Sweep1 receives a closed curve primitive.
+fn create_surface_from_closed_curve(
+    polyline: &[[f64; 3]],
+    component: &str,
+) -> Result<Value, ComponentError> {
+    // Remove duplicate closing point if it exists
+    let mut points = polyline.to_vec();
+    if points.len() > 1 && points_equal(points[0], *points.last().unwrap()) {
+        points.pop();
+    }
+
+    if points.len() < 3 {
+        return Err(ComponentError::new(format!(
+            "{component} vereist minstens drie unieke punten voor een gesloten curve",
+        )));
+    }
+
+    // Compute plane normal for the closed curve
+    let normal = polyline_normal(polyline);
+    if is_zero_vector(normal) {
+        return Err(ComponentError::new(format!(
+            "{component} kon geen geldige normaal berekenen voor de gesloten curve",
+        )));
+    }
+
+    // Compute centroid
+    let centroid = points.iter().fold([0.0; 3], |acc, p| add_vector(acc, *p));
+    let n = points.len() as f64;
+    let centroid = [centroid[0] / n, centroid[1] / n, centroid[2] / n];
+
+    // Find plane axes
+    let (axis_x, axis_y) = plane_basis(normal);
+
+    // Sort points by angle around centroid for proper triangulation
+    let mut entries: Vec<(f64, [f64; 3])> = points
+        .iter()
+        .map(|point| {
+            let diff = subtract_points(*point, centroid);
+            let x = dot_product(diff, axis_x);
+            let y = dot_product(diff, axis_y);
+            (y.atan2(x), *point)
+        })
+        .collect();
+
+    entries.sort_by(|a, b| match a.0.partial_cmp(&b.0) {
+        Some(order) => order,
+        None => Ordering::Equal,
+    });
+
+    let sorted_points: Vec<[f64; 3]> = entries.into_iter().map(|entry| entry.1).collect();
+
+    // Create triangulated faces for the planar surface
+    let mut faces: Vec<Vec<u32>> = Vec::new();
+    
+    for i in 1..sorted_points.len().saturating_sub(1) {
+        faces.push(vec![0, i as u32, (i + 1) as u32]);
+    }
+
+    // Create a surface value that can be used with sweep_surface_along_polyline
+    Ok(Value::Surface {
+        vertices: sorted_points,
+        faces,
+    })
 }
 
 fn expect_input<'a>(
@@ -2776,6 +2850,48 @@ mod tests {
         assert_eq!(faces.len(), 10, "caps plus four sides (triangulated)");
         // Should have one closed profile (no duplicate strips).
         assert!(faces.iter().all(|f| f.len() == 3), "triangulated faces expected");
+    }
+
+    #[test]
+    fn sweep_one_converts_closed_curve_to_surface() {
+        // Test the new functionality: when a closed curve is provided, it should be converted to a surface
+        // and then swept along the rail.
+        let component = ComponentKind::Sweep1;
+        let inputs = [
+            // Rail: simple vertical line
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 0.0, 2.0]),
+            ]),
+            // Closed curve: a square in the XY plane (closed with duplicate first point)
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([1.0, 0.0, 0.0]),
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+                Value::Point([0.0, 0.0, 0.0]), // Duplicate to close the curve
+            ]),
+        ];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("sweep closed curve as surface");
+
+        let Value::List(solids) = outputs.get(PIN_OUTPUT_SURFACE).unwrap() else {
+            panic!("expected list output");
+        };
+        let Value::Surface { vertices, faces } = &solids[0] else {
+            panic!("expected surface");
+        };
+
+        // The closed curve should be converted to a surface and then swept
+        // This should result in more vertices than a simple polyline sweep
+        assert!(vertices.len() > 8, "closed curve surface sweep should have more vertices");
+        assert!(faces.len() > 6, "closed curve surface sweep should have more faces");
+        
+        // Check that we have vertices at both the start and end of the rail
+        assert!(vertices.iter().any(|v| v[2].abs() < 1e-9), "should have vertices at rail start");
+        assert!(vertices.iter().any(|v| (v[2] - 2.0).abs() < 1e-9), "should have vertices at rail end");
     }
 
     #[test]
