@@ -298,7 +298,9 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
             let dist_as_is = distance(*p_end, *c_start);
             let dist_reversed = distance(*p_end, *c_end);
 
-            if dist_reversed < dist_as_is {
+            // Only flip when the reversed direction is meaningfully closer; this avoids
+            // jitter when both ends are effectively the same distance away.
+            if dist_as_is - dist_reversed > EPSILON {
                 current.reverse();
             }
         }
@@ -3529,5 +3531,33 @@ mod tests {
         // Original was [0,1,1] -> [1,1,1]. Reversed is [1,1,1] -> [0,1,1]
         assert_eq!(second_curve_start, [1.0, 1.0, 1.0]);
         assert_eq!(second_curve_end, [0.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn loft_preserves_direction_when_distances_are_tied() {
+        let component = ComponentKind::Loft;
+        let tiny = 1e-12;
+        let inputs = [Value::List(vec![
+            // Base curve ends at x=0
+            Value::List(vec![
+                Value::Point([0.0, 0.0, 0.0]),
+                Value::Point([0.0, 1.0, 0.0]),
+            ]),
+            // Next curve is nearly symmetric; reversing would only help by a hair
+            Value::List(vec![
+                Value::Point([1.0, 1.0, 0.0]),
+                Value::Point([-1.0 + tiny, 1.0, 0.0]),
+            ]),
+        ])];
+
+        let outputs = component
+            .evaluate(&inputs, &MetaMap::new())
+            .expect("loft should keep direction stable");
+        let Value::Surface { vertices, .. } = outputs.get(PIN_OUTPUT_LOFT).unwrap() else {
+            panic!("expected surface output");
+        };
+
+        assert_eq!(vertices[2], [1.0, 1.0, 0.0]);
+        assert_eq!(vertices[3], [-1.0 + tiny, 1.0, 0.0]);
     }
 }
