@@ -1184,7 +1184,7 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 
         let mut sweeps = Vec::new();
         for surface in section_surfaces {
-            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
+            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component, true)?;
             sweeps.push(solid);
         }
         return into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps));
@@ -1214,7 +1214,7 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
             // Convert the surface value to a coerce::Surface for sweep_surface_along_polyline
             let closed_curve_surface = coerce::coerce_surface(&closed_curve_surface_value)?;
             // Apply sweep on the newly created surface along the rail
-            sweep_surface_along_polyline(closed_curve_surface, &rail_polyline, component)?
+            sweep_surface_along_polyline(closed_curve_surface, &rail_polyline, component, false)?
         } else if sections.len() == 1 {
             sweep_polyline_along_rail(&sections[0], &rail_polyline, component)?
         } else {
@@ -1960,6 +1960,7 @@ fn sweep_surface_along_polyline(
     surface: coerce::Surface<'_>,
     rail_polyline: &[[f64; 3]],
     component: &str,
+    add_caps: bool,
 ) -> Result<Value, ComponentError> {
     if surface.vertices.is_empty() {
         return Err(ComponentError::new(format!(
@@ -1988,10 +1989,18 @@ fn sweep_surface_along_polyline(
     let boundary_polylines_indices = find_boundary_polylines(&surface);
 
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
-    let mut faces = surface.faces.clone();
+    let mut faces = if add_caps {
+        surface.faces.clone()
+    } else {
+        Vec::new()
+    };
 
     let mut last_layer_start = 0u32;
-    let base_faces = surface.faces.clone();
+    let base_faces = if add_caps {
+        Some(surface.faces.clone())
+    } else {
+        None
+    };
 
     // Sweep along the rail by positioning the original surface at each rail point
     for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
@@ -2057,15 +2066,17 @@ fn sweep_surface_along_polyline(
         last_layer_start = new_layer_start;
     }
 
-    for face in &base_faces {
-        if face.len() < 2 {
-            continue;
+    if let Some(base_faces) = base_faces {
+        for face in &base_faces {
+            if face.len() < 2 {
+                continue;
+            }
+            let mut top_face = Vec::with_capacity(face.len());
+            for &index in face.iter().rev() {
+                top_face.push(last_layer_start + index);
+            }
+            faces.push(top_face);
         }
-        let mut top_face = Vec::with_capacity(face.len());
-        for &index in face.iter().rev() {
-            top_face.push(last_layer_start + index);
-        }
-        faces.push(top_face);
     }
 
     Ok(Value::Surface { vertices, faces })
@@ -3165,9 +3176,18 @@ mod tests {
         };
 
         assert_eq!(vertices.len(), 8, "circle should duplicate vertices along rail");
-        assert_eq!(faces.len(), 10, "circle should form caps plus four side quads");
-        let quad_faces = faces.iter().filter(|face| face.len() == 4).count();
-        assert_eq!(quad_faces, 2, "closed profile should add a cap on both ends");
+        assert_eq!(faces.len(), 8, "circle sweep should only generate side quads (triangulated)");
+
+        let layer_size = vertices.len() as u32 / 2;
+        let has_caps = faces.iter().any(|face| {
+            let min = face.iter().copied().min().unwrap_or(0);
+            let max = face.iter().copied().max().unwrap_or(0);
+            max < layer_size || min >= layer_size
+        });
+        assert!(
+            !has_caps,
+            "closed circle sweep should leave the ends open (no cap-only faces)"
+        );
     }
 
     #[test]
