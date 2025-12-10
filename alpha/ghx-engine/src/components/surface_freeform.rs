@@ -278,33 +278,7 @@ fn unify_curve_directions(polylines: &mut [Vec<[f64; 3]>]) {
     }
 
     // Stap 3: Oriënteer open curves ten opzichte van hun voorganger voor een vloeiende overgang
-    for i in 1..polylines.len() {
-        let (prev_curves, current_slice) = polylines.split_at_mut(i);
-        let prev = &prev_curves[i - 1];
-        let current = &mut current_slice[0];
-
-        if prev.is_empty() || current.is_empty() {
-            continue;
-        }
-
-        // Alleen open curves uitlijnen ten opzichte van een vorige open curve.
-        // Gesloten curves hebben al een vaste oriëntatie en een arbitrair start-/eindpunt,
-        // dus een op afstand gebaseerde uitlijning is onbetrouwbaar.
-        if !is_closed(current) && !is_closed(prev) {
-            let p_end = prev.last().unwrap();
-            let c_start = current.first().unwrap();
-            let c_end = current.last().unwrap();
-
-            let dist_as_is = distance(*p_end, *c_start);
-            let dist_reversed = distance(*p_end, *c_end);
-
-            // Only flip when the reversed direction is meaningfully closer; this avoids
-            // jitter when both ends are effectively the same distance away.
-            if dist_as_is - dist_reversed > EPSILON {
-                current.reverse();
-            }
-        }
-    }
+    // Open curves keep their original authoring direction; only closed curves are unified.
 }
 
 fn evaluate_loft(inputs: &[Value], meta: &MetaMap, component: &str, output: &str) -> ComponentResult {
@@ -3524,13 +3498,12 @@ mod tests {
         // End of first line is [1,0,0].
         // Start of second is [0,1,1], distance = sqrt(3).
         // End of second is [1,1,1], distance = sqrt(2).
-        // Since sqrt(2) < sqrt(3), the second line should be reversed.
         let second_curve_start = vertices[2];
         let second_curve_end = vertices[3];
 
-        // Original was [0,1,1] -> [1,1,1]. Reversed is [1,1,1] -> [0,1,1]
-        assert_eq!(second_curve_start, [1.0, 1.0, 1.0]);
-        assert_eq!(second_curve_end, [0.0, 1.0, 1.0]);
+        // The authored order is preserved.
+        assert_eq!(second_curve_start, [0.0, 1.0, 1.0]);
+        assert_eq!(second_curve_end, [1.0, 1.0, 1.0]);
     }
 
     #[test]
