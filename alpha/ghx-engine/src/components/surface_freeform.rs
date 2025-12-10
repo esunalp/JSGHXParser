@@ -1151,7 +1151,7 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 
         let mut sweeps = Vec::new();
         for surface in section_surfaces {
-            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component)?;
+            let solid = sweep_surface_along_polyline_with_origin(surface, &rail_polyline, component)?;
             sweeps.push(solid);
         }
         return into_output(PIN_OUTPUT_SURFACE, Value::List(sweeps));
