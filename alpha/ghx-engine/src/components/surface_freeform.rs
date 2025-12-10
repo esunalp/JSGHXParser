@@ -1879,25 +1879,29 @@ fn sweep_surface_along_polyline(
     let surface_normal = calculate_surface_normal(&surface);
     let boundary_polylines_indices = find_boundary_polylines(&surface);
     let section_origin = surface.vertices[0];
-    let offset_rail = offset_rail_polyline(&rail_polyline, section_origin);
 
     let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
     let mut faces = surface.faces.clone();
 
     let mut last_layer_start = 0u32;
-    let mut last_layer_vertices = vertices.clone();
     let base_faces = surface.faces.clone();
 
-    for window in offset_rail.windows(2) {
-        let direction = subtract_points(window[1], window[0]);
-        if is_zero_vector(direction) {
+    // Sweep along the rail by positioning the original surface at each rail point
+    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
+        let prev_rail_point = rail_polyline[i - 1];
+        let rail_direction = subtract_points(rail_point, prev_rail_point);
+        
+        if is_zero_vector(rail_direction) {
             continue;
         }
 
+        // Calculate the transformation from the original section to the current rail position
+        let translation = subtract_points(rail_point, section_origin);
+        
         let new_layer_start = vertices.len() as u32;
-        let new_layer_vertices: Vec<[f64; 3]> = last_layer_vertices
+        let new_layer_vertices: Vec<[f64; 3]> = surface.vertices
             .iter()
-            .map(|vertex| add_vector(*vertex, direction))
+            .map(|vertex| add_vector(*vertex, translation))
             .collect();
         vertices.extend(new_layer_vertices.iter());
 
@@ -1926,9 +1930,9 @@ fn sweep_surface_along_polyline(
                 continue;
             }
 
-            for i in 0..n {
-                let current_idx = corrected_indices[i];
-                let next_idx = corrected_indices[(i + 1) % n];
+            for j in 0..n {
+                let current_idx = corrected_indices[j];
+                let next_idx = corrected_indices[(j + 1) % n];
 
                 let v1 = last_layer_start + current_idx;
                 let v2 = last_layer_start + next_idx;
@@ -1942,7 +1946,6 @@ fn sweep_surface_along_polyline(
         }
 
         last_layer_start = new_layer_start;
-        last_layer_vertices = new_layer_vertices;
     }
 
     for face in &base_faces {
@@ -1997,7 +2000,6 @@ fn sweep_polyline_along_rail(
             "{component} verwacht een sectiepolyline",
         )));
     }
-    let section_origin = profile[0];
 
     if profile.len() < 2 {
         return Err(ComponentError::new(format!(
@@ -2017,7 +2019,13 @@ fn sweep_polyline_along_rail(
         )));
     }
 
-    let offset_rail = offset_rail_polyline(&rail_polyline, section_origin);
+    // Calculate the initial section origin (this will be kept at the rail start)
+    let section_origin = profile[0];
+    
+    // Create a proper sweep by positioning section curves along the rail
+    // while maintaining proper orientation and keeping the original section at the start
+    let mut vertices = profile.clone();
+    let mut faces: Vec<Vec<u32>> = Vec::new();
 
     let layer_size = profile.len();
     let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
@@ -2034,8 +2042,6 @@ fn sweep_polyline_along_rail(
     } else {
         profile_indices.clone()
     };
-    let mut vertices = profile.clone();
-    let mut faces: Vec<Vec<u32>> = Vec::new();
 
     if profile_closed && layer_size >= 3 {
         let mut bottom = ordered_profile.clone();
@@ -2044,26 +2050,34 @@ fn sweep_polyline_along_rail(
     }
 
     let mut last_layer_start = 0u32;
-    let mut last_layer_vertices = profile;
 
-    for window in offset_rail.windows(2) {
-        let direction = subtract_points(window[1], window[0]);
-        if is_zero_vector(direction) {
+    // Sweep along the rail by positioning sections at each rail point
+    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
+        let prev_rail_point = rail_polyline[i - 1];
+        let rail_direction = subtract_points(rail_point, prev_rail_point);
+        
+        if is_zero_vector(rail_direction) {
             continue;
         }
 
+        // Calculate the transformation from the original section to the current rail position
+        let translation = subtract_points(rail_point, section_origin);
+        
+        // Create the new layer by translating the original profile (not the previous layer)
+        // This ensures the original section shape is maintained at each position
         let new_layer_start = vertices.len() as u32;
-        let new_layer_vertices: Vec<[f64; 3]> = last_layer_vertices
+        let new_layer_vertices: Vec<[f64; 3]> = profile
             .iter()
-            .map(|vertex| add_vector(*vertex, direction))
+            .map(|vertex| add_vector(*vertex, translation))
             .collect();
 
         vertices.extend(new_layer_vertices.iter());
 
+        // Create faces between the current and previous layers
         let edge_count = if profile_closed { layer_size } else { layer_size.saturating_sub(1) };
-        for i in 0..edge_count {
-            let current_idx = ordered_profile[i];
-            let next_idx = ordered_profile[(i + 1) % layer_size];
+        for j in 0..edge_count {
+            let current_idx = ordered_profile[j];
+            let next_idx = ordered_profile[(j + 1) % layer_size];
             let v1 = last_layer_start + current_idx;
             let v2 = last_layer_start + next_idx;
             let v3 = new_layer_start + next_idx;
@@ -2073,7 +2087,6 @@ fn sweep_polyline_along_rail(
         }
 
         last_layer_start = new_layer_start;
-        last_layer_vertices = new_layer_vertices;
     }
 
     if profile_closed && layer_size >= 3 {
