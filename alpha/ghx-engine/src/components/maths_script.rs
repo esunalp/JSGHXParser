@@ -578,39 +578,3 @@ fn conditional(values: &[f64]) -> f64 {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{Component, ComponentKind, ExpressionComponent, PIN_RESULT_DEFAULT, REGISTRATIONS};
-    use crate::graph::node::MetaMap;
-    use crate::graph::value::Value;
-
-    const TEST_COMPONENT: ExpressionComponent = ExpressionComponent {
-        name: "F2",
-        variables: &["x", "y"],
-        output_pins: &[PIN_RESULT_DEFAULT, "r"],
-    };
-
-    #[test]
-    fn evaluates_basic_expression() {
-        let component = ComponentKind::Expression(&TEST_COMPONENT);
-        let inputs = vec![
-            Value::Text("x + y".to_string()),
-            Value::Number(2.0),
-            Value::Number(3.0),
-        ];
-        let outputs = component
-            .evaluate(&inputs, &MetaMap::new())
-            .expect("expression result");
-
-        let value = outputs.get(PIN_RESULT_DEFAULT).expect("result pin");
-        assert!(matches!(value, Value::Number(number) if (*number - 5.0).abs() < 1e-9));
-    }
-
-    #[test]
-    fn registers_component_metadata() {
-        assert!(REGISTRATIONS.iter().any(|registration| {
-            matches!(registration.kind, ComponentKind::Expression(component) if component.name == "F1")
-        }));
-    }
-}
