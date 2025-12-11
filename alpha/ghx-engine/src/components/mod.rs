@@ -15,7 +15,6 @@ pub mod curve_sampler;
 pub mod curve_spline;
 pub mod curve_util;
 pub mod display_preview;
-pub mod extrude;
 pub mod maths_domain;
 pub mod maths_matrix;
 pub mod maths_operators;
@@ -101,7 +100,6 @@ pub trait Component {
 /// Beschikbare componenttypen binnen de registry.
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
-    Extrude(extrude::ComponentImpl),
     CurvePrimitive(curve_primitive::ComponentKind),
     CurveDivision(curve_division::ComponentKind),
     CurveAnalysis(curve_analysis::ComponentKind),
@@ -150,7 +148,6 @@ impl ComponentKind {
     #[must_use]
     pub fn evaluate(&self, inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         match self {
-            Self::Extrude(component) => component.evaluate(inputs, meta),
             Self::CurvePrimitive(component) => component.evaluate(inputs, meta),
             Self::CurveDivision(component) => component.evaluate(inputs, meta),
             Self::CurveAnalysis(component) => component.evaluate(inputs, meta),
@@ -203,7 +200,6 @@ impl ComponentKind {
     #[must_use]
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Extrude(_) => "Extrude",
             Self::CurvePrimitive(component) => component.name(),
             Self::CurveDivision(component) => component.name(),
             Self::CurveAnalysis(component) => component.name(),
@@ -268,10 +264,6 @@ pub struct ComponentRegistry {
 impl Default for ComponentRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-
-        let extrude = ComponentKind::Extrude(extrude::ComponentImpl);
-        registry.register_guid("{962034e9-cc27-4394-afc4-5c16e3447cf9}", extrude);
-        registry.register_names(&["Extrude", "Extr"], extrude);
 
         for registration in curve_primitive::REGISTRATIONS {
             let kind = ComponentKind::CurvePrimitive(registration.kind);
@@ -700,6 +692,9 @@ mod tests {
         ));
 
         let by_nickname = registry.resolve(None, None, Some("extr")).unwrap();
-        assert!(matches!(by_nickname, ComponentKind::Extrude(_)));
+        assert!(matches!(
+            by_nickname,
+            ComponentKind::SurfaceFreeform(surface_freeform::ComponentKind::Extrude)
+        ));
     }
 }

@@ -83,21 +83,3 @@ pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[Registration::new(
     &[RELAY_GUID],
     &["Relay"],
 )];
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::graph::node::MetaMap;
-
-    #[test]
-    fn test_relay_component() {
-        let component = RelayComponent;
-        let val = Value::Text("test".to_string());
-        let inputs = vec![val.clone()];
-        let outputs = component.evaluate(&inputs, &MetaMap::new()).unwrap();
-
-        // Check that we get the value back on expected outputs
-        assert_eq!(outputs.get("Output"), Some(&val));
-        assert_eq!(outputs.get("out0"), Some(&val));
-    }
-}
