@@ -247,178 +247,196 @@ alpha/ghx-engine/
 +- Cargo.toml                     # Add feature flags for rayon, wasm, debug logging
 ```
 
-Todo (Detailed, Feature-by-Feature) (IMPORTANT: please mark as completed when finished with the todo-task)
------------------------------------
-Foundations
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `Value::Mesh { vertices, faces, normals, uvs, diagnostics }`.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Introduce the `MeshQuality` struct with sensible defaults and metadata parsing helpers.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Update serialization/deserialization helpers to understand the new mesh variant.
-- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Emit and accept `Value::Mesh` while keeping the `Value::Surface` shim for legacy consumers.
-- [ ] `alpha/ghx-engine/src/geom/mod.rs`: Declare the `geom` module tree and re-export its submodules.
-- [ ] `alpha/ghx-engine/src/geom/core.rs`: Scaffold the core geometry module with placeholder implementations.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Scaffold the curve module with placeholder evaluators/traits.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Scaffold the surface module with placeholder evaluators/traits.
-- [ ] `alpha/ghx-engine/src/geom/solid.rs`: Scaffold the solid module with placeholder traits.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Scaffold the mesh module with placeholder builder traits.
-- [ ] `alpha/ghx-engine/src/geom/core.rs`: Implement `Point3`, `Vec3`, `BBox`, `Transform`, and `Tolerance` on top of existing math utilities.
-- [ ] `alpha/ghx-engine/src/geom/tolerance.rs`: Centralize absolute/relative epsilons and expose helpers for tolerance-safe comparisons.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Replace inline epsilon math with calls into `geom::tolerance`.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Replace inline epsilon math with calls into `geom::tolerance`.
-- [ ] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Replace inline epsilon math with calls into `geom::tolerance`.
-- [ ] `alpha/docs/geom_tolerances.md`: Document the shared tolerance strategy and expectations for new modules.
-- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Normalize units/handedness at ingestion before data enters the geom layer.
-- [ ] `alpha/ghx-engine/src/geom/normalization.rs`: Implement helpers that convert incoming points/frames while respecting tolerance settings.
-- [ ] `alpha/ghx-engine/tests/normalization.rs`: Add regression tests covering the normalization helpers.
-- [ ] `alpha/ghx-engine/src/geom/cache.rs`: Define cache-key structures that cover inputs plus quality/tolerance controls.
-- [ ] `alpha/ghx-engine/src/geom/cache.rs`: Implement tessellation/triangulation caches and expose instrumentation hooks.
-- [ ] `alpha/ghx-engine/src/graph/evaluator.rs`: Wire cache invalidation hooks into the graph evaluator.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Design a shared vertex/index buffer representation for instanced meshes.
-- [ ] `alpha/ghx-engine/src/graph/instancing.rs`: Implement transform-stack helpers so instancing stays deterministic.
-- [ ] `alpha/ghx-engine/tests/instancing.rs`: Validate shared buffer emission and instancing transforms via tests.
+ Todo (Isolated Build First, Component Integration After WASM Success)
+------------------------------------
+Phase 1 - Isolated mesh engine in `geom/` (no component or graph changes)
+Goal: the entire new pipeline lives in `alpha/ghx-engine/src/geom/*` behind a feature flag; the existing `components/*` + `graph/*` compile unchanged.
 
-Curve Tessellation
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement the straight-line evaluator that outputs points and tangents.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement the polyline evaluator that respects existing domain sampling data.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement arc evaluators with consistent frames/seam handling.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement circle evaluators with consistent frames/seam handling.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement an ellipse evaluator aligned to principal axes.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement quadratic/cubic Bezier evaluators that emit curvature and derivatives.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement B-spline evaluators that handle knot multiplicity and tangents.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement rational B-spline/NURBS evaluators with weight normalization/error reporting.
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Build curvature/flatness-driven adaptive subdivision for curves.
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Add arc-length parameterization utilities and expose them to curve evaluators.
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Emit per-curve diagnostics (segment count, deviations, curvature stats).
-- [ ] `alpha/ghx-engine/src/components/curve_util.rs`: Route component helpers through the new curve evaluators.
-- [ ] `alpha/ghx-engine/src/components/curve_analysis.rs`: Consume the richer tessellation outputs and diagnostics.
-- [ ] `alpha/ghx-engine/tests/curve_tessellation.rs`: Cover curvature-driven subdivision, extreme scales, and open/closed curves.
+Feature gating (hard isolation)
+- [ ] `alpha/ghx-engine/Cargo.toml`: Add a `[features] mesh_engine_next = []` feature that is **not** included in `default`.
+- [ ] `alpha/ghx-engine/src/lib.rs`: Only `pub mod geom;` (or re-export the new geom API) when `cfg(feature = "mesh_engine_next")` is enabled.
+- [ ] Repo rule (Phase 1): do **not** edit `alpha/ghx-engine/src/components/*` or `alpha/ghx-engine/src/graph/*` in this phase (the point is to keep the current engine stable).
+- [ ] Build check (native, default features): `cargo build -p ghx-engine` succeeds with `mesh_engine_next` disabled.
 
-Surface Tessellation
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement plane surface evaluators that output grids and normals.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement cylinder evaluators with seam/origin handling.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement cone evaluators with seam/origin handling.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement sphere evaluators that remain stable at the poles.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement torus evaluators with seam handling.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement NURBS surface evaluators that accept trimming data.
-- [ ] `alpha/ghx-engine/src/geom/trim.rs`: Convert trimming curves into parameter-space loops ready for meshing.
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Add adaptive (u,v) grid refinement driven by curvature/error budgets.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Add seam/orientation correction before meshing.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: Wire component helpers to the new surface evaluators.
-- [ ] `alpha/ghx-engine/src/components/surface_analysis.rs`: Read diagnostics produced by the surface tessellator.
-- [ ] `alpha/ghx-engine/tests/surface_tessellation.rs`: Cover trimmed patches, seams, singularities, and tolerance adherence.
+Scaffold the new `geom` module tree (compile-first skeleton)
+- [ ] `alpha/ghx-engine/src/geom/mod.rs`: Declare submodules and re-exports (keep the public surface minimal; prefer `pub(crate)` until integration).
+- [ ] `alpha/ghx-engine/src/geom/core.rs`: Add core types and tolerances used everywhere in geom (even if initially minimal).
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Define minimal curve API + at least one evaluator (line/polyline) returning sampled points.
+- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Define minimal surface API + at least one evaluator (plane) returning a grid.
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Define the internal mesh representation (positions + indices) and a builder.
+- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Implement the “glue” functions that call curve/surface evaluators and produce polylines/grids.
+- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Add a first triangulation path for simple grids (no trimming/holes yet).
+- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Define lightweight diagnostics structs (counts + warnings) for Phase 1.
+- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Create a stub module that compiles (real implementation can come later in Phase 2+).
+- [ ] Build check (native, feature on): `cargo build -p ghx-engine --features mesh_engine_next` succeeds.
 
-Triangulation, Welding, and Repair
-- [ ] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Refactor the entry point to call the new constrained triangulator.
-- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Add trimming-boundary and interior-hole support.
-- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Implement triangle quality metrics plus skinny-triangle culling.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Implement tolerance-aware vertex welding/merge routines.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Detect and correct inverted normals after welding.
-- [ ] `alpha/ghx-engine/src/components/mesh_analysis.rs`: Emit manifold/watertight diagnostics through `MeshDiagnostics`.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Generate UV buffers when parametrization data exists.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Generate tangents/bitangents alongside UVs for shading consumers.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Propagate per-face groups/material ids during triangulation.
-- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Build adapters that coerce `Value::Surface`/legacy meshes into `Value::Mesh` with weld/repair hooks.
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Capture ingestion diagnostics (weld counts, open edges fixed).
-- [ ] `alpha/ghx-engine/tests/triangulation.rs`: Add coverage for holes, trimming boundaries, open edges, normal consistency, weld accuracy, and UV/material propagation.
+Temporary payloads (no `Value::Mesh` yet)
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary payload type (e.g., `GeomMesh`) that can be returned from geom APIs without touching `graph/value.rs`.
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary diagnostics payload (e.g., `GeomMeshDiagnostics`) with room for: open edges, degenerate triangles, weld stats, timing.
+- [ ] `alpha/ghx-engine/src/geom/mod.rs`: Expose only these temporary types/functions from `geom` (avoid committing to final integration API yet).
 
-Feature Builders (one-by-one)
-- [ ] `alpha/ghx-engine/src/geom/loft.rs`: Scaffold the loft geometry module.
-- [ ] `alpha/ghx-engine/src/geom/sweep.rs`: Scaffold the sweep geometry module.
-- [ ] `alpha/ghx-engine/src/geom/revolve.rs`: Scaffold the revolve geometry module.
-- [ ] `alpha/ghx-engine/src/geom/pipe.rs`: Scaffold the pipe geometry module.
-- [ ] `alpha/ghx-engine/src/geom/patch.rs`: Scaffold the patch geometry module.
-- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Scaffold the extrusion geometry module.
-- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Implement linear extrude surface generation.
-- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Mesh caps/sides for linear extrudes while honoring `MeshQuality`.
-- [ ] `alpha/ghx-engine/src/components/extrude.rs`: Refactor the linear extrude component to call the geom module.
-- [ ] `alpha/ghx-engine/tests/features_extrude.rs`: Add regression tests/diagnostics for linear extrudes.
-- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Implement frame/taper handling for along/angled/point extrudes.
-- [ ] `alpha/ghx-engine/src/components/extrude.rs`: Wire along/angled/point extrude inputs to the geom API.
-- [ ] `alpha/ghx-engine/tests/features_extrude.rs`: Cover along/angled/point extrude variants.
-- [ ] `alpha/ghx-engine/src/geom/revolve.rs`: Implement revolve geometry with robust seam handling.
-- [ ] `alpha/ghx-engine/src/geom/revolve.rs`: Add cap closing and normal orientation for revolved solids.
-- [ ] `alpha/ghx-engine/src/components/revolve.rs`: Refactor revolve components to call the geom module.
-- [ ] `alpha/ghx-engine/tests/features_revolve.rs`: Add revolve regression coverage.
-- [ ] `alpha/ghx-engine/src/geom/loft.rs`: Implement adaptive section lofting.
-- [ ] `alpha/ghx-engine/src/geom/loft.rs`: Add tight/loose/rebuild option handling plus diagnostics.
-- [ ] `alpha/ghx-engine/src/components/loft.rs`: Refactor loft components to call the geom module.
-- [ ] `alpha/ghx-engine/tests/features_loft.rs`: Add loft regression coverage.
-- [ ] `alpha/ghx-engine/src/geom/sweep.rs`: Implement stable frame computation and twist control.
-- [ ] `alpha/ghx-engine/src/geom/sweep.rs`: Add cap meshing and rail continuity diagnostics.
-- [ ] `alpha/ghx-engine/src/components/sweep.rs`: Refactor sweep components to call the geom module.
-- [ ] `alpha/ghx-engine/tests/features_sweep.rs`: Add sweep regression coverage.
-- [ ] `alpha/ghx-engine/src/geom/pipe.rs`: Implement variable-radius sampling and junction handling.
-- [ ] `alpha/ghx-engine/src/geom/pipe.rs`: Add tolerance-aware self-intersection guards and diagnostics.
-- [ ] `alpha/ghx-engine/src/components/pipe.rs`: Refactor pipe components to call the geom module.
-- [ ] `alpha/ghx-engine/tests/features_pipe.rs`: Add pipe regression coverage.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Refactor FourPointSurface to use surface evaluators then mesh.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Refactor EdgeSurface to use surface evaluators then mesh.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Refactor RuledSurface to use surface evaluators then mesh.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Refactor NetworkSurface/SumSurface to use surface evaluators then mesh.
-- [ ] `alpha/ghx-engine/src/geom/patch.rs`: Implement trimming plus constrained triangulation for Patch/FragmentPatch/BoundarySurfaces.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Wire patch-style components to the geom module with G0/G1 options.
-- [ ] `alpha/ghx-engine/tests/features_patch.rs`: Add regression coverage for patch, fragment, and boundary surfaces.
-- [ ] `alpha/ghx-engine/src/geom/surface_fit.rs`: Implement SurfaceFromPoints fitting plus diagnostics.
-- [ ] `alpha/ghx-engine/src/components/surface_from_points.rs`: Refactor the component to call `geom::surface_fit`.
-- [ ] `alpha/ghx-engine/tests/surface_from_points.rs`: Cover fit-quality diagnostics.
-- [ ] `alpha/ghx-engine/src/components/loft_options.rs`: Add mesh-quality/tolerance pins and forward them to geom APIs.
-- [ ] `alpha/ghx-engine/src/geom/offset.rs`: Implement shelling logic for surfaces/meshes and trigger remeshing.
-- [ ] `alpha/ghx-engine/src/components/offset.rs`: Expose inside/outside options and diagnostics for offset/thicken.
-- [ ] `alpha/ghx-engine/tests/offset.rs`: Cover varying thickness/tolerance scenarios.
-- [ ] `alpha/ghx-engine/src/geom/displacement.rs`: Implement height/scalar-field deformation plus weld/normal recompute passes.
-- [ ] `alpha/ghx-engine/src/components/displacement.rs`: Refactor the displacement component to call the geom module and emit diagnostics.
-- [ ] `alpha/ghx-engine/tests/displacement.rs`: Cover displacement workflows and diagnostics.
-- [ ] `alpha/ghx-engine/src/geom/subdivision.rs`: Bridge `surface_subd` outputs into the new mesher with optional quad-friendly paths.
-- [ ] `alpha/ghx-engine/src/components/surface_subd.rs`: Wire subdivision components to the geom module.
-- [ ] `alpha/ghx-engine/tests/subdivision.rs`: Verify subdivision-to-mesh consistency.
+End-to-end “hello mesher” API (prove the pipeline works in isolation)
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Provide a single entry-point function (e.g., `geom::mesh::mesh_surface(...) -> (GeomMesh, GeomMeshDiagnostics)`).
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Provide a single entry-point tessellator (e.g., `geom::curve::tessellate_curve(...)`).
+- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Provide a single entry-point tessellator (e.g., `geom::surface::tessellate_surface(...)`).
+- [ ] Build check: `cargo check -p ghx-engine --features mesh_engine_next` stays green as APIs evolve.
 
-Deformations and Morphs
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Implement the twist deformation field plus weld/normal recompute stages.
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Implement the bend deformation field with axis/strength controls.
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Implement the taper deformation field for uniform and non-uniform modes.
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Implement the morph/blend deformation field between reference meshes.
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Add deterministic frame helpers to keep deformations repeatable.
-- [ ] `alpha/ghx-engine/src/components/deformation.rs`: Plumb deformation parameters through component inputs and metadata.
-- [ ] `alpha/ghx-engine/tests/deformation.rs`: Cover deformation extremes while verifying manifoldness.
+Tests (stay inside `geom/tests` so components are untouched)
+- [ ] `alpha/ghx-engine/src/geom/tests/mod.rs`: Add a test module root (if not present) that is only compiled when `mesh_engine_next` is enabled.
+- [ ] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add tests for curve tessellation invariants (monotonic parameter steps, endpoints preserved, open vs closed behavior).
+- [ ] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add tests for plane grid tessellation (grid dims, normals consistency).
+- [ ] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Add tests for grid triangulation (index bounds, triangle count, winding consistency).
+- [ ] `alpha/ghx-engine/src/geom/tests/test_mesh_sanity.rs`: Add mesh sanity checks (no NaNs, no out-of-range indices, optional degenerate triangle detection).
+- [ ] Test run: `cargo test -p ghx-engine --features mesh_engine_next` passes.
 
-Booleans/CSG
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Scaffold the boolean geometry module.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Implement triangle/surface intersection routines with filtered predicates.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Implement classification and inside/outside tagging.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Implement intersection-band remeshing and stitching.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Add tolerance-relax or voxel fallbacks plus diagnostics.
-- [ ] `alpha/ghx-engine/src/components/boolean.rs`: Expose the union component wired to the boolean kernel.
-- [ ] `alpha/ghx-engine/src/components/boolean.rs`: Expose the intersect component wired to the boolean kernel.
-- [ ] `alpha/ghx-engine/src/components/boolean.rs`: Expose the difference component wired to the boolean kernel.
-- [ ] `alpha/ghx-engine/src/components/boolean.rs`: Add diagnostics pins reporting fallbacks/repairs.
-- [ ] `alpha/ghx-engine/tests/boolean.rs`: Cover coplanar overlaps, near-coincident faces, nested solids, and tiny feature handling.
+WASM build proof (still isolated)
+- [ ] Ensure target exists: `rustup target add wasm32-unknown-unknown`.
+- [ ] WASM build (feature on): `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown` passes.
+- [ ] If any dependency is not wasm-friendly, gate it inside `cfg(not(target_arch = \"wasm32\"))` or behind an additional feature (but keep Phase 1 changes inside `geom` + `Cargo.toml`/`lib.rs` only).
 
-Fillet/Chamfer/Blend
-- [ ] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: Implement curve offsetting helpers for fillet/chamfer workflows.
-- [ ] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: Implement surface offsetting and intersection solving.
-- [ ] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: Implement transitional surface tessellation targeting G1/G2 continuity.
-- [ ] `alpha/ghx-engine/src/components/fillet.rs`: Build fillet/chamfer component APIs with radius/limit options and tolerance fallbacks.
-- [ ] `alpha/ghx-engine/tests/fillet.rs`: Cover edge/vertex blends, small-radius failures, and continuity checks.
+Docs (keep the rules explicit so Phase 1 stays “non-invasive”)
+- [ ] `alpha/docs/mesh_engine_integration_plan.md`: Add a short “Phase 1 rules” paragraph: *no edits to components/graph; feature-flag only; wasm build required to pass before Phase 3*.
+- [ ] `alpha/docs/geom_tolerances.md`: Describe the tolerance strategy used by `geom` and note it is internal until Phase 3 integration.
 
-Diagnostics and Visualization
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define the `MeshDiagnostics` struct fields (open edges, inverted faces, weld counts, timing, etc.).
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Ensure every geom/feature module populates `MeshDiagnostics`.
-- [ ] `alpha/ghx-engine/src/components/display_preview.rs`: Render overlays for open edges, self-intersections, and degenerate triangles with toggles.
-- [ ] `alpha/docs/mesh_diagnostics.md`: Document diagnostic fields and how components expose them.
+Phase 2 - Stabilize isolated pipeline
+Goal: implement all CAD/feature functionality listed in this document inside `alpha/ghx-engine/src/geom/*` while keeping `components/*` and `graph/*` untouched.
 
-Performance/WASM
-- [ ] `alpha/ghx-engine/src/geom/bvh.rs`: Implement BVH acceleration structures for intersection queries.
-- [ ] `alpha/ghx-engine/Cargo.toml`: Gate rayon-based parallel loops for native builds and single-thread WASM fallbacks.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Reorganize mesh buffers into a structure-of-arrays layout and add pooling.
-- [ ] `alpha/ghx-engine/src/geom/cache.rs`: Reuse tessellation/triangulation buffers between evaluations when inputs match.
-- [ ] `alpha/ghx-engine/src/geom/simplify.rs`: Implement optional simplification/LOD (edge-collapse) with watertightness guards.
-- [ ] `alpha/ghx-engine/src/geom/metrics.rs`: Add timing/profiling hooks around tessellation, booleans, and repair passes (native + WASM).
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Surface performance counters through diagnostics/logging.
+Quality/tolerance/caching/diagnostics (still internal-only)
+- [ ] `alpha/ghx-engine/src/geom/core.rs`: Finalize `Tolerance` + helpers used consistently across all geom modules (no epsilon scatter).
+- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Expand diagnostics to cover: open edges, non-manifold edges, degenerate tris, weld stats, boolean fallbacks, timing buckets.
+- [ ] `alpha/ghx-engine/src/geom/cache.rs`: Implement cache keys and caches for tessellation + triangulation + weld/repair passes.
+- [ ] `alpha/ghx-engine/src/geom/metrics.rs`: Add opt-in timing/profiling hooks (feature-gated; wasm-safe).
 
-Testing and Tooling
-- [ ] `alpha/ghx-engine/tests/golden_meshes.rs`: Build golden-mesh fixtures for extrude, loft, sweep1/2, pipe, revolve, boolean, and fillet outputs.
-- [ ] `alpha/ghx-engine/tests/deformation.rs`: Add property tests for manifoldness/watertightness.
-- [ ] `alpha/ghx-engine/tests/fuzz_booleans.rs`: Add fuzzing harnesses for boolean operations and trimming workflows.
-- [ ] `alpha/ghx-engine/src/lib.rs`: Wire debug logging flags and panic hooks for WASM builds.
-- [ ] `tools/mesh_cli.rs`: Provide CLI/sample scripts to generate meshes and validate diagnostics.
-- [ ] `alpha/ghx-engine/tests/render_snapshots.rs`: Capture render/golden snapshots (three.js) for UV/material propagation, LOD, and offset/displacement cases.
-- [ ] `docs/wiki/geom/index.md`: Build and maintain the documentation wiki with per-module API docs, snippets, and integration recipes.
+Curve evaluators + adaptive tessellation (implement the full curve set mentioned)
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement line/polyline (if not done in Phase 1).
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement arc/circle/ellipse with stable frames and seam handling.
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement quadratic/cubic Bezier with derivatives/curvature estimates.
+- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement B-spline + rational B-spline/NURBS (knot multiplicity, weights, tangent continuity reporting).
+- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive curve subdivision (curvature/flatness + max deviation + segment caps).
+- [ ] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add regression coverage for extreme scales, open/closed, seams, and parameterization stability.
+
+Surface evaluators + trimming + adaptive tessellation (implement the full surface set mentioned)
+- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement plane/cylinder/cone/sphere/torus evaluators with seam/pole handling.
+- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement NURBS surface evaluation (including partial derivatives for normals).
+- [ ] `alpha/ghx-engine/src/geom/trim.rs`: Convert trimming curves into parameter-space loops (outer + holes), including orientation normalization.
+- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive (u,v) refinement driven by curvature/error budgets + seam stitching rules.
+- [ ] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add trimmed-patch tests (holes, seams, singularities/poles).
+
+Triangulation + welding + repair (produce watertight/manifold triangle meshes)
+- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Constrained triangulation supporting holes + trim loops.
+- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Triangle quality metrics + skinny-triangle culling (with diagnostics).
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Tolerance-aware vertex welding + stable index remap.
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Normal consistency fixes + optional recompute (flat/smooth policies).
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: UV generation where parametrization exists; placeholder tangents if needed for consumers later.
+- [ ] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Cover holes, trims, normal consistency, weld accuracy.
+
+Feature builders (implement CAD ops inside `geom/` only)
+- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Extrude variants (linear + along/angled/point), caps, and orientation rules.
+- [ ] `alpha/ghx-engine/src/geom/revolve.rs`: Revolution + RailRevolution with seam handling, caps, and normal orientation.
+- [ ] `alpha/ghx-engine/src/geom/loft.rs`: Loft covering component variants (FitLoft + ControlPointLoft + standard Loft) and LoftOptions (closed/seam adjust/rebuild/refit/type) + diagnostics for twists/self-intersections.
+- [ ] `alpha/ghx-engine/src/geom/sweep.rs`: Sweep1/2 + stable frame computation + twist control + cap meshing + rail continuity diagnostics.
+- [ ] `alpha/ghx-engine/src/geom/pipe.rs`: Pipe + PipeVariable (parameter/radius lists), junction handling, and self-intersection guards.
+- [ ] `alpha/ghx-engine/src/geom/patch.rs`: Patch + FragmentPatch + BoundarySurfaces that respect trim loops and use constrained triangulation.
+- [ ] `alpha/ghx-engine/src/geom/surface_fit.rs`: SurfaceFromPoints / surface-grid fitting with diagnostics (this backs the “Surface From Points” component).
+- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Surface builders used by existing components: FourPointSurface, EdgeSurface, RuledSurface, NetworkSurface, SumSurface (construct surface + then mesh through the shared pipeline).
+- [ ] `alpha/ghx-engine/src/geom/offset.rs`: Offset/thickening/shelling for surfaces/meshes with inside/outside options + remesh triggers.
+- [ ] `alpha/ghx-engine/src/geom/displacement.rs`: Displacement/heightfield pre-mesh deformation + post weld/normal repair.
+- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Twist/bend/taper/morph deformation fields (deterministic frames; post weld/normal repair).
+- [ ] `alpha/ghx-engine/src/geom/subdivision.rs`: SubD support mirroring current components (Box, Fuse, MultiPipe, FromMesh, MeshFromSubd, control polygon/vertex+edge tags) + (optional) quad-friendly path (still output triangles in Phase 2).
+- [ ] `alpha/ghx-engine/src/geom/simplify.rs`: Optional LOD simplification (edge-collapse) with watertightness guard.
+
+Surface/Brep utilities currently implemented in `src/components/surface_util.rs` (move logic into `geom/`, keep wrappers for Phase 3)
+- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or a dedicated `alpha/ghx-engine/src/geom/brep_ops.rs`): BrepJoin (join surfaces into a closed/sane shell where possible) with diagnostics.
+- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or `alpha/ghx-engine/src/geom/brep_ops.rs`): CapHoles + CapHolesEx (cap planar-ish holes, report failures explicitly).
+- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or `alpha/ghx-engine/src/geom/brep_ops.rs`): MergeFaces (merge coplanar/continuous faces with tolerance guards).
+- [ ] `alpha/ghx-engine/src/geom/trim.rs`: CopyTrim / Retrim / Untrim support (trim loop manipulation and surface parameter-space consistency).
+- [ ] `alpha/ghx-engine/src/geom/surface.rs` (or `alpha/ghx-engine/src/geom/surface_ops.rs`): Isotrim (subsurface extraction) and DivideSurface (grid sampling policies).
+- [ ] `alpha/ghx-engine/src/geom/surface.rs` (or `alpha/ghx-engine/src/geom/surface_ops.rs`): Flip surface orientation (normals + parameter directions) with diagnostics.
+- [ ] `alpha/ghx-engine/src/geom/analysis.rs` (or `alpha/ghx-engine/src/geom/surface_analysis.rs`): SurfaceFrames + edge extraction helpers used by ClosedEdges / EdgesFrom* components (needed for trimming + diagnostics parity later).
+- [ ] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: FilletEdge implementation (even a first “polyline/mesh-edge fillet” version), with clear limitations/diagnostics.
+
+Booleans/CSG (geom-only implementation)
+- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Triangle/triangle and triangle/surface intersection primitives (filtered predicates; robust eps fallback).
+- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Classification (inside/outside) + tagging.
+- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Intersection-band remeshing + stitching + repair with diagnostics.
+- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Fallback strategy (tolerance relax and/or voxel fallback) with explicit diagnostics flags.
+
+Acceleration + performance (still isolated; wasm-safe)
+- [ ] `alpha/ghx-engine/src/geom/bvh.rs`: BVH acceleration for intersection and proximity queries (feature-gated parallelism off on wasm).
+- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Move toward SoA buffers internally if needed; keep API stable for Phase 3 adapters.
+
+Tests + fixtures + tooling for Phase 2 (prove feature coverage before integration)
+- [ ] `alpha/ghx-engine/tests/`: Add golden fixtures for extrude/loft/sweep/pipe/revolve/boolean/patch/offset/deform outputs (still using geom temporary payloads).
+- [ ] `tools/mesh_cli.rs` (or similar): Add a CLI that runs selected geom ops and exports meshes/diagnostics for review.
+- [ ] `cargo test -p ghx-engine --features mesh_engine_next`: Passes on native.
+- [ ] `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown`: Passes for wasm.
+
+Gate (must be true before touching components/graph)
+- [ ] `mesh_engine_next` passes native tests.
+- [ ] `mesh_engine_next` passes wasm build (`wasm32-unknown-unknown`) and smoke tests.
+- [ ] Feature coverage parity checklist approved (loft/sweep/extrude/revolve/pipe/boolean/patch/offset/deform/simplify).
+
+Phase 3 - Integration into `graph` and `components` (after gate passes)
+Goal: switch the live component layer to call the new `geom` engine (now proven in Phase 2) while keeping all existing graphs stable (pin order + GUIDs + legacy surface outputs).
+
+Graph/value layer (introduce the stable public mesh type)
+- [ ] `alpha/ghx-engine/src/graph/value.rs`: Add `Value::Mesh { vertices, faces, normals, uvs, diagnostics }` (or equivalent) and keep `Value::Surface { vertices, faces }` as a legacy shim.
+- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshQuality` + parsing from `MetaMap` (defaults + presets); keep API wasm-friendly.
+- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshDiagnostics` (match what Phase 2 produced internally) + conversion from `geom` diagnostics.
+- [ ] `alpha/ghx-engine/src/graph/value.rs`: Update (de)serialization and any `expect_*` helpers to support `Value::Mesh`.
+- [ ] `alpha/ghx-engine/src/graph/value.rs`: Add explicit adapters: `mesh_to_surface_legacy()` and `surface_legacy_to_mesh()` (document lossy parts).
+
+Cross-cutting component helpers (must be updated before feature components)
+- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Accept `Value::Mesh` anywhere a mesh/surface is expected; keep accepting `Value::Surface` for backward compatibility.
+- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Add conversions between `Value::{Surface,Mesh}` and `geom` payloads (including tolerance/quality/meta plumbing).
+- [ ] `alpha/ghx-engine/src/components/params_geometry.rs`: Treat `Value::Mesh` as a first-class geometry type anywhere `Value::Surface` was accepted; keep legacy behavior for lists/trees.
+- [ ] `alpha/ghx-engine/src/components/display_preview.rs`: Render `Value::Mesh` directly; for `Value::Surface` keep the current path (or adapt through the legacy adapter).
+- [ ] `alpha/ghx-engine/src/components/transform_affine.rs`: Apply transforms to `Value::Mesh` (positions + normals) and keep existing `Value::Surface` logic.
+- [ ] `alpha/ghx-engine/src/components/transform_euclidean.rs`: Apply transforms to `Value::Mesh` and keep existing `Value::Surface` logic.
+- [ ] `alpha/ghx-engine/src/components/transform_array.rs`: Array-copy/instance transforms must handle `Value::Mesh` while preserving deterministic ordering.
+- [ ] `alpha/ghx-engine/src/components/transform_util.rs`: Any generic transform helpers must handle `Value::Mesh` and preserve diagnostics where possible.
+- [ ] `alpha/ghx-engine/src/components/mesh_analysis.rs`: Accept `Value::Mesh` inputs everywhere it currently accepts `Value::Surface` meshes (DeconstructMesh, FaceNormals, MeshEdges, ClosestPoint, etc.).
+- [ ] `alpha/ghx-engine/src/components/mesh_primitive.rs`: Switch mesh construction outputs to `Value::Mesh` as primary; keep emitting `Value::Surface` legacy outputs where existing pins expect it.
+- [ ] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Switch algorithmic mesh outputs (FacetDome, Voronoi, DelaunayMesh, etc.) to `Value::Mesh` as primary; keep `Value::Surface` legacy adapters if consumers rely on them.
+
+Surface “Freeform” components (wire each feature to `geom`, keep GUIDs/pins)
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Extrude / ExtrudeLinear / ExtrudeAngled / ExtrudePoint / ExtrudeAlong -> call `geom::extrusion::*`; output `Value::Mesh` and (where required) a `Value::Surface` legacy adapter on existing surface pins.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Loft / FitLoft / ControlPointLoft + LoftOptions -> call `geom::loft::*`; preserve LoftOptions pin parsing and forward to `MeshQuality`/loft options.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Sweep1 / Sweep2 -> call `geom::sweep::*`; preserve twist/frames semantics; surface/mesh outputs remain compatible.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Pipe / PipeVariable -> call `geom::pipe::*`; preserve parameter/radius list handling and error messages.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Patch / FragmentPatch / BoundarySurfaces -> call `geom::patch::*` (trim loops + constrained triangulation); preserve input coercion rules.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Revolution / RailRevolution -> call `geom::revolve::*`; preserve seam defaults and cap behavior.
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: FourPointSurface / EdgeSurface / RuledSurface / NetworkSurface / SumSurface -> construct through `geom::surface::*` builders then mesh via the shared pipeline (no more ad-hoc vertex math).
+- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: SurfaceFromPoints -> call `geom::surface_fit::*`; preserve grid sizing/ordering behavior.
+
+Surface “Primitive” components (switch to geom surfaces + mesher)
+- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Cylinder/Cone/Sphere/PlaneSurface/QuadSphere -> build `geom::surface` primitives and mesh via shared pipeline; keep existing outputs (including “tip” outputs) stable.
+- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Any component that currently emits a mesh as `Value::Surface` should additionally expose `Value::Mesh` (append-only pin) or keep emitting legacy as an adapter.
+
+Surface “Util” components (move geometry logic to geom; keep wrappers thin)
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: DivideSurface / SurfaceFrames / Isotrim -> call `geom::surface_ops::*` or `geom::analysis::*` and return the same shapes/trees as today.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: CopyTrim / Retrim / Untrim -> call `geom::trim::*`; preserve trim-loop ordering semantics.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: OffsetSurface / OffsetSurfaceLoose -> call `geom::offset::*` and return mesh/surface outputs consistent with today.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: CapHoles / CapHolesEx -> call `geom::brep_ops::*` (or `geom::solid::*`) and preserve the “solid” boolean pin semantics.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: BrepJoin / MergeFaces -> call `geom::brep_ops::*` and preserve diagnostic/boolean pins.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: Flip -> call `geom::surface_ops::flip()` (or equivalent) and preserve result flags.
+- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: FilletEdge -> call `geom::fillet_chamfer::*` (document limitations; emit diagnostics instead of silent failures).
+
+Surface “Analysis” components (add Mesh support where appropriate)
+- [ ] `alpha/ghx-engine/src/components/surface_analysis.rs`: Accept `Value::Mesh` inputs where the component only needs a triangulated representation (e.g., normals/areas/bounds); otherwise keep surface-only behavior explicit and error clearly.
+
+Surface “SubD” components (bridge to geom SubD)
+- [ ] `alpha/ghx-engine/src/components/surface_subd.rs`: Box/Fuse/MultiPipe/FromMesh/MeshFromSubd/Tags/ControlPolygon/Vertices -> move data model into `geom::subdivision` and keep component as a thin wrapper; keep existing pins stable.
+- [ ] `alpha/ghx-engine/src/components/surface_subd.rs`: Ensure `MeshFromSubd` emits `Value::Mesh` (and optionally `Value::Surface` legacy adapter).
+
+Other component files that must become `Mesh`-aware (because they mention `Value::Surface` today)
+- [ ] `alpha/ghx-engine/src/components/curve_spline.rs`: Where a surface’s vertex set is accepted as an input, accept `Value::Mesh` too (or hard-error with a clear message if true surface parameterization is required).
+- [ ] `alpha/ghx-engine/src/components/vector_grid.rs`: Accept `Value::Mesh` anywhere `Value::Surface` meshes are currently used for grid/triangulation logic.
+- [ ] `alpha/ghx-engine/src/components/vector_point.rs`: Update any type-dispatch logic that currently treats `Value::Surface` as “mesh-like” to include `Value::Mesh`.
+- [ ] `alpha/ghx-engine/src/components/maths_script.rs`: Update any “allowed input types” lists to include `Value::Mesh` where `Value::Surface` is currently allowed.
+
+Integration verification (native + wasm)
+- [ ] `cargo test -p ghx-engine`: passes with default features (no `mesh_engine_next` required anymore for runtime behavior).
+- [ ] `cargo test -p ghx-engine --features mesh_engine_next`: still passes (keeps the isolated engine healthy).
+- [ ] `cargo build -p ghx-engine --target wasm32-unknown-unknown`: passes (default feature set used by wasm).
+- [ ] Add/extend regression tests that compare a handful of key component outputs before/after (vertex/face counts, watertightness diagnostics, stable pin outputs) without requiring perfect geometric identity.
