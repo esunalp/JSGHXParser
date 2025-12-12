@@ -247,7 +247,7 @@ alpha/ghx-engine/
 +- Cargo.toml                     # Add feature flags for rayon, wasm, debug logging
 ```
 
-Todo (Detailed, Feature-by-Feature) (please mark as completed when finished with the todo-task)
+Todo (Detailed, Feature-by-Feature) (IMPORTANT: please mark as completed when finished with the todo-task)
 -----------------------------------
 Foundations
 - [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `Value::Mesh { vertices, faces, normals, uvs, diagnostics }`.
