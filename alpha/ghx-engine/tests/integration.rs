@@ -33,7 +33,7 @@ fn slider_updates_require_existing_identifier() {
 
 #[test]
 fn parses_brugtest_boolean_toggle() {
-    let xml = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../web/brugtest.ghx"));
+    let xml = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../web/testfiles/brugtest.ghx"));
     let graph = ghx_xml::parse_str(xml).expect("parse brugtest");
 
     // GUID for Boolean Toggle: 2e78987b-9dfb-42a2-8b76-3923ac8bd91a
@@ -62,7 +62,7 @@ fn parses_brugtest_boolean_toggle() {
 fn lijntest2_line_outputs_expected_points() {
     let result = evaluate_sample(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../web/lijntest2.ghx"
+        "/../web/testfiles/lijntest2.ghx"
     )));
 
     let line = result

@@ -1,0 +1,284 @@
+use crate::geom::{
+    ClosedSurfaceSampling, DivideSurfaceOptions, SurfaceFlipGuide, divide_surface,
+    ConeSurface, CylinderSurface, GeomContext, NurbsSurface, PlaneSurface, Point3, SphereSurface,
+    Surface, TorusSurface, Tolerance, Vec3, choose_surface_grid_counts, flip_surface_orientation,
+    isotrim_surface, mesh_surface_with_context, tessellate_surface_grid,
+};
+
+#[test]
+fn tessellate_plane_grid_sizes() {
+    let plane = PlaneSurface::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0));
+    let pts = tessellate_surface_grid(&plane, 4, 3);
+    assert_eq!(pts.len(), 12);
+    assert_eq!(pts[0], Point3::new(0.0, 0.0, 0.0));
+    assert_eq!(pts[3], Point3::new(1.0, 0.0, 0.0));
+    assert_eq!(pts[8], Point3::new(0.0, 1.0, 0.0));
+}
+
+#[test]
+fn nurbs_surface_bilinear_patch_matches_expected_point() {
+    let surface = NurbsSurface::new(
+        1,
+        1,
+        2,
+        2,
+        vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+            Point3::new(1.0, 1.0, 1.0),
+        ],
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
+        None,
+    )
+    .unwrap();
+
+    let p = surface.point_at(0.5, 0.5);
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(p, Point3::new(0.5, 0.5, 0.25)));
+}
+
+#[test]
+fn cylinder_seam_is_closed_and_mesh_has_expected_open_edges() {
+    let cyl = CylinderSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 2.0),
+        1.0,
+    )
+    .unwrap();
+
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(
+        cyl.point_at(0.0, 0.3),
+        cyl.point_at(1.0, 0.3)
+    ));
+
+    let mut ctx = GeomContext::new();
+    let (_mesh, diag) = mesh_surface_with_context(&cyl, 16, 4, &mut ctx);
+    assert_eq!(diag.open_edge_count, 32);
+    assert_eq!(diag.non_manifold_edge_count, 0);
+    assert_eq!(diag.degenerate_triangle_count, 0);
+}
+
+#[test]
+fn cone_tip_is_collapsed_and_mesh_has_single_boundary_loop() {
+    let cone = ConeSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 2.0),
+        0.0,
+        1.0,
+    )
+    .unwrap();
+
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(
+        cone.point_at(0.0, 0.0),
+        cone.point_at(0.25, 0.0)
+    ));
+
+    let mut ctx = GeomContext::new();
+    let (_mesh, diag) = mesh_surface_with_context(&cone, 16, 4, &mut ctx);
+    assert_eq!(diag.open_edge_count, 16);
+    assert_eq!(diag.non_manifold_edge_count, 0);
+    assert_eq!(diag.degenerate_triangle_count, 0);
+}
+
+#[test]
+fn sphere_mesh_is_closed_without_open_edges() {
+    let sphere = SphereSurface::new(Point3::new(0.0, 0.0, 0.0), 1.0).unwrap();
+
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(
+        sphere.point_at(0.0, 0.0),
+        sphere.point_at(0.25, 0.0)
+    ));
+
+    let mut ctx = GeomContext::new();
+    let (_mesh, diag) = mesh_surface_with_context(&sphere, 16, 12, &mut ctx);
+    assert_eq!(diag.open_edge_count, 0);
+    assert_eq!(diag.non_manifold_edge_count, 0);
+    assert_eq!(diag.degenerate_triangle_count, 0);
+}
+
+#[test]
+fn torus_mesh_is_closed_without_open_edges() {
+    let torus = TorusSurface::from_center_xaxis_normal(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 1.0),
+        2.0,
+        0.5,
+    )
+    .unwrap();
+
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(
+        torus.point_at(0.0, 0.3),
+        torus.point_at(1.0, 0.3)
+    ));
+    assert!(tol.approx_eq_point3(
+        torus.point_at(0.2, 0.0),
+        torus.point_at(0.2, 1.0)
+    ));
+
+    let mut ctx = GeomContext::new();
+    let (_mesh, diag) = mesh_surface_with_context(&torus, 24, 16, &mut ctx);
+    assert_eq!(diag.open_edge_count, 0);
+    assert_eq!(diag.non_manifold_edge_count, 0);
+    assert_eq!(diag.degenerate_triangle_count, 0);
+}
+
+#[test]
+fn adaptive_surface_counts_increase_when_edge_length_exceeded() {
+    let plane = PlaneSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(100.0, 0.0, 0.0),
+        Vec3::new(0.0, 100.0, 0.0),
+    );
+
+    let opts = crate::geom::SurfaceTessellationOptions::new(f64::NAN, 10.0);
+    let (u, v) = choose_surface_grid_counts(&plane, opts);
+    assert_eq!(u, 16);
+    assert_eq!(v, 16);
+}
+
+#[test]
+fn adaptive_surface_counts_refine_anisotropically_for_edge_length() {
+    let plane = PlaneSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(100.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+    );
+
+    let opts = crate::geom::SurfaceTessellationOptions::new(f64::NAN, 10.0);
+    let (u, v) = choose_surface_grid_counts(&plane, opts);
+    assert_eq!(u, 16);
+    assert_eq!(v, 8);
+}
+
+#[test]
+fn adaptive_surface_counts_increase_when_deviation_exceeded() {
+    let cyl = CylinderSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 2.0),
+        1.0,
+    )
+    .unwrap();
+
+    let opts = crate::geom::SurfaceTessellationOptions {
+        max_deviation: 0.05,
+        max_edge_length: f64::NAN,
+        max_u_count: 256,
+        max_v_count: 256,
+        initial_u_count: 8,
+        initial_v_count: 4,
+        max_iterations: 8,
+    };
+    let (u, v) = choose_surface_grid_counts(&cyl, opts);
+    assert_eq!(u, 16);
+    assert_eq!(v, 4);
+}
+
+#[test]
+fn nurbs_surface_derivatives_match_plane_patch() {
+    let surface = NurbsSurface::new(
+        1,
+        1,
+        2,
+        2,
+        vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+            Point3::new(1.0, 1.0, 0.0),
+        ],
+        vec![0.0, 0.0, 1.0, 1.0],
+        vec![0.0, 0.0, 1.0, 1.0],
+        None,
+    )
+    .unwrap();
+
+    let (du, dv) = surface.partial_derivatives_at(0.3, 0.7);
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_f64(du.x, 1.0));
+    assert!(tol.approx_eq_f64(du.y, 0.0));
+    assert!(tol.approx_eq_f64(du.z, 0.0));
+    assert!(tol.approx_eq_f64(dv.x, 0.0));
+    assert!(tol.approx_eq_f64(dv.y, 1.0));
+    assert!(tol.approx_eq_f64(dv.z, 0.0));
+}
+
+#[test]
+fn divide_surface_respects_closed_u_seam_policy() {
+    let cyl = CylinderSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 2.0),
+        1.0,
+    )
+    .unwrap();
+
+    let result = divide_surface(&cyl, 8, 2, DivideSurfaceOptions::default());
+    assert_eq!(result.u_count, 8);
+    assert_eq!(result.v_count, 3);
+    assert_eq!(result.points.len(), 24);
+
+    let result = divide_surface(
+        &cyl,
+        8,
+        2,
+        DivideSurfaceOptions {
+            closed_u: ClosedSurfaceSampling::IncludeSeam,
+            closed_v: ClosedSurfaceSampling::ExcludeSeam,
+        },
+    );
+    assert_eq!(result.u_count, 9);
+    assert_eq!(result.v_count, 3);
+    let tol = Tolerance::new(1e-9);
+    assert!(tol.approx_eq_point3(
+        result.points[0],
+        result.points[result.u_count - 1]
+    ));
+}
+
+#[test]
+fn isotrim_surface_reverses_u_orientation_when_range_is_reversed() {
+    let plane = PlaneSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+    );
+
+    let tol = Tolerance::new(1e-9);
+    let (trimmed, diag) = isotrim_surface(&plane, (0.75, 0.25), (0.0, 1.0), tol);
+    assert!(diag.reverse_u);
+    assert!(!diag.reverse_v);
+
+    let normal = trimmed.normal_at(0.5, 0.5).unwrap();
+    assert!(normal.z < 0.0);
+}
+
+#[test]
+fn flip_surface_orientation_aligns_with_guide_vector() {
+    let plane = PlaneSurface::new(
+        Point3::new(0.0, 0.0, 0.0),
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+    );
+
+    let (flipped, diag) = flip_surface_orientation(
+        &plane,
+        Some(SurfaceFlipGuide::Vector(Vec3::new(0.0, 0.0, -1.0))),
+    );
+    assert!(diag.flipped);
+    let normal = flipped.normal_at(0.5, 0.5).unwrap();
+    assert!(normal.z < 0.0);
+
+    let (not_flipped, diag) = flip_surface_orientation(
+        &plane,
+        Some(SurfaceFlipGuide::Vector(Vec3::new(0.0, 0.0, 1.0))),
+    );
+    assert!(!diag.flipped);
+    let normal = not_flipped.normal_at(0.5, 0.5).unwrap();
+    assert!(normal.z > 0.0);
+}

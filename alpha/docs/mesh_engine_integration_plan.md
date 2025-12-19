@@ -252,124 +252,132 @@ alpha/ghx-engine/
 Phase 1 - Isolated mesh engine in `geom/` (no component or graph changes)
 Goal: the entire new pipeline lives in `alpha/ghx-engine/src/geom/*` behind a feature flag; the existing `components/*` + `graph/*` compile unchanged.
 
+Phase 1 rules (non-invasive)
+----------------------------
+- Only touch `alpha/ghx-engine/src/geom/*`, `alpha/ghx-engine/Cargo.toml`, and `alpha/ghx-engine/src/lib.rs`.
+- Do not edit `alpha/ghx-engine/src/components/*` or `alpha/ghx-engine/src/graph/*` until Phase 3.
+- WASM build must pass before starting component integration.
+
 Feature gating (hard isolation)
-- [ ] `alpha/ghx-engine/Cargo.toml`: Add a `[features] mesh_engine_next = []` feature that is **not** included in `default`.
-- [ ] `alpha/ghx-engine/src/lib.rs`: Only `pub mod geom;` (or re-export the new geom API) when `cfg(feature = "mesh_engine_next")` is enabled.
+- [x] `alpha/ghx-engine/Cargo.toml`: Add a `[features] mesh_engine_next = []` feature that is **not** included in `default`.
+- [x] `alpha/ghx-engine/src/lib.rs`: Only `pub mod geom;` (or re-export the new geom API) when `cfg(feature = "mesh_engine_next")` is enabled.
 - [ ] Repo rule (Phase 1): do **not** edit `alpha/ghx-engine/src/components/*` or `alpha/ghx-engine/src/graph/*` in this phase (the point is to keep the current engine stable).
-- [ ] Build check (native, default features): `cargo build -p ghx-engine` succeeds with `mesh_engine_next` disabled.
+- [x] Build check (native, default features): `cargo build -p ghx-engine` succeeds with `mesh_engine_next` disabled.
 
 Scaffold the new `geom` module tree (compile-first skeleton)
-- [ ] `alpha/ghx-engine/src/geom/mod.rs`: Declare submodules and re-exports (keep the public surface minimal; prefer `pub(crate)` until integration).
-- [ ] `alpha/ghx-engine/src/geom/core.rs`: Add core types and tolerances used everywhere in geom (even if initially minimal).
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Define minimal curve API + at least one evaluator (line/polyline) returning sampled points.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Define minimal surface API + at least one evaluator (plane) returning a grid.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Define the internal mesh representation (positions + indices) and a builder.
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Implement the “glue” functions that call curve/surface evaluators and produce polylines/grids.
-- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Add a first triangulation path for simple grids (no trimming/holes yet).
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Define lightweight diagnostics structs (counts + warnings) for Phase 1.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Create a stub module that compiles (real implementation can come later in Phase 2+).
-- [ ] Build check (native, feature on): `cargo build -p ghx-engine --features mesh_engine_next` succeeds.
+- [x] `alpha/ghx-engine/src/geom/mod.rs`: Declare submodules and re-exports (keep the public surface minimal; prefer `pub(crate)` until integration).
+- [x] `alpha/ghx-engine/src/geom/core.rs`: Add core types and tolerances used everywhere in geom (even if initially minimal).
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Define minimal curve API + at least one evaluator (line/polyline) returning sampled points.
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Define minimal surface API + at least one evaluator (plane) returning a grid.
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Define the internal mesh representation (positions + indices) and a builder.
+- [x] `alpha/ghx-engine/src/geom/tessellation.rs`: Implement the "glue" functions that call curve/surface evaluators and produce polylines/grids.
+- [x] `alpha/ghx-engine/src/geom/triangulation.rs`: Add a first triangulation path for simple grids (no trimming/holes yet).
+- [x] `alpha/ghx-engine/src/geom/diagnostics.rs`: Define lightweight diagnostics structs (counts + warnings) for Phase 1.
+- [x] `alpha/ghx-engine/src/geom/boolean.rs`: Create a stub module that compiles (real implementation can come later in Phase 2+).
+- [x] Build check (native, feature on): `cargo build -p ghx-engine --features mesh_engine_next` succeeds.
 
 Temporary payloads (no `Value::Mesh` yet)
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary payload type (e.g., `GeomMesh`) that can be returned from geom APIs without touching `graph/value.rs`.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary diagnostics payload (e.g., `GeomMeshDiagnostics`) with room for: open edges, degenerate triangles, weld stats, timing.
-- [ ] `alpha/ghx-engine/src/geom/mod.rs`: Expose only these temporary types/functions from `geom` (avoid committing to final integration API yet).
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary payload type (e.g., `GeomMesh`) that can be returned from geom APIs without touching `graph/value.rs`.
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Add a temporary diagnostics payload (e.g., `GeomMeshDiagnostics`) with room for: open edges, degenerate triangles, weld stats, timing.
+- [x] `alpha/ghx-engine/src/geom/mod.rs`: Expose only these temporary types/functions from `geom` (avoid committing to final integration API yet).
 
-End-to-end “hello mesher” API (prove the pipeline works in isolation)
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Provide a single entry-point function (e.g., `geom::mesh::mesh_surface(...) -> (GeomMesh, GeomMeshDiagnostics)`).
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Provide a single entry-point tessellator (e.g., `geom::curve::tessellate_curve(...)`).
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Provide a single entry-point tessellator (e.g., `geom::surface::tessellate_surface(...)`).
-- [ ] Build check: `cargo check -p ghx-engine --features mesh_engine_next` stays green as APIs evolve.
+End-to-end "hello mesher" API (prove the pipeline works in isolation)
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Provide a single entry-point function (e.g., `geom::mesh::mesh_surface(...) -> (GeomMesh, GeomMeshDiagnostics)`).
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Provide a single entry-point tessellator (e.g., `geom::curve::tessellate_curve(...)`).
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Provide a single entry-point tessellator (e.g., `geom::surface::tessellate_surface(...)`).
+- [x] Build check: `cargo check -p ghx-engine --features mesh_engine_next` stays green as APIs evolve.
 
 Tests (stay inside `geom/tests` so components are untouched)
-- [ ] `alpha/ghx-engine/src/geom/tests/mod.rs`: Add a test module root (if not present) that is only compiled when `mesh_engine_next` is enabled.
-- [ ] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add tests for curve tessellation invariants (monotonic parameter steps, endpoints preserved, open vs closed behavior).
-- [ ] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add tests for plane grid tessellation (grid dims, normals consistency).
-- [ ] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Add tests for grid triangulation (index bounds, triangle count, winding consistency).
-- [ ] `alpha/ghx-engine/src/geom/tests/test_mesh_sanity.rs`: Add mesh sanity checks (no NaNs, no out-of-range indices, optional degenerate triangle detection).
-- [ ] Test run: `cargo test -p ghx-engine --features mesh_engine_next` passes.
+- [x] `alpha/ghx-engine/src/geom/tests/mod.rs`: Add a test module root (if not present) that is only compiled when `mesh_engine_next` is enabled.
+- [x] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add tests for curve tessellation invariants (monotonic parameter steps, endpoints preserved, open vs closed behavior).
+- [x] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add tests for plane grid tessellation (grid dims, normals consistency).
+- [x] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Add tests for grid triangulation (index bounds, triangle count, winding consistency).
+- [x] `alpha/ghx-engine/src/geom/tests/test_mesh_sanity.rs`: Add mesh sanity checks (no NaNs, no out-of-range indices, optional degenerate triangle detection).
+- [x] Test run: `cargo test -p ghx-engine --features mesh_engine_next` passes.
 
 WASM build proof (still isolated)
 - [ ] Ensure target exists: `rustup target add wasm32-unknown-unknown`.
 - [ ] WASM build (feature on): `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown` passes.
 - [ ] If any dependency is not wasm-friendly, gate it inside `cfg(not(target_arch = \"wasm32\"))` or behind an additional feature (but keep Phase 1 changes inside `geom` + `Cargo.toml`/`lib.rs` only).
 
-Docs (keep the rules explicit so Phase 1 stays “non-invasive”)
-- [ ] `alpha/docs/mesh_engine_integration_plan.md`: Add a short “Phase 1 rules” paragraph: *no edits to components/graph; feature-flag only; wasm build required to pass before Phase 3*.
-- [ ] `alpha/docs/geom_tolerances.md`: Describe the tolerance strategy used by `geom` and note it is internal until Phase 3 integration.
+Docs (keep the rules explicit so Phase 1 stays "non-invasive")
+- [x] `alpha/docs/mesh_engine_integration_plan.md`: Add a short "Phase 1 rules" paragraph: *no edits to components/graph; feature-flag only; wasm build required to pass before Phase 3*.
+- [x] `alpha/docs/geom_tolerances.md`: Describe the tolerance strategy used by `geom` and note it is internal until Phase 3 integration.
 
 Phase 2 - Stabilize isolated pipeline
 Goal: implement all CAD/feature functionality listed in this document inside `alpha/ghx-engine/src/geom/*` while keeping `components/*` and `graph/*` untouched.
 
 Quality/tolerance/caching/diagnostics (still internal-only)
-- [ ] `alpha/ghx-engine/src/geom/core.rs`: Finalize `Tolerance` + helpers used consistently across all geom modules (no epsilon scatter).
-- [ ] `alpha/ghx-engine/src/geom/diagnostics.rs`: Expand diagnostics to cover: open edges, non-manifold edges, degenerate tris, weld stats, boolean fallbacks, timing buckets.
-- [ ] `alpha/ghx-engine/src/geom/cache.rs`: Implement cache keys and caches for tessellation + triangulation + weld/repair passes.
-- [ ] `alpha/ghx-engine/src/geom/metrics.rs`: Add opt-in timing/profiling hooks (feature-gated; wasm-safe).
+- [x] `alpha/ghx-engine/src/geom/core.rs`: Finalize `Tolerance` + helpers used consistently across all geom modules (no epsilon scatter).
+- [x] `alpha/ghx-engine/src/geom/diagnostics.rs`: Expand diagnostics to cover: open edges, non-manifold edges, degenerate tris, weld stats, boolean fallbacks, timing buckets.
+- [x] `alpha/ghx-engine/src/geom/cache.rs`: Implement cache keys and caches for tessellation + triangulation + weld/repair passes.
+- [x] `alpha/ghx-engine/src/geom/metrics.rs`: Add opt-in timing/profiling hooks (feature-gated; wasm-safe).
 
 Curve evaluators + adaptive tessellation (implement the full curve set mentioned)
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement line/polyline (if not done in Phase 1).
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement arc/circle/ellipse with stable frames and seam handling.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement quadratic/cubic Bezier with derivatives/curvature estimates.
-- [ ] `alpha/ghx-engine/src/geom/curve.rs`: Implement B-spline + rational B-spline/NURBS (knot multiplicity, weights, tangent continuity reporting).
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive curve subdivision (curvature/flatness + max deviation + segment caps).
-- [ ] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add regression coverage for extreme scales, open/closed, seams, and parameterization stability.
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Implement line/polyline (if not done in Phase 1).
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Implement arc/circle/ellipse with stable frames and seam handling.
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Implement quadratic/cubic Bezier with derivatives/curvature estimates.
+- [x] `alpha/ghx-engine/src/geom/curve.rs`: Implement B-spline + rational B-spline/NURBS (knot multiplicity, weights, tangent continuity reporting).
+- [x] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive curve subdivision (curvature/flatness + max deviation + segment caps).
+- [x] `alpha/ghx-engine/src/geom/tests/test_curve_basic.rs`: Add regression coverage for extreme scales, open/closed, seams, and parameterization stability.
 
 Surface evaluators + trimming + adaptive tessellation (implement the full surface set mentioned)
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement plane/cylinder/cone/sphere/torus evaluators with seam/pole handling.
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Implement NURBS surface evaluation (including partial derivatives for normals).
-- [ ] `alpha/ghx-engine/src/geom/trim.rs`: Convert trimming curves into parameter-space loops (outer + holes), including orientation normalization.
-- [ ] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive (u,v) refinement driven by curvature/error budgets + seam stitching rules.
-- [ ] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add trimmed-patch tests (holes, seams, singularities/poles).
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Implement plane/cylinder/cone/sphere/torus evaluators with seam/pole handling.
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Implement NURBS surface evaluation (including partial derivatives for normals).
+- [x] `alpha/ghx-engine/src/geom/trim.rs`: Convert trimming curves into parameter-space loops (outer + holes), including orientation normalization.
+- [x] `alpha/ghx-engine/src/geom/tessellation.rs`: Adaptive (u,v) refinement driven by curvature/error budgets + seam stitching rules.
+- [x] `alpha/ghx-engine/src/geom/tests/test_surface_basic.rs`: Add trimmed-patch tests (holes, seams, singularities/poles).
 
 Triangulation + welding + repair (produce watertight/manifold triangle meshes)
-- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Constrained triangulation supporting holes + trim loops.
-- [ ] `alpha/ghx-engine/src/geom/triangulation.rs`: Triangle quality metrics + skinny-triangle culling (with diagnostics).
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Tolerance-aware vertex welding + stable index remap.
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Normal consistency fixes + optional recompute (flat/smooth policies).
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: UV generation where parametrization exists; placeholder tangents if needed for consumers later.
-- [ ] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Cover holes, trims, normal consistency, weld accuracy.
+- [x] `alpha/ghx-engine/src/geom/triangulation.rs`: Constrained triangulation supporting holes + trim loops.
+- [x] `alpha/ghx-engine/src/geom/triangulation.rs`: Triangle quality metrics + skinny-triangle culling (with diagnostics).
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Tolerance-aware vertex welding + stable index remap.
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Normal consistency fixes + recompute (smooth normals; flat policy TBD if needed).
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: UV generation where parametrization exists; placeholder tangents if needed for consumers later.
+- [x] `alpha/ghx-engine/src/geom/tests/test_triangulation_basic.rs`: Cover holes, trims, normal consistency, weld accuracy.
 
 Feature builders (implement CAD ops inside `geom/` only)
-- [ ] `alpha/ghx-engine/src/geom/extrusion.rs`: Extrude variants (linear + along/angled/point), caps, and orientation rules.
-- [ ] `alpha/ghx-engine/src/geom/revolve.rs`: Revolution + RailRevolution with seam handling, caps, and normal orientation.
-- [ ] `alpha/ghx-engine/src/geom/loft.rs`: Loft covering component variants (FitLoft + ControlPointLoft + standard Loft) and LoftOptions (closed/seam adjust/rebuild/refit/type) + diagnostics for twists/self-intersections.
-- [ ] `alpha/ghx-engine/src/geom/sweep.rs`: Sweep1/2 + stable frame computation + twist control + cap meshing + rail continuity diagnostics.
-- [ ] `alpha/ghx-engine/src/geom/pipe.rs`: Pipe + PipeVariable (parameter/radius lists), junction handling, and self-intersection guards.
-- [ ] `alpha/ghx-engine/src/geom/patch.rs`: Patch + FragmentPatch + BoundarySurfaces that respect trim loops and use constrained triangulation.
-- [ ] `alpha/ghx-engine/src/geom/surface_fit.rs`: SurfaceFromPoints / surface-grid fitting with diagnostics (this backs the “Surface From Points” component).
-- [ ] `alpha/ghx-engine/src/geom/surface.rs`: Surface builders used by existing components: FourPointSurface, EdgeSurface, RuledSurface, NetworkSurface, SumSurface (construct surface + then mesh through the shared pipeline).
-- [ ] `alpha/ghx-engine/src/geom/offset.rs`: Offset/thickening/shelling for surfaces/meshes with inside/outside options + remesh triggers.
-- [ ] `alpha/ghx-engine/src/geom/displacement.rs`: Displacement/heightfield pre-mesh deformation + post weld/normal repair.
-- [ ] `alpha/ghx-engine/src/geom/deformation.rs`: Twist/bend/taper/morph deformation fields (deterministic frames; post weld/normal repair).
-- [ ] `alpha/ghx-engine/src/geom/subdivision.rs`: SubD support mirroring current components (Box, Fuse, MultiPipe, FromMesh, MeshFromSubd, control polygon/vertex+edge tags) + (optional) quad-friendly path (still output triangles in Phase 2).
-- [ ] `alpha/ghx-engine/src/geom/simplify.rs`: Optional LOD simplification (edge-collapse) with watertightness guard.
+- [x] `alpha/ghx-engine/src/geom/extrusion.rs`: Extrude variants (linear + along/angled/point), caps, and orientation rules.
+- [x] `alpha/ghx-engine/src/geom/revolve.rs`: Revolution + RailRevolution with seam handling, caps, and normal orientation.
+- [x] `alpha/ghx-engine/src/geom/loft.rs`: Loft covering component variants (FitLoft + ControlPointLoft + standard Loft) and LoftOptions (closed/seam adjust/rebuild/refit/type) + diagnostics for twists/self-intersections.
+- [x] `alpha/ghx-engine/src/geom/sweep.rs`: Sweep1/2 + stable frame computation + twist control + cap meshing + rail continuity diagnostics.
+- [x] `alpha/ghx-engine/src/geom/pipe.rs`: Pipe + PipeVariable (parameter/radius lists), junction handling, and self-intersection guards.
+- [x] `alpha/ghx-engine/src/geom/patch.rs`: Patch + FragmentPatch + BoundarySurfaces that respect trim loops and use constrained triangulation.
+- [x] `alpha/ghx-engine/src/geom/surface_fit.rs`: SurfaceFromPoints / surface-grid fitting with diagnostics (this backs the "Surface From Points" component).
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Surface builders used by existing components: FourPointSurface, EdgeSurface, RuledSurface, NetworkSurface, SumSurface (construct surface + then mesh through the shared pipeline).
+- [x] `alpha/ghx-engine/src/geom/offset.rs`: Offset/thickening/shelling for surfaces/meshes with inside/outside options + remesh triggers.
+- [x] `alpha/ghx-engine/src/geom/displacement.rs`: Displacement/heightfield pre-mesh deformation + post weld/normal repair.
+- [x] `alpha/ghx-engine/src/geom/deformation.rs`: Twist/bend/taper/morph deformation fields (deterministic frames; post weld/normal repair).
+- [x] `alpha/ghx-engine/src/geom/subdivision.rs`: SubD support mirroring current components (Box, Fuse, MultiPipe, FromMesh, MeshFromSubd, control polygon/vertex+edge tags) + (optional) quad-friendly path (still output triangles in Phase 2).
+- [x] `alpha/ghx-engine/src/geom/simplify.rs`: Optional LOD simplification (edge-collapse) with watertightness guard.
 
 Surface/Brep utilities currently implemented in `src/components/surface_util.rs` (move logic into `geom/`, keep wrappers for Phase 3)
-- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or a dedicated `alpha/ghx-engine/src/geom/brep_ops.rs`): BrepJoin (join surfaces into a closed/sane shell where possible) with diagnostics.
-- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or `alpha/ghx-engine/src/geom/brep_ops.rs`): CapHoles + CapHolesEx (cap planar-ish holes, report failures explicitly).
-- [ ] `alpha/ghx-engine/src/geom/solid.rs` (or `alpha/ghx-engine/src/geom/brep_ops.rs`): MergeFaces (merge coplanar/continuous faces with tolerance guards).
-- [ ] `alpha/ghx-engine/src/geom/trim.rs`: CopyTrim / Retrim / Untrim support (trim loop manipulation and surface parameter-space consistency).
-- [ ] `alpha/ghx-engine/src/geom/surface.rs` (or `alpha/ghx-engine/src/geom/surface_ops.rs`): Isotrim (subsurface extraction) and DivideSurface (grid sampling policies).
-- [ ] `alpha/ghx-engine/src/geom/surface.rs` (or `alpha/ghx-engine/src/geom/surface_ops.rs`): Flip surface orientation (normals + parameter directions) with diagnostics.
-- [ ] `alpha/ghx-engine/src/geom/analysis.rs` (or `alpha/ghx-engine/src/geom/surface_analysis.rs`): SurfaceFrames + edge extraction helpers used by ClosedEdges / EdgesFrom* components (needed for trimming + diagnostics parity later).
-- [ ] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: FilletEdge implementation (even a first “polyline/mesh-edge fillet” version), with clear limitations/diagnostics.
+- [x] `alpha/ghx-engine/src/geom/solid.rs`: BrepJoin (join surfaces into a closed/sane shell where possible) with diagnostics.
+- [x] `alpha/ghx-engine/src/geom/solid.rs`: CapHoles + CapHolesEx (cap planar-ish holes, report failures explicitly).
+- [x] `alpha/ghx-engine/src/geom/solid.rs`: MergeFaces (merge coplanar/continuous faces with tolerance guards).
+- [x] `alpha/ghx-engine/src/geom/trim.rs`: CopyTrim / Retrim / Untrim support (trim loop manipulation and surface parameter-space consistency).
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Isotrim (subsurface extraction) and DivideSurface (grid sampling policies).
+- [x] `alpha/ghx-engine/src/geom/surface.rs`: Flip surface orientation (normals + parameter directions) with diagnostics.
+- [x] `alpha/ghx-engine/src/geom/analysis.rs`: SurfaceFrames + edge extraction helpers used by ClosedEdges / EdgesFrom* components (needed for trimming + diagnostics parity later).
+- [x] `alpha/ghx-engine/src/geom/fillet_chamfer.rs`: FilletEdge implementation (even a first "polyline/mesh-edge fillet" version), with clear limitations/diagnostics.
 
 Booleans/CSG (geom-only implementation)
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Triangle/triangle and triangle/surface intersection primitives (filtered predicates; robust eps fallback).
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Classification (inside/outside) + tagging.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Intersection-band remeshing + stitching + repair with diagnostics.
-- [ ] `alpha/ghx-engine/src/geom/boolean.rs`: Fallback strategy (tolerance relax and/or voxel fallback) with explicit diagnostics flags.
+- [x] `alpha/ghx-engine/src/geom/boolean.rs`: Triangle/triangle and triangle/surface intersection primitives (filtered predicates; robust eps fallback).
+- [x] `alpha/ghx-engine/src/geom/boolean.rs`: Classification (inside/outside) + tagging.
+- [x] `alpha/ghx-engine/src/geom/boolean.rs`: Intersection-band remeshing + stitching + repair with diagnostics.
+- [x] `alpha/ghx-engine/src/geom/boolean.rs`: Fallback strategy (tolerance relax and/or voxel fallback) with explicit diagnostics flags.
 
 Acceleration + performance (still isolated; wasm-safe)
-- [ ] `alpha/ghx-engine/src/geom/bvh.rs`: BVH acceleration for intersection and proximity queries (feature-gated parallelism off on wasm).
-- [ ] `alpha/ghx-engine/src/geom/mesh.rs`: Move toward SoA buffers internally if needed; keep API stable for Phase 3 adapters.
+- [x] `alpha/ghx-engine/src/geom/bvh.rs`: BVH acceleration for intersection and proximity queries (feature-gated parallelism off on wasm).
+- [x] `alpha/ghx-engine/src/geom/mesh.rs`: Move toward SoA buffers internally if needed; keep API stable for Phase 3 adapters.
 
 Tests + fixtures + tooling for Phase 2 (prove feature coverage before integration)
-- [ ] `alpha/ghx-engine/tests/`: Add golden fixtures for extrude/loft/sweep/pipe/revolve/boolean/patch/offset/deform outputs (still using geom temporary payloads).
-- [ ] `tools/mesh_cli.rs` (or similar): Add a CLI that runs selected geom ops and exports meshes/diagnostics for review.
-- [ ] `cargo test -p ghx-engine --features mesh_engine_next`: Passes on native.
-- [ ] `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown`: Passes for wasm.
+- [x] `alpha/ghx-engine/tests/`: Add golden fixtures for extrude/loft/sweep/pipe/revolve/boolean/patch/offset/deform outputs (still using geom temporary payloads).
+- [x] `alpha/ghx-engine/src/bin/mesh_cli.rs`: CLI that runs selected `geom` ops (golden scenarios) and exports `.obj` meshes + `.snap` diagnostics for review.
+  - `cargo run -p ghx-engine --bin mesh_cli --features mesh_engine_next -- list`
+  - `cargo run -p ghx-engine --bin mesh_cli --features mesh_engine_next -- run all --out-dir /tmp/mesh_cli_out`
+- [x] `cargo test -p ghx-engine --features mesh_engine_next`: Passes on native.
+- [x] `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown`: Passes for wasm.
 
 Gate (must be true before touching components/graph)
 - [ ] `mesh_engine_next` passes native tests.

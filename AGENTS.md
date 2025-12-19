@@ -12,6 +12,7 @@
 - `cd alpha/web && npm install && npm run build` (or `npm run dev`): builds the WASM package and serves the viewer on `http://localhost:8080/` via `python -m http.server`.
 - `cd alpha/ghx-engine && cargo fmt && cargo clippy --all-targets && cargo test`: format, lint, and validate the Rust core before exporting to WASM.
 - When changing WASM bindings, rerun `npm run build:wasm` in `alpha/web` to refresh `pkg/`.
+- The Cargo enviroment is on wsl -d Debian and the cargo.toml is located in the folder /mnt/c/Users/Erol/Documents/JSGHXParser/JSGHXParser/alpha/ghx-engine/
 
 ## Coding Style & Naming Conventions
 - JavaScript is ESM with 2-space indentation; prefer named exports, PascalCase classes, and camelCase helpers. Freeze constant maps/enums (e.g., `WorkerMessageType`) before export.

@@ -1,0 +1,63 @@
+# ghx-engine golden v1
+op patch_square_with_hole
+quantize 1.0e-6
+mesh_diag.vertex_count 8
+mesh_diag.triangle_count 8
+mesh_diag.welded_vertex_count 0
+mesh_diag.flipped_triangle_count 0
+mesh_diag.degenerate_triangle_count 0
+mesh_diag.open_edge_count 8
+mesh_diag.non_manifold_edge_count 0
+mesh_diag.boolean_fallback_used false
+mesh_diag.warning_count 1
+mesh_diag.warning.0 mesh has open edges
+mesh.vertex_count 8
+mesh.triangle_count 8
+mesh.has_uvs true
+mesh.has_normals true
+mesh.has_tangents true
+mesh.positions 8
+p 0.000000 0.000000 0.000000
+p 2.000000 0.000000 0.000000
+p 2.000000 2.000000 0.000000
+p 0.000000 2.000000 0.000000
+p 0.750000 1.250000 0.000000
+p 1.250000 1.250000 0.000000
+p 1.250000 0.750000 0.000000
+p 0.750000 0.750000 0.000000
+mesh.indices 24
+i 0 1 6
+i 0 6 7
+i 0 7 4
+i 5 6 1
+i 5 1 2
+i 5 2 3
+i 3 0 4
+i 3 4 5
+mesh.uvs 8
+uv 0.000000 0.000000
+uv 0.000000 -2.000000
+uv 2.000000 -2.000000
+uv 2.000000 0.000000
+uv 1.250000 -0.750000
+uv 1.250000 -1.250000
+uv 0.750000 -1.250000
+uv 0.750000 -0.750000
+mesh.normals 8
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+mesh.tangents 8
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000
+t 0.000000 1.000000 0.000000

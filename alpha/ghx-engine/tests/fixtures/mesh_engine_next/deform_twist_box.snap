@@ -1,0 +1,51 @@
+# ghx-engine golden v1
+op deform_twist_box
+quantize 1.0e-6
+deform_diag.original_vertex_count 8
+deform_diag.original_triangle_count 12
+deform_diag.result_vertex_count 8
+deform_diag.result_triangle_count 12
+deform_diag.min_displacement 0.000000
+deform_diag.max_displacement 1.000000
+deform_diag.avg_displacement 0.500000
+deform_diag.welded_vertex_count 0
+deform_diag.warning_count 1
+deform_diag.warning.0 mesh orientation flipped (outward)
+mesh.vertex_count 8
+mesh.triangle_count 12
+mesh.has_uvs false
+mesh.has_normals true
+mesh.has_tangents false
+mesh.positions 8
+p -0.500000 -0.500000 0.000000
+p 0.500000 -0.500000 0.000000
+p 0.500000 0.500000 0.000000
+p -0.500000 0.500000 0.000000
+p 0.500000 -0.500000 2.000000
+p 0.500000 0.500000 2.000000
+p -0.500000 0.500000 2.000000
+p -0.500000 -0.500000 2.000000
+mesh.indices 36
+i 0 2 1
+i 0 3 2
+i 4 5 6
+i 4 6 7
+i 0 1 5
+i 0 5 4
+i 2 3 7
+i 2 7 6
+i 0 7 3
+i 0 4 7
+i 1 2 6
+i 1 6 5
+mesh.uvs none
+mesh.normals 8
+n 0.000000 -0.894427 -0.447214
+n 1.000000 0.000000 0.000000
+n 0.000000 0.894427 -0.447214
+n -0.707107 0.707107 0.000000
+n 0.666667 -0.666667 0.333333
+n 1.000000 0.000000 0.000000
+n 0.000000 0.894427 0.447214
+n -0.970143 0.000000 0.242536
+mesh.tangents none

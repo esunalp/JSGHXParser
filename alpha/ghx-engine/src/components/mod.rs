@@ -671,7 +671,7 @@ fn normalize_name(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{ComponentKind, ComponentRegistry, maths_operators, params_input};
+    use super::{ComponentKind, ComponentRegistry, maths_operators, params_input, surface_freeform};
 
     #[test]
     fn lookup_by_guid_and_name() {

@@ -5,6 +5,9 @@ pub mod components;
 pub mod graph;
 pub mod parse;
 
+#[cfg(feature = "mesh_engine_next")]
+pub mod geom;
+
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 

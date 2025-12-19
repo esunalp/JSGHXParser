@@ -1,0 +1,32 @@
+# ghx-engine golden v1
+op offset_quad_outside
+quantize 1.0e-6
+offset_diag.original_vertex_count 4
+offset_diag.original_triangle_count 2
+offset_diag.result_vertex_count 4
+offset_diag.result_triangle_count 2
+offset_diag.open_edge_count 4
+offset_diag.rim_triangle_count 0
+offset_diag.potential_self_intersection false
+offset_diag.warning_count 1
+offset_diag.warning.0 mesh has open edges
+mesh.vertex_count 4
+mesh.triangle_count 2
+mesh.has_uvs false
+mesh.has_normals true
+mesh.has_tangents false
+mesh.positions 4
+p 0.000000 0.000000 0.250000
+p 1.000000 0.000000 0.250000
+p 1.000000 1.000000 0.250000
+p 0.000000 1.000000 0.250000
+mesh.indices 6
+i 0 1 2
+i 0 2 3
+mesh.uvs none
+mesh.normals 4
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+n 0.000000 0.000000 1.000000
+mesh.tangents none

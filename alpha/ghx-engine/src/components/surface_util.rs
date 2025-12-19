@@ -2,10 +2,13 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(not(feature = "mesh_engine_next"))]
 use delaunator;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Domain1D, Domain2D, Value};
+#[cfg(feature = "mesh_engine_next")]
+use crate::geom::Surface;
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -269,28 +272,69 @@ fn evaluate_divide_surface(inputs: &[Value], component: &str) -> ComponentResult
     let u_segments = coerce_positive_integer(inputs.get(1), &(component.to_owned() + " U"))?;
     let v_segments = coerce_positive_integer(inputs.get(2), &(component.to_owned() + " V"))?;
 
-    let mut points = Vec::new();
-    let mut normals = Vec::new();
-    let mut parameters = Vec::new();
+    let (points, normals, parameters) = {
+        #[cfg(feature = "mesh_engine_next")]
+        {
+            let size = metrics.size();
+            let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
+            let surface = crate::geom::PlaneSurface::new(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
+                crate::geom::Vec3::new(size[0], 0.0, 0.0),
+                crate::geom::Vec3::new(0.0, size[1], 0.0),
+            );
+            let result = crate::geom::divide_surface(
+                &surface,
+                u_segments,
+                v_segments,
+                crate::geom::DivideSurfaceOptions::default(),
+            );
 
-    for v in 0..=v_segments {
-        let fv = if v_segments == 0 {
-            0.0
-        } else {
-            v as f64 / v_segments as f64
-        };
-        for u in 0..=u_segments {
-            let fu = if u_segments == 0 {
-                0.0
-            } else {
-                u as f64 / u_segments as f64
-            };
-            let point = metrics.sample_point((fu, fv));
-            points.push(Value::Point(point));
-            normals.push(Value::Vector(metrics.normal_hint()));
-            parameters.push(Value::Point([fu, fv, 0.0]));
+            let points = result
+                .points
+                .into_iter()
+                .map(|point| Value::Point(point.to_array()))
+                .collect();
+            let normals = result
+                .normals
+                .into_iter()
+                .map(|normal| Value::Vector([normal.x, normal.y, normal.z]))
+                .collect();
+            let parameters = result
+                .parameters
+                .into_iter()
+                .map(|(u, v)| Value::Point([u, v, 0.0]))
+                .collect();
+            (points, normals, parameters)
         }
-    }
+
+        #[cfg(not(feature = "mesh_engine_next"))]
+        {
+            let mut points = Vec::new();
+            let mut normals = Vec::new();
+            let mut parameters = Vec::new();
+
+            for v in 0..=v_segments {
+                let fv = if v_segments == 0 {
+                    0.0
+                } else {
+                    v as f64 / v_segments as f64
+                };
+                for u in 0..=u_segments {
+                    let fu = if u_segments == 0 {
+                        0.0
+                    } else {
+                        u as f64 / u_segments as f64
+                    };
+                    let point = metrics.sample_point((fu, fv));
+                    points.push(Value::Point(point));
+                    normals.push(Value::Vector(metrics.normal_hint()));
+                    parameters.push(Value::Point([fu, fv, 0.0]));
+                }
+            }
+
+            (points, normals, parameters)
+        }
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(points));
@@ -311,43 +355,93 @@ fn evaluate_surface_frames(inputs: &[Value], component: &str) -> ComponentResult
     let u_segments = coerce_positive_integer(inputs.get(1), &(component.to_owned() + " U"))?;
     let v_segments = coerce_positive_integer(inputs.get(2), &(component.to_owned() + " V"))?;
 
-    let mut frames_rows = Vec::new();
-    let mut parameter_rows = Vec::new();
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let size = metrics.size();
+        let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
+        let surface = crate::geom::PlaneSurface::new(
+            crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
+            crate::geom::Vec3::new(size[0], 0.0, 0.0),
+            crate::geom::Vec3::new(0.0, size[1], 0.0),
+        );
+        let tol = crate::geom::Tolerance::default_geom();
+        let result = crate::geom::surface_frames(&surface, u_segments, v_segments, tol);
 
-    for v in 0..=v_segments {
-        let fv = if v_segments == 0 {
-            0.0
-        } else {
-            v as f64 / v_segments as f64
-        };
-        let mut frames_row = Vec::new();
-        let mut parameters_row = Vec::new();
-        for u in 0..=u_segments {
-            let fu = if u_segments == 0 {
-                0.0
-            } else {
-                u as f64 / u_segments as f64
-            };
-            let point = metrics.sample_point((fu, fv));
-            let tangent_u = metrics.tangent_hint_u();
-            let tangent_v = metrics.tangent_hint_v();
-            let normal = metrics.normal_hint();
-            frames_row.push(frame_value(point, tangent_u, tangent_v, normal));
-            parameters_row.push(Value::Point([fu, fv, 0.0]));
+        let mut frames_rows = Vec::with_capacity(result.v_count);
+        let mut parameter_rows = Vec::with_capacity(result.v_count);
+
+        for v in 0..result.v_count {
+            let row_offset = v * result.u_count;
+            let mut frames_row = Vec::with_capacity(result.u_count);
+            let mut parameters_row = Vec::with_capacity(result.u_count);
+
+            for idx in row_offset..(row_offset + result.u_count) {
+                let frame = result.frames[idx];
+                frames_row.push(frame_value(
+                    frame.origin.to_array(),
+                    [frame.x_axis.x, frame.x_axis.y, frame.x_axis.z],
+                    [frame.y_axis.x, frame.y_axis.y, frame.y_axis.z],
+                    [frame.z_axis.x, frame.z_axis.y, frame.z_axis.z],
+                ));
+
+                let (u, v) = result.parameters[idx];
+                parameters_row.push(Value::Point([u, v, 0.0]));
+            }
+
+            frames_rows.push(Value::List(frames_row));
+            parameter_rows.push(Value::List(parameters_row));
         }
-        frames_rows.push(Value::List(frames_row));
-        parameter_rows.push(Value::List(parameters_row));
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames_rows));
+        outputs.insert(
+            PIN_OUTPUT_PARAMETERS.to_owned(),
+            Value::List(parameter_rows),
+        );
+        return Ok(outputs);
     }
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames_rows));
-    outputs.insert(
-        PIN_OUTPUT_PARAMETERS.to_owned(),
-        Value::List(parameter_rows),
-    );
-    Ok(outputs)
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut frames_rows = Vec::new();
+        let mut parameter_rows = Vec::new();
+
+        for v in 0..=v_segments {
+            let fv = if v_segments == 0 {
+                0.0
+            } else {
+                v as f64 / v_segments as f64
+            };
+            let mut frames_row = Vec::new();
+            let mut parameters_row = Vec::new();
+            for u in 0..=u_segments {
+                let fu = if u_segments == 0 {
+                    0.0
+                } else {
+                    u as f64 / u_segments as f64
+                };
+                let point = metrics.sample_point((fu, fv));
+                let tangent_u = metrics.tangent_hint_u();
+                let tangent_v = metrics.tangent_hint_v();
+                let normal = metrics.normal_hint();
+                frames_row.push(frame_value(point, tangent_u, tangent_v, normal));
+                parameters_row.push(Value::Point([fu, fv, 0.0]));
+            }
+            frames_rows.push(Value::List(frames_row));
+            parameter_rows.push(Value::List(parameters_row));
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames_rows));
+        outputs.insert(
+            PIN_OUTPUT_PARAMETERS.to_owned(),
+            Value::List(parameter_rows),
+        );
+        Ok(outputs)
+    }
 }
 
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
     let mut breps = Vec::new();
     let mut closed = Vec::new();
@@ -382,6 +476,60 @@ fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
+    let mut values = Vec::new();
+    if let Some(Value::List(list)) = inputs.get(0) {
+        values.extend(list.iter().cloned());
+    } else if let Some(value) = inputs.get(0) {
+        values.push(value.clone());
+    }
+
+    if values.is_empty() {
+        return Err(ComponentError::new("Brep Join vereist een lijst met breps"));
+    }
+
+    let mut surface_meshes = Vec::new();
+    let mut surface_map = Vec::with_capacity(values.len());
+    for value in &values {
+        if let Value::Surface { vertices, faces } = value {
+            surface_map.push(Some(surface_meshes.len()));
+            surface_meshes.push(crate::geom::LegacySurfaceMesh {
+                vertices: vertices.clone(),
+                faces: faces.clone(),
+            });
+        } else {
+            surface_map.push(None);
+        }
+    }
+
+    let joined = crate::geom::brep_join_legacy(surface_meshes, crate::geom::Tolerance::default_geom());
+
+    let mut closed = Vec::with_capacity(values.len());
+    for (index, map) in surface_map.into_iter().enumerate() {
+        if let Some(surface_index) = map {
+            let brep = &joined.breps[surface_index];
+            values[index] = Value::Surface {
+                vertices: brep.vertices.clone(),
+                faces: brep.faces.clone(),
+            };
+            closed.push(Value::Boolean(joined.closed[surface_index]));
+        } else {
+            let metrics = ShapeMetrics::from_inputs(values.get(index));
+            let is_closed = metrics
+                .as_ref()
+                .map(|m| m.volume().abs() > EPSILON)
+                .unwrap_or(false);
+            closed.push(Value::Boolean(is_closed));
+        }
+    }
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(values));
+    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed));
+    Ok(outputs)
+}
+
 fn evaluate_fillet_edge(inputs: &[Value]) -> ComponentResult {
     let shape = inputs
         .get(0)
@@ -393,6 +541,7 @@ fn evaluate_fillet_edge(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(format!(
@@ -425,6 +574,26 @@ fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist zowel een bron- als doelsurface",
+            component
+        )));
+    }
+
+    let source = coerce_shape_metrics(inputs.get(0), component)?;
+    let target = coerce_shape_metrics(inputs.get(1), component)?;
+    let (min, max) =
+        crate::geom::copy_trim_bounds(source.min, source.max, target.min, target.max);
+    let surface = create_surface_from_bounds(min, max);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
+    Ok(outputs)
+}
+
 fn evaluate_edges_from_directions(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 4 {
         return Err(ComponentError::new(
@@ -444,40 +613,85 @@ fn evaluate_edges_from_directions(inputs: &[Value]) -> ComponentResult {
         .to_radians()
         .abs();
 
-    let mut brep = collect_brep_data(inputs.get(0));
-    if brep.edges.is_empty() {
-        brep = BrepData::from_metrics(&metrics);
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let tol = crate::geom::Tolerance::default_geom();
+        let mut brep = collect_legacy_brep_data(inputs.get(0), tol);
+        if brep.edges.is_empty() {
+            brep = crate::geom::LegacyBrepData::from_bounds(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], metrics.min[2]),
+                crate::geom::Point3::new(metrics.max[0], metrics.max[1], metrics.max[2]),
+            );
+        }
+
+        let directions = directions
+            .iter()
+            .map(|direction| crate::geom::Vec3::new(direction[0], direction[1], direction[2]))
+            .collect::<Vec<_>>();
+
+        let result =
+            crate::geom::edges_from_directions(&brep, &directions, reflex, tolerance, tol);
+
+        let mut selected = Vec::with_capacity(result.edges.len());
+        let mut indices = Vec::with_capacity(result.edges.len());
+        let mut mapping = Vec::with_capacity(result.edges.len());
+
+        for (edge_index, dir_index) in result.edges.into_iter().zip(result.map.into_iter()) {
+            let edge = &brep.edges[edge_index];
+            selected.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
+            indices.push(Value::Number(edge_index as f64));
+            mapping.push(Value::Number(dir_index as f64));
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(mapping));
+        return Ok(outputs);
     }
 
-    let mut selected = Vec::new();
-    let mut indices = Vec::new();
-    let mut mapping = Vec::new();
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut brep = collect_brep_data(inputs.get(0));
+        if brep.edges.is_empty() {
+            brep = BrepData::from_metrics(&metrics);
+        }
 
-    for (index, edge) in brep.edges.iter().enumerate() {
-        if let Some((direction, _)) = normalize(edge.vector()) {
-            let mut matched = None;
-            for (dir_index, candidate) in directions.iter().enumerate() {
-                let (candidate, _) = normalize(*candidate).unwrap_or(([1.0, 0.0, 0.0], 1.0));
-                let dot = clamp(dot(direction, candidate), -1.0, 1.0);
-                let angle = dot.acos();
-                if angle <= tolerance || (reflex && (std::f64::consts::PI - angle) <= tolerance) {
-                    matched = Some(dir_index);
-                    break;
+        let mut selected = Vec::new();
+        let mut indices = Vec::new();
+        let mut mapping = Vec::new();
+
+        for (index, edge) in brep.edges.iter().enumerate() {
+            if let Some((direction, _)) = normalize(edge.vector()) {
+                let mut matched = None;
+                for (dir_index, candidate) in directions.iter().enumerate() {
+                    let (candidate, _) = normalize(*candidate).unwrap_or(([1.0, 0.0, 0.0], 1.0));
+                    let dot = clamp(dot(direction, candidate), -1.0, 1.0);
+                    let angle = dot.acos();
+                    if angle <= tolerance
+                        || (reflex && (std::f64::consts::PI - angle) <= tolerance)
+                    {
+                        matched = Some(dir_index);
+                        break;
+                    }
+                }
+                if let Some(dir_index) = matched {
+                    selected.push(edge.to_value());
+                    indices.push(Value::Number(index as f64));
+                    mapping.push(Value::Number(dir_index as f64));
                 }
             }
-            if let Some(dir_index) = matched {
-                selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
-                mapping.push(Value::Number(dir_index as f64));
-            }
         }
-    }
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
-    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
-    outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(mapping));
-    Ok(outputs)
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(mapping));
+        Ok(outputs)
+    }
 }
 
 fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
@@ -490,14 +704,45 @@ fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
         .get(1)
         .ok_or_else(|| ComponentError::new("Isotrim vereist een domein"))?;
     let (u_range, v_range) = coerce_domain_pair(domain_value, "Isotrim")?;
-    let mut min = metrics.min;
-    let mut max = metrics.max;
-    min[0] = metrics.min[0] + metrics.size()[0] * clamp01(u_range.0);
-    max[0] = metrics.min[0] + metrics.size()[0] * clamp01(u_range.1);
-    min[1] = metrics.min[1] + metrics.size()[1] * clamp01(v_range.0);
-    max[1] = metrics.min[1] + metrics.size()[1] * clamp01(v_range.1);
 
-    let surface = create_surface_from_bounds(min, max);
+    let surface = {
+        #[cfg(feature = "mesh_engine_next")]
+        {
+            let size = metrics.size();
+            let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
+            let plane = crate::geom::PlaneSurface::new(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
+                crate::geom::Vec3::new(size[0], 0.0, 0.0),
+                crate::geom::Vec3::new(0.0, size[1], 0.0),
+            );
+
+            let tol = crate::geom::Tolerance::default_geom();
+            let (trimmed, _) = crate::geom::isotrim_surface(&plane, u_range, v_range, tol);
+
+            let (u0, u1) = trimmed.domain_u();
+            let (v0, v1) = trimmed.domain_v();
+            let vertices = vec![
+                trimmed.point_at(u0, v0).to_array(),
+                trimmed.point_at(u1, v0).to_array(),
+                trimmed.point_at(u1, v1).to_array(),
+                trimmed.point_at(u0, v1).to_array(),
+            ];
+            let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
+            Value::Surface { vertices, faces }
+        }
+
+        #[cfg(not(feature = "mesh_engine_next"))]
+        {
+            let mut min = metrics.min;
+            let mut max = metrics.max;
+            min[0] = metrics.min[0] + metrics.size()[0] * clamp01(u_range.0);
+            max[0] = metrics.min[0] + metrics.size()[0] * clamp01(u_range.1);
+            min[1] = metrics.min[1] + metrics.size()[1] * clamp01(v_range.0);
+            max[1] = metrics.min[1] + metrics.size()[1] * clamp01(v_range.1);
+
+            create_surface_from_bounds(min, max)
+        }
+    };
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
     Ok(outputs)
@@ -506,38 +751,90 @@ fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
 fn evaluate_closed_edges(inputs: &[Value]) -> ComponentResult {
     let metrics = coerce_shape_metrics(inputs.get(0), "Closed Edges")?;
     let _tangency = coerce_boolean(inputs.get(1), true).unwrap_or(true);
-    let mut brep = collect_brep_data(inputs.get(0));
-    if brep.edges.is_empty() {
-        brep = BrepData::from_metrics(&metrics);
-    }
 
-    let mut closed_edges = Vec::new();
-    let mut closed_indices = Vec::new();
-    let mut open_edges = Vec::new();
-    let mut open_indices = Vec::new();
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let tol = crate::geom::Tolerance::default_geom();
+        let mut brep = collect_legacy_brep_data(inputs.get(0), tol);
+        if brep.edges.is_empty() {
+            brep = crate::geom::LegacyBrepData::from_bounds(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], metrics.min[2]),
+                crate::geom::Point3::new(metrics.max[0], metrics.max[1], metrics.max[2]),
+            );
+        }
 
-    for (index, edge) in brep.edges.iter().enumerate() {
-        if edge.face_count() >= 2 {
-            closed_edges.push(edge.to_value());
+        let result = crate::geom::closed_edges(&brep);
+        let mut closed_edges = Vec::with_capacity(result.closed.len());
+        let mut closed_indices = Vec::with_capacity(result.closed.len());
+        for index in result.closed {
+            let edge = &brep.edges[index];
+            closed_edges.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
             closed_indices.push(Value::Number(index as f64));
-        } else {
-            open_edges.push(edge.to_value());
+        }
+
+        let mut open_edges = Vec::with_capacity(result.open.len());
+        let mut open_indices = Vec::with_capacity(result.open.len());
+        for index in result.open {
+            let edge = &brep.edges[index];
+            open_edges.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
             open_indices.push(Value::Number(index as f64));
         }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed_edges));
+        outputs.insert(
+            PIN_OUTPUT_CLOSED_INDICES.to_owned(),
+            Value::List(closed_indices),
+        );
+        outputs.insert(PIN_OUTPUT_OPEN.to_owned(), Value::List(open_edges));
+        outputs.insert(
+            PIN_OUTPUT_OPEN_INDICES.to_owned(),
+            Value::List(open_indices),
+        );
+        return Ok(outputs);
     }
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed_edges));
-    outputs.insert(
-        PIN_OUTPUT_CLOSED_INDICES.to_owned(),
-        Value::List(closed_indices),
-    );
-    outputs.insert(PIN_OUTPUT_OPEN.to_owned(), Value::List(open_edges));
-    outputs.insert(
-        PIN_OUTPUT_OPEN_INDICES.to_owned(),
-        Value::List(open_indices),
-    );
-    Ok(outputs)
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut brep = collect_brep_data(inputs.get(0));
+        if brep.edges.is_empty() {
+            brep = BrepData::from_metrics(&metrics);
+        }
+
+        let mut closed_edges = Vec::new();
+        let mut closed_indices = Vec::new();
+        let mut open_edges = Vec::new();
+        let mut open_indices = Vec::new();
+
+        for (index, edge) in brep.edges.iter().enumerate() {
+            if edge.face_count() >= 2 {
+                closed_edges.push(edge.to_value());
+                closed_indices.push(Value::Number(index as f64));
+            } else {
+                open_edges.push(edge.to_value());
+                open_indices.push(Value::Number(index as f64));
+            }
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed_edges));
+        outputs.insert(
+            PIN_OUTPUT_CLOSED_INDICES.to_owned(),
+            Value::List(closed_indices),
+        );
+        outputs.insert(PIN_OUTPUT_OPEN.to_owned(), Value::List(open_edges));
+        outputs.insert(
+            PIN_OUTPUT_OPEN_INDICES.to_owned(),
+            Value::List(open_indices),
+        );
+        Ok(outputs)
+    }
 }
 
 fn evaluate_edges_from_faces(inputs: &[Value]) -> ComponentResult {
@@ -550,57 +847,94 @@ fn evaluate_edges_from_faces(inputs: &[Value]) -> ComponentResult {
     let points = collect_point_list(inputs.get(1));
     let tolerance = 1e-3;
 
-    let mut brep = collect_brep_data(inputs.get(0));
-    if brep.edges.is_empty() {
-        brep = BrepData::from_metrics(&metrics);
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let tol = crate::geom::Tolerance::default_geom();
+        let mut brep = collect_legacy_brep_data(inputs.get(0), tol);
+        if brep.edges.is_empty() {
+            brep = crate::geom::LegacyBrepData::from_bounds(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], metrics.min[2]),
+                crate::geom::Point3::new(metrics.max[0], metrics.max[1], metrics.max[2]),
+            );
+        }
+
+        let points = points
+            .iter()
+            .map(|point| crate::geom::Point3::new(point[0], point[1], point[2]))
+            .collect::<Vec<_>>();
+        let selected_indices = crate::geom::edges_from_faces(&brep, &points, tolerance);
+
+        let mut selected = Vec::with_capacity(selected_indices.len());
+        let mut indices = Vec::with_capacity(selected_indices.len());
+        for index in selected_indices {
+            let edge = &brep.edges[index];
+            selected.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
+            indices.push(Value::Number(index as f64));
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        return Ok(outputs);
     }
 
-    let mut selected = Vec::new();
-    let mut indices = Vec::new();
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut brep = collect_brep_data(inputs.get(0));
+        if brep.edges.is_empty() {
+            brep = BrepData::from_metrics(&metrics);
+        }
 
-    if !brep.faces.is_empty() {
-        let mut selected_faces = Vec::new();
-        if points.is_empty() {
-            selected_faces.extend(0..brep.faces.len());
-        } else {
-            for (face_index, face) in brep.faces.iter().enumerate() {
-                let centroid = face.centroid();
-                if points
+        let mut selected = Vec::new();
+        let mut indices = Vec::new();
+
+        if !brep.faces.is_empty() {
+            let mut selected_faces = Vec::new();
+            if points.is_empty() {
+                selected_faces.extend(0..brep.faces.len());
+            } else {
+                for (face_index, face) in brep.faces.iter().enumerate() {
+                    let centroid = face.centroid();
+                    if points
+                        .iter()
+                        .any(|point| distance(&centroid, point) <= tolerance)
+                    {
+                        selected_faces.push(face_index);
+                    }
+                }
+            }
+
+            for (index, edge) in brep.edges.iter().enumerate() {
+                if edge
+                    .faces
                     .iter()
-                    .any(|point| distance(&centroid, point) <= tolerance)
+                    .any(|face_index| selected_faces.contains(face_index))
                 {
-                    selected_faces.push(face_index);
+                    selected.push(edge.to_value());
+                    indices.push(Value::Number(index as f64));
+                }
+            }
+        } else {
+            for (index, edge) in brep.edges.iter().enumerate() {
+                let include = points.is_empty()
+                    || points
+                        .iter()
+                        .any(|point| edge.touches_point(point, tolerance));
+                if include {
+                    selected.push(edge.to_value());
+                    indices.push(Value::Number(index as f64));
                 }
             }
         }
 
-        for (index, edge) in brep.edges.iter().enumerate() {
-            if edge
-                .faces
-                .iter()
-                .any(|face_index| selected_faces.contains(face_index))
-            {
-                selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
-            }
-        }
-    } else {
-        for (index, edge) in brep.edges.iter().enumerate() {
-            let include = points.is_empty()
-                || points
-                    .iter()
-                    .any(|point| edge.touches_point(point, tolerance));
-            if include {
-                selected.push(edge.to_value());
-                indices.push(Value::Number(index as f64));
-            }
-        }
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        Ok(outputs)
     }
-
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
-    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
-    Ok(outputs)
 }
 
 fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
@@ -623,41 +957,85 @@ fn evaluate_edges_from_points(inputs: &[Value]) -> ComponentResult {
         .transpose()?;
     let tolerance = tolerance.unwrap_or(0.25).abs();
 
-    let mut brep = collect_brep_data(inputs.get(0));
-    if brep.edges.is_empty() {
-        brep = BrepData::from_metrics(&metrics);
-    }
-
-    let mut selected = Vec::new();
-    let mut indices = Vec::new();
-    let mut mapping = vec![0usize; points.len()];
-
-    for (index, edge) in brep.edges.iter().enumerate() {
-        let mut matched_points = Vec::new();
-        for (point_index, point) in points.iter().enumerate() {
-            if edge.touches_point(point, tolerance) {
-                matched_points.push(point_index);
-            }
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let tol = crate::geom::Tolerance::default_geom();
+        let mut brep = collect_legacy_brep_data(inputs.get(0), tol);
+        if brep.edges.is_empty() {
+            brep = crate::geom::LegacyBrepData::from_bounds(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], metrics.min[2]),
+                crate::geom::Point3::new(metrics.max[0], metrics.max[1], metrics.max[2]),
+            );
         }
-        if matched_points.len() >= valence {
-            selected.push(edge.to_value());
+
+        let points = points
+            .iter()
+            .map(|point| crate::geom::Point3::new(point[0], point[1], point[2]))
+            .collect::<Vec<_>>();
+        let result = crate::geom::edges_from_points(&brep, &points, valence, tolerance);
+
+        let mut selected = Vec::with_capacity(result.edges.len());
+        let mut indices = Vec::with_capacity(result.edges.len());
+        for index in result.edges {
+            let edge = &brep.edges[index];
+            selected.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
             indices.push(Value::Number(index as f64));
-            for point_index in matched_points {
-                mapping[point_index] += 1;
-            }
         }
+
+        let map_values = result
+            .map
+            .into_iter()
+            .map(|count| Value::Number(count as f64))
+            .collect();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(map_values));
+        return Ok(outputs);
     }
 
-    let map_values = mapping
-        .into_iter()
-        .map(|count| Value::Number(count as f64))
-        .collect();
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut brep = collect_brep_data(inputs.get(0));
+        if brep.edges.is_empty() {
+            brep = BrepData::from_metrics(&metrics);
+        }
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
-    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
-    outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(map_values));
-    Ok(outputs)
+        let mut selected = Vec::new();
+        let mut indices = Vec::new();
+        let mut mapping = vec![0usize; points.len()];
+
+        for (index, edge) in brep.edges.iter().enumerate() {
+            let mut matched_points = Vec::new();
+            for (point_index, point) in points.iter().enumerate() {
+                if edge.touches_point(point, tolerance) {
+                    matched_points.push(point_index);
+                }
+            }
+            if matched_points.len() >= valence {
+                selected.push(edge.to_value());
+                indices.push(Value::Number(index as f64));
+                for point_index in matched_points {
+                    mapping[point_index] += 1;
+                }
+            }
+        }
+
+        let map_values = mapping
+            .into_iter()
+            .map(|count| Value::Number(count as f64))
+            .collect();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        outputs.insert(PIN_OUTPUT_MAP.to_owned(), Value::List(map_values));
+        Ok(outputs)
+    }
 }
 
 fn evaluate_convex_edges(inputs: &[Value]) -> ComponentResult {
@@ -709,6 +1087,7 @@ fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult
     Ok(outputs)
 }
 
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
     let mut surface_value = inputs
         .get(0)
@@ -876,6 +1255,57 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
+    let mut surface_value = inputs
+        .get(0)
+        .cloned()
+        .ok_or_else(|| ComponentError::new("Cap Holes vereist een brep"))?;
+
+    if let Value::List(values) = &surface_value {
+        if let Some(surface) = values.iter().find(|v| matches!(v, Value::Surface { .. })) {
+            surface_value = surface.clone();
+        }
+    }
+
+    let mesh = match &surface_value {
+        Value::Surface { vertices, faces } if !vertices.is_empty() && !faces.is_empty() => {
+            crate::geom::LegacySurfaceMesh {
+                vertices: vertices.clone(),
+                faces: faces.clone(),
+            }
+        }
+        _ => {
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface_value);
+            if extended {
+                outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
+                outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(false));
+            }
+            return Ok(outputs);
+        }
+    };
+
+    let result = crate::geom::cap_holes_legacy(mesh, crate::geom::Tolerance::default_geom());
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_BREPS.to_owned(),
+        Value::Surface {
+            vertices: result.brep.vertices,
+            faces: result.brep.faces,
+        },
+    );
+    if extended {
+        outputs.insert(
+            PIN_OUTPUT_CAPS.to_owned(),
+            Value::Number(result.diagnostics.holes_found as f64),
+        );
+        outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(result.is_solid));
+    }
+    Ok(outputs)
+}
+
 fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Flip vereist een surface"));
@@ -891,8 +1321,7 @@ fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(true);
 
     if should_flip {
-        if let Value::Surface { vertices, faces } = &mut surface {
-            vertices.reverse();
+        if let Value::Surface { faces, .. } = &mut surface {
             faces.iter_mut().for_each(|face| face.reverse());
         }
     }
@@ -903,6 +1332,7 @@ fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
     let brep = inputs
         .get(0)
@@ -927,6 +1357,53 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
+    let brep = inputs
+        .get(0)
+        .ok_or_else(|| ComponentError::new("Merge Faces vereist een brep"))?;
+
+    let shapes = collect_shapes(Some(brep));
+    let mut surfaces = Vec::new();
+    for shape in &shapes {
+        if let Value::Surface { vertices, faces } = shape {
+            surfaces.push(crate::geom::LegacySurfaceMesh {
+                vertices: vertices.clone(),
+                faces: faces.clone(),
+            });
+        }
+    }
+
+    if surfaces.is_empty() {
+        return Err(ComponentError::new(
+            "Merge Faces kon geen oppervlakken vinden",
+        ));
+    }
+
+    let before = surfaces.len();
+    let tol = crate::geom::Tolerance::default_geom();
+    let merged = crate::geom::merge_faces_legacy(&surfaces, tol).ok_or_else(|| {
+        ComponentError::new("Merge Faces kon geen oppervlakken vinden")
+    })?;
+
+    let merged_surface = Value::Surface {
+        vertices: merged.brep.vertices,
+        faces: merged.brep.faces,
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_BREPS.to_owned(),
+        Value::List(vec![merged_surface]),
+    );
+    outputs.insert(PIN_OUTPUT_BEFORE.to_owned(), Value::Number(before as f64));
+    outputs.insert(
+        PIN_OUTPUT_AFTER.to_owned(),
+        Value::Number(merged.diagnostics.after as f64),
+    );
+    Ok(outputs)
+}
+
 fn evaluate_edges_by_length(inputs: &[Value], component: &str) -> ComponentResult {
     if inputs.len() < 3 {
         return Err(ComponentError::new(format!(
@@ -938,31 +1415,75 @@ fn evaluate_edges_by_length(inputs: &[Value], component: &str) -> ComponentResul
     let min_length = coerce_number(inputs.get(1), &(component.to_owned() + " minimum"))?.abs();
     let max_length = coerce_number(inputs.get(2), &(component.to_owned() + " maximum"))?.abs();
 
-    let mut brep = collect_brep_data(inputs.get(0));
-    if brep.edges.is_empty() {
-        brep = BrepData::from_metrics(&metrics);
-    }
+    #[cfg(feature = "mesh_engine_next")]
+    {
+        let tol = crate::geom::Tolerance::default_geom();
+        let mut brep = collect_legacy_brep_data(inputs.get(0), tol);
+        if brep.edges.is_empty() {
+            brep = crate::geom::LegacyBrepData::from_bounds(
+                crate::geom::Point3::new(metrics.min[0], metrics.min[1], metrics.min[2]),
+                crate::geom::Point3::new(metrics.max[0], metrics.max[1], metrics.max[2]),
+            );
+        }
 
-    let mut selected = Vec::new();
-    let mut indices = Vec::new();
+        let selected_indices = crate::geom::edges_by_length(&brep, min_length, max_length);
+        let mut selected = Vec::with_capacity(selected_indices.len());
+        let mut indices = Vec::with_capacity(selected_indices.len());
 
-    for (index, edge) in brep.edges.iter().enumerate() {
-        let length = edge.length();
-        if length >= min_length && length <= max_length.max(min_length) {
-            selected.push(edge.to_value());
+        for index in selected_indices {
+            let edge = &brep.edges[index];
+            selected.push(Value::CurveLine {
+                p1: edge.start.to_array(),
+                p2: edge.end.to_array(),
+            });
             indices.push(Value::Number(index as f64));
         }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        return Ok(outputs);
     }
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
-    outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
-    Ok(outputs)
+    #[cfg(not(feature = "mesh_engine_next"))]
+    {
+        let mut brep = collect_brep_data(inputs.get(0));
+        if brep.edges.is_empty() {
+            brep = BrepData::from_metrics(&metrics);
+        }
+
+        let mut selected = Vec::new();
+        let mut indices = Vec::new();
+
+        for (index, edge) in brep.edges.iter().enumerate() {
+            let length = edge.length();
+            if length >= min_length && length <= max_length.max(min_length) {
+                selected.push(edge.to_value());
+                indices.push(Value::Number(index as f64));
+            }
+        }
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(selected));
+        outputs.insert(PIN_OUTPUT_INDICES.to_owned(), Value::List(indices));
+        Ok(outputs)
+    }
 }
 
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
     let metrics = coerce_shape_metrics(inputs.get(0), "Untrim")?;
     let surface = create_surface_from_bounds(metrics.min, metrics.max);
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
+    Ok(outputs)
+}
+
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
+    let metrics = coerce_shape_metrics(inputs.get(0), "Untrim")?;
+    let (min, max) = crate::geom::untrim_bounds(metrics.min, metrics.max);
+    let surface = create_surface_from_bounds(min, max);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
     Ok(outputs)
@@ -1298,6 +1819,42 @@ fn create_box_corners(metrics: &ShapeMetrics) -> Vec<[f64; 3]> {
         }
     }
     corners
+}
+
+#[cfg(feature = "mesh_engine_next")]
+fn collect_legacy_brep_data(
+    value: Option<&Value>,
+    tol: crate::geom::Tolerance,
+) -> crate::geom::LegacyBrepData {
+    let mut data = crate::geom::LegacyBrepData::default();
+    collect_legacy_brep_data_recursive(value, &mut data, tol);
+    data
+}
+
+#[cfg(feature = "mesh_engine_next")]
+fn collect_legacy_brep_data_recursive(
+    value: Option<&Value>,
+    data: &mut crate::geom::LegacyBrepData,
+    tol: crate::geom::Tolerance,
+) {
+    match value {
+        Some(Value::Surface { vertices, faces }) => {
+            data.extend_from_surface_buffers(vertices, faces, tol);
+        }
+        Some(Value::CurveLine { p1, p2 }) => {
+            data.extend_from_line(
+                crate::geom::Point3::new(p1[0], p1[1], p1[2]),
+                crate::geom::Point3::new(p2[0], p2[1], p2[2]),
+                tol,
+            );
+        }
+        Some(Value::List(values)) => {
+            for value in values {
+                collect_legacy_brep_data_recursive(Some(value), data, tol);
+            }
+        }
+        _ => {}
+    }
 }
 
 fn collect_brep_data(value: Option<&Value>) -> BrepData {

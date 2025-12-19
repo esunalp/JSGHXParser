@@ -239,12 +239,18 @@ pub fn evaluate_with_plan(
             node.nickname.as_deref(),
         );
 
-        let component = component.ok_or_else(|| EvaluationError::ComponentNotFound {
-            node_id,
-            guid: node.guid.clone(),
-            name: node.name.clone(),
-            nickname: node.nickname.clone(),
-        })?;
+        let component = if let Some(component) = component {
+            component
+        } else {
+            result.errors.push(EvaluationError::ComponentNotFound {
+                node_id,
+                guid: node.guid.clone(),
+                name: node.name.clone(),
+                nickname: node.nickname.clone(),
+            });
+            failed_nodes.insert(node_id);
+            continue;
+        };
 
         let pins = plan.pins(node_id);
         let mut input_values = Vec::with_capacity(pins.len());

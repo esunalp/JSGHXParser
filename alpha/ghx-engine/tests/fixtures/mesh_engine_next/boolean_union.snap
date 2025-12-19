@@ -1,0 +1,97 @@
+# ghx-engine golden v1
+op boolean_union
+quantize 1.0e-6
+mesh_diag.vertex_count 16
+mesh_diag.triangle_count 24
+mesh_diag.welded_vertex_count 0
+mesh_diag.flipped_triangle_count 0
+mesh_diag.degenerate_triangle_count 0
+mesh_diag.open_edge_count 0
+mesh_diag.non_manifold_edge_count 0
+mesh_diag.boolean_fallback_used false
+mesh_diag.warning_count 0
+boolean_diag.op Union
+boolean_diag.input_a_vertex_count 8
+boolean_diag.input_a_triangle_count 12
+boolean_diag.input_b_vertex_count 8
+boolean_diag.input_b_triangle_count 12
+boolean_diag.intersection_segment_count 0
+boolean_diag.intersection_point_count 0
+boolean_diag.coplanar_pair_count 0
+boolean_diag.split_triangle_count_a 0
+boolean_diag.split_triangle_count_b 0
+boolean_diag.complex_triangle_count_a 0
+boolean_diag.complex_triangle_count_b 0
+boolean_diag.kept_triangle_count_a 12
+boolean_diag.kept_triangle_count_b 12
+boolean_diag.indeterminate_triangle_count 0
+boolean_diag.tolerance_relaxed false
+boolean_diag.voxel_fallback_used false
+boolean_diag.tolerance_used 0.000000
+boolean_diag.warning_count 0
+mesh.vertex_count 16
+mesh.triangle_count 24
+mesh.has_uvs false
+mesh.has_normals true
+mesh.has_tangents false
+mesh.positions 16
+p -0.500000 -0.500000 0.000000
+p 0.500000 -0.500000 0.000000
+p 0.500000 0.500000 0.000000
+p -0.500000 0.500000 0.000000
+p -0.500000 -0.500000 1.000000
+p 0.500000 -0.500000 1.000000
+p 0.500000 0.500000 1.000000
+p -0.500000 0.500000 1.000000
+p 1.500000 -0.500000 0.000000
+p 2.500000 -0.500000 0.000000
+p 2.500000 0.500000 0.000000
+p 1.500000 0.500000 0.000000
+p 1.500000 -0.500000 1.000000
+p 2.500000 -0.500000 1.000000
+p 2.500000 0.500000 1.000000
+p 1.500000 0.500000 1.000000
+mesh.indices 72
+i 0 1 5
+i 0 5 4
+i 1 2 6
+i 1 6 5
+i 2 3 7
+i 2 7 6
+i 3 0 4
+i 3 4 7
+i 3 1 0
+i 3 2 1
+i 7 4 5
+i 7 5 6
+i 8 9 13
+i 8 13 12
+i 9 10 14
+i 9 14 13
+i 10 11 15
+i 10 15 14
+i 11 8 12
+i 11 12 15
+i 11 9 8
+i 11 10 9
+i 15 12 13
+i 15 13 14
+mesh.uvs none
+mesh.normals 16
+n -0.408248 -0.816497 -0.408248
+n 0.666667 -0.333333 -0.666667
+n 0.408248 0.816497 -0.408248
+n -0.666667 0.333333 -0.666667
+n -0.816497 -0.408248 0.408248
+n 0.333333 -0.666667 0.666667
+n 0.816497 0.408248 0.408248
+n -0.333333 0.666667 0.666667
+n -0.408248 -0.816497 -0.408248
+n 0.666667 -0.333333 -0.666667
+n 0.408248 0.816497 -0.408248
+n -0.666667 0.333333 -0.666667
+n -0.816497 -0.408248 0.408248
+n 0.333333 -0.666667 0.666667
+n 0.816497 0.408248 0.408248
+n -0.333333 0.666667 0.666667
+mesh.tangents none
