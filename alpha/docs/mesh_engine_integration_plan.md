@@ -407,6 +407,13 @@ Cross-cutting component helpers (must be updated before feature components)
 - [ ] `alpha/ghx-engine/src/components/mesh_primitive.rs`: Switch mesh construction outputs to `Value::Mesh` as primary; keep emitting `Value::Surface` legacy outputs where existing pins expect it.
 - [ ] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Switch algorithmic mesh outputs (FacetDome, Voronoi, DelaunayMesh, etc.) to `Value::Mesh` as primary; keep `Value::Surface` legacy adapters if consumers rely on them.
 
+Curve components (switch to geom curves)
+- [ ] `alpha/ghx-engine/src/components/curve_primitive.rs`: Circle/Arc/Line/Polygon/Rectangle/Ellipse -> build `geom::curve` primitives and tessellate via `geom::tessellation`.
+- [ ] `alpha/ghx-engine/src/components/curve_spline.rs`: Nurbs/Bezier/Interpolate/Polyline -> build `geom::curve` splines and tessellate via `geom::tessellation`.
+- [ ] `alpha/ghx-engine/src/components/curve_division.rs`: Divide/Shatter/Contour -> use `geom::curve` splitting and sampling methods.
+- [ ] `alpha/ghx-engine/src/components/curve_analysis.rs`: Evaluate/Length/Curvature/Frames -> use `geom::curve` analysis methods.
+- [ ] `alpha/ghx-engine/src/components/curve_util.rs`: Offset/Fillet/Join/Flip/Extend -> use `geom` operations.
+
 Surface “Freeform” components (wire each feature to `geom`, keep GUIDs/pins)
 - [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Extrude / ExtrudeLinear / ExtrudeAngled / ExtrudePoint / ExtrudeAlong -> call `geom::extrusion::*`; output `Value::Mesh` and (where required) a `Value::Surface` legacy adapter on existing surface pins.
 - [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Loft / FitLoft / ControlPointLoft + LoftOptions -> call `geom::loft::*`; preserve LoftOptions pin parsing and forward to `MeshQuality`/loft options.
