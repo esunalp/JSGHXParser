@@ -116,7 +116,7 @@ fn nurbs_endpoints_and_tangent_continuity() {
 }
 
 #[test]
-fn adaptive_tessellation_respects_caps_and_outputs_finite_points() {
+fn adaptive_tessellation_respects_dynamic_budget_and_outputs_finite_points() {
     let circle = Circle3::new(Point3::new(0.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 1.0), 1.0);
     let opts = CurveTessellationOptions {
         max_deviation: 1e-3,
@@ -126,7 +126,15 @@ fn adaptive_tessellation_respects_caps_and_outputs_finite_points() {
     };
 
     let pts = tessellate_curve_adaptive_points(&circle, opts);
-    assert!(pts.len() <= 64);
+
+    let base_max_segments = opts.max_segments.max(3);
+    let arc_length = std::f64::consts::TAU;
+    let max_curvature = 1.0;
+    let max_chord = 2.0 * (2.0 * opts.max_deviation / max_curvature).sqrt();
+    let required_segments = (arc_length / max_chord).ceil() as usize;
+    let expected_cap = base_max_segments.max(required_segments);
+
+    assert!(pts.len() <= expected_cap);
     assert!(pts.len() >= 3);
     assert_ne!(pts.first().copied(), pts.last().copied());
     assert!(pts.iter().all(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite()));

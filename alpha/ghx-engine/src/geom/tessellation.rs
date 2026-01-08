@@ -33,7 +33,8 @@
 //!
 //! - `max_deviation`: Maximum allowed distance between the tessellated output and the true curve/surface.
 //! - `max_edge_length`: Maximum allowed edge length in world units.
-//! - `max_segments`/`max_u_count`/`max_v_count`: Hard caps to prevent runaway subdivision.
+//! - `max_segments`/`max_u_count`/`max_v_count`: Caps to prevent runaway subdivision
+//!   (curve `max_segments` is treated as a base cap and may be raised for long curves).
 
 use super::core::Point3;
 use super::curve::Curve3;
@@ -82,7 +83,8 @@ pub struct CurveTessellationOptions {
     /// Smaller values produce finer tessellation. If non-finite or <= 0,
     /// uniform tessellation is used instead.
     pub max_deviation: f64,
-    /// Hard cap on the number of output segments.
+    /// Base cap on the number of output segments.
+    /// The adaptive tessellator may raise this for long, high-curvature curves.
     /// The actual output may have fewer segments if the deviation threshold is met.
     pub max_segments: usize,
     /// Maximum recursion depth for adaptive subdivision.
@@ -110,7 +112,7 @@ impl CurveTessellationOptions {
     ///
     /// # Arguments
     /// * `max_deviation` - Maximum chord height deviation from the true curve.
-    /// * `max_segments` - Hard cap on output segment count.
+    /// * `max_segments` - Base cap on output segment count.
     #[must_use]
     pub const fn new(max_deviation: f64, max_segments: usize) -> Self {
         Self {
@@ -126,7 +128,7 @@ impl CurveTessellationOptions {
 ///
 /// This function produces a polyline approximation of the curve where:
 /// - No point deviates more than `max_deviation` from the true curve
-/// - The output respects the `max_segments` cap
+/// - The output respects a segment cap derived from `max_segments` and curve length/curvature
 /// - Closed curves return points without a duplicate endpoint
 ///
 /// # Algorithm
@@ -150,17 +152,17 @@ pub fn tessellate_curve_adaptive_points(
     curve: &impl Curve3,
     options: CurveTessellationOptions,
 ) -> Vec<Point3> {
-    let max_segments = options.max_segments.max(1);
+    let base_max_segments = options.max_segments.max(1);
     let max_deviation = options.max_deviation;
     if !max_deviation.is_finite() || max_deviation <= 0.0 {
-        return super::curve::tessellate_curve_uniform(curve, max_segments);
+        return super::curve::tessellate_curve_uniform(curve, base_max_segments);
     }
 
     let (t0, t1) = curve.domain();
     let span = t1 - t0;
 
     if !span.is_finite() {
-        return super::curve::tessellate_curve_uniform(curve, max_segments);
+        return super::curve::tessellate_curve_uniform(curve, base_max_segments);
     }
 
     if span == 0.0 {
@@ -168,7 +170,12 @@ pub fn tessellate_curve_adaptive_points(
     }
 
     let closed = curve.is_closed();
-    let max_segments = if closed { max_segments.max(3) } else { max_segments };
+    let base_max_segments = if closed {
+        base_max_segments.max(3)
+    } else {
+        base_max_segments
+    };
+    let max_segments = estimate_curve_segment_budget(curve, max_deviation, base_max_segments);
     let max_points_output = if closed { max_segments } else { max_segments + 1 };
     let max_points_internal = if closed {
         max_points_output + 1
@@ -217,6 +224,56 @@ pub fn tessellate_curve_adaptive_points(
     }
 
     points
+}
+
+/// Estimates a segment budget based on arc length and curvature.
+fn estimate_curve_segment_budget(
+    curve: &impl Curve3,
+    max_deviation: f64,
+    base_max_segments: usize,
+) -> usize {
+    let length_samples = (base_max_segments.saturating_mul(4)).clamp(32, 1024);
+    let arc_length = super::curve::curve_arc_length(curve, length_samples);
+    if !arc_length.is_finite() || arc_length <= 0.0 {
+        return base_max_segments;
+    }
+
+    let curvature_samples = (base_max_segments.saturating_mul(2)).clamp(16, 512);
+    let max_curvature = estimate_max_curvature(curve, curvature_samples);
+    if !max_curvature.is_finite() || max_curvature <= 0.0 {
+        return base_max_segments;
+    }
+
+    let max_chord = 2.0 * (2.0 * max_deviation / max_curvature).sqrt();
+    if !max_chord.is_finite() || max_chord <= 0.0 {
+        return base_max_segments;
+    }
+
+    let required_segments = (arc_length / max_chord).ceil() as usize;
+    base_max_segments.max(required_segments)
+}
+
+/// Estimates the maximum curvature by sampling the curve.
+fn estimate_max_curvature(curve: &impl Curve3, samples: usize) -> f64 {
+    let samples = samples.max(1);
+    let (t0, t1) = curve.domain();
+    let span = t1 - t0;
+    if !span.is_finite() || span == 0.0 {
+        return 0.0;
+    }
+
+    let mut max_curvature = 0.0;
+    for i in 0..=samples {
+        let t = t0 + span * (i as f64 / samples as f64);
+        if let Some(curvature) = curve.curvature_at(t) {
+            let curvature = curvature.abs();
+            if curvature.is_finite() && curvature > max_curvature {
+                max_curvature = curvature;
+            }
+        }
+    }
+
+    max_curvature
 }
 
 /// Tessellates a surface into a regular grid of points.
@@ -735,7 +792,8 @@ fn tessellate_curve_segment_adaptive(
             break;
         }
 
-        if seg.depth >= max_depth || points.len() + stack.len() + 1 >= max_points {
+        let point_budget_exhausted = points.len() + stack.len() + 1 >= max_points;
+        if seg.depth >= max_depth || point_budget_exhausted {
             if points.len() < max_points {
                 points.push(seg.p1);
             }
