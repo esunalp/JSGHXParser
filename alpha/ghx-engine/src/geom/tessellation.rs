@@ -176,12 +176,6 @@ pub fn tessellate_curve_adaptive_points(
         base_max_segments
     };
     let max_segments = estimate_curve_segment_budget(curve, max_deviation, base_max_segments);
-    let max_points_output = if closed { max_segments } else { max_segments + 1 };
-    let max_points_internal = if closed {
-        max_points_output + 1
-    } else {
-        max_points_output
-    };
 
     let max_depth = options.max_depth.max(1);
     let initial_segments = if closed {
@@ -192,31 +186,82 @@ pub fn tessellate_curve_adaptive_points(
 
     let initial_params = initial_curve_parameters_arc_length(curve, t0, t1, initial_segments);
 
-    let mut points = Vec::new();
-    points.push(curve.point_at(t0));
-
+    let mut segments: Vec<AdaptiveSegment> = Vec::with_capacity(max_segments);
     for segment_index in 0..initial_segments {
-        let segments_remaining = initial_segments - segment_index;
-        let required_points_remaining = segments_remaining;
-        let max_points_this_segment =
-            max_points_internal.saturating_sub(required_points_remaining.saturating_sub(1));
-
         let a = initial_params[segment_index];
         let b = initial_params[segment_index + 1];
         let pa = curve.point_at(a);
         let pb = curve.point_at(b);
+        let deviation = segment_deviation(curve, a, b, pa, pb, 0);
+        segments.push(AdaptiveSegment {
+            t0: a,
+            t1: b,
+            p0: pa,
+            p1: pb,
+            deviation,
+            depth: 0,
+        });
+    }
 
-        tessellate_curve_segment_adaptive(
-            curve,
-            a,
-            b,
-            pa,
-            pb,
-            max_deviation,
-            max_depth,
-            max_points_this_segment,
-            &mut points,
+    while segments.len() < max_segments {
+        let mut best_index: Option<usize> = None;
+        let mut best_deviation = max_deviation;
+
+        for (index, segment) in segments.iter().enumerate() {
+            if segment.depth >= max_depth {
+                continue;
+            }
+            if !segment.deviation.is_finite() {
+                continue;
+            }
+            if segment.deviation > best_deviation {
+                best_deviation = segment.deviation;
+                best_index = Some(index);
+            }
+        }
+
+        let Some(index) = best_index else {
+            break;
+        };
+
+        let segment = segments[index];
+        let samples = BASE_ARC_LENGTH_SAMPLES
+            .saturating_sub(segment.depth)
+            .max(4);
+        let tm = parameter_at_arc_length_ratio(curve, segment.t0, segment.t1, 0.5, samples);
+        let pm = curve.point_at(tm);
+        let next_depth = segment.depth + 1;
+
+        let left_deviation = segment_deviation(curve, segment.t0, tm, segment.p0, pm, next_depth);
+        let right_deviation = segment_deviation(curve, tm, segment.t1, pm, segment.p1, next_depth);
+
+        segments[index] = AdaptiveSegment {
+            t0: segment.t0,
+            t1: tm,
+            p0: segment.p0,
+            p1: pm,
+            deviation: left_deviation,
+            depth: next_depth,
+        };
+        segments.insert(
+            index + 1,
+            AdaptiveSegment {
+                t0: tm,
+                t1: segment.t1,
+                p0: pm,
+                p1: segment.p1,
+                deviation: right_deviation,
+                depth: next_depth,
+            },
         );
+    }
+
+    let mut points = Vec::with_capacity(segments.len().saturating_add(1));
+    if let Some(first) = segments.first() {
+        points.push(first.p0);
+    }
+    for segment in &segments {
+        points.push(segment.p1);
     }
 
     if closed && points.len() > 1 {
@@ -274,6 +319,43 @@ fn estimate_max_curvature(curve: &impl Curve3, samples: usize) -> f64 {
     }
 
     max_curvature
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AdaptiveSegment {
+    t0: f64,
+    t1: f64,
+    p0: Point3,
+    p1: Point3,
+    deviation: f64,
+    depth: usize,
+}
+
+// Number of samples for arc-length approximation per segment.
+// Higher values give more uniform distribution but cost more evaluations.
+// Use fewer samples at deeper recursion levels since segments are shorter.
+const BASE_ARC_LENGTH_SAMPLES: usize = 8;
+
+fn segment_deviation(
+    curve: &impl Curve3,
+    t0: f64,
+    t1: f64,
+    p0: Point3,
+    p1: Point3,
+    depth: usize,
+) -> f64 {
+    let samples = BASE_ARC_LENGTH_SAMPLES.saturating_sub(depth).max(4);
+    let tm = parameter_at_arc_length_ratio(curve, t0, t1, 0.5, samples);
+    let t25 = parameter_at_arc_length_ratio(curve, t0, t1, 0.25, samples);
+    let t75 = parameter_at_arc_length_ratio(curve, t0, t1, 0.75, samples);
+
+    let pm = curve.point_at(tm);
+    let p25 = curve.point_at(t25);
+    let p75 = curve.point_at(t75);
+
+    distance_point_to_line(pm, p0, p1)
+        .max(distance_point_to_line(p25, p0, p1))
+        .max(distance_point_to_line(p75, p0, p1))
 }
 
 /// Tessellates a surface into a regular grid of points.
@@ -745,95 +827,6 @@ fn parameter_at_arc_length_ratio<C: Curve3>(
         params[idx - 1] + (params[idx] - params[idx - 1]) * local_ratio
     } else {
         params[idx]
-    }
-}
-
-/// Adaptively tessellates a single curve segment.
-///
-/// Uses an explicit stack (iterative) to avoid stack overflow on deep recursion.
-/// Subdivides based on deviation at 25%, 50%, and 75% points within each segment.
-/// Uses arc-length based subdivision for uniform point distribution.
-fn tessellate_curve_segment_adaptive(
-    curve: &impl Curve3,
-    t0: f64,
-    t1: f64,
-    p0: Point3,
-    p1: Point3,
-    max_deviation: f64,
-    max_depth: usize,
-    max_points: usize,
-    points: &mut Vec<Point3>,
-) {
-    #[derive(Debug, Clone, Copy)]
-    struct Segment {
-        t0: f64,
-        t1: f64,
-        p0: Point3,
-        p1: Point3,
-        depth: usize,
-    }
-
-    // Number of samples for arc-length approximation per segment.
-    // Higher values give more uniform distribution but cost more evaluations.
-    // Use fewer samples at deeper recursion levels since segments are shorter.
-    const BASE_ARC_LENGTH_SAMPLES: usize = 8;
-
-    let mut stack = Vec::new();
-    stack.push(Segment {
-        t0,
-        t1,
-        p0,
-        p1,
-        depth: 0,
-    });
-
-    while let Some(seg) = stack.pop() {
-        if points.len() >= max_points {
-            break;
-        }
-
-        let point_budget_exhausted = points.len() + stack.len() + 1 >= max_points;
-        if seg.depth >= max_depth || point_budget_exhausted {
-            if points.len() < max_points {
-                points.push(seg.p1);
-            }
-            continue;
-        }
-
-        // Use arc-length based subdivision for uniform spacing.
-        // Reduce sample count at deeper levels since segments are shorter.
-        let samples = BASE_ARC_LENGTH_SAMPLES.saturating_sub(seg.depth).max(4);
-
-        let tm = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.5, samples);
-        let t25 = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.25, samples);
-        let t75 = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.75, samples);
-
-        let pm = curve.point_at(tm);
-        let p25 = curve.point_at(t25);
-        let p75 = curve.point_at(t75);
-        let deviation = distance_point_to_line(pm, seg.p0, seg.p1)
-            .max(distance_point_to_line(p25, seg.p0, seg.p1))
-            .max(distance_point_to_line(p75, seg.p0, seg.p1));
-
-        if deviation.is_finite() && deviation > max_deviation {
-            let next_depth = seg.depth + 1;
-            stack.push(Segment {
-                t0: tm,
-                t1: seg.t1,
-                p0: pm,
-                p1: seg.p1,
-                depth: next_depth,
-            });
-            stack.push(Segment {
-                t0: seg.t0,
-                t1: tm,
-                p0: seg.p0,
-                p1: pm,
-                depth: next_depth,
-            });
-        } else {
-            points.push(seg.p1);
-        }
     }
 }
 

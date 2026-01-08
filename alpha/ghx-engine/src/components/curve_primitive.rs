@@ -24,7 +24,7 @@ const PIN_OUTPUT_POLYGON: &str = "P";
 const PIN_OUTPUT_ARC: &str = "A";
 
 /// Default maximum deviation for adaptive curve tessellation.
-const DEFAULT_MAX_DEVIATION: f64 = 0.01;
+const DEFAULT_MAX_DEVIATION: f64 = 0.02;
 
 /// Default maximum number of segments for adaptive curve tessellation.
 const DEFAULT_MAX_SEGMENTS: usize = 64;

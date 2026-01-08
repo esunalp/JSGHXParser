@@ -27,7 +27,7 @@ use super::{Component, ComponentError, ComponentResult};
 // ============================================================================
 
 /// Default maximum deviation for adaptive curve tessellation.
-const DEFAULT_MAX_DEVIATION: f64 = 0.01;
+const DEFAULT_MAX_DEVIATION: f64 = 0.02;
 
 /// Default maximum number of segments for adaptive curve tessellation.
 const DEFAULT_MAX_SEGMENTS: usize = 64;
