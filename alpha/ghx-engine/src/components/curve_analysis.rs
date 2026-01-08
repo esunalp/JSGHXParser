@@ -1,7 +1,24 @@
 //! Implementaties van Grasshopper "Curve → Analysis" componenten.
+//!
+//! This module uses the `geom::curve` primitives for curve analysis, evaluation,
+//! curvature, length, and frame computation. Components remain thin wrappers that
+//! coerce inputs, build geom curves, and return the results.
 
 use std::collections::BTreeMap;
 
+use crate::geom::{
+    CurveFrame, Curve3, Polyline3,
+    Point3 as GeomPoint3, Vec3 as GeomVec3,
+    // Curve analysis functions
+    analyze_curvature_at, analyze_polyline_segments,
+    curve_angle_at, curve_arc_length,
+    curve_length_at, curve_parameter_at_length,
+    curve_third_derivative_at, curve_torsion_at,
+    // Frame functions
+    frenet_frame_at, horizontal_frame_at, parallel_frame_at,
+    // Sampling functions
+    sample_curve_at,
+};
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Domain1D, Value};
 
@@ -60,6 +77,67 @@ const PIN_OUTPUT_MIN_PARAMETER: &str = "tMin";
 const PIN_OUTPUT_MIN_DEPTH: &str = "dMin";
 const PIN_OUTPUT_MAX_PARAMETER: &str = "tMax";
 const PIN_OUTPUT_MAX_DEPTH: &str = "dMax";
+
+// ============================================================================
+// Geom type conversion helpers
+// ============================================================================
+
+/// Converts an array [f64; 3] to a geom Point3.
+#[inline]
+fn to_geom_point(p: [f64; 3]) -> GeomPoint3 {
+    GeomPoint3::new(p[0], p[1], p[2])
+}
+
+/// Converts a geom Point3 to an array [f64; 3].
+#[inline]
+fn from_geom_point(p: GeomPoint3) -> [f64; 3] {
+    [p.x, p.y, p.z]
+}
+
+/// Converts a geom Vec3 to an array [f64; 3].
+#[inline]
+fn from_geom_vec(v: GeomVec3) -> [f64; 3] {
+    [v.x, v.y, v.z]
+}
+
+/// Creates a geom Polyline3 from a list of [f64; 3] points.
+fn create_geom_polyline(points: &[[f64; 3]], closed: bool) -> Result<Polyline3, ComponentError> {
+    let geom_points: Vec<GeomPoint3> = points.iter().map(|p| to_geom_point(*p)).collect();
+    Polyline3::new(geom_points, closed)
+        .map_err(|e| ComponentError::new(format!("Failed to create polyline: {}", e)))
+}
+
+/// Converts a CurveFrame to a Value::List representation.
+fn geom_frame_to_value(frame: &CurveFrame) -> Value {
+    Value::List(vec![
+        Value::Point(from_geom_point(frame.origin)),
+        Value::Vector(from_geom_vec(frame.x_axis)),
+        Value::Vector(from_geom_vec(frame.y_axis)),
+        Value::Vector(from_geom_vec(frame.z_axis)),
+    ])
+}
+
+/// Computes the angle (rate of tangent direction change) at a parameter on the curve.
+///
+/// Delegates to `geom::curve::curve_angle_at` for consistent behavior.
+fn compute_curve_angle<C: Curve3>(curve: &C, t: f64) -> f64 {
+    curve_angle_at(curve, t)
+}
+
+/// Computes the arc length from the start of the curve to the given parameter.
+///
+/// Delegates to `geom::curve::curve_length_at` for consistent behavior.
+fn compute_length_along<C: Curve3>(curve: &C, t: f64) -> f64 {
+    curve_length_at(curve, t, DEFAULT_ARC_LENGTH_SAMPLES)
+}
+
+/// Computes the third derivative using the geom module.
+fn compute_third_derivative<C: Curve3>(curve: &C, t: f64) -> GeomVec3 {
+    curve_third_derivative_at(curve, t)
+}
+
+/// Default number of samples for arc-length estimation.
+const DEFAULT_ARC_LENGTH_SAMPLES: usize = 64;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -445,7 +523,9 @@ fn evaluate_end_points(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_curve_domain(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Curve Domain")?;
-    let length = polyline_length(&points);
+    // Use geom curve_arc_length for more accurate length calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
     let domain = create_domain1d(0.0, length);
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -471,28 +551,30 @@ fn evaluate_curve(inputs: &[Value], mode: EvaluateOutput) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Evaluate Curve")?;
     let parameter = coerce_number(inputs.get(1), "Evaluate Curve")?;
-    let evaluation = sample_curve(&points, parameter);
+
+    // Use geom::curve for evaluation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let sample = sample_curve_at(&polyline, parameter);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(evaluation.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(sample.point)));
     outputs.insert(
         PIN_OUTPUT_TANGENT.to_owned(),
-        Value::Vector(evaluation.tangent.unwrap_or([1.0, 0.0, 0.0])),
+        Value::Vector(from_geom_vec(sample.tangent)),
     );
 
     match mode {
         EvaluateOutput::PointTangent => {}
         EvaluateOutput::PointTangentAngle => {
-            outputs.insert(
-                PIN_OUTPUT_ANGLE.to_owned(),
-                Value::Number(evaluation.angle.unwrap_or(0.0)),
-            );
+            // For angle, we compute the angle change at this parameter
+            // by comparing tangents slightly before and after
+            let angle = compute_curve_angle(&polyline, parameter);
+            outputs.insert(PIN_OUTPUT_ANGLE.to_owned(), Value::Number(angle));
         }
         EvaluateOutput::PointTangentLength => {
-            outputs.insert(
-                PIN_OUTPUT_LENGTH.to_owned(),
-                Value::Number(evaluation.length_along),
-            );
+            // For length along, we compute arc length from start to parameter
+            let length_along = compute_length_along(&polyline, parameter);
+            outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length_along));
         }
     }
 
@@ -685,23 +767,17 @@ fn evaluate_frame(inputs: &[Value], context: &str, mode: FrameMode) -> Component
 
     let points = coerce_polyline(inputs.get(0), context)?;
     let parameter = coerce_number(inputs.get(1), context)?;
-    let sample = sample_curve(&points, parameter);
-    let derivative = approximate_derivative(&points, parameter, 1);
-    let tangent = safe_normalized(derivative)
-        .map(|(v, _)| v)
-        .unwrap_or_else(|| sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
 
-    let frame = match mode {
-        FrameMode::Frenet => compute_frenet_frame(&points, parameter, sample.point, tangent),
-        FrameMode::Parallel => compute_parallel_frame(&points, sample.point, tangent),
-        FrameMode::Horizontal => compute_horizontal_frame(sample.point, tangent),
+    // Use geom::curve frame functions
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let geom_frame = match mode {
+        FrameMode::Frenet => frenet_frame_at(&polyline, parameter),
+        FrameMode::Parallel => parallel_frame_at(&polyline, parameter, GeomVec3::Z),
+        FrameMode::Horizontal => horizontal_frame_at(&polyline, parameter),
     };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_FRAME.to_owned(),
-        frame_value(frame.origin, frame.x_axis, frame.y_axis, frame.z_axis),
-    );
+    outputs.insert(PIN_OUTPUT_FRAME.to_owned(), geom_frame_to_value(&geom_frame));
     Ok(outputs)
 }
 
@@ -921,32 +997,18 @@ fn evaluate_curvature(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Curvature")?;
     let parameter = coerce_number(inputs.get(1), "Curvature")?;
-    let sample = sample_curve(&points, parameter);
-    let derivative = approximate_derivative(&points, parameter, 1);
-    let second = approximate_derivative(&points, parameter, 2);
-    let tangent = safe_normalized(derivative)
-        .map(|(v, _)| v)
-        .unwrap_or(sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
-    let mut normal_component = subtract(second, scale(tangent, dot(second, tangent)));
-    if length_squared(normal_component) < EPSILON {
-        normal_component = [0.0, 0.0, 0.0];
-    }
-    let curvature_vector = normal_component;
-    let (normalized_normal, magnitude) =
-        safe_normalized(curvature_vector).unwrap_or(([0.0, 0.0, 0.0], 0.0));
-    let center = if magnitude < EPSILON {
-        sample.point
-    } else {
-        add(sample.point, scale(normalized_normal, 1.0 / magnitude))
-    };
+
+    // Use geom::curve analysis for curvature
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let analysis = analyze_curvature_at(&polyline, parameter);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(analysis.point)));
     outputs.insert(
         PIN_OUTPUT_CURVATURE_VECTOR.to_owned(),
-        Value::Vector(curvature_vector),
+        Value::Vector(from_geom_vec(analysis.curvature_vector)),
     );
-    outputs.insert(PIN_OUTPUT_CURVATURE_CENTER.to_owned(), Value::Point(center));
+    outputs.insert(PIN_OUTPUT_CURVATURE_CENTER.to_owned(), Value::Point(from_geom_point(analysis.center)));
     Ok(outputs)
 }
 
@@ -959,14 +1021,17 @@ fn evaluate_derivatives_first(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Derivatives")?;
     let parameter = coerce_number(inputs.get(1), "Derivatives")?;
-    let sample = sample_curve(&points, parameter);
-    let derivative = approximate_derivative(&points, parameter, 1);
+
+    // Use geom::curve for derivative calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let point = polyline.point_at(parameter);
+    let derivative = polyline.derivative_at(parameter);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(point)));
     outputs.insert(
         PIN_OUTPUT_FIRST_DERIVATIVE.to_owned(),
-        Value::Vector(derivative),
+        Value::Vector(from_geom_vec(derivative)),
     );
     Ok(outputs)
 }
@@ -986,9 +1051,12 @@ fn evaluate_curve_side(inputs: &[Value]) -> ComponentResult {
         .unwrap_or_else(|| plane_from_polyline(&curve));
 
     let closest = closest_point_on_polyline(point, &curve);
-    let tangent = sample_curve(&curve, closest.parameter)
-        .tangent
-        .unwrap_or([1.0, 0.0, 0.0]);
+
+    // Use geom::curve for tangent at closest point
+    let polyline = create_geom_polyline(&curve, is_closed(&curve))?;
+    let geom_tangent = polyline.tangent_at(closest.parameter).unwrap_or(GeomVec3::X);
+    let tangent = from_geom_vec(geom_tangent);
+
     let to_point = subtract(point, closest.point);
     let sign = dot(cross(tangent, to_point), plane.normal);
     let side = if sign > 1e-6 {
@@ -1049,17 +1117,26 @@ fn evaluate_derivatives_list(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(1.0)
         .round()
         .clamp(1.0, 3.0) as usize;
-    let sample = sample_curve(&points, parameter);
+
+    // Use geom::curve for derivative calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let point = polyline.point_at(parameter);
 
     let mut derivatives = Vec::with_capacity(count);
-    for order in 1..=count {
-        derivatives.push(Value::Vector(approximate_derivative(
-            &points, parameter, order,
-        )));
+    // Order 1: first derivative
+    derivatives.push(Value::Vector(from_geom_vec(polyline.derivative_at(parameter))));
+    // Order 2: second derivative
+    if count >= 2 {
+        derivatives.push(Value::Vector(from_geom_vec(polyline.second_derivative_at(parameter))));
+    }
+    // Order 3: third derivative (computed numerically via finite differences on second derivative)
+    if count >= 3 {
+        let third = compute_third_derivative(&polyline, parameter);
+        derivatives.push(Value::Vector(from_geom_vec(third)));
     }
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(point)));
     outputs.insert(PIN_OUTPUT_DERIVATIVES.to_owned(), Value::List(derivatives));
     Ok(outputs)
 }
@@ -1099,20 +1176,14 @@ fn evaluate_torsion(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Torsion")?;
     let parameter = coerce_number(inputs.get(1), "Torsion")?;
-    let sample = sample_curve(&points, parameter);
-    let first = approximate_derivative(&points, parameter, 1);
-    let second = approximate_derivative(&points, parameter, 2);
-    let third = approximate_derivative(&points, parameter, 3);
-    let cross12 = cross(first, second);
-    let denominator = length_squared(cross12);
-    let torsion = if denominator < EPSILON {
-        0.0
-    } else {
-        dot(cross12, third) / denominator
-    };
+
+    // Use geom::curve analysis for torsion calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let point = polyline.point_at(parameter);
+    let torsion = curve_torsion_at(&polyline, parameter);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(sample.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(point)));
     outputs.insert(PIN_OUTPUT_TORSION.to_owned(), Value::Number(torsion));
     Ok(outputs)
 }
@@ -1260,80 +1331,10 @@ enum FrameMode {
     Horizontal,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct FrameData {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
-}
-
-fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
-    Value::List(vec![
-        Value::Point(origin),
-        Value::Vector(x_axis),
-        Value::Vector(y_axis),
-        Value::Vector(z_axis),
-    ])
-}
-
-fn compute_frenet_frame(
-    points: &[[f64; 3]],
-    parameter: f64,
-    origin: [f64; 3],
-    tangent: [f64; 3],
-) -> FrameData {
-    let second = approximate_derivative(points, parameter, 2);
-    let mut normal = subtract(second, scale(tangent, dot(second, tangent)));
-    if length_squared(normal) < EPSILON {
-        normal = [0.0, 0.0, 0.0];
-    }
-    let normal = safe_normalized(normal)
-        .map(|(v, _)| v)
-        .unwrap_or_else(|| orthogonal_vector(tangent));
-    let binormal = normalize(cross(tangent, normal));
-    let normal = normalize(cross(binormal, tangent));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
-
-fn compute_parallel_frame(points: &[[f64; 3]], origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
-    let plane = plane_from_polyline(points);
-    let mut binormal = plane.normal;
-    if length_squared(binormal) < EPSILON || length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [0.0, 0.0, 1.0];
-    }
-    if length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [1.0, 0.0, 0.0];
-    }
-    let normal = normalize(cross(binormal, tangent));
-    let binormal = normalize(cross(tangent, normal));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
-
-fn compute_horizontal_frame(origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
-    let mut binormal = [0.0, 0.0, 1.0];
-    if length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [1.0, 0.0, 0.0];
-    }
-    let normal = normalize(cross(binormal, tangent));
-    let binormal = normalize(cross(tangent, normal));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
+// Note: FrameData, frame_value, compute_frenet_frame, compute_parallel_frame,
+// and compute_horizontal_frame have been replaced by geom::curve frame functions.
+// The evaluate_frame function now uses frenet_frame_at, parallel_frame_at, and
+// horizontal_frame_at from the geom module directly.
 
 #[derive(Debug, Clone, Copy)]
 struct PlaneBasis {
@@ -1432,41 +1433,8 @@ fn consider_depth_point(
     }
 }
 
-fn approximate_derivative(points: &[[f64; 3]], parameter: f64, order: usize) -> [f64; 3] {
-    let h = 1.0 / (points.len().max(8) as f64 * 4.0);
-    match order {
-        1 => {
-            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            scale(subtract(forward, backward), 0.5 / h)
-        }
-        2 => {
-            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            let center = sample_curve(points, parameter).point;
-            add(
-                scale(add(forward, backward), 1.0 / (h * h)),
-                scale(center, -2.0 / (h * h)),
-            )
-        }
-        _ => {
-            let forward = sample_curve(points, clamp(parameter + 2.0 * h, 0.0, 1.0)).point;
-            let forward_mid = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward_mid = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - 2.0 * h, 0.0, 1.0)).point;
-            add(
-                scale(
-                    add(forward, scale(forward_mid, -3.0)),
-                    1.0 / (2.0 * h * h * h),
-                ),
-                scale(
-                    add(scale(backward_mid, 3.0), scale(backward, -1.0)),
-                    1.0 / (2.0 * h * h * h),
-                ),
-            )
-        }
-    }
-}
+// Note: approximate_derivative has been replaced by geom::curve::curve_third_derivative_at
+// and direct calls to the Curve3 trait methods (derivative_at, second_derivative_at).
 
 fn copy_domain1d(domain: &Domain1D) -> Domain1D {
     Domain1D {
@@ -1607,26 +1575,28 @@ fn evaluate_length(inputs: &[Value]) -> ComponentResult {
         .map(|value| matches!(value, Value::Boolean(true)))
         .unwrap_or(false);
 
-    let total_length = polyline_length(&points);
-    let factor = if normalized || total_length < EPSILON {
-        clamp(length_input, 0.0, 1.0)
+    // Use geom::curve analysis for length-based evaluation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let total_length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
+
+    // Convert length input to target arc length
+    let target_length = if normalized {
+        length_input.clamp(0.0, 1.0) * total_length
     } else {
-        if total_length < EPSILON {
-            0.0
-        } else {
-            clamp(length_input / total_length, 0.0, 1.0)
-        }
+        length_input.clamp(0.0, total_length)
     };
 
-    let evaluation = sample_curve(&points, factor);
+    // Find parameter at target length using geom
+    let parameter = curve_parameter_at_length(&polyline, target_length, DEFAULT_ARC_LENGTH_SAMPLES);
+    let sample = sample_curve_at(&polyline, parameter);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(evaluation.point));
+    outputs.insert(PIN_OUTPUT_POINT.to_owned(), Value::Point(from_geom_point(sample.point)));
     outputs.insert(
         PIN_OUTPUT_TANGENT.to_owned(),
-        Value::Vector(evaluation.tangent.unwrap_or([1.0, 0.0, 0.0])),
+        Value::Vector(from_geom_vec(sample.tangent)),
     );
-    outputs.insert(PIN_OUTPUT_PARAMETER.to_owned(), Value::Number(factor));
+    outputs.insert(PIN_OUTPUT_PARAMETER.to_owned(), Value::Number(parameter));
     Ok(outputs)
 }
 
@@ -1639,24 +1609,31 @@ fn evaluate_length_parameter(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Length Parameter")?;
     let parameter = coerce_number(inputs.get(1), "Length Parameter")?;
-    let evaluation = sample_curve(&points, parameter);
-    let total_length = polyline_length(&points);
+
+    // Use geom::curve for length calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let total_length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
+    let length_along = compute_length_along(&polyline, parameter);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_LENGTH_MINUS.to_owned(),
-        Value::Number(evaluation.length_along),
+        Value::Number(length_along),
     );
     outputs.insert(
         PIN_OUTPUT_LENGTH_PLUS.to_owned(),
-        Value::Number((total_length - evaluation.length_along).max(0.0)),
+        Value::Number((total_length - length_along).max(0.0)),
     );
     Ok(outputs)
 }
 
 fn evaluate_curve_length(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Curve Length")?;
-    let length = polyline_length(&points);
+
+    // Use geom::curve for accurate arc length calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
+
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_LENGTH.to_owned(), Value::Number(length));
     Ok(outputs)
@@ -1664,53 +1641,51 @@ fn evaluate_curve_length(inputs: &[Value]) -> ComponentResult {
 
 fn evaluate_curve_middle(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Curve Middle")?;
-    let evaluation = sample_curve(&points, 0.5);
+
+    // Use geom::curve for midpoint sampling
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let sample = sample_curve_at(&polyline, 0.5);
+
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_MIDPOINT.to_owned(),
-        Value::Point(evaluation.point),
+        Value::Point(from_geom_point(sample.point)),
     );
     Ok(outputs)
 }
 
 fn evaluate_segment_lengths(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Segment Lengths")?;
-    let segments = polyline_segments(&points);
-    if segments.is_empty() {
+
+    // Use geom::curve analysis for segment length calculation
+    let polyline = create_geom_polyline(&points, is_closed(&points))?;
+    let analysis = analyze_polyline_segments(&polyline);
+
+    if analysis.lengths.is_empty() {
         return Err(ComponentError::new(
             "Segment Lengths vereist minstens één segment",
         ));
     }
 
-    let mut shortest = None;
-    let mut longest = None;
-    for (index, segment) in segments.iter().enumerate() {
-        let length = segment.length;
-        let domain = create_domain1d(
-            index as f64 / segments.len() as f64,
-            (index + 1) as f64 / segments.len() as f64,
-        );
-        match shortest {
-            None => shortest = Some((length, domain.clone())),
-            Some((current, _)) if length < current => shortest = Some((length, domain.clone())),
-            _ => {}
-        }
-        match longest {
-            None => longest = Some((length, domain)),
-            Some((current, _)) if length > current => longest = Some((length, domain)),
-            _ => {}
-        }
-    }
+    let num_segments = analysis.lengths.len();
 
     let mut outputs = BTreeMap::new();
-    if let Some((length, domain)) = shortest {
+    if let Some((idx, length)) = analysis.shortest {
+        let domain = create_domain1d(
+            idx as f64 / num_segments as f64,
+            (idx + 1) as f64 / num_segments as f64,
+        );
         outputs.insert(PIN_OUTPUT_SHORTEST_LENGTH.to_owned(), Value::Number(length));
         outputs.insert(
             PIN_OUTPUT_SHORTEST_DOMAIN.to_owned(),
             Value::Domain(Domain::One(domain)),
         );
     }
-    if let Some((length, domain)) = longest {
+    if let Some((idx, length)) = analysis.longest {
+        let domain = create_domain1d(
+            idx as f64 / num_segments as f64,
+            (idx + 1) as f64 / num_segments as f64,
+        );
         outputs.insert(PIN_OUTPUT_LONGEST_LENGTH.to_owned(), Value::Number(length));
         outputs.insert(
             PIN_OUTPUT_LONGEST_DOMAIN.to_owned(),
@@ -1781,78 +1756,12 @@ fn evaluate_point_in_curve(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-// Helper struct voor evaluate_curve
-struct CurveSample {
-    point: [f64; 3],
-    tangent: Option<[f64; 3]>,
-    length_along: f64,
-    angle: Option<f64>,
-}
-
-fn sample_curve(points: &[[f64; 3]], parameter: f64) -> CurveSample {
-    let clamped = clamp(parameter, 0.0, 1.0);
-    let (point, tangent, length_along) = sample_curve_basic(points, clamped);
-    let angle = if points.len() < 3 {
-        Some(0.0)
-    } else {
-        Some(curve_angle(points, clamped))
-    };
-
-    CurveSample {
-        point,
-        tangent,
-        length_along,
-        angle,
-    }
-}
-
-fn curve_angle(points: &[[f64; 3]], parameter: f64) -> f64 {
-    let dt = 1.0 / (points.len().max(2) as f64 * 8.0);
-    let before = clamp(parameter - dt, 0.0, 1.0);
-    let after = clamp(parameter + dt, 0.0, 1.0);
-    let before_tangent = sample_curve_basic(points, before)
-        .1
-        .unwrap_or([1.0, 0.0, 0.0]);
-    let after_tangent = sample_curve_basic(points, after)
-        .1
-        .unwrap_or([1.0, 0.0, 0.0]);
-    let dot_value = clamp(dot(before_tangent, after_tangent), -1.0, 1.0);
-    dot_value.acos()
-}
-
-fn sample_curve_basic(points: &[[f64; 3]], parameter: f64) -> ([f64; 3], Option<[f64; 3]>, f64) {
-    let segments = polyline_segments(points);
-    if segments.is_empty() {
-        return (points.get(0).copied().unwrap_or([0.0, 0.0, 0.0]), None, 0.0);
-    }
-
-    let total_length: f64 = segments.iter().map(|segment| segment.length).sum();
-    if total_length < EPSILON {
-        let tangent = safe_normalized(subtract(segments[0].end, segments[0].start)).map(|(v, _)| v);
-        return (segments[0].start, tangent, 0.0);
-    }
-
-    let target = parameter * total_length;
-    let mut accumulated = 0.0;
-    for segment in &segments {
-        if accumulated + segment.length >= target {
-            let remaining = target - accumulated;
-            let factor = if segment.length < EPSILON {
-                0.0
-            } else {
-                remaining / segment.length
-            };
-            let point = lerp(segment.start, segment.end, factor);
-            let tangent = safe_normalized(subtract(segment.end, segment.start)).map(|(v, _)| v);
-            return (point, tangent, target);
-        }
-        accumulated += segment.length;
-    }
-
-    let last = segments.last().unwrap();
-    let tangent = safe_normalized(subtract(last.end, last.start)).map(|(v, _)| v);
-    (last.end, tangent, total_length)
-}
+// Note: The old CurveSample struct, sample_curve, curve_angle, and sample_curve_basic
+// functions have been replaced by geom::curve functions:
+// - sample_curve_at for point/tangent sampling
+// - curve_angle_at for angle computation
+// - curve_length_at for arc length computation
+// These geom functions provide more accurate results and work with any Curve3 implementation.
 
 // Structen voor segmentberekeningen
 struct PolylineSegment {
@@ -2437,8 +2346,4 @@ fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     } else {
         Some((scale(vector, 1.0 / length), length))
     }
-}
-
-fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
-    add(a, scale(subtract(b, a), t))
 }

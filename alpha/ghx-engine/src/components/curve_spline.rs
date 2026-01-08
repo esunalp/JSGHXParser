@@ -1,11 +1,107 @@
 //! Implementaties van Grasshopper "Curve → Spline" componenten.
+//!
+//! This module uses the `geom::curve` primitives for spline curve construction and
+//! `geom::tessellation` for adaptive tessellation. Components remain thin
+//! wrappers that coerce inputs, build geom curves, and return tessellated output.
+//!
+//! # Curve Types
+//!
+//! - **NURBS Curve**: Uses `geom::NurbsCurve3` for B-spline/NURBS representation
+//! - **Bezier Span**: Uses `geom::CubicBezier3` for cubic Bezier curves
+//! - **Polyline**: Uses `geom::Polyline3` for polyline representation
+//! - **Interpolate**: Uses `geom::NurbsCurve3::interpolate_through_points()` for interpolating curves
 
 use std::collections::BTreeMap;
 
+use crate::geom::{
+    CubicBezier3, CurveTessellationOptions, Curve3, NurbsCurve3, Point3 as GeomPoint3,
+    Polyline3, Vec3 as GeomVec3, tessellate_curve_adaptive_points,
+};
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Domain1D, Value};
 
 use super::{Component, ComponentError, ComponentResult};
+
+// ============================================================================
+// Constants for tessellation
+// ============================================================================
+
+/// Default maximum deviation for adaptive curve tessellation.
+const DEFAULT_MAX_DEVIATION: f64 = 0.01;
+
+/// Default maximum number of segments for adaptive curve tessellation.
+const DEFAULT_MAX_SEGMENTS: usize = 64;
+
+// ============================================================================
+// Helper functions for conversion between [f64; 3] and geom types
+// ============================================================================
+
+/// Converts an array [f64; 3] to a geom Point3.
+#[inline]
+fn to_geom_point(p: [f64; 3]) -> GeomPoint3 {
+    GeomPoint3::new(p[0], p[1], p[2])
+}
+
+/// Converts a geom Point3 to an array [f64; 3].
+#[inline]
+fn from_geom_point(p: GeomPoint3) -> [f64; 3] {
+    [p.x, p.y, p.z]
+}
+
+/// Converts an array [f64; 3] to a geom Vec3.
+#[inline]
+#[allow(dead_code)]
+fn to_geom_vec(v: [f64; 3]) -> GeomVec3 {
+    GeomVec3::new(v[0], v[1], v[2])
+}
+
+/// Tessellates a curve using the geom adaptive tessellator and returns points as arrays.
+fn tessellate_curve_to_points<C: Curve3>(
+    curve: &C,
+    max_deviation: f64,
+    max_segments: usize,
+) -> Vec<[f64; 3]> {
+    let options = CurveTessellationOptions::new(max_deviation, max_segments);
+    let geom_points = tessellate_curve_adaptive_points(curve, options);
+    geom_points.into_iter().map(from_geom_point).collect()
+}
+
+/// Creates default tessellation options for curve primitives.
+#[inline]
+fn default_curve_tessellation_options() -> (f64, usize) {
+    (DEFAULT_MAX_DEVIATION, DEFAULT_MAX_SEGMENTS)
+}
+
+/// Generates a uniform knot vector for a B-spline.
+///
+/// For a B-spline of degree `degree` with `n` control points,
+/// the knot vector has `n + degree + 1` elements.
+/// This generates a clamped (open) uniform knot vector.
+fn generate_uniform_knots(num_points: usize, degree: usize) -> Vec<f64> {
+    let n = num_points;
+    let k = n + degree + 1;
+    let mut knots = Vec::with_capacity(k);
+
+    // Clamped knot vector: repeated values at start and end
+    for _i in 0..=degree {
+        knots.push(0.0);
+    }
+
+    // Interior uniform knots
+    let interior_knots = n - degree;
+    if interior_knots > 1 {
+        for i in 1..interior_knots {
+            knots.push(i as f64 / interior_knots as f64);
+        }
+    }
+
+    // Clamped end
+    for _i in 0..=degree {
+        knots.push(1.0);
+    }
+
+    knots
+}
 
 const PIN_OUTPUT_CURVE: &str = "C";
 const PIN_OUTPUT_CURVE_A: &str = "A";
@@ -332,6 +428,21 @@ fn evaluate_blend_curve_point(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the NURBS Curve / Nurbs Curve PWK component.
+///
+/// Creates a B-spline curve through control points using `geom::NurbsCurve3`.
+/// The curve is tessellated adaptively based on curvature.
+///
+/// # Inputs
+/// - `inputs[0]`: Control points list
+/// - `inputs[1]`: (Optional) Degree (defaults to 3 for cubic, clamped to valid range)
+/// - `inputs[2]`: (Optional) Closed flag (defaults to false)
+/// - `inputs[3]`: (Optional) Weights list (for rational NURBS)
+///
+/// # Outputs
+/// - `C`: Curve as a list of points (tessellated polyline)
+/// - `L`: Length of the curve
+/// - `D`: Domain of the curve
 fn evaluate_nurbs(inputs: &[Value], context: &str) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new(format!(
@@ -348,8 +459,97 @@ fn evaluate_nurbs(inputs: &[Value], context: &str) -> ComponentResult {
         )));
     }
 
-    let refined = chaikin_refine(&points, 3, false);
-    build_curve_outputs(refined, 0.0, 1.0)
+    // Parse optional degree (default 3 = cubic, must be >= 1 and < num_points)
+    let requested_degree = inputs
+        .get(1)
+        .and_then(|v| v.expect_number().ok())
+        .map(|d| d as usize)
+        .unwrap_or(3);
+
+    // Clamp degree to valid range
+    let max_degree = points.len() - 1;
+    let degree = requested_degree.clamp(1, max_degree);
+
+    // Parse optional closed flag
+    let closed = inputs
+        .get(2)
+        .and_then(|v| v.expect_boolean().ok())
+        .unwrap_or(false);
+
+    // Parse optional weights
+    let weights: Option<Vec<f64>> = inputs.get(3).and_then(|v| {
+        if let Value::List(list) = v {
+            let w: Result<Vec<f64>, _> = list
+                .iter()
+                .map(|val| val.expect_number())
+                .collect();
+            w.ok().filter(|ws| ws.len() == points.len())
+        } else if let Ok(single) = v.expect_number() {
+            // Single weight broadcasts to all points
+            Some(vec![single; points.len()])
+        } else {
+            None
+        }
+    });
+
+    // Convert points to geom types
+    let geom_points: Vec<GeomPoint3> = points.iter().map(|p| to_geom_point(*p)).collect();
+
+    // Handle closed curves by wrapping control points
+    let (final_points, final_weights) = if closed {
+        // For a closed B-spline, we wrap the first `degree` control points
+        let mut wrapped = geom_points.clone();
+        for i in 0..degree {
+            wrapped.push(geom_points[i]);
+        }
+        let wrapped_weights = weights.map(|w| {
+            let mut ww = w.clone();
+            for i in 0..degree {
+                ww.push(w[i]);
+            }
+            ww
+        });
+        (wrapped, wrapped_weights)
+    } else {
+        (geom_points, weights)
+    };
+
+    // Generate clamped uniform knot vector
+    let knots = generate_uniform_knots(final_points.len(), degree);
+
+    // Build the NURBS curve
+    let nurbs_result = NurbsCurve3::new(
+        degree,
+        final_points,
+        knots,
+        final_weights,
+    );
+
+    let tessellated_points = match nurbs_result {
+        Ok(nurbs) => {
+            let (max_deviation, max_segments) = default_curve_tessellation_options();
+            tessellate_curve_to_points(&nurbs, max_deviation, max_segments)
+        }
+        Err(_) => {
+            // Fallback: return the original control points as a simple polyline
+            points.clone()
+        }
+    };
+
+    // For closed curves, ensure the output closes properly
+    let final_output = if closed && !tessellated_points.is_empty() {
+        let mut result = tessellated_points;
+        if let Some(first) = result.first().copied() {
+            if result.last() != Some(&first) {
+                result.push(first);
+            }
+        }
+        result
+    } else {
+        tessellated_points
+    };
+
+    build_curve_outputs(final_output, 0.0, 1.0)
 }
 
 fn evaluate_iso_curve(inputs: &[Value]) -> ComponentResult {
@@ -473,6 +673,21 @@ fn evaluate_match_curve(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the Interpolate component.
+///
+/// Creates a smooth curve that interpolates exactly through the given points using
+/// `geom::NurbsCurve3::interpolate_through_points()`. The curve is tessellated
+/// adaptively based on curvature.
+///
+/// # Inputs
+/// - `inputs[0]`: Control points list (the curve passes through these)
+/// - `inputs[1]`: (Optional) Degree (1=linear, 2=quadratic, 3=cubic; defaults to 3)
+/// - `inputs[2]`: (Optional) Closed flag (defaults to false)
+///
+/// # Outputs
+/// - `C`: Curve as a list of points (tessellated polyline)
+/// - `L`: Length of the curve
+/// - `D`: Domain of the curve
 fn evaluate_interpolate(inputs: &[Value], domain_override: Option<(f64, f64)>) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Interpolate vereist een puntenlijst"));
@@ -485,11 +700,68 @@ fn evaluate_interpolate(inputs: &[Value], domain_override: Option<(f64, f64)>) -
         ));
     }
 
-    let refined = chaikin_refine(&points, 2, false);
+    // Parse optional degree (default 3 = cubic, must be >= 1)
+    let requested_degree = inputs
+        .get(1)
+        .and_then(|v| v.expect_number().ok())
+        .map(|d| (d as usize).max(1))
+        .unwrap_or(3);
+
+    let closed = inputs
+        .get(2)
+        .and_then(|v| v.expect_boolean().ok())
+        .unwrap_or(false);
+
+    // Convert points to geom types
+    let geom_points: Vec<GeomPoint3> = points.iter().map(|p| to_geom_point(*p)).collect();
+
+    // Build the interpolating NURBS curve using geom
+    let nurbs_result = NurbsCurve3::interpolate_through_points(&geom_points, requested_degree, closed);
+
+    let tessellated_points = match nurbs_result {
+        Ok(nurbs) => {
+            // Use adaptive tessellation for smooth output
+            let (max_deviation, max_segments) = default_curve_tessellation_options();
+            tessellate_curve_to_points(&nurbs, max_deviation, max_segments)
+        }
+        Err(_) => {
+            // Fallback: return the original points as a simple polyline
+            points.clone()
+        }
+    };
+
+    // For closed curves, ensure the output closes properly
+    let final_result = if closed && !tessellated_points.is_empty() {
+        let mut result = tessellated_points;
+        if let Some(first) = result.first().copied() {
+            if result.last() != Some(&first) {
+                result.push(first);
+            }
+        }
+        result
+    } else {
+        tessellated_points
+    };
+
     let (start, end) = domain_override.unwrap_or((0.0, 1.0));
-    build_curve_outputs(refined, start, end)
+    build_curve_outputs(final_result, start, end)
 }
 
+/// Evaluates the Bezier Span component.
+///
+/// Creates a cubic Bezier curve from start and end points with tangent vectors
+/// using `geom::CubicBezier3`. The curve is tessellated adaptively.
+///
+/// # Inputs
+/// - `inputs[0]`: Start point
+/// - `inputs[1]`: Start tangent vector
+/// - `inputs[2]`: End point
+/// - `inputs[3]`: End tangent vector
+///
+/// # Outputs
+/// - `C`: Curve as a list of points (tessellated polyline)
+/// - `L`: Length of the curve
+/// - `D`: Domain of the curve
 fn evaluate_bezier_span(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 4 {
         return Err(ComponentError::new(
@@ -502,15 +774,24 @@ fn evaluate_bezier_span(inputs: &[Value]) -> ComponentResult {
     let end = coerce_point(inputs.get(2), "Bezier Span")?;
     let tangent_end = coerce_vector(inputs.get(3), "Bezier Span Bt")?;
 
+    // Convert tangent vectors to control points.
+    // For a cubic Bezier curve with endpoint tangents:
+    // P1 = P0 + (tangent_start / 3)
+    // P2 = P3 - (tangent_end / 3)
     let control1 = add_vector(start, scale_vector(tangent_start, 1.0 / 3.0));
     let control2 = subtract(end, scale_vector(tangent_end, 1.0 / 3.0));
 
-    let mut samples = Vec::new();
-    for i in 0..=16 {
-        let t = i as f64 / 16.0;
-        let point = cubic_bezier(start, control1, control2, end, t);
-        samples.push(point);
-    }
+    // Build geom::CubicBezier3
+    let bezier = CubicBezier3::new(
+        to_geom_point(start),
+        to_geom_point(control1),
+        to_geom_point(control2),
+        to_geom_point(end),
+    );
+
+    // Tessellate adaptively
+    let (max_deviation, max_segments) = default_curve_tessellation_options();
+    let samples = tessellate_curve_to_points(&bezier, max_deviation, max_segments);
 
     build_curve_outputs(samples, 0.0, 1.0)
 }
@@ -618,6 +899,18 @@ fn evaluate_blend_curve(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the Kinky Curve component.
+///
+/// Creates a smoothed curve through control points using a single Chaikin refinement
+/// iteration. The result is a "kinky" curve that loosely follows the control polygon.
+///
+/// # Inputs
+/// - `inputs[0]`: Control points list
+///
+/// # Outputs
+/// - `C`: Curve as a list of points (refined polyline)
+/// - `L`: Length of the curve
+/// - `D`: Domain of the curve
 fn evaluate_kinky_curve(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Kinky Curve vereist punten"));
@@ -630,6 +923,8 @@ fn evaluate_kinky_curve(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
+    // Use a single Chaikin refinement for the "kinky" smoothing effect.
+    // This is intentionally different from full B-spline subdivision.
     let refined = chaikin_refine(&points, 1, false);
     build_curve_outputs(refined, 0.0, 1.0)
 }
@@ -653,23 +948,72 @@ fn evaluate_poly_arc(inputs: &[Value], context: &str) -> ComponentResult {
     build_curve_outputs(points, 0.0, 1.0)
 }
 
+/// Evaluates the Polyline component.
+///
+/// Creates a polyline through the given points using `geom::Polyline3`.
+/// Optionally closes the polyline by connecting the last point to the first.
+///
+/// # Inputs
+/// - `inputs[0]`: Points list
+/// - `inputs[1]`: (Optional) Closed flag (defaults to false)
+///
+/// # Outputs
+/// - `C`: Curve as a list of points
+/// - `L`: Length of the curve
+/// - `D`: Domain of the curve
 fn evaluate_polyline(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("PolyLine vereist een puntenlijst"));
     }
 
-    let mut points = coerce_point_list(inputs.get(0), "PolyLine")?;
+    let points = coerce_point_list(inputs.get(0), "PolyLine")?;
+    if points.len() < 2 {
+        return Err(ComponentError::new("PolyLine vereist minstens twee punten"));
+    }
+
     let closed = inputs
         .get(1)
         .and_then(|value| value.expect_boolean().ok())
         .unwrap_or(false);
-    if closed && points.first() != points.last() {
-        if let Some(first) = points.first().copied() {
-            points.push(first);
+
+    // Build geom::Polyline3 for validation and proper arc-length parameterization.
+    // IMPORTANT: We preserve the original input points exactly - polylines should NOT
+    // be resampled via adaptive tessellation, as that would remove/shift vertices and
+    // change the curve shape (behavioral regression).
+    let geom_points: Vec<GeomPoint3> = points.iter().map(|p| to_geom_point(*p)).collect();
+    match Polyline3::new(geom_points, closed) {
+        Ok(polyline) => {
+            // Use the original points directly from the polyline (preserves input vertices exactly).
+            // For closed polylines, Polyline3::new removes any duplicate closing point,
+            // so we need to add it back for the output representation.
+            let mut output_points: Vec<[f64; 3]> =
+                polyline.points().iter().map(|p| from_geom_point(*p)).collect();
+
+            // For closed polylines, add the closing point (first point repeated at end)
+            if closed && !output_points.is_empty() {
+                if let Some(first) = output_points.first().copied() {
+                    // Only add if not already closed (should always be true after Polyline3::new)
+                    if output_points.last() != Some(&first) {
+                        output_points.push(first);
+                    }
+                }
+            }
+
+            build_curve_outputs(output_points, 0.0, 1.0)
+        }
+        Err(_) => {
+            // Fallback: return raw points if geom construction fails
+            let mut output_points = points;
+            if closed {
+                if let Some(first) = output_points.first().copied() {
+                    if output_points.last() != Some(&first) {
+                        output_points.push(first);
+                    }
+                }
+            }
+            build_curve_outputs(output_points, 0.0, 1.0)
         }
     }
-
-    build_curve_outputs(points, 0.0, 1.0)
 }
 
 fn evaluate_knot_vector(inputs: &[Value]) -> ComponentResult {
@@ -1172,6 +1516,7 @@ fn scale_vector(vector: [f64; 3], scale: f64) -> [f64; 3] {
     [vector[0] * scale, vector[1] * scale, vector[2] * scale]
 }
 
+#[allow(dead_code)]
 fn cubic_bezier(p0: [f64; 3], p1: [f64; 3], p2: [f64; 3], p3: [f64; 3], t: f64) -> [f64; 3] {
     let u = 1.0 - t;
     let tt = t * t;

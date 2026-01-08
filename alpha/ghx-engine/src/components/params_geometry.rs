@@ -174,8 +174,40 @@ macro_rules! define_param_component {
 define_param_component!(PointComponent, "Pt", ValueKind::Point);
 define_param_component!(VectorComponent, "Vec", ValueKind::Vector);
 define_param_component!(LineComponent, "Line", ValueKind::CurveLine);
-define_param_component!(MeshComponent, "Mesh", ValueKind::Surface);
 
+// MeshComponent: Accept both Value::Mesh (preferred) and Value::Surface (legacy)
+// This is implemented manually to handle both types properly.
+
+/// The Mesh parameter component accepts both `Value::Mesh` (preferred) and
+/// `Value::Surface` (legacy) inputs for backward compatibility.
+///
+/// When a `Value::Surface` is provided, it is converted to `Value::Mesh` format.
+/// This ensures components downstream can rely on the modern mesh representation.
+#[derive(Debug, Default, Clone, Copy)]
+struct MeshComponent;
+
+impl Component for MeshComponent {
+    fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
+        if inputs.is_empty() {
+            let mut outputs = BTreeMap::new();
+            outputs.insert("Mesh".to_owned(), Value::Null);
+            return Ok(outputs);
+        }
+
+        let input_value = &inputs[0];
+        let mesh_value = convert_to_mesh_value(input_value)?;
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert("Mesh".to_owned(), mesh_value);
+        Ok(outputs)
+    }
+}
+
+/// The Surface parameter component accepts both `Value::Surface` (native) and
+/// `Value::Mesh` (converted) inputs for interoperability.
+///
+/// When a `Value::Mesh` is provided, it is converted to `Value::Surface` format
+/// to maintain backward compatibility with legacy consumers expecting surfaces.
 #[derive(Debug, Default, Clone, Copy)]
 struct SurfaceComponent;
 
@@ -188,19 +220,7 @@ impl Component for SurfaceComponent {
         }
 
         let input_value = &inputs[0];
-        let surface_value = match input_value {
-            Value::Null => Value::Null,
-            Value::Surface { .. } => input_value.clone(),
-            Value::List(_) => convert_list_value(input_value)?,
-            other => {
-                return Err(ComponentError::new(format!(
-                    "Expected {} or a List of {}, but got {}.",
-                    ValueKind::Surface,
-                    ValueKind::Surface,
-                    other.kind()
-                )));
-            }
-        };
+        let surface_value = convert_to_surface_value(input_value)?;
 
         let mut outputs = BTreeMap::new();
         outputs.insert("Srf".to_owned(), surface_value);
@@ -208,17 +228,192 @@ impl Component for SurfaceComponent {
     }
 }
 
+// ============================================================================
+// Mesh/Surface Conversion Helpers
+// ============================================================================
+
+/// Converts any mesh-like value (`Value::Mesh` or `Value::Surface`) to `Value::Mesh`.
+///
+/// This is the preferred conversion direction as `Value::Mesh` is the modern
+/// representation with support for normals, UVs, and diagnostics.
+///
+/// # Conversion Rules
+///
+/// - `Value::Mesh` → passed through unchanged
+/// - `Value::Surface` → faces are triangulated (first 3 vertices of each face)
+/// - `Value::List` → each element is recursively converted
+/// - `Value::Null` → passed through unchanged
+fn convert_to_mesh_value(value: &Value) -> Result<Value, ComponentError> {
+    match value {
+        Value::Null => Ok(Value::Null),
+        Value::Mesh { .. } => Ok(value.clone()),
+        Value::Surface { vertices, faces } => {
+            // Convert polygon faces to triangle indices (take first 3 vertices per face)
+            let indices: Vec<u32> = faces
+                .iter()
+                .filter(|f| f.len() >= 3)
+                .flat_map(|f| vec![f[0], f[1], f[2]])
+                .collect();
+            Ok(Value::Mesh {
+                vertices: vertices.clone(),
+                indices,
+                normals: None,
+                uvs: None,
+                diagnostics: None,
+            })
+        }
+        Value::List(items) => {
+            if list_contains_only_geometry_like_or_null(value) {
+                let converted: Result<Vec<Value>, ComponentError> = items
+                    .iter()
+                    .map(convert_to_mesh_value)
+                    .collect();
+                return Ok(Value::List(converted?));
+            }
+            // Try to create a surface from flat geometry list, then convert to mesh
+            if is_flat_geometry_list(items) {
+                let surface = create_surface_from_flat_list(items)?;
+                return convert_to_mesh_value(&surface);
+            }
+            // Recursively convert list entries
+            let converted: Result<Vec<Value>, ComponentError> = items
+                .iter()
+                .map(convert_to_mesh_value)
+                .collect();
+            Ok(Value::List(converted?))
+        }
+        other => Err(ComponentError::new(format!(
+            "Expected Mesh, Surface, or a List of geometry, but got {}.",
+            other.kind()
+        ))),
+    }
+}
+
+/// Converts any mesh-like value (`Value::Mesh` or `Value::Surface`) to `Value::Surface`.
+///
+/// This is provided for backward compatibility with components that expect
+/// the legacy `Value::Surface` representation.
+///
+/// # Conversion Rules
+///
+/// - `Value::Surface` → passed through unchanged
+/// - `Value::Mesh` → indices converted to face lists (triangles become 3-element face lists)
+/// - `Value::List` → each element is recursively converted
+/// - `Value::Null` → passed through unchanged
+///
+/// # Note
+///
+/// Converting from `Value::Mesh` to `Value::Surface` is lossy: normals, UVs,
+/// and diagnostics are discarded.
+fn convert_to_surface_value(value: &Value) -> Result<Value, ComponentError> {
+    match value {
+        Value::Null => Ok(Value::Null),
+        Value::Surface { .. } => Ok(value.clone()),
+        Value::Mesh { vertices, indices, .. } => {
+            // Convert triangle indices to face lists
+            let faces: Vec<Vec<u32>> = indices
+                .chunks(3)
+                .filter(|chunk| chunk.len() == 3)
+                .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+                .collect();
+            Ok(Value::Surface {
+                vertices: vertices.clone(),
+                faces,
+            })
+        }
+        Value::List(items) => {
+            if list_contains_only_geometry_like_or_null(value) {
+                let converted: Result<Vec<Value>, ComponentError> = items
+                    .iter()
+                    .map(convert_to_surface_value)
+                    .collect();
+                return Ok(Value::List(converted?));
+            }
+            // Try to create a surface from flat geometry list
+            if is_flat_geometry_list(items) {
+                return create_surface_from_flat_list(items);
+            }
+            // Recursively convert list entries (legacy behavior)
+            convert_list_value_to_surface(value)
+        }
+        other => Err(ComponentError::new(format!(
+            "Expected Surface, Mesh, or a List of geometry, but got {}.",
+            other.kind()
+        ))),
+    }
+}
+
+/// Legacy convert_list_value that only outputs surfaces.
+///
+/// This handles the original behavior for backward compatibility.
+fn convert_list_value_to_surface(value: &Value) -> Result<Value, ComponentError> {
+    let entries = match value {
+        Value::List(entries) => entries,
+        _ => unreachable!(),
+    };
+
+    let mut converted = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let converted_entry = match entry {
+            Value::Surface { .. } => entry.clone(),
+            Value::Mesh { vertices, indices, .. } => {
+                // Convert Mesh to Surface for backward compatibility
+                let faces: Vec<Vec<u32>> = indices
+                    .chunks(3)
+                    .filter(|chunk| chunk.len() == 3)
+                    .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+                    .collect();
+                Value::Surface {
+                    vertices: vertices.clone(),
+                    faces,
+                }
+            }
+            Value::Null => Value::Null,
+            Value::List(_) => convert_list_value_to_surface(entry)?,
+            other => {
+                return Err(ComponentError::new(format!(
+                    "Expected Surface, Mesh, or a List of geometry, but got {}.",
+                    other.kind()
+                )));
+            }
+        };
+        converted.push(converted_entry);
+    }
+
+    Ok(Value::List(converted))
+}
+
+// ============================================================================
+// List Content Validation Helpers
+// ============================================================================
+
+/// Checks if a list contains only geometry-like values (Mesh or Surface) or nulls.
+///
+/// This supports both the new `Value::Mesh` type and the legacy `Value::Surface` type
+/// for backward compatibility.
+fn list_contains_only_geometry_like_or_null(value: &Value) -> bool {
+    matches!(value, Value::List(items) if items.iter().all(|item| matches!(item, Value::Surface { .. } | Value::Mesh { .. } | Value::Null)))
+}
+
+/// Legacy alias for backward compatibility - checks for surfaces or null only.
+#[allow(dead_code)]
 fn list_contains_only_surfaces_or_null(value: &Value) -> bool {
     matches!(value, Value::List(items) if items.iter().all(|item| matches!(item, Value::Surface { .. } | Value::Null)))
 }
 
+/// Legacy conversion function that handles list values for surface conversion.
+///
+/// This function is kept for backward compatibility but has been updated to
+/// also handle `Value::Mesh` inputs by converting them to `Value::Surface`.
+#[allow(dead_code)]
 fn convert_list_value(value: &Value) -> Result<Value, ComponentError> {
     let entries = match value {
         Value::List(entries) => entries,
         _ => unreachable!(),
     };
 
-    if list_contains_only_surfaces_or_null(value) {
+    // Check if list contains only geometry-like values (Surface or Mesh)
+    if list_contains_only_geometry_like_or_null(value) {
         return Ok(value.clone());
     }
 
@@ -230,13 +425,23 @@ fn convert_list_value(value: &Value) -> Result<Value, ComponentError> {
     for entry in entries {
         let converted_entry = match entry {
             Value::Surface { .. } => entry.clone(),
+            Value::Mesh { vertices, indices, .. } => {
+                // Convert Mesh to Surface for backward compatibility
+                let faces: Vec<Vec<u32>> = indices
+                    .chunks(3)
+                    .filter(|chunk| chunk.len() == 3)
+                    .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+                    .collect();
+                Value::Surface {
+                    vertices: vertices.clone(),
+                    faces,
+                }
+            }
             Value::Null => Value::Null,
             Value::List(_) => convert_list_value(entry)?,
             other => {
                 return Err(ComponentError::new(format!(
-                    "Expected {} or a List of {}, but got {}.",
-                    ValueKind::Surface,
-                    ValueKind::Surface,
+                    "Expected Surface, Mesh, or a List of geometry, but got {}.",
                     other.kind()
                 )));
             }
@@ -609,3 +814,375 @@ pub const REGISTRATIONS: &[Registration<ComponentKind>] = &[
         &["Mesh Point", "MPoint"],
     ),
 ];
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::graph::value::Value;
+
+    // -------------------------------------------------------------------------
+    // MeshComponent Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn mesh_component_accepts_value_mesh() {
+        let mesh = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[mesh.clone()], &meta);
+        
+        assert!(result.is_ok(), "MeshComponent should accept Value::Mesh");
+        let outputs = result.unwrap();
+        assert!(outputs.contains_key("Mesh"));
+        
+        // The output should be a Mesh
+        match &outputs["Mesh"] {
+            Value::Mesh { vertices, indices, .. } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(indices.len(), 3);
+            }
+            _ => panic!("Expected Value::Mesh output"),
+        }
+    }
+
+    #[test]
+    fn mesh_component_accepts_value_surface_and_converts() {
+        let surface = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[surface], &meta);
+        
+        assert!(result.is_ok(), "MeshComponent should accept Value::Surface");
+        let outputs = result.unwrap();
+        
+        // The output should be converted to Value::Mesh
+        match &outputs["Mesh"] {
+            Value::Mesh { vertices, indices, .. } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(indices.len(), 3);
+                assert_eq!(indices, &[0, 1, 2]);
+            }
+            _ => panic!("Expected Value::Mesh output"),
+        }
+    }
+
+    #[test]
+    fn mesh_component_handles_null() {
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[Value::Null], &meta);
+        
+        assert!(result.is_ok());
+        let outputs = result.unwrap();
+        assert!(matches!(outputs["Mesh"], Value::Null));
+    }
+
+    #[test]
+    fn mesh_component_handles_empty_inputs() {
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[], &meta);
+        
+        assert!(result.is_ok());
+        let outputs = result.unwrap();
+        assert!(matches!(outputs["Mesh"], Value::Null));
+    }
+
+    #[test]
+    fn mesh_component_handles_list_of_meshes() {
+        let mesh1 = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        let mesh2 = Value::Mesh {
+            vertices: vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [2.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        let list = Value::List(vec![mesh1, mesh2]);
+        
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[list], &meta);
+        
+        assert!(result.is_ok(), "MeshComponent should accept list of meshes");
+        let outputs = result.unwrap();
+        
+        match &outputs["Mesh"] {
+            Value::List(items) => {
+                assert_eq!(items.len(), 2);
+                assert!(matches!(items[0], Value::Mesh { .. }));
+                assert!(matches!(items[1], Value::Mesh { .. }));
+            }
+            _ => panic!("Expected Value::List output"),
+        }
+    }
+
+    #[test]
+    fn mesh_component_handles_mixed_mesh_surface_list() {
+        let mesh = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        let surface = Value::Surface {
+            vertices: vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [2.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        let list = Value::List(vec![mesh, surface]);
+        
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[list], &meta);
+        
+        assert!(result.is_ok(), "MeshComponent should accept mixed mesh/surface list");
+        let outputs = result.unwrap();
+        
+        match &outputs["Mesh"] {
+            Value::List(items) => {
+                assert_eq!(items.len(), 2);
+                // Both should be converted to Mesh
+                assert!(matches!(items[0], Value::Mesh { .. }));
+                assert!(matches!(items[1], Value::Mesh { .. }));
+            }
+            _ => panic!("Expected Value::List output"),
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // SurfaceComponent Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn surface_component_accepts_value_surface() {
+        let surface = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[surface.clone()], &meta);
+        
+        assert!(result.is_ok(), "SurfaceComponent should accept Value::Surface");
+        let outputs = result.unwrap();
+        assert!(outputs.contains_key("Srf"));
+        
+        match &outputs["Srf"] {
+            Value::Surface { vertices, faces } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(faces.len(), 1);
+            }
+            _ => panic!("Expected Value::Surface output"),
+        }
+    }
+
+    #[test]
+    fn surface_component_accepts_value_mesh_and_converts() {
+        let mesh = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: Some(vec![[0.0, 0.0, 1.0]; 3]),
+            uvs: None,
+            diagnostics: None,
+        };
+        
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[mesh], &meta);
+        
+        assert!(result.is_ok(), "SurfaceComponent should accept Value::Mesh");
+        let outputs = result.unwrap();
+        
+        // The output should be converted to Value::Surface
+        match &outputs["Srf"] {
+            Value::Surface { vertices, faces } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(faces.len(), 1);
+                assert_eq!(faces[0], vec![0, 1, 2]);
+            }
+            _ => panic!("Expected Value::Surface output"),
+        }
+    }
+
+    #[test]
+    fn surface_component_handles_null() {
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[Value::Null], &meta);
+        
+        assert!(result.is_ok());
+        let outputs = result.unwrap();
+        assert!(matches!(outputs["Srf"], Value::Null));
+    }
+
+    #[test]
+    fn surface_component_handles_empty_inputs() {
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[], &meta);
+        
+        assert!(result.is_ok());
+        let outputs = result.unwrap();
+        assert!(matches!(outputs["Srf"], Value::Null));
+    }
+
+    #[test]
+    fn surface_component_handles_list_of_surfaces() {
+        let surface1 = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        let surface2 = Value::Surface {
+            vertices: vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [2.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        let list = Value::List(vec![surface1, surface2]);
+        
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[list], &meta);
+        
+        assert!(result.is_ok(), "SurfaceComponent should accept list of surfaces");
+        let outputs = result.unwrap();
+        
+        match &outputs["Srf"] {
+            Value::List(items) => {
+                assert_eq!(items.len(), 2);
+                assert!(matches!(items[0], Value::Surface { .. }));
+                assert!(matches!(items[1], Value::Surface { .. }));
+            }
+            _ => panic!("Expected Value::List output"),
+        }
+    }
+
+    #[test]
+    fn surface_component_handles_mixed_mesh_surface_list() {
+        let surface = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            faces: vec![vec![0, 1, 2]],
+        };
+        let mesh = Value::Mesh {
+            vertices: vec![[2.0, 0.0, 0.0], [3.0, 0.0, 0.0], [2.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        let list = Value::List(vec![surface, mesh]);
+        
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[list], &meta);
+        
+        assert!(result.is_ok(), "SurfaceComponent should accept mixed mesh/surface list");
+        let outputs = result.unwrap();
+        
+        match &outputs["Srf"] {
+            Value::List(items) => {
+                assert_eq!(items.len(), 2);
+                // Both should be converted to Surface
+                assert!(matches!(items[0], Value::Surface { .. }));
+                assert!(matches!(items[1], Value::Surface { .. }));
+            }
+            _ => panic!("Expected Value::List output"),
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Conversion Helper Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn convert_to_mesh_preserves_mesh_attributes() {
+        let original = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: Some(vec![[0.0, 0.0, 1.0]; 3]),
+            uvs: Some(vec![[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]]),
+            diagnostics: None,
+        };
+        
+        let converted = convert_to_mesh_value(&original).unwrap();
+        
+        match converted {
+            Value::Mesh { vertices, indices, normals, uvs, .. } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(indices.len(), 3);
+                assert!(normals.is_some());
+                assert!(uvs.is_some());
+            }
+            _ => panic!("Expected Value::Mesh"),
+        }
+    }
+
+    #[test]
+    fn convert_to_surface_from_mesh_is_lossy() {
+        let original = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+            indices: vec![0, 1, 2],
+            normals: Some(vec![[0.0, 0.0, 1.0]; 3]),
+            uvs: Some(vec![[0.0, 0.0], [1.0, 0.0], [0.5, 1.0]]),
+            diagnostics: None,
+        };
+        
+        let converted = convert_to_surface_value(&original).unwrap();
+        
+        match converted {
+            Value::Surface { vertices, faces } => {
+                assert_eq!(vertices.len(), 3);
+                assert_eq!(faces.len(), 1);
+                assert_eq!(faces[0], vec![0, 1, 2]);
+                // Note: normals and uvs are lost in this conversion
+            }
+            _ => panic!("Expected Value::Surface"),
+        }
+    }
+
+    #[test]
+    fn list_contains_geometry_detects_mixed_list() {
+        let mesh = Value::Mesh {
+            vertices: vec![[0.0, 0.0, 0.0]],
+            indices: vec![],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        let surface = Value::Surface {
+            vertices: vec![[0.0, 0.0, 0.0]],
+            faces: vec![],
+        };
+        
+        let list = Value::List(vec![mesh, surface, Value::Null]);
+        assert!(list_contains_only_geometry_like_or_null(&list));
+        
+        let bad_list = Value::List(vec![Value::Number(42.0)]);
+        assert!(!list_contains_only_geometry_like_or_null(&bad_list));
+    }
+
+    #[test]
+    fn mesh_component_rejects_invalid_types() {
+        let meta = MetaMap::new();
+        let result = MeshComponent.evaluate(&[Value::Number(42.0)], &meta);
+        
+        assert!(result.is_err(), "MeshComponent should reject Value::Number");
+    }
+
+    #[test]
+    fn surface_component_rejects_invalid_types() {
+        let meta = MetaMap::new();
+        let result = SurfaceComponent.evaluate(&[Value::Number(42.0)], &meta);
+        
+        assert!(result.is_err(), "SurfaceComponent should reject Value::Number");
+    }
+}

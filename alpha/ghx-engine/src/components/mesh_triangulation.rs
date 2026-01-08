@@ -1,12 +1,122 @@
-//! Grasshopper components for mesh triangulation, delaunay, and voroi operations.
+//! Grasshopper components for mesh triangulation, delaunay, and voronoi operations.
+//!
+//! # Mesh Engine Integration (Phase 3)
+//!
+//! Mesh-producing components in this module now output `Value::Mesh` as the primary type.
+//! This provides:
+//! - Indexed triangle list with flat indices (divisible by 3)
+//! - Optional per-vertex normals for smooth shading
+//! - Mesh diagnostics with vertex/triangle counts
+//!
+//! Components that produce edges, polylines, or other non-mesh outputs are unchanged.
+//! The legacy `Value::Surface` output is no longer emitted. Downstream consumers
+//! should use `expect_mesh_like()` for backward compatibility with both types.
 
 use std::collections::BTreeMap;
 
 use crate::components::coerce;
 use crate::graph::node::MetaMap;
-use crate::graph::value::Value;
+use crate::graph::value::{MeshDiagnostics, Value};
 
 use super::{Component, ComponentError, ComponentResult};
+
+// ============================================================================
+// Mesh Triangulation Helpers
+// ============================================================================
+
+/// Computes smooth vertex normals by averaging adjacent face normals.
+///
+/// Each vertex normal is the normalized average of the normals of all
+/// triangles that share that vertex. This produces smooth shading.
+///
+/// # Arguments
+///
+/// * `vertices` - Vertex positions
+/// * `indices` - Triangle indices (length must be divisible by 3)
+///
+/// # Returns
+///
+/// Per-vertex normals matching the vertex array length. Vertices not
+/// referenced by any triangle get a default normal of (0, 0, 1).
+fn compute_smooth_normals(vertices: &[[f64; 3]], indices: &[u32]) -> Vec<[f64; 3]> {
+    let mut normals = vec![[0.0_f64; 3]; vertices.len()];
+
+    // Accumulate face normals at each vertex
+    for tri in indices.chunks_exact(3) {
+        let i0 = tri[0] as usize;
+        let i1 = tri[1] as usize;
+        let i2 = tri[2] as usize;
+
+        if i0 >= vertices.len() || i1 >= vertices.len() || i2 >= vertices.len() {
+            continue;
+        }
+
+        let v0 = vertices[i0];
+        let v1 = vertices[i1];
+        let v2 = vertices[i2];
+
+        // Edge vectors
+        let e1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+        let e2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+
+        // Cross product = face normal (not normalized, so area-weighted)
+        let n = [
+            e1[1] * e2[2] - e1[2] * e2[1],
+            e1[2] * e2[0] - e1[0] * e2[2],
+            e1[0] * e2[1] - e1[1] * e2[0],
+        ];
+
+        // Accumulate at each vertex
+        for &idx in &[i0, i1, i2] {
+            normals[idx][0] += n[0];
+            normals[idx][1] += n[1];
+            normals[idx][2] += n[2];
+        }
+    }
+
+    // Normalize all accumulated normals
+    for normal in &mut normals {
+        let len_sq = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
+        if len_sq > 1e-12 {
+            let len = len_sq.sqrt();
+            normal[0] /= len;
+            normal[1] /= len;
+            normal[2] /= len;
+        } else {
+            // Default to +Z for degenerate normals
+            *normal = [0.0, 0.0, 1.0];
+        }
+    }
+
+    normals
+}
+
+/// Creates a `Value::Mesh` output from vertices and triangle indices.
+///
+/// This helper converts the raw triangulation output into a proper `Value::Mesh`
+/// with smooth normals and diagnostics.
+///
+/// # Arguments
+///
+/// * `vertices` - Vertex positions (typically from input points)
+/// * `indices` - Triangle indices from Delaunay triangulation (flat list, divisible by 3)
+///
+/// # Returns
+///
+/// A `Value::Mesh` with positions, triangle indices, smooth normals,
+/// and diagnostics information.
+fn create_mesh_from_triangles(vertices: Vec<[f64; 3]>, indices: Vec<u32>) -> Value {
+    let normals = compute_smooth_normals(&vertices, &indices);
+    let diagnostics = MeshDiagnostics::with_counts(vertices.len(), indices.len() / 3);
+
+    Value::Mesh {
+        vertices,
+        indices,
+        normals: Some(normals),
+        uvs: None,
+        diagnostics: Some(diagnostics),
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ComponentKind {
@@ -201,7 +311,26 @@ macro_rules! placeholder_component {
 const OUTPUT_PATTERN: &str = "P";
 const OUTPUT_DOME: &str = "D";
 
-/// Component for creating a facetted dome.
+/// Component for creating a facetted dome from a set of 2D points.
+///
+/// Uses Delaunay triangulation to create a mesh from the input points.
+/// The Z-coordinates of the input points are preserved in the output mesh.
+///
+/// # Inputs
+///
+/// * `P` (Points): List of points to triangulate
+///
+/// # Outputs
+///
+/// * `P` (Pattern): Edges of the triangulation as line curves
+/// * `D` (Dome): The triangulated mesh as `Value::Mesh`
+///
+/// # Mesh Engine Integration
+///
+/// This component now outputs `Value::Mesh` with:
+/// - Indexed triangle list (flat indices)
+/// - Smooth per-vertex normals
+/// - Mesh diagnostics with vertex/triangle counts
 #[derive(Debug, Default, Clone, Copy)]
 pub struct FacetDome;
 
@@ -223,6 +352,7 @@ impl Component for FacetDome {
             return Err(ComponentError::new("Not enough points for triangulation"));
         }
 
+        // Project points to 2D for Delaunay triangulation
         let delaunator_points: Vec<delaunator::Point> = points
             .iter()
             .map(|p| delaunator::Point { x: p[0], y: p[1] })
@@ -230,16 +360,14 @@ impl Component for FacetDome {
 
         let triangulation = delaunator::triangulate(&delaunator_points);
 
-        // Create the "Dome" (Delaunay Mesh)
-        let faces: Vec<Vec<u32>> = triangulation
+        // Create the "Dome" mesh using Value::Mesh with proper normals and diagnostics
+        let indices: Vec<u32> = triangulation
             .triangles
-            .chunks_exact(3)
-            .map(|tri| vec![tri[0] as u32, tri[1] as u32, tri[2] as u32])
+            .iter()
+            .map(|&i| i as u32)
             .collect();
-        let dome = Value::Surface {
-            vertices: points.clone(),
-            faces,
-        };
+
+        let dome = create_mesh_from_triangles(points.clone(), indices);
 
         // Create the "Pattern" (Edges of the triangulation)
         let mut pattern_edges = Vec::new();
@@ -648,13 +776,31 @@ impl Component for Proximity3D {
 /// Output pin for the mesh result.
 const OUTPUT_MESH: &str = "M";
 
-/// Component for creating a Delaunay mesh from a set of points.
+/// Component for creating a Delaunay mesh from a set of 2D points.
+///
+/// Uses Delaunay triangulation to create a mesh from the input points.
+/// The Z-coordinates of the input points are preserved in the output mesh.
+///
+/// # Inputs
+///
+/// * `P` (Points): List of points to triangulate
+///
+/// # Outputs
+///
+/// * `M` (Mesh): The triangulated mesh as `Value::Mesh`
+///
+/// # Mesh Engine Integration
+///
+/// This component now outputs `Value::Mesh` with:
+/// - Indexed triangle list (flat indices)
+/// - Smooth per-vertex normals
+/// - Mesh diagnostics with vertex/triangle counts
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DelaunayMesh;
 
 impl Component for DelaunayMesh {
     fn evaluate(&self, inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
-        if inputs.len() < 1 {
+        if inputs.is_empty() {
             return Err(ComponentError::new("Input `P` is missing"));
         }
 
@@ -682,13 +828,15 @@ impl Component for DelaunayMesh {
 
         let triangulation = delaunator::triangulate(&delaunator_points);
 
-        let faces: Vec<Vec<u32>> = triangulation
+        // Convert triangle indices to flat list for Value::Mesh
+        let indices: Vec<u32> = triangulation
             .triangles
-            .chunks_exact(3)
-            .map(|tri| vec![tri[0] as u32, tri[1] as u32, tri[2] as u32])
+            .iter()
+            .map(|&i| i as u32)
             .collect();
 
-        let mesh = Value::Surface { vertices, faces };
+        // Create mesh with smooth normals and diagnostics
+        let mesh = create_mesh_from_triangles(vertices, indices);
 
         let mut outputs = BTreeMap::new();
         outputs.insert(OUTPUT_MESH.to_owned(), mesh);

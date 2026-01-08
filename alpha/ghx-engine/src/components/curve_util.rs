@@ -2,6 +2,37 @@
 
 use std::collections::BTreeMap;
 
+use crate::geom::{
+    self,
+    // Offset
+    OffsetPolylineOptions,
+    // Join
+    JoinPolylinesOptions,
+    // Flip
+    FlipPolylineOptions,
+    // Extend
+    ExtendPolylineOptions,
+    // Smooth
+    SmoothPolylineOptions,
+    // Simplify
+    SimplifyPolylineOptions,
+    // Resample
+    ResamplePolylineOptions,
+    // Remesh
+    RemeshPolylineOptions,
+    // Collapse
+    CollapsePolylineOptions,
+    // Rotate seam
+    RotateSeamOptions,
+    // Project
+    ProjectPolylineOptions,
+    // Fillet at parameter
+    FilletAtParameterOptions,
+    // Perp frames
+    PerpFramesOptions,
+    // Tolerance
+    Tolerance,
+};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
@@ -256,16 +287,33 @@ fn evaluate_offset_curve(inputs: &[Value], closed_hint: bool) -> ComponentResult
 
     let points = coerce_polyline(inputs.get(0), "Offset Curve")?;
     let distance = coerce_number(inputs.get(1), "Offset Curve").unwrap_or(0.0);
-    let plane = inputs
-        .get(2)
-        .and_then(|value| coerce_plane(Some(value), "Offset Curve").ok())
-        .unwrap_or_else(|| plane_from_polyline(&points));
+
+    // Build offset options using geom module
     let closed = if closed_hint {
         is_closed_polyline(&points)
     } else {
         false
     };
-    let offset = offset_polyline_points(&points, &plane, distance, closed);
+
+    let mut options = OffsetPolylineOptions::new(distance).closed(closed);
+
+    // If a plane is provided, extract its properties
+    if let Some(plane_value) = inputs.get(2) {
+        if let Ok(plane) = coerce_plane(Some(plane_value), "Offset Curve") {
+            options = options
+                .with_plane_origin(plane.origin)
+                .with_plane_normal(plane.normal)
+                .with_plane_x_axis(plane.x_axis);
+        }
+    }
+
+    // Call geom offset function
+    let offset = match geom::offset_polyline(&points, options, Tolerance::default_geom()) {
+        Ok((result, _diagnostics)) => result,
+        Err(e) => {
+            return Err(ComponentError::new(format!("Offset Curve failed: {}", e)));
+        }
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -284,9 +332,27 @@ fn evaluate_offset_polyline(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Offset Polyline")?;
     let distance = coerce_number(inputs.get(1), "Offset Polyline").unwrap_or(0.0);
-    let plane = plane_from_polyline(&points);
     let closed = is_closed_polyline(&points);
-    let offset = offset_polyline_points(&points, &plane, distance, closed);
+
+    // Use geom offset function
+    let options = OffsetPolylineOptions::new(distance).closed(closed);
+    let (offset, _diagnostics) = match geom::offset_polyline(&points, options, Tolerance::default_geom()) {
+        Ok(result) => result,
+        Err(e) => {
+            let mut outputs = BTreeMap::new();
+            outputs.insert(
+                PIN_OUTPUT_OFFSET.to_owned(),
+                Value::List(vec![polyline_to_value(points)]),
+            );
+            outputs.insert(
+                PIN_OUTPUT_VALID.to_owned(),
+                Value::List(vec![Value::Boolean(false)]),
+            );
+            // Log the error but don't fail the component
+            eprintln!("Offset Polyline warning: {}", e);
+            return Ok(outputs);
+        }
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -306,40 +372,23 @@ fn evaluate_flip_curve(inputs: &[Value]) -> ComponentResult {
     }
 
     let points = coerce_polyline(inputs.get(0), "Flip Curve")?;
-    let closed = is_closed_polyline(&points);
-    let mut should_flip = true;
 
-    if !closed {
-        if let Some(guide_value) = inputs.get(1) {
-            if !is_effectively_empty_value(guide_value)
-                && let Ok(guide_points) = coerce_polyline(Some(guide_value), "Flip Curve Guide")
-            {
-                if guide_points.len() >= 2 {
-                    let start = points.first().copied().unwrap();
-                    let guide_start = guide_points.first().copied().unwrap();
-                    let guide_end = guide_points.last().copied().unwrap();
-                    let start_to_start = distance(start, guide_start);
-                    let start_to_end = distance(start, guide_end);
-                    should_flip = start_to_end < start_to_start;
-                }
-            }
-        }
-    }
+    // Get optional guide polyline
+    let guide: Option<Vec<[f64; 3]>> = inputs
+        .get(1)
+        .filter(|v| !is_effectively_empty_value(v))
+        .and_then(|v| coerce_polyline(Some(v), "Flip Curve Guide").ok());
 
-    let final_points = if should_flip {
-        let mut reversed = points.clone();
-        reversed.reverse();
-        reversed
-    } else {
-        points
-    };
+    // Use geom flip function
+    let guide_ref = guide.as_deref();
+    let (final_points, diagnostics) = geom::flip_polyline(&points, guide_ref, FlipPolylineOptions::new());
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
         PIN_OUTPUT_CURVES.to_owned(),
         polyline_to_value(final_points),
     );
-    outputs.insert(PIN_OUTPUT_FLAG.to_owned(), Value::Boolean(should_flip));
+    outputs.insert(PIN_OUTPUT_FLAG.to_owned(), Value::Boolean(diagnostics.was_flipped));
     Ok(outputs)
 }
 
@@ -360,8 +409,14 @@ fn evaluate_curve_to_polyline(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(f64::INFINITY)
         .max(min_edge.max(EPSILON));
 
-    let simplified = rdp_simplify(&points, distance_tolerance, angle_tolerance.max(0.0));
-    let remeshed = remesh_polyline(&simplified, min_edge, max_edge);
+    // Use geom simplify function
+    let simplify_options = SimplifyPolylineOptions::new(distance_tolerance)
+        .with_angle_tolerance(angle_tolerance.max(0.0));
+    let (simplified, _) = geom::simplify_polyline(&points, simplify_options);
+
+    // Use geom remesh function
+    let remesh_options = RemeshPolylineOptions::new(min_edge, max_edge);
+    let (remeshed, _) = geom::remesh_polyline(&simplified, remesh_options);
     let segments = if remeshed.len() > 1 {
         remeshed.len() - 1
     } else {
@@ -393,7 +448,9 @@ fn evaluate_smooth_polyline(inputs: &[Value]) -> ComponentResult {
         .max(0.0)
         .round() as usize;
 
-    let smoothed = smooth_polyline(&points, strength, times);
+    // Use geom smooth function
+    let options = SmoothPolylineOptions::new(strength, times);
+    let (smoothed, _diagnostics) = geom::smooth_polyline(&points, options);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POLYLINE.to_owned(), polyline_to_value(smoothed));
     Ok(outputs)
@@ -412,7 +469,10 @@ fn evaluate_join_curves(inputs: &[Value]) -> ComponentResult {
         .and_then(|value| coerce_boolean(value, "Join Curves").ok())
         .unwrap_or(false);
 
-    let joined = join_polylines(polylines, preserve_direction);
+    // Use geom join function
+    let options = JoinPolylinesOptions::new().preserve_direction(preserve_direction);
+    let (joined, _diagnostics) = geom::join_polylines(polylines, options);
+
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polylines_to_value(joined));
     Ok(outputs)
@@ -428,14 +488,15 @@ fn evaluate_reduce(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(0.01)
         .max(0.0);
 
-    let reduced = rdp_simplify(&points, tolerance, 0.0);
-    let removed = points.len().saturating_sub(reduced.len());
+    // Use geom simplify function
+    let options = SimplifyPolylineOptions::new(tolerance);
+    let (reduced, diagnostics) = geom::simplify_polyline(&points, options);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POLYLINE.to_owned(), polyline_to_value(reduced));
     outputs.insert(
         PIN_OUTPUT_REDUCTION.to_owned(),
-        Value::Number(removed as f64),
+        Value::Number(diagnostics.points_removed as f64),
     );
     Ok(outputs)
 }
@@ -455,8 +516,11 @@ fn evaluate_simplify_curve(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(0.0)
         .max(0.0);
 
-    let simplified = rdp_simplify(&points, tolerance, angle_tolerance);
-    let changed = simplified.len() != points.len();
+    // Use geom simplify function
+    let options = SimplifyPolylineOptions::new(tolerance)
+        .with_angle_tolerance(angle_tolerance);
+    let (simplified, diagnostics) = geom::simplify_polyline(&points, options);
+    let changed = diagnostics.points_removed > 0;
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(simplified));
@@ -477,7 +541,9 @@ fn evaluate_fit_curve(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(0.01)
         .max(0.0);
 
-    let mut simplified = rdp_simplify(&points, tolerance, 0.0);
+    // Use geom simplify function
+    let options = SimplifyPolylineOptions::new(tolerance);
+    let (mut simplified, _) = geom::simplify_polyline(&points, options);
     let min_required = degree.round() as usize + 1;
     if simplified.len() < min_required && points.len() >= min_required {
         simplified = points.clone();
@@ -501,7 +567,9 @@ fn evaluate_rebuild_curve(inputs: &[Value]) -> ComponentResult {
         .max(2.0)
         .round() as usize;
 
-    let rebuilt = resample_polyline(&points, count);
+    // Use geom resample function
+    let options = ResamplePolylineOptions::new(count);
+    let (rebuilt, _diagnostics) = geom::resample_polyline(&points, options);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(rebuilt));
     Ok(outputs)
@@ -541,10 +609,12 @@ fn evaluate_polyline_collapse(inputs: &[Value]) -> ComponentResult {
         .unwrap_or(0.01)
         .max(0.0);
 
-    let (collapsed, removed) = collapse_polyline(&points, tolerance);
+    // Use geom collapse function
+    let options = CollapsePolylineOptions::new(tolerance);
+    let (collapsed, diagnostics) = geom::collapse_polyline(&points, options);
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_POLYLINE.to_owned(), polyline_to_value(collapsed));
-    outputs.insert(PIN_OUTPUT_COUNT.to_owned(), Value::Number(removed as f64));
+    outputs.insert(PIN_OUTPUT_COUNT.to_owned(), Value::Number(diagnostics.points_removed as f64));
     Ok(outputs)
 }
 
@@ -557,7 +627,41 @@ fn evaluate_fillet_radius(inputs: &[Value]) -> ComponentResult {
     let radius = coerce_number(inputs.get(1), "Fillet Radius")
         .unwrap_or(0.0)
         .max(0.0);
-    let filleted = fillet_polyline(&points, radius);
+    // Optional: segment count for arc resolution (default 8 for smooth arcs)
+    let segments = coerce_number(inputs.get(2), "Fillet Segments")
+        .unwrap_or(8.0)
+        .max(1.0)
+        .round() as usize;
+    let closed = is_closed_polyline(&points);
+
+    // Convert to Point3 for geom fillet function
+    let point3_vec: Vec<geom::Point3> = points
+        .iter()
+        .map(|p| geom::Point3::from_array(*p))
+        .collect();
+
+    // Use geom fillet function
+    let filleted = match geom::fillet_polyline_points(&point3_vec, radius, segments, closed, Tolerance::default_geom()) {
+        Ok((result, diagnostics)) => {
+            // Log diagnostics for debugging if any corners were skipped
+            if diagnostics.skipped_corner_count > 0 {
+                eprintln!(
+                    "Fillet: {} of {} corners skipped (radius too large or degenerate)",
+                    diagnostics.skipped_corner_count,
+                    diagnostics.corner_count
+                );
+            }
+            result
+                .into_iter()
+                .map(|p| p.to_array())
+                .collect()
+        }
+        Err(e) => {
+            // Log error for debugging but return original points for graceful degradation
+            eprintln!("Fillet warning: {}", e);
+            points
+        }
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
@@ -577,7 +681,10 @@ fn evaluate_seam(inputs: &[Value]) -> ComponentResult {
     }
 
     let parameter = coerce_number(inputs.get(1), "Seam Parameter").unwrap_or(0.0);
-    let adjusted = rotate_polyline_seam(&points, parameter);
+    
+    // Use geom rotate seam function
+    let options = RotateSeamOptions::new(parameter);
+    let (adjusted, _diagnostics) = geom::rotate_polyline_seam(&points, options, Tolerance::default_geom());
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(adjusted));
@@ -594,7 +701,10 @@ fn evaluate_extend_curve(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Extend Curve")?;
     let start = coerce_number(inputs.get(2), "Extend Curve Start").unwrap_or(0.0);
     let end = coerce_number(inputs.get(3), "Extend Curve End").unwrap_or(0.0);
-    let extended = extend_polyline(&points, start, end);
+
+    // Use geom extend function
+    let options = ExtendPolylineOptions::new(start, end);
+    let (extended, _diagnostics) = geom::extend_polyline(&points, options, Tolerance::default_geom());
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(extended));
@@ -628,11 +738,25 @@ fn evaluate_perp_frames_obsolete(inputs: &[Value]) -> ComponentResult {
         .transpose()?
         .unwrap_or(false);
 
-    let (frames, parameters) = compute_perp_frames(&points, segments.max(1), align);
+    // Use geom perp frames function
+    let options = PerpFramesOptions::new(segments.max(1), align);
+    let (frames, _diagnostics) = geom::compute_perp_frames(&points, options);
+    
+    // Convert frames to Value format
+    let frame_values: Vec<Value> = frames.iter().map(|f| {
+        Value::List(vec![
+            Value::Point(f.origin),
+            Value::Vector(f.tangent),
+            Value::Vector(f.normal),
+            Value::Vector(f.binormal),
+        ])
+    }).collect();
+    
+    let parameter_values: Vec<Value> = frames.iter().map(|f| Value::Number(f.parameter)).collect();
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames));
-    outputs.insert(PIN_OUTPUT_PARAMETERS.to_owned(), Value::List(parameters));
+    outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frame_values));
+    outputs.insert(PIN_OUTPUT_PARAMETERS.to_owned(), Value::List(parameter_values));
     Ok(outputs)
 }
 
@@ -647,7 +771,41 @@ fn evaluate_fillet_distance(inputs: &[Value]) -> ComponentResult {
     let distance = coerce_number(inputs.get(1), "Fillet Distance Parameter")
         .unwrap_or(0.0)
         .max(0.0);
-    let filleted = fillet_polyline(&points, distance);
+    // Optional: segment count for arc resolution (default 8 for smooth arcs)
+    let segments = coerce_number(inputs.get(2), "Fillet Distance Segments")
+        .unwrap_or(8.0)
+        .max(1.0)
+        .round() as usize;
+    let closed = is_closed_polyline(&points);
+
+    // Convert to Point3 for geom fillet function
+    let point3_vec: Vec<geom::Point3> = points
+        .iter()
+        .map(|p| geom::Point3::from_array(*p))
+        .collect();
+
+    // Use geom fillet function
+    let filleted = match geom::fillet_polyline_points(&point3_vec, distance, segments, closed, Tolerance::default_geom()) {
+        Ok((result, diagnostics)) => {
+            // Log diagnostics for debugging if any corners were skipped
+            if diagnostics.skipped_corner_count > 0 {
+                eprintln!(
+                    "Fillet Distance: {} of {} corners skipped (distance too large or degenerate)",
+                    diagnostics.skipped_corner_count,
+                    diagnostics.corner_count
+                );
+            }
+            result
+                .into_iter()
+                .map(|p| p.to_array())
+                .collect()
+        }
+        Err(e) => {
+            // Log error for debugging but return original points for graceful degradation
+            eprintln!("Fillet Distance warning: {}", e);
+            points
+        }
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
@@ -670,7 +828,8 @@ fn evaluate_divide_curve_obsolete(inputs: &[Value]) -> ComponentResult {
 
     for step in 0..=segments.max(1) {
         let parameter = step as f64 / segments.max(1) as f64;
-        let sample = sample_polyline(&points, parameter);
+        // Use geom sample function
+        let sample = geom::sample_polyline_at(&points, parameter);
         point_values.push(Value::Point(sample.point));
         tangent_values.push(Value::Vector(sample.tangent));
         parameter_values.push(Value::Number(parameter));
@@ -695,8 +854,14 @@ fn evaluate_offset_on_surface(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Offset on Surface")?;
     let distance = coerce_number(inputs.get(1), "Offset on Surface Distance").unwrap_or(0.0);
-    let plane = plane_from_polyline(&points);
-    let offset = offset_polyline_points(&points, &plane, distance, is_closed_polyline(&points));
+    let closed = is_closed_polyline(&points);
+
+    // Use geom offset function
+    let options = OffsetPolylineOptions::new(distance).closed(closed);
+    let offset = match geom::offset_polyline(&points, options, Tolerance::default_geom()) {
+        Ok((result, _diagnostics)) => result,
+        Err(_) => points,
+    };
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -716,13 +881,16 @@ fn evaluate_fillet_parameter(inputs: &[Value]) -> ComponentResult {
     let radius = coerce_number(inputs.get(2), "Fillet Parameter Radius")
         .unwrap_or(0.0)
         .max(0.0);
-    let (filleted, actual_parameter) = fillet_polyline_at_parameter(&points, parameter, radius);
+    
+    // Use geom fillet at parameter function
+    let options = FilletAtParameterOptions::new(parameter, radius);
+    let (filleted, diagnostics) = geom::fillet_polyline_at_parameter(&points, options, Tolerance::default_geom());
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CURVES.to_owned(), polyline_to_value(filleted));
     outputs.insert(
         PIN_OUTPUT_PARAMETER.to_owned(),
-        Value::Number(actual_parameter),
+        Value::Number(diagnostics.actual_parameter),
     );
     Ok(outputs)
 }
@@ -739,7 +907,10 @@ fn evaluate_project_curve(inputs: &[Value]) -> ComponentResult {
         .get(2)
         .and_then(|value| coerce_vector(Some(value), "Project Direction").ok())
         .unwrap_or([0.0, 0.0, 1.0]);
-    let projected = project_polyline(points, direction);
+    
+    // Use geom project function
+    let options = ProjectPolylineOptions::new(direction);
+    let (projected, _diagnostics) = geom::project_polyline(&points, options);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(
@@ -949,403 +1120,24 @@ fn is_closed_polyline(points: &[[f64; 3]]) -> bool {
     if points.len() < 3 {
         return false;
     }
-    distance(points[0], *points.last().unwrap()) < 1e-6
+    let a = points[0];
+    let b = *points.last().unwrap();
+    let dx = a[0] - b[0];
+    let dy = a[1] - b[1];
+    let dz = a[2] - b[2];
+    (dx * dx + dy * dy + dz * dz).sqrt() < 1e-6
 }
 
-fn offset_polyline_points(
-    points: &[[f64; 3]],
-    plane: &Plane,
-    distance: f64,
-    closed: bool,
-) -> Vec<[f64; 3]> {
-    if distance.abs() < EPSILON {
-        return points.to_vec();
-    }
+/// Tolerance constant used for local checks.
+const EPSILON: f64 = 1e-9;
 
-    let coords = points
-        .iter()
-        .map(|point| plane_coordinates(*point, plane))
-        .collect::<Vec<_>>();
-    let normals = compute_polyline_normals(&coords, closed);
-    coords
-        .iter()
-        .zip(normals.iter())
-        .map(|(coord, normal)| {
-            apply_plane(
-                plane,
-                coord[0] + normal[0] * distance,
-                coord[1] + normal[1] * distance,
-                0.0,
-            )
-        })
-        .collect()
-}
-
-fn compute_polyline_normals(coords: &[[f64; 3]], closed: bool) -> Vec<[f64; 3]> {
-    let count = coords.len();
-    if count == 0 {
-        return Vec::new();
-    }
-    let mut normals = vec![[0.0, 0.0, 0.0]; count];
-    let segment_count = if closed {
-        count
-    } else {
-        count.saturating_sub(1)
-    };
-
-    for i in 0..segment_count {
-        let a = coords[i];
-        let b = coords[(i + 1) % count];
-        let dx = b[0] - a[0];
-        let dy = b[1] - a[1];
-        let length = (dx * dx + dy * dy).sqrt();
-        if length < EPSILON {
-            continue;
-        }
-        let nx = -dy / length;
-        let ny = dx / length;
-        normals[i][0] += nx;
-        normals[i][1] += ny;
-        normals[(i + 1) % count][0] += nx;
-        normals[(i + 1) % count][1] += ny;
-    }
-
-    for (index, normal) in normals.iter_mut().enumerate() {
-        let length = (normal[0] * normal[0] + normal[1] * normal[1]).sqrt();
-        if length < EPSILON {
-            let prev_index = if index == 0 {
-                if closed { count - 1 } else { 0 }
-            } else {
-                index - 1
-            };
-            let next_index = if index + 1 >= count {
-                if closed { 0 } else { count - 1 }
-            } else {
-                index + 1
-            };
-            let prev = coords[prev_index];
-            let next = coords[next_index];
-            let dx = next[0] - prev[0];
-            let dy = next[1] - prev[1];
-            let fallback = (dx * dx + dy * dy).sqrt();
-            if fallback > EPSILON {
-                normal[0] = -dy / fallback;
-                normal[1] = dx / fallback;
-            }
-        } else {
-            normal[0] /= length;
-            normal[1] /= length;
-        }
-    }
-
-    normals
-}
-
-fn smooth_polyline(points: &[[f64; 3]], strength: f64, times: usize) -> Vec<[f64; 3]> {
-    let mut result = points.to_vec();
-    for _ in 0..times {
-        if result.len() <= 2 {
-            break;
-        }
-        let mut next = Vec::with_capacity(result.len());
-        next.push(result[0]);
-        for window in result.windows(3) {
-            let prev = window[0];
-            let current = window[1];
-            let next_point = window[2];
-            let target = scale(add(prev, next_point), 0.5);
-            next.push(lerp(current, target, strength));
-        }
-        next.push(*result.last().unwrap());
-        result = next;
-    }
-    result
-}
-
-fn join_polylines(polylines: Vec<Vec<[f64; 3]>>, preserve_direction: bool) -> Vec<Vec<[f64; 3]>> {
-    let mut remaining = polylines;
-    let mut result = Vec::new();
-
-    while let Some(mut current) = remaining.pop() {
-        let mut changed = true;
-        while changed {
-            changed = false;
-            let mut index = 0;
-            while index < remaining.len() {
-                let candidate = &remaining[index];
-                if try_merge_polylines(&mut current, candidate, preserve_direction) {
-                    remaining.remove(index);
-                    changed = true;
-                } else {
-                    index += 1;
-                }
-            }
-        }
-        result.push(current);
-    }
-
-    result
-}
-
-fn try_merge_polylines(
-    target: &mut Vec<[f64; 3]>,
-    candidate: &[[f64; 3]],
-    preserve_direction: bool,
-) -> bool {
-    if target.is_empty() || candidate.len() < 2 {
-        return false;
-    }
-
-    let tolerance = 1e-6;
-    let start = target.first().copied().unwrap();
-    let end = target.last().copied().unwrap();
-    let candidate_start = candidate.first().copied().unwrap();
-    let candidate_end = candidate.last().copied().unwrap();
-
-    if distance(end, candidate_start) < tolerance {
-        target.extend_from_slice(&candidate[1..]);
-        return true;
-    }
-    if !preserve_direction && distance(end, candidate_end) < tolerance {
-        let mut reversed = candidate.to_vec();
-        reversed.reverse();
-        target.extend_from_slice(&reversed[1..]);
-        return true;
-    }
-    if distance(start, candidate_end) < tolerance {
-        let mut new_points = candidate.to_vec();
-        new_points.pop();
-        new_points.extend_from_slice(target);
-        *target = new_points;
-        return true;
-    }
-    if !preserve_direction && distance(start, candidate_start) < tolerance {
-        let mut reversed = candidate.to_vec();
-        reversed.reverse();
-        reversed.pop();
-        reversed.extend_from_slice(target);
-        *target = reversed;
-        return true;
-    }
-    false
-}
-
-fn rdp_simplify(points: &[[f64; 3]], tolerance: f64, _angle_tolerance: f64) -> Vec<[f64; 3]> {
-    if points.len() <= 2 {
-        return points.to_vec();
-    }
-
-    let mut mask = vec![false; points.len()];
-    mask[0] = true;
-    mask[points.len() - 1] = true;
-
-    rdp_recursive(points, tolerance, 0, points.len() - 1, &mut mask);
-
-    let mut simplified = Vec::new();
-    for (index, point) in points.iter().enumerate() {
-        if mask[index] {
-            simplified.push(*point);
-        }
-    }
-
-    if simplified.len() < 2 {
-        return vec![points[0], points[points.len() - 1]];
-    }
-
-    simplified
-}
-
-fn rdp_recursive(points: &[[f64; 3]], tolerance: f64, start: usize, end: usize, mask: &mut [bool]) {
-    if end <= start + 1 {
-        return;
-    }
-
-    let segment_start = points[start];
-    let segment_end = points[end];
-    let mut index = 0;
-    let mut max_distance = -1.0;
-
-    for i in start + 1..end {
-        let distance = point_segment_distance(points[i], segment_start, segment_end);
-        if distance > max_distance {
-            max_distance = distance;
-            index = i;
-        }
-    }
-
-    if max_distance > tolerance {
-        mask[index] = true;
-        rdp_recursive(points, tolerance, start, index, mask);
-        rdp_recursive(points, tolerance, index, end, mask);
-    }
-}
-
-fn point_segment_distance(point: [f64; 3], a: [f64; 3], b: [f64; 3]) -> f64 {
-    let ab = subtract(b, a);
-    let ap = subtract(point, a);
-    let ab_length_squared = dot(ab, ab);
-    if ab_length_squared <= EPSILON {
-        return length(ap);
-    }
-    let t = (dot(ap, ab) / ab_length_squared).clamp(0.0, 1.0);
-    let projection = add(a, scale(ab, t));
-    length(subtract(point, projection))
-}
-
-fn remesh_polyline(points: &[[f64; 3]], min_edge: f64, max_edge: f64) -> Vec<[f64; 3]> {
-    if points.len() <= 2 {
-        return points.to_vec();
-    }
-
-    let mut result = Vec::new();
-    result.push(points[0]);
-
-    for pair in points.windows(2) {
-        let start = pair[0];
-        let end = pair[1];
-        let segment = subtract(end, start);
-        let length = length(segment);
-        if length < min_edge {
-            continue;
-        }
-        let steps = (length / max_edge).ceil().max(1.0) as usize;
-        for step in 1..=steps {
-            let t = step as f64 / steps as f64;
-            let point = lerp(start, end, t);
-            if step == steps {
-                result.push(point);
-            } else if length / steps as f64 >= min_edge {
-                result.push(point);
-            }
-        }
-    }
-
-    if result.len() < 2 {
-        return points.to_vec();
-    }
-
-    result
-}
-
-fn resample_polyline(points: &[[f64; 3]], count: usize) -> Vec<[f64; 3]> {
-    if points.len() < 2 || count <= 2 {
-        return vec![points[0], points[points.len() - 1]];
-    }
-
-    let total_length = polyline_length(points);
-    if total_length < EPSILON {
-        return vec![points[0]; count];
-    }
-
-    let mut samples = Vec::with_capacity(count);
-    samples.push(points[0]);
-    let segment_lengths = polyline_segments(points);
-    let mut accumulated = 0.0;
-    let mut segment_index = 0;
-    let mut segment_progress = 0.0;
-
-    for step in 1..count - 1 {
-        let target_length = (step as f64 / (count as f64 - 1.0)) * total_length;
-        while segment_index < segment_lengths.len()
-            && accumulated + segment_lengths[segment_index].length < target_length
-        {
-            accumulated += segment_lengths[segment_index].length;
-            segment_index += 1;
-            segment_progress = 0.0;
-        }
-
-        if segment_index >= segment_lengths.len() {
-            samples.push(*points.last().unwrap());
-            continue;
-        }
-
-        let segment = &segment_lengths[segment_index];
-        let remaining = target_length - accumulated;
-        let t = if segment.length < EPSILON {
-            0.0
-        } else {
-            (segment_progress + remaining) / segment.length
-        };
-        let t = t.clamp(0.0, 1.0);
-        samples.push(lerp(segment.start, segment.end, t));
-        segment_progress += remaining;
-    }
-
-    samples.push(*points.last().unwrap());
-    samples
-}
-
-fn collapse_polyline(points: &[[f64; 3]], tolerance: f64) -> (Vec<[f64; 3]>, usize) {
-    if points.len() <= 2 {
-        return (points.to_vec(), 0);
-    }
-
-    let mut result = Vec::with_capacity(points.len());
-    result.push(points[0]);
-    let mut removed = 0;
-
-    for pair in points.windows(2) {
-        if distance(pair[0], pair[1]) < tolerance {
-            removed += 1;
-            continue;
-        }
-        result.push(pair[1]);
-    }
-
-    if result.len() < 2 {
-        result.push(points[points.len() - 1]);
-    }
-
-    (result, removed)
-}
-
-fn polyline_segments(points: &[[f64; 3]]) -> Vec<PolylineSegment> {
-    points
-        .windows(2)
-        .map(|pair| PolylineSegment {
-            start: pair[0],
-            end: pair[1],
-            length: distance(pair[0], pair[1]),
-        })
-        .collect()
-}
-
-fn polyline_length(points: &[[f64; 3]]) -> f64 {
-    polyline_segments(points)
-        .iter()
-        .map(|segment| segment.length)
-        .sum()
-}
-
-fn plane_coordinates(point: [f64; 3], plane: &Plane) -> [f64; 3] {
-    let relative = subtract(point, plane.origin);
-    [
-        dot(relative, plane.x_axis),
-        dot(relative, plane.y_axis),
-        dot(relative, plane.normal),
-    ]
-}
-
-fn apply_plane(plane: &Plane, u: f64, v: f64, w: f64) -> [f64; 3] {
-    add(
-        add(plane.origin, scale(plane.x_axis, u)),
-        add(scale(plane.y_axis, v), scale(plane.normal, w)),
-    )
-}
-
-fn plane_from_polyline(points: &[[f64; 3]]) -> Plane {
-    if points.len() < 3 {
-        return Plane::from_origin(points.first().copied().unwrap_or([0.0, 0.0, 0.0]));
-    }
-    Plane::from_points(points[0], points[1], points[2])
-}
-
+/// Simple plane representation for offset operations.
 #[derive(Debug, Clone, Copy)]
 struct Plane {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    normal: [f64; 3],
+    pub origin: [f64; 3],
+    pub x_axis: [f64; 3],
+    pub y_axis: [f64; 3],
+    pub normal: [f64; 3],
 }
 
 impl Plane {
@@ -1359,13 +1151,14 @@ impl Plane {
     }
 
     fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
-        let x_axis = subtract(b, a);
-        let mut normal = cross(subtract(b, a), subtract(c, a));
+        let x_vec = sub(b, a);
+        let ac = sub(c, a);
+        let mut normal = cross(x_vec, ac);
         if length_squared(normal) < EPSILON {
             normal = [0.0, 0.0, 1.0];
         }
         let normal = normalize(normal);
-        let x_axis = normalize(x_axis);
+        let x_axis = normalize(x_vec);
         let y_axis = normalize(cross(normal, x_axis));
         Self {
             origin: a,
@@ -1376,27 +1169,34 @@ impl Plane {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct PolylineSegment {
-    start: [f64; 3],
-    end: [f64; 3],
-    length: f64,
+// Vector math helpers
+fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
 
-fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
-    ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
 
-fn length(vector: [f64; 3]) -> f64 {
-    (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt()
+fn scale(v: [f64; 3], s: f64) -> [f64; 3] {
+    [v[0] * s, v[1] * s, v[2] * s]
 }
 
-fn length_squared(vector: [f64; 3]) -> f64 {
-    vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]
+fn length_squared(v: [f64; 3]) -> f64 {
+    v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
 }
 
-fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+fn length(v: [f64; 3]) -> f64 {
+    length_squared(v).sqrt()
+}
+
+fn normalize(v: [f64; 3]) -> [f64; 3] {
+    let len = length(v);
+    if len < EPSILON {
+        [1.0, 0.0, 0.0]
+    } else {
+        scale(v, 1.0 / len)
+    }
 }
 
 fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
@@ -1406,394 +1206,3 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
         a[0] * b[1] - a[1] * b[0],
     ]
 }
-
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
-
-fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-
-fn scale(a: [f64; 3], factor: f64) -> [f64; 3] {
-    [a[0] * factor, a[1] * factor, a[2] * factor]
-}
-
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
-    let len = length(vector);
-    if len < EPSILON {
-        [1.0, 0.0, 0.0]
-    } else {
-        scale(vector, 1.0 / len)
-    }
-}
-
-fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
-    [
-        a[0] + (b[0] - a[0]) * t,
-        a[1] + (b[1] - a[1]) * t,
-        a[2] + (b[2] - a[2]) * t,
-    ]
-}
-
-fn deduplicate_polyline(points: Vec<[f64; 3]>) -> Vec<[f64; 3]> {
-    let mut result = Vec::new();
-    for point in points {
-        if result
-            .last()
-            .map_or(true, |prev| distance(*prev, point) > EPSILON)
-        {
-            result.push(point);
-        }
-    }
-    result
-}
-
-fn fillet_corner(
-    prev: [f64; 3],
-    current: [f64; 3],
-    next: [f64; 3],
-    radius: f64,
-) -> Option<([f64; 3], [f64; 3], [f64; 3])> {
-    if radius <= EPSILON {
-        return None;
-    }
-
-    let to_prev = subtract(current, prev);
-    let to_next = subtract(next, current);
-    let len_prev = length(to_prev);
-    let len_next = length(to_next);
-    if len_prev < EPSILON || len_next < EPSILON {
-        return None;
-    }
-
-    let trim = radius.min(len_prev / 2.0).min(len_next / 2.0);
-    if trim <= EPSILON {
-        return None;
-    }
-
-    let dir_prev = scale(to_prev, 1.0 / len_prev);
-    let dir_next = scale(to_next, 1.0 / len_next);
-    let start = subtract(current, scale(dir_prev, trim));
-    let end = add(current, scale(dir_next, trim));
-    let mid = lerp(start, end, 0.5);
-    Some((start, mid, end))
-}
-
-fn fillet_polyline(points: &[[f64; 3]], radius: f64) -> Vec<[f64; 3]> {
-    if points.len() < 3 || radius <= EPSILON {
-        return points.to_vec();
-    }
-
-    let mut result = Vec::with_capacity(points.len() * 2);
-    result.push(points[0]);
-    for index in 1..points.len() - 1 {
-        let prev = points[index - 1];
-        let current = points[index];
-        let next = points[index + 1];
-        if let Some((start, mid, end)) = fillet_corner(prev, current, next, radius) {
-            if distance(*result.last().unwrap(), start) > EPSILON {
-                result.push(start);
-            }
-            result.push(mid);
-            result.push(end);
-        } else {
-            result.push(current);
-        }
-    }
-    result.push(*points.last().unwrap());
-    deduplicate_polyline(result)
-}
-
-fn fillet_polyline_at_parameter(
-    points: &[[f64; 3]],
-    parameter: f64,
-    radius: f64,
-) -> (Vec<[f64; 3]>, f64) {
-    if points.len() < 3 || radius <= EPSILON {
-        let clamped = parameter.clamp(0.0, 1.0);
-        return (points.to_vec(), clamped);
-    }
-
-    let clamped = parameter.clamp(0.0, 1.0);
-    let segments = points.len().saturating_sub(1) as f64;
-    let mut index = (clamped * segments).round() as isize;
-    index = index.clamp(1, points.len() as isize - 2);
-    let index = index as usize;
-    let actual = index as f64 / segments;
-
-    if let Some((start, mid, end)) =
-        fillet_corner(points[index - 1], points[index], points[index + 1], radius)
-    {
-        let mut result = Vec::with_capacity(points.len() + 2);
-        result.extend_from_slice(&points[..index]);
-        if distance(*result.last().unwrap(), start) > EPSILON {
-            result.push(start);
-        }
-        result.push(mid);
-        result.push(end);
-        result.extend_from_slice(&points[index + 1..]);
-        (deduplicate_polyline(result), actual)
-    } else {
-        (points.to_vec(), actual)
-    }
-}
-
-fn rotate_polyline_seam(points: &[[f64; 3]], parameter: f64) -> Vec<[f64; 3]> {
-    if points.len() < 3 {
-        return points.to_vec();
-    }
-
-    let total_length = polyline_length(points);
-    if total_length < EPSILON {
-        return points.to_vec();
-    }
-
-    let normalized = if parameter.is_finite() {
-        parameter.rem_euclid(1.0)
-    } else {
-        0.0
-    };
-    let target = normalized * total_length;
-    let segments = polyline_segments(points);
-    let mut accumulated = 0.0;
-
-    for (index, segment) in segments.iter().enumerate() {
-        if accumulated + segment.length >= target || index == segments.len() - 1 {
-            let local = if segment.length < EPSILON {
-                0.0
-            } else {
-                ((target - accumulated).max(0.0) / segment.length).clamp(0.0, 1.0)
-            };
-            let seam_point = lerp(segment.start, segment.end, local);
-            let mut result = Vec::with_capacity(points.len() + 1);
-            result.push(seam_point);
-            result.extend(points.iter().skip(index + 1).copied());
-            result.extend(points.iter().take(index + 1).copied());
-            result.push(seam_point);
-            return deduplicate_polyline(result);
-        }
-        accumulated += segment.length;
-    }
-
-    points.to_vec()
-}
-
-fn extend_polyline(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
-    if points.len() < 2 {
-        return points.to_vec();
-    }
-
-    let mut result = points.to_vec();
-
-    if start < -EPSILON {
-        result = trim_polyline_start(&result, -start);
-    } else {
-        let start_length = start.max(0.0);
-        if start_length > EPSILON && result.len() >= 2 {
-            let direction = normalize(subtract(result[1], result[0]));
-            let new_point = subtract(result[0], scale(direction, start_length));
-            result.insert(0, new_point);
-        }
-    }
-
-    if result.len() < 2 {
-        return result;
-    }
-
-    if end < -EPSILON {
-        result = trim_polyline_end(&result, -end);
-    } else {
-        let end_length = end.max(0.0);
-        if end_length > EPSILON && result.len() >= 2 {
-            let direction = normalize(subtract(*result.last().unwrap(), result[result.len() - 2]));
-            let new_point = add(*result.last().unwrap(), scale(direction, end_length));
-            result.push(new_point);
-        }
-    }
-
-    deduplicate_polyline(result)
-}
-
-fn trim_polyline_start(points: &[[f64; 3]], trim_length: f64) -> Vec<[f64; 3]> {
-    if points.len() < 2 || trim_length <= EPSILON {
-        return points.to_vec();
-    }
-
-    let total_length = polyline_length(points);
-    if total_length <= EPSILON {
-        return points.to_vec();
-    }
-
-    let trim = trim_length.min(total_length);
-    let segments = polyline_segments(points);
-    let mut accumulated = 0.0;
-
-    for (index, segment) in segments.iter().enumerate() {
-        if trim - accumulated >= segment.length - EPSILON {
-            accumulated += segment.length;
-            continue;
-        }
-
-        let remaining = (trim - accumulated).max(0.0);
-        let t = if segment.length < EPSILON {
-            0.0
-        } else {
-            (remaining / segment.length).clamp(0.0, 1.0)
-        };
-        let new_start = lerp(segment.start, segment.end, t);
-        let mut result = Vec::with_capacity(points.len() - index);
-        result.push(new_start);
-        result.extend(points.iter().skip(index + 1).copied());
-        return deduplicate_polyline(result);
-    }
-
-    vec![*points.last().unwrap()]
-}
-
-fn trim_polyline_end(points: &[[f64; 3]], trim_length: f64) -> Vec<[f64; 3]> {
-    if points.len() < 2 || trim_length <= EPSILON {
-        return points.to_vec();
-    }
-
-    let total_length = polyline_length(points);
-    if total_length <= EPSILON {
-        return points.to_vec();
-    }
-
-    let trim = trim_length.min(total_length);
-    let segments = polyline_segments(points);
-    let mut accumulated = 0.0;
-
-    for (index, segment) in segments.iter().enumerate().rev() {
-        if trim - accumulated >= segment.length - EPSILON {
-            accumulated += segment.length;
-            continue;
-        }
-
-        let remaining = (trim - accumulated).max(0.0);
-        let t = if segment.length < EPSILON {
-            1.0
-        } else {
-            1.0 - (remaining / segment.length).clamp(0.0, 1.0)
-        };
-        let new_end = lerp(segment.start, segment.end, t);
-        let mut result = Vec::with_capacity(index + 2);
-        result.extend(points.iter().take(index + 1).copied());
-        result.push(new_end);
-        return deduplicate_polyline(result);
-    }
-
-    vec![points[0]]
-}
-
-#[derive(Debug, Clone, Copy)]
-struct PolylineSample {
-    point: [f64; 3],
-    tangent: [f64; 3],
-}
-
-fn sample_polyline(points: &[[f64; 3]], parameter: f64) -> PolylineSample {
-    if points.len() < 2 {
-        return PolylineSample {
-            point: points.first().copied().unwrap_or([0.0, 0.0, 0.0]),
-            tangent: [1.0, 0.0, 0.0],
-        };
-    }
-
-    let clamped = parameter.clamp(0.0, 1.0);
-    let total_length = polyline_length(points);
-    if total_length < EPSILON {
-        return PolylineSample {
-            point: points[0],
-            tangent: subtract(points[1], points[0]),
-        };
-    }
-
-    let target = clamped * total_length;
-    let segments = polyline_segments(points);
-    let mut accumulated = 0.0;
-
-    for segment in &segments {
-        if accumulated + segment.length >= target {
-            let local = if segment.length < EPSILON {
-                0.0
-            } else {
-                ((target - accumulated).max(0.0) / segment.length).clamp(0.0, 1.0)
-            };
-            let point = lerp(segment.start, segment.end, local);
-            let tangent = subtract(segment.end, segment.start);
-            return PolylineSample { point, tangent };
-        }
-        accumulated += segment.length;
-    }
-
-    PolylineSample {
-        point: *points.last().unwrap(),
-        tangent: subtract(*points.last().unwrap(), points[points.len() - 2]),
-    }
-}
-
-fn compute_perp_frames(
-    points: &[[f64; 3]],
-    segments: usize,
-    align: bool,
-) -> (Vec<Value>, Vec<Value>) {
-    let mut frames = Vec::new();
-    let mut parameters = Vec::new();
-    let mut previous_axes: Option<([f64; 3], [f64; 3])> = None;
-
-    for step in 0..=segments {
-        let parameter = step as f64 / segments as f64;
-        let sample = sample_polyline(points, parameter);
-        let tangent = normalize(sample.tangent);
-        let mut normal = normalize(cross([0.0, 0.0, 1.0], tangent));
-        if length_squared(normal) < EPSILON {
-            normal = normalize(cross([1.0, 0.0, 0.0], tangent));
-        }
-        let mut binormal = normalize(cross(tangent, normal));
-
-        if align {
-            if let Some((prev_normal, prev_binormal)) = previous_axes {
-                if dot(normal, prev_normal) < 0.0 {
-                    normal = scale(normal, -1.0);
-                }
-                if dot(binormal, prev_binormal) < 0.0 {
-                    binormal = scale(binormal, -1.0);
-                }
-            }
-            previous_axes = Some((normal, binormal));
-        }
-
-        frames.push(frame_value(sample.point, tangent, normal, binormal));
-        parameters.push(Value::Number(parameter));
-    }
-
-    (frames, parameters)
-}
-
-fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
-    Value::List(vec![
-        Value::Point(origin),
-        Value::Vector(x_axis),
-        Value::Vector(y_axis),
-        Value::Vector(z_axis),
-    ])
-}
-
-fn project_polyline(mut points: Vec<[f64; 3]>, direction: [f64; 3]) -> Vec<[f64; 3]> {
-    if points.is_empty() {
-        return points;
-    }
-
-    let axis = normalize(direction);
-    let origin = points[0];
-    for point in &mut points {
-        let relative = subtract(*point, origin);
-        let distance = dot(relative, axis);
-        *point = subtract(*point, scale(axis, distance));
-    }
-    points
-}
-
-const EPSILON: f64 = 1e-9;

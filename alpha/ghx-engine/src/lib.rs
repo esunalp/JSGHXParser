@@ -2,11 +2,9 @@
 #![allow(clippy::module_name_repetitions)]
 
 pub mod components;
+pub mod geom;
 pub mod graph;
 pub mod parse;
-
-#[cfg(feature = "mesh_engine_next")]
-pub mod geom;
 
 use std::collections::{BTreeMap, HashSet};
 use std::fmt;
@@ -189,6 +187,14 @@ enum GeometryItem<'a> {
         #[serde(skip_serializing_if = "Option::is_none")]
         material: Option<MaterialExport>,
     },
+    /// A mesh with owned triangle face data (used for Value::Mesh conversion).
+    #[serde(rename = "Mesh")]
+    MeshOwned {
+        vertices: Vec<[f64; 3]>,
+        faces: Vec<Vec<u32>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        material: Option<MaterialExport>,
+    },
 }
 
 impl<'a> GeometryItem<'a> {
@@ -211,6 +217,15 @@ impl<'a> GeometryItem<'a> {
             } => GeometryItem::Mesh {
                 vertices: Box::leak(vertices.to_vec().into_boxed_slice()),
                 faces: Box::leak(faces.to_vec().into_boxed_slice()),
+                material: material.clone(),
+            },
+            GeometryItem::MeshOwned {
+                vertices,
+                faces,
+                material,
+            } => GeometryItem::MeshOwned {
+                vertices: vertices.clone(),
+                faces: faces.clone(),
                 material: material.clone(),
             },
         }
@@ -793,6 +808,19 @@ fn append_geometry_value<'a>(
         Value::Surface { vertices, faces } => {
             items.push(GeometryItem::Mesh {
                 vertices,
+                faces,
+                material: material.map(MaterialExport::from),
+            });
+        }
+        Value::Mesh { vertices, indices, .. } => {
+            // Convert triangle indices to polygon faces for the legacy output format
+            let faces: Vec<Vec<u32>> = indices
+                .chunks(3)
+                .filter(|chunk| chunk.len() == 3)
+                .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+                .collect();
+            items.push(GeometryItem::MeshOwned {
+                vertices: vertices.clone(),
                 faces,
                 material: material.map(MaterialExport::from),
             });

@@ -187,6 +187,105 @@ fn flip_surface_evaluates_without_guide_input() {
     assert!(matches!(flip_result, Value::Boolean(true)));
 }
 
+/// Verifies that the Polyline component preserves input points exactly.
+/// This is a regression test for the issue where adaptive tessellation was
+/// resampling the polyline output, which removed/shifted original vertices.
+#[test]
+fn polyline_component_preserves_input_points_exactly() {
+    use ghx_engine::components::curve_spline::ComponentKind as CurveSplineKind;
+    use ghx_engine::components::Component;
+
+    // Input points: a simple triangle with specific coordinates
+    let input_points = vec![
+        Value::Point([0.0, 0.0, 0.0]),
+        Value::Point([100.0, 0.0, 0.0]),
+        Value::Point([50.0, 86.6025403784, 0.0]), // roughly equilateral triangle
+    ];
+
+    // Test open polyline
+    {
+        let inputs = vec![
+            Value::List(input_points.clone()),
+            Value::Boolean(false), // closed = false
+        ];
+
+        let result = CurveSplineKind::Polyline.evaluate(&inputs, &Default::default())
+            .expect("polyline should evaluate");
+        let curve = result.get("C").expect("curve output");
+
+        match curve {
+            Value::List(points) => {
+                assert_eq!(points.len(), 3, "open polyline should have exactly 3 points");
+                for (idx, (output, input)) in points.iter().zip(input_points.iter()).enumerate() {
+                    match (output, input) {
+                        (Value::Point(o), Value::Point(i)) => {
+                            for (component, (vo, vi)) in o.iter().zip(i.iter()).enumerate() {
+                                let diff = (vo - vi).abs();
+                                assert!(
+                                    diff < 1e-12,
+                                    "point {idx} component {component} differs: {vo} vs {vi} (diff={diff})"
+                                );
+                            }
+                        }
+                        _ => panic!("expected points, got {:?} and {:?}", output, input),
+                    }
+                }
+            }
+            _ => panic!("expected list, got {:?}", curve),
+        }
+    }
+
+    // Test closed polyline
+    {
+        let inputs = vec![
+            Value::List(input_points.clone()),
+            Value::Boolean(true), // closed = true
+        ];
+
+        let result = CurveSplineKind::Polyline.evaluate(&inputs, &Default::default())
+            .expect("polyline should evaluate");
+        let curve = result.get("C").expect("curve output");
+
+        match curve {
+            Value::List(points) => {
+                // Closed polyline should have 4 points (original 3 + closing point)
+                assert_eq!(points.len(), 4, "closed polyline should have 4 points (3 + closing)");
+
+                // First 3 points should match input exactly
+                for (idx, (output, input)) in points.iter().take(3).zip(input_points.iter()).enumerate() {
+                    match (output, input) {
+                        (Value::Point(o), Value::Point(i)) => {
+                            for (component, (vo, vi)) in o.iter().zip(i.iter()).enumerate() {
+                                let diff = (vo - vi).abs();
+                                assert!(
+                                    diff < 1e-12,
+                                    "point {idx} component {component} differs: {vo} vs {vi} (diff={diff})"
+                                );
+                            }
+                        }
+                        _ => panic!("expected points, got {:?} and {:?}", output, input),
+                    }
+                }
+
+                // Last point should equal first point (closing)
+                match (&points[3], &points[0]) {
+                    (Value::Point(last), Value::Point(first)) => {
+                        for (component, (vl, vf)) in last.iter().zip(first.iter()).enumerate() {
+                            let diff = (vl - vf).abs();
+                            assert!(
+                                diff < 1e-12,
+                                "closing point component {component} differs from first: {vl} vs {vf}"
+                            );
+                        }
+                    }
+                    _ => panic!("expected points"),
+                }
+            }
+            _ => panic!("expected list, got {:?}", curve),
+        }
+    }
+}
+
 fn evaluate_sample(xml: &str) -> EvaluationResult {
     let graph = ghx_xml::parse_str(xml).expect("parse ghx");
     let registry = ComponentRegistry::default();

@@ -1181,6 +1181,7 @@ pub(crate) fn parse_color_value(value: &Value) -> Option<ColorValue> {
         Value::Null
         | Value::CurveLine { .. }
         | Value::Surface { .. }
+        | Value::Mesh { .. }
         | Value::Domain(_)
         | Value::Matrix(_)
         | Value::DateTime(_)
@@ -1345,6 +1346,7 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
         | Value::Vector(_)
         | Value::CurveLine { .. }
         | Value::Surface { .. }
+        | Value::Mesh { .. }
         | Value::Domain(_)
         | Value::Matrix(_)
         | Value::DateTime(_)

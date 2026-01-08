@@ -409,6 +409,9 @@ fn evaluate_polar_array(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Epsilon for numerical comparisons in geometry transformations.
+const EPSILON: f64 = 1e-9;
+
 fn map_geometry<FPoint, FVector>(
     value: &Value,
     point_fn: &mut FPoint,
@@ -429,7 +432,61 @@ where
             vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
             faces: faces.clone(),
         },
+        Value::Mesh {
+            vertices,
+            indices,
+            normals,
+            uvs,
+            diagnostics,
+        } => {
+            // Transform vertex positions using the point function.
+            // Deterministic ordering is preserved: vertices are processed in index order.
+            let transformed_vertices: Vec<[f64; 3]> =
+                vertices.iter().map(|v| point_fn(*v)).collect();
+
+            // Transform normals using the vector function, then re-normalize.
+            // Array transforms (translations, rotations) should preserve unit length,
+            // but we re-normalize for numerical robustness. Kaleidoscope includes
+            // mirroring which requires proper normal transformation.
+            // If a normal becomes degenerate (zero length), we preserve the original.
+            let transformed_normals = normals.as_ref().map(|norms| {
+                norms
+                    .iter()
+                    .map(|n| {
+                        let transformed = vector_fn(*n);
+                        // Re-normalize to ensure unit length after transformation.
+                        let len_sq = transformed[0] * transformed[0]
+                            + transformed[1] * transformed[1]
+                            + transformed[2] * transformed[2];
+                        if len_sq > EPSILON * EPSILON {
+                            let len = len_sq.sqrt();
+                            [
+                                transformed[0] / len,
+                                transformed[1] / len,
+                                transformed[2] / len,
+                            ]
+                        } else {
+                            // Degenerate case: normal collapsed to zero.
+                            // Keep original normal as fallback.
+                            *n
+                        }
+                    })
+                    .collect()
+            });
+
+            Value::Mesh {
+                vertices: transformed_vertices,
+                // Indices remain unchanged: triangle connectivity is preserved.
+                indices: indices.clone(),
+                normals: transformed_normals,
+                // UVs are texture coordinates and remain unchanged by spatial transforms.
+                uvs: uvs.clone(),
+                // Diagnostics remain unchanged as they describe the original mesh quality.
+                diagnostics: diagnostics.clone(),
+            }
+        }
         Value::List(values) => {
+            // Process list elements in deterministic order (index 0, 1, 2, ...).
             let mut mapped = Vec::with_capacity(values.len());
             for value in values {
                 mapped.push(map_geometry(value, point_fn, vector_fn));

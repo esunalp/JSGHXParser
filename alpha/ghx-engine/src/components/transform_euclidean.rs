@@ -296,6 +296,9 @@ fn evaluate_rotate(inputs: &[Value], include_transform: bool) -> ComponentResult
 
 // HELPER FUNCTIONS
 
+/// Epsilon for numerical comparisons in geometry transformations.
+const EPSILON: f64 = 1e-9;
+
 fn map_geometry<FPoint, FVector>(
     value: &Value,
     point_fn: &mut FPoint,
@@ -316,6 +319,60 @@ where
             vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
             faces: faces.clone(),
         },
+        Value::Mesh {
+            vertices,
+            indices,
+            normals,
+            uvs,
+            diagnostics,
+        } => {
+            // Transform vertex positions using the point function
+            let transformed_vertices: Vec<[f64; 3]> =
+                vertices.iter().map(|v| point_fn(*v)).collect();
+
+            // Transform normals using the vector function.
+            // For Euclidean transforms (rotations, translations, reflections),
+            // the normals should remain unit length, but we re-normalize for
+            // numerical robustness and consistency with transform_affine.rs.
+            let transformed_normals = normals.as_ref().map(|norms| {
+                norms
+                    .iter()
+                    .map(|n| {
+                        let transformed = vector_fn(*n);
+                        // Re-normalize to ensure unit length after transformation.
+                        // While Euclidean transforms preserve length theoretically,
+                        // numerical precision issues may slightly affect unit length.
+                        // If the normal becomes degenerate (zero length after transform),
+                        // preserve the original direction as a fallback.
+                        let len_sq = transformed[0] * transformed[0]
+                            + transformed[1] * transformed[1]
+                            + transformed[2] * transformed[2];
+                        if len_sq > EPSILON * EPSILON {
+                            let len = len_sq.sqrt();
+                            [
+                                transformed[0] / len,
+                                transformed[1] / len,
+                                transformed[2] / len,
+                            ]
+                        } else {
+                            // Degenerate case: normal collapsed to zero.
+                            // Keep original normal as fallback.
+                            *n
+                        }
+                    })
+                    .collect()
+            });
+
+            Value::Mesh {
+                vertices: transformed_vertices,
+                indices: indices.clone(),
+                normals: transformed_normals,
+                // UVs are texture coordinates and remain unchanged by spatial transforms
+                uvs: uvs.clone(),
+                // Diagnostics remain unchanged as they describe the original mesh quality
+                diagnostics: diagnostics.clone(),
+            }
+        }
         Value::List(values) => {
             let mut mapped = Vec::with_capacity(values.len());
             for value in values {

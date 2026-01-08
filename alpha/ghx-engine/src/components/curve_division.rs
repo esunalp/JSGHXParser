@@ -1,7 +1,19 @@
 //! Implementaties van Grasshopper "Curve → Division" componenten.
+//!
+//! This module uses the `geom::curve` primitives for curve division, sampling,
+//! and frame computation. Components remain thin wrappers that coerce inputs,
+//! build geom curves, and return the results.
 
 use std::collections::BTreeMap;
 
+use crate::geom::{
+    CurveDivisionResult, CurveFrame, Polyline3, SubCurve,
+    Point3 as GeomPoint3, Vec3 as GeomVec3,
+    curve_arc_length, curve_plane_intersections,
+    divide_curve_by_count, divide_curve_by_distance,
+    extract_subcurve, frenet_frames, horizontal_frames, perp_frames,
+    sample_curve_at, shatter_curve,
+};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 
@@ -137,6 +149,121 @@ impl ComponentKind {
     }
 }
 
+// ============================================================================
+// Geom type conversion helpers
+// ============================================================================
+
+/// Converts an array [f64; 3] to a geom Point3.
+#[inline]
+fn to_geom_point(p: [f64; 3]) -> GeomPoint3 {
+    GeomPoint3::new(p[0], p[1], p[2])
+}
+
+/// Converts a geom Point3 to an array [f64; 3].
+#[inline]
+fn from_geom_point(p: GeomPoint3) -> [f64; 3] {
+    [p.x, p.y, p.z]
+}
+
+/// Converts an array [f64; 3] to a geom Vec3.
+#[inline]
+fn to_geom_vec(v: [f64; 3]) -> GeomVec3 {
+    GeomVec3::new(v[0], v[1], v[2])
+}
+
+/// Converts a geom Vec3 to an array [f64; 3].
+#[inline]
+fn from_geom_vec(v: GeomVec3) -> [f64; 3] {
+    [v.x, v.y, v.z]
+}
+
+/// Tolerance for detecting if a polyline is closed (first point equals last point).
+const CLOSED_POLYLINE_TOLERANCE: f64 = 1e-6;
+
+/// Checks if a polyline is closed by comparing first and last points.
+///
+/// A polyline is considered closed if the distance between its first and last
+/// points is less than [`CLOSED_POLYLINE_TOLERANCE`].
+///
+/// # Returns
+/// `true` if the polyline is closed, `false` otherwise or if fewer than 3 points.
+fn is_closed_polyline(points: &[[f64; 3]]) -> bool {
+    if points.len() < 3 {
+        return false;
+    }
+    let first = points[0];
+    let last = points[points.len() - 1];
+    let dx = first[0] - last[0];
+    let dy = first[1] - last[1];
+    let dz = first[2] - last[2];
+    (dx * dx + dy * dy + dz * dz).sqrt() < CLOSED_POLYLINE_TOLERANCE
+}
+
+/// Creates a geom Polyline3 from a list of [f64; 3] points.
+///
+/// Automatically detects if the polyline is closed by comparing the first and
+/// last points. If they are within [`CLOSED_POLYLINE_TOLERANCE`], the polyline
+/// is created with `closed = true`, which ensures the closing segment between
+/// the last and first points is included in all curve operations (division,
+/// frames, shatter, contour, etc.).
+fn create_polyline(points: &[[f64; 3]]) -> Result<Polyline3, ComponentError> {
+    let closed = is_closed_polyline(points);
+    let geom_points: Vec<GeomPoint3> = points.iter().map(|p| to_geom_point(*p)).collect();
+    Polyline3::new(geom_points, closed)
+        .map_err(|e| ComponentError::new(format!("Failed to create polyline: {}", e)))
+}
+
+/// Converts a CurveFrame to a Value::List representation.
+fn frame_to_value(frame: &CurveFrame) -> Value {
+    Value::List(vec![
+        Value::Point(from_geom_point(frame.origin)),
+        Value::Vector(from_geom_vec(frame.x_axis)),
+        Value::Vector(from_geom_vec(frame.y_axis)),
+        Value::Vector(from_geom_vec(frame.z_axis)),
+    ])
+}
+
+/// Converts a CurveDivisionResult to component outputs.
+fn division_result_to_outputs(result: CurveDivisionResult) -> BTreeMap<String, Value> {
+    let mut outputs = BTreeMap::new();
+    outputs.insert(
+        PIN_OUTPUT_POINTS.to_owned(),
+        Value::List(result.points.into_iter().map(|p| Value::Point(from_geom_point(p))).collect()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_TANGENTS.to_owned(),
+        Value::List(result.tangents.into_iter().map(|t| Value::Vector(from_geom_vec(t))).collect()),
+    );
+    outputs.insert(
+        PIN_OUTPUT_PARAMETERS.to_owned(),
+        Value::List(result.parameters.into_iter().map(Value::Number).collect()),
+    );
+    outputs
+}
+
+/// Converts subcurves to Value::List output.
+fn subcurves_to_value(subcurves: Vec<SubCurve>) -> Value {
+    Value::List(
+        subcurves
+            .into_iter()
+            .map(|sc| {
+                Value::List(
+                    sc.points
+                        .into_iter()
+                        .map(|p| Value::Point(from_geom_point(p)))
+                        .collect(),
+                )
+            })
+            .collect(),
+    )
+}
+
+/// Default number of samples per segment for subcurve extraction.
+const DEFAULT_SAMPLES_PER_SEGMENT: usize = 2;
+
+/// Default number of samples for arc-length estimation.
+const DEFAULT_ARC_LENGTH_SAMPLES: usize = 64;
+
 fn evaluate_curve_frames(inputs: &[Value]) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(
@@ -147,26 +274,12 @@ fn evaluate_curve_frames(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Curve Frames")?;
     let segments = coerce_positive_integer(inputs.get(1), "Curve Frames")?;
 
-    let mut frames = Vec::new();
-    let mut parameters = Vec::new();
+    // Build geom Polyline3 and use geom::curve frenet_frames
+    let polyline = create_polyline(&points)?;
+    let (geom_frames, params) = frenet_frames(&polyline, segments);
 
-    let steps = segments.max(1);
-    for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
-        let sample = sample_curve(&points, parameter);
-        let derivative = approximate_derivative(&points, parameter, 1);
-        let tangent = safe_normalized(derivative)
-            .map(|(v, _)| v)
-            .unwrap_or_else(|| sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
-        let frame = compute_frenet_frame(&points, parameter, sample.point, tangent);
-        frames.push(frame_value(
-            frame.origin,
-            frame.x_axis,
-            frame.y_axis,
-            frame.z_axis,
-        ));
-        parameters.push(Value::Number(parameter));
-    }
+    let frames: Vec<Value> = geom_frames.iter().map(frame_to_value).collect();
+    let parameters: Vec<Value> = params.into_iter().map(Value::Number).collect();
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames));
@@ -184,7 +297,10 @@ fn evaluate_divide_distance(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Divide Distance")?;
     let distance = coerce_positive_number(inputs.get(1), "Divide Distance")?;
 
-    divide_curve_by_length(&points, distance, "Divide Distance")
+    // Build geom Polyline3 and use geom::curve divide_curve_by_distance
+    let polyline = create_polyline(&points)?;
+    let result = divide_curve_by_distance(&polyline, distance, DEFAULT_ARC_LENGTH_SAMPLES);
+    Ok(division_result_to_outputs(result))
 }
 
 fn evaluate_divide_length(inputs: &[Value]) -> ComponentResult {
@@ -197,7 +313,10 @@ fn evaluate_divide_length(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Divide Length")?;
     let distance = coerce_positive_number(inputs.get(1), "Divide Length")?;
 
-    divide_curve_by_length(&points, distance, "Divide Length")
+    // Build geom Polyline3 and use geom::curve divide_curve_by_distance
+    let polyline = create_polyline(&points)?;
+    let result = divide_curve_by_distance(&polyline, distance, DEFAULT_ARC_LENGTH_SAMPLES);
+    Ok(division_result_to_outputs(result))
 }
 
 fn evaluate_divide_curve(inputs: &[Value]) -> ComponentResult {
@@ -215,39 +334,50 @@ fn evaluate_divide_curve(inputs: &[Value]) -> ComponentResult {
         .transpose()?
         .unwrap_or(false);
 
-    let mut parameters: Vec<f64> = (0..=segments.max(1))
-        .map(|index| index as f64 / segments.max(1) as f64)
-        .collect();
+    // Build geom Polyline3
+    let polyline = create_polyline(&points)?;
 
-    if include_kinks {
-        let total_length = polyline_length(&points);
-        if total_length > EPSILON {
-            let mut length = 0.0;
-            for segment in polyline_segments(&points) {
-                parameters.push(length / total_length);
-                length += segment.length;
-            }
-            parameters.push(1.0);
-        }
+    // Use geom::curve divide_curve_by_count for basic division
+    let result = divide_curve_by_count(&polyline, segments);
+
+    if !include_kinks {
+        return Ok(division_result_to_outputs(result));
     }
 
-    parameters.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    // If including kinks, add additional samples at polyline vertices
+    let total_length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
+    if total_length < EPSILON {
+        return Ok(division_result_to_outputs(result));
+    }
+
+    // Collect all parameters including kink positions
+    let mut parameters: Vec<f64> = result.parameters.clone();
+
+    // Add parameters at each polyline vertex (kinks)
+    let mut accumulated_length = 0.0;
+    for window in points.windows(2) {
+        let seg_len = distance(window[0], window[1]);
+        if accumulated_length > 0.0 {
+            parameters.push(accumulated_length / total_length);
+        }
+        accumulated_length += seg_len;
+    }
+    parameters.push(1.0);
+
+    // Sort and deduplicate parameters
+    parameters.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     parameters.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
 
+    // Sample at all parameters using geom
     let mut points_out = Vec::new();
     let mut tangents = Vec::new();
     let mut params_out = Vec::new();
 
-    for parameter in parameters {
-        let sample = sample_curve(&points, parameter);
-        let derivative = approximate_derivative(&points, parameter, 1);
-        let tangent = safe_normalized(derivative)
-            .map(|(v, _)| v)
-            .or(sample.tangent)
-            .unwrap_or([1.0, 0.0, 0.0]);
-        points_out.push(Value::Point(sample.point));
-        tangents.push(Value::Vector(tangent));
-        params_out.push(Value::Number(parameter));
+    for param in parameters {
+        let sample = sample_curve_at(&polyline, param);
+        points_out.push(Value::Point(from_geom_point(sample.point)));
+        tangents.push(Value::Vector(from_geom_vec(sample.tangent)));
+        params_out.push(Value::Number(sample.parameter));
     }
 
     let mut outputs = BTreeMap::new();
@@ -266,31 +396,17 @@ fn evaluate_divide_by_deviation(inputs: &[Value]) -> ComponentResult {
 
     let points = coerce_polyline(inputs.get(0), "Divide By Deviation")?;
     let segments = coerce_positive_integer(inputs.get(1), "Divide By Deviation")?;
-    let steps = segments.max(1);
 
-    let mut points_out = Vec::new();
-    let mut tangents = Vec::new();
-    let mut params_out = Vec::new();
-    let mut deviations = Vec::new();
+    // Build geom Polyline3 and use geom::curve divide_curve_by_count
+    // Note: For polylines, deviation is always 0 since they're linear segments
+    let polyline = create_polyline(&points)?;
+    let result = divide_curve_by_count(&polyline, segments);
 
-    for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
-        let sample = sample_curve(&points, parameter);
-        let derivative = approximate_derivative(&points, parameter, 1);
-        let tangent = safe_normalized(derivative)
-            .map(|(v, _)| v)
-            .or(sample.tangent)
-            .unwrap_or([1.0, 0.0, 0.0]);
-        points_out.push(Value::Point(sample.point));
-        tangents.push(Value::Vector(tangent));
-        params_out.push(Value::Number(parameter));
-        deviations.push(Value::Number(0.0));
-    }
+    // Convert to output format with deviation values (0.0 for polylines)
+    let count = result.points.len();
+    let deviations: Vec<Value> = vec![Value::Number(0.0); count];
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(points_out));
-    outputs.insert(PIN_OUTPUT_TANGENTS.to_owned(), Value::List(tangents));
-    outputs.insert(PIN_OUTPUT_PARAMETERS.to_owned(), Value::List(params_out));
+    let mut outputs = division_result_to_outputs(result);
     outputs.insert(PIN_OUTPUT_DEVIATION.to_owned(), Value::List(deviations));
     Ok(outputs)
 }
@@ -310,40 +426,12 @@ fn evaluate_perp_frames(inputs: &[Value]) -> ComponentResult {
         .transpose()?
         .unwrap_or(false);
 
-    let steps = segments.max(1);
-    let mut frames = Vec::new();
-    let mut parameters = Vec::new();
-    let mut previous_axes: Option<([f64; 3], [f64; 3])> = None;
+    // Build geom Polyline3 and use geom::curve perp_frames
+    let polyline = create_polyline(&points)?;
+    let (geom_frames, params) = perp_frames(&polyline, segments, align);
 
-    for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
-        let sample = sample_curve(&points, parameter);
-        let derivative = approximate_derivative(&points, parameter, 1);
-        let tangent = safe_normalized(derivative)
-            .map(|(v, _)| v)
-            .unwrap_or_else(|| sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
-        let mut frame = compute_parallel_frame(&points, sample.point, tangent);
-
-        if align {
-            if let Some((prev_y, prev_z)) = previous_axes {
-                if dot(frame.y_axis, prev_y) < 0.0 {
-                    frame.y_axis = scale(frame.y_axis, -1.0);
-                }
-                if dot(frame.z_axis, prev_z) < 0.0 {
-                    frame.z_axis = scale(frame.z_axis, -1.0);
-                }
-            }
-            previous_axes = Some((frame.y_axis, frame.z_axis));
-        }
-
-        frames.push(frame_value(
-            frame.origin,
-            frame.x_axis,
-            frame.y_axis,
-            frame.z_axis,
-        ));
-        parameters.push(Value::Number(parameter));
-    }
+    let frames: Vec<Value> = geom_frames.iter().map(frame_to_value).collect();
+    let parameters: Vec<Value> = params.into_iter().map(Value::Number).collect();
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames));
@@ -361,26 +449,12 @@ fn evaluate_horizontal_frames(inputs: &[Value]) -> ComponentResult {
     let points = coerce_polyline(inputs.get(0), "Horizontal Frames")?;
     let segments = coerce_positive_integer(inputs.get(1), "Horizontal Frames")?;
 
-    let steps = segments.max(1);
-    let mut frames = Vec::new();
-    let mut parameters = Vec::new();
+    // Build geom Polyline3 and use geom::curve horizontal_frames
+    let polyline = create_polyline(&points)?;
+    let (geom_frames, params) = horizontal_frames(&polyline, segments);
 
-    for i in 0..=steps {
-        let parameter = i as f64 / steps as f64;
-        let sample = sample_curve(&points, parameter);
-        let derivative = approximate_derivative(&points, parameter, 1);
-        let tangent = safe_normalized(derivative)
-            .map(|(v, _)| v)
-            .unwrap_or_else(|| sample.tangent.unwrap_or([1.0, 0.0, 0.0]));
-        let frame = compute_horizontal_frame(sample.point, tangent);
-        frames.push(frame_value(
-            frame.origin,
-            frame.x_axis,
-            frame.y_axis,
-            frame.z_axis,
-        ));
-        parameters.push(Value::Number(parameter));
-    }
+    let frames: Vec<Value> = geom_frames.iter().map(frame_to_value).collect();
+    let parameters: Vec<Value> = params.into_iter().map(Value::Number).collect();
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_FRAMES.to_owned(), Value::List(frames));
@@ -407,30 +481,12 @@ fn evaluate_shatter(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let mut params = parameters
-        .into_iter()
-        .map(|value| clamp(value, 0.0, 1.0))
-        .collect::<Vec<_>>();
-    params.push(0.0);
-    params.push(1.0);
-    params.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    params.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
-
-    let mut segments_out = Vec::new();
-    for pair in params.windows(2) {
-        let start = pair[0];
-        let end = pair[1];
-        if (end - start).abs() < 1e-9 {
-            continue;
-        }
-        let subcurve = sample_subcurve(&points, start, end);
-        segments_out.push(Value::List(
-            subcurve.into_iter().map(Value::Point).collect(),
-        ));
-    }
+    // Build geom Polyline3 and use geom::curve shatter_curve
+    let polyline = create_polyline(&points)?;
+    let subcurves = shatter_curve(&polyline, &parameters, DEFAULT_SAMPLES_PER_SEGMENT);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_SEGMENTS.to_owned(), Value::List(segments_out));
+    outputs.insert(PIN_OUTPUT_SEGMENTS.to_owned(), subcurves_to_value(subcurves));
     Ok(outputs)
 }
 
@@ -453,7 +509,7 @@ fn evaluate_contour_explicit(inputs: &[Value]) -> ComponentResult {
         .transpose()?;
 
     let offsets = determine_offsets(plane.origin, plane.normal, &points, offsets, distances)?;
-    contour_with_offsets(&points, &plane, &offsets, "Contour (ex)")
+    contour_with_offsets_geom(&points, &plane, &offsets, "Contour (ex)")
 }
 
 fn evaluate_contour(inputs: &[Value]) -> ComponentResult {
@@ -477,7 +533,7 @@ fn evaluate_contour(inputs: &[Value]) -> ComponentResult {
         normal,
     };
     let offsets = determine_offsets_from_distance(&plane, &points, distance);
-    contour_with_offsets(&points, &plane, &offsets, "Contour")
+    contour_with_offsets_geom(&points, &plane, &offsets, "Contour")
 }
 
 fn evaluate_dash_pattern(inputs: &[Value]) -> ComponentResult {
@@ -499,7 +555,16 @@ fn evaluate_dash_pattern(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let total_length = polyline_length(&points);
+    // Validate all pattern elements
+    if pattern.iter().any(|&v| v.abs() < EPSILON) {
+        return Err(ComponentError::new(
+            "Dash Pattern elementen moeten groter dan nul zijn",
+        ));
+    }
+
+    // Build geom Polyline3
+    let polyline = create_polyline(&points)?;
+    let total_length = curve_arc_length(&polyline, DEFAULT_ARC_LENGTH_SAMPLES);
     if total_length < EPSILON {
         return Err(ComponentError::new("Dash Pattern curve heeft geen lengte"));
     }
@@ -510,58 +575,40 @@ fn evaluate_dash_pattern(inputs: &[Value]) -> ComponentResult {
     let mut pattern_index = 0;
     let mut toggle_dash = true;
     let mut remaining = pattern[pattern_index].abs();
-    if remaining < EPSILON {
-        return Err(ComponentError::new(
-            "Dash Pattern elementen moeten groter dan nul zijn",
-        ));
-    }
 
     let mut cursor = 0.0;
-    let segments = polyline_segments(&points);
-    let mut segment_index = 0;
-    let mut segment_pos = 0.0;
 
     while cursor < total_length - 1e-9 {
         if remaining < EPSILON {
             pattern_index = (pattern_index + 1) % pattern.len();
             remaining = pattern[pattern_index].abs();
-            if remaining < EPSILON {
-                return Err(ComponentError::new(
-                    "Dash Pattern elementen moeten groter dan nul zijn",
-                ));
-            }
             toggle_dash = !toggle_dash;
             continue;
         }
 
-        if segment_index >= segments.len() {
-            break;
-        }
-        let segment = &segments[segment_index];
-        let segment_remaining = segment.length - segment_pos;
-        let step = remaining.min(segment_remaining);
-
+        let step = remaining.min(total_length - cursor);
         let start_param = cursor / total_length;
         cursor += step;
-        segment_pos += step;
         let end_param = cursor / total_length;
 
-        let subcurve = sample_subcurve(&points, start_param, end_param);
+        // Use geom extract_subcurve
+        let subcurve = extract_subcurve(&polyline, start_param, end_param, DEFAULT_SAMPLES_PER_SEGMENT);
+
+        let points_value = Value::List(
+            subcurve
+                .points
+                .into_iter()
+                .map(|p| Value::Point(from_geom_point(p)))
+                .collect(),
+        );
+
         if toggle_dash {
-            dashes.push(Value::List(
-                subcurve.into_iter().map(Value::Point).collect(),
-            ));
+            dashes.push(points_value);
         } else {
-            gaps.push(Value::List(
-                subcurve.into_iter().map(Value::Point).collect(),
-            ));
+            gaps.push(points_value);
         }
 
         remaining -= step;
-        if segment_pos >= segment.length - 1e-9 {
-            segment_index += 1;
-            segment_pos = 0.0;
-        }
     }
 
     let mut outputs = BTreeMap::new();
@@ -570,7 +617,8 @@ fn evaluate_dash_pattern(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
-fn contour_with_offsets(
+/// Contour implementation using geom::curve utilities.
+fn contour_with_offsets_geom(
     points: &[[f64; 3]],
     plane: &Plane,
     offsets: &[f64],
@@ -583,63 +631,38 @@ fn contour_with_offsets(
         )));
     }
 
-    let segments = polyline_segments(points);
-    if segments.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{} curve heeft te weinig punten",
-            context
-        )));
-    }
+    // Build geom Polyline3
+    let polyline = create_polyline(points)?;
 
-    let total_length = segments.iter().map(|segment| segment.length).sum::<f64>();
-    if total_length < EPSILON {
-        return Err(ComponentError::new(format!(
-            "{} curve heeft geen lengte",
-            context
-        )));
-    }
+    let plane_normal = to_geom_vec(plane.normal);
+    let plane_origin = to_geom_point(plane.origin);
 
     let mut contour_branches = Vec::new();
     let mut parameter_branches = Vec::new();
 
     for &offset in offsets {
-        let mut branch_points = Vec::new();
-        let mut branch_parameters = Vec::new();
-        let mut accumulated = 0.0;
+        // Offset the plane origin by the offset distance along the normal
+        let offset_origin = plane_origin.add_vec(plane_normal.mul_scalar(offset));
 
-        for segment in &segments {
-            let d1 = dot(subtract(segment.start, plane.origin), plane.normal) - offset;
-            let d2 = dot(subtract(segment.end, plane.origin), plane.normal) - offset;
+        // Use geom::curve curve_plane_intersections
+        let intersections = curve_plane_intersections(
+            &polyline,
+            offset_origin,
+            plane_normal,
+            DEFAULT_ARC_LENGTH_SAMPLES,
+        );
 
-            if d1.abs() < EPSILON {
-                branch_points.push(segment.start);
-                branch_parameters.push(Value::Number(accumulated / total_length));
-            }
+        if !intersections.is_empty() {
+            let branch_points: Vec<Value> = intersections
+                .iter()
+                .map(|(pt, _)| Value::Point(from_geom_point(*pt)))
+                .collect();
+            let branch_parameters: Vec<Value> = intersections
+                .iter()
+                .map(|(_, t)| Value::Number(*t))
+                .collect();
 
-            if d1.signum() == d2.signum() {
-                accumulated += segment.length;
-                continue;
-            }
-
-            let denom = d1 - d2;
-            if denom.abs() < EPSILON {
-                accumulated += segment.length;
-                continue;
-            }
-
-            let factor = d1 / denom;
-            let factor = factor.clamp(0.0, 1.0);
-            let point = lerp(segment.start, segment.end, factor);
-            let parameter = (accumulated + segment.length * factor) / total_length;
-            branch_points.push(point);
-            branch_parameters.push(Value::Number(parameter));
-            accumulated += segment.length;
-        }
-
-        if !branch_points.is_empty() {
-            contour_branches.push(Value::List(
-                branch_points.into_iter().map(Value::Point).collect(),
-            ));
+            contour_branches.push(Value::List(branch_points));
             parameter_branches.push(Value::List(branch_parameters));
         }
     }
@@ -735,119 +758,6 @@ fn determine_offsets_from_distance(plane: &Plane, points: &[[f64; 3]], distance:
 
     offsets.sort_by(|a, b| a.partial_cmp(b).unwrap());
     offsets
-}
-
-fn divide_curve_by_length(points: &[[f64; 3]], distance: f64, context: &str) -> ComponentResult {
-    let segments = polyline_segments(points);
-    if segments.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{} curve heeft te weinig punten",
-            context
-        )));
-    }
-
-    let total_length = segments.iter().map(|segment| segment.length).sum::<f64>();
-    if total_length < EPSILON {
-        return Err(ComponentError::new(format!(
-            "{} curve heeft geen lengte",
-            context
-        )));
-    }
-
-    let mut points_out = Vec::new();
-    let mut tangents = Vec::new();
-    let mut parameters = Vec::new();
-
-    let mut accumulated = 0.0;
-    let mut next_target = 0.0;
-    let mut segment_iter = segments.iter();
-    let mut current_segment = segment_iter.next();
-    let mut segment_progress = 0.0;
-
-    while let Some(segment) = current_segment {
-        if next_target > total_length + 1e-9 {
-            break;
-        }
-
-        let remaining_in_segment = segment.length - segment_progress;
-        if remaining_in_segment < EPSILON {
-            accumulated += segment.length - segment_progress;
-            current_segment = segment_iter.next();
-            segment_progress = 0.0;
-            continue;
-        }
-
-        if next_target <= accumulated + remaining_in_segment + 1e-9 {
-            let distance_into_segment = next_target - accumulated;
-            let factor = if segment.length < EPSILON {
-                0.0
-            } else {
-                (segment_progress + distance_into_segment) / segment.length
-            };
-            let point = lerp(segment.start, segment.end, factor);
-            let parameter = next_target / total_length;
-            let derivative = approximate_derivative(points, parameter, 1);
-            let tangent = safe_normalized(derivative)
-                .map(|(v, _)| v)
-                .unwrap_or_else(|| {
-                    safe_normalized(subtract(segment.end, segment.start))
-                        .map(|(v, _)| v)
-                        .unwrap_or([1.0, 0.0, 0.0])
-                });
-
-            points_out.push(Value::Point(point));
-            tangents.push(Value::Vector(tangent));
-            parameters.push(Value::Number(parameter));
-
-            if next_target >= total_length - distance * 0.25 {
-                break;
-            }
-
-            next_target += distance;
-        } else {
-            accumulated += remaining_in_segment;
-            current_segment = segment_iter.next();
-            segment_progress = 0.0;
-        }
-    }
-
-    if points_out.is_empty()
-        || parameters.last().map(|value| match value {
-            Value::Number(number) => *number,
-            _ => 0.0,
-        }) != Some(1.0)
-    {
-        let last_point = *points.last().unwrap();
-        points_out.push(Value::Point(last_point));
-        tangents.push(Value::Vector(
-            safe_normalized(subtract(
-                *points.last().unwrap(),
-                *points
-                    .get(points.len().saturating_sub(2))
-                    .unwrap_or(&last_point),
-            ))
-            .map(|(v, _)| v)
-            .unwrap_or([1.0, 0.0, 0.0]),
-        ));
-        parameters.push(Value::Number(1.0));
-    }
-
-    let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_POINTS.to_owned(), Value::List(points_out));
-    outputs.insert(PIN_OUTPUT_TANGENTS.to_owned(), Value::List(tangents));
-    outputs.insert(PIN_OUTPUT_PARAMETERS.to_owned(), Value::List(parameters));
-    Ok(outputs)
-}
-
-fn sample_subcurve(points: &[[f64; 3]], start: f64, end: f64) -> Vec<[f64; 3]> {
-    if end <= start {
-        let point = sample_curve(points, start).point;
-        return vec![point];
-    }
-
-    let start_sample = sample_curve(points, start).point;
-    let end_sample = sample_curve(points, end).point;
-    vec![start_sample, end_sample]
 }
 
 // --- Parsers en hulpfuncties ------------------------------------------------
@@ -1049,206 +959,14 @@ impl Plane {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct CurveSample {
-    point: [f64; 3],
-    tangent: Option<[f64; 3]>,
-}
-
-fn sample_curve(points: &[[f64; 3]], parameter: f64) -> CurveSample {
-    let (point, tangent, _) = sample_curve_basic(points, clamp(parameter, 0.0, 1.0));
-    CurveSample { point, tangent }
-}
-
-fn sample_curve_basic(points: &[[f64; 3]], parameter: f64) -> ([f64; 3], Option<[f64; 3]>, f64) {
-    let segments = polyline_segments(points);
-    if segments.is_empty() {
-        return (points.get(0).copied().unwrap_or([0.0, 0.0, 0.0]), None, 0.0);
-    }
-
-    let total_length: f64 = segments.iter().map(|segment| segment.length).sum();
-    if total_length < EPSILON {
-        let tangent = safe_normalized(subtract(segments[0].end, segments[0].start)).map(|(v, _)| v);
-        return (segments[0].start, tangent, 0.0);
-    }
-
-    let target = parameter * total_length;
-    let mut accumulated = 0.0;
-    for segment in &segments {
-        if accumulated + segment.length >= target {
-            let remaining = target - accumulated;
-            let factor = if segment.length < EPSILON {
-                0.0
-            } else {
-                remaining / segment.length
-            };
-            let point = lerp(segment.start, segment.end, factor);
-            let tangent = safe_normalized(subtract(segment.end, segment.start)).map(|(v, _)| v);
-            return (point, tangent, target);
-        }
-        accumulated += segment.length;
-    }
-
-    let last = segments.last().unwrap();
-    let tangent = safe_normalized(subtract(last.end, last.start)).map(|(v, _)| v);
-    (last.end, tangent, total_length)
-}
-
-fn approximate_derivative(points: &[[f64; 3]], parameter: f64, order: usize) -> [f64; 3] {
-    let h = 1.0 / (points.len().max(8) as f64 * 4.0);
-    match order {
-        1 => {
-            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            scale(subtract(forward, backward), 0.5 / h)
-        }
-        2 => {
-            let forward = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            let center = sample_curve(points, parameter).point;
-            add(
-                scale(add(forward, backward), 1.0 / (h * h)),
-                scale(center, -2.0 / (h * h)),
-            )
-        }
-        _ => {
-            let forward = sample_curve(points, clamp(parameter + 2.0 * h, 0.0, 1.0)).point;
-            let forward_mid = sample_curve(points, clamp(parameter + h, 0.0, 1.0)).point;
-            let backward_mid = sample_curve(points, clamp(parameter - h, 0.0, 1.0)).point;
-            let backward = sample_curve(points, clamp(parameter - 2.0 * h, 0.0, 1.0)).point;
-            add(
-                scale(
-                    add(forward, scale(forward_mid, -3.0)),
-                    1.0 / (2.0 * h * h * h),
-                ),
-                scale(
-                    add(scale(backward_mid, 3.0), scale(backward, -1.0)),
-                    1.0 / (2.0 * h * h * h),
-                ),
-            )
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct PolylineSegment {
-    start: [f64; 3],
-    end: [f64; 3],
-    length: f64,
-}
-
-fn polyline_segments(points: &[[f64; 3]]) -> Vec<PolylineSegment> {
-    points
-        .windows(2)
-        .map(|pair| PolylineSegment {
-            start: pair[0],
-            end: pair[1],
-            length: distance(pair[0], pair[1]),
-        })
-        .collect()
-}
-
-fn polyline_length(points: &[[f64; 3]]) -> f64 {
-    polyline_segments(points)
-        .iter()
-        .map(|segment| segment.length)
-        .sum()
-}
-
-#[derive(Debug, Clone, Copy)]
-struct FrameData {
-    origin: [f64; 3],
-    x_axis: [f64; 3],
-    y_axis: [f64; 3],
-    z_axis: [f64; 3],
-}
-
-fn compute_frenet_frame(
-    points: &[[f64; 3]],
-    parameter: f64,
-    origin: [f64; 3],
-    tangent: [f64; 3],
-) -> FrameData {
-    let second = approximate_derivative(points, parameter, 2);
-    let mut normal = subtract(second, scale(tangent, dot(second, tangent)));
-    if length_squared(normal) < EPSILON {
-        normal = orthogonal_vector(tangent);
-    }
-    let normal = normalize(normal);
-    let binormal = normalize(cross(tangent, normal));
-    let normal = normalize(cross(binormal, tangent));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
-
-fn compute_parallel_frame(points: &[[f64; 3]], origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
-    let plane = plane_from_polyline(points);
-    let mut binormal = plane.normal;
-    if length_squared(binormal) < EPSILON || length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [0.0, 0.0, 1.0];
-    }
-    if length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [1.0, 0.0, 0.0];
-    }
-    let normal = normalize(cross(binormal, tangent));
-    let binormal = normalize(cross(tangent, normal));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
-
-fn compute_horizontal_frame(origin: [f64; 3], tangent: [f64; 3]) -> FrameData {
-    let mut binormal = [0.0, 0.0, 1.0];
-    if length_squared(cross(binormal, tangent)) < EPSILON {
-        binormal = [1.0, 0.0, 0.0];
-    }
-    let normal = normalize(cross(binormal, tangent));
-    let binormal = normalize(cross(tangent, normal));
-    FrameData {
-        origin,
-        x_axis: tangent,
-        y_axis: normal,
-        z_axis: binormal,
-    }
-}
-
-fn plane_from_polyline(points: &[[f64; 3]]) -> Plane {
-    if points.len() < 3 {
-        return Plane {
-            origin: points.first().copied().unwrap_or([0.0, 0.0, 0.0]),
-            normal: [0.0, 0.0, 1.0],
-        };
-    }
-
-    let a = points[0];
-    let b = points[1];
-    let c = points[2];
-    let normal = normalize(cross(subtract(b, a), subtract(c, a)));
-    Plane { origin: a, normal }
-}
-
-fn frame_value(origin: [f64; 3], x_axis: [f64; 3], y_axis: [f64; 3], z_axis: [f64; 3]) -> Value {
-    Value::List(vec![
-        Value::Point(origin),
-        Value::Vector(x_axis),
-        Value::Vector(y_axis),
-        Value::Vector(z_axis),
-    ])
-}
+// --- Math Helpers -----------------------------------------------------------
 
 fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
-    let length = length(vector);
-    if length < EPSILON {
+    let len = length(vector);
+    if len < EPSILON {
         None
     } else {
-        Some((scale(vector, 1.0 / length), length))
+        Some((scale(vector, 1.0 / len), len))
     }
 }
 
@@ -1258,10 +976,6 @@ fn distance(a: [f64; 3], b: [f64; 3]) -> f64 {
 
 fn length(vector: [f64; 3]) -> f64 {
     (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt()
-}
-
-fn length_squared(vector: [f64; 3]) -> f64 {
-    vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]
 }
 
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
@@ -1276,10 +990,6 @@ fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-}
-
 fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
@@ -1289,31 +999,13 @@ fn scale(a: [f64; 3], factor: f64) -> [f64; 3] {
 }
 
 fn normalize(vector: [f64; 3]) -> [f64; 3] {
-    safe_normalized(vector)
-        .map(|(v, _)| v)
-        .unwrap_or([1.0, 0.0, 0.0])
-}
-
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
-    if vector[0].abs() < vector[1].abs() && vector[0].abs() < vector[2].abs() {
-        normalize(cross(vector, [1.0, 0.0, 0.0]))
-    } else if vector[1].abs() < vector[2].abs() {
-        normalize(cross(vector, [0.0, 1.0, 0.0]))
+    let len = length(vector);
+    if len < EPSILON {
+        [1.0, 0.0, 0.0]
     } else {
-        normalize(cross(vector, [0.0, 0.0, 1.0]))
+        scale(vector, 1.0 / len)
     }
 }
 
-fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
-    [
-        a[0] + (b[0] - a[0]) * t,
-        a[1] + (b[1] - a[1]) * t,
-        a[2] + (b[2] - a[2]) * t,
-    ]
-}
-
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
-    value.max(min).min(max)
-}
-
 const EPSILON: f64 = 1e-9;
+

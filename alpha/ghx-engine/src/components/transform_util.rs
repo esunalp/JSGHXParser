@@ -385,6 +385,41 @@ fn apply_transform(geometry: &Value, transform: &Value) -> Result<Value, Compone
     }
 }
 
+/// Epsilon for numerical comparisons in geometry transformations.
+const EPSILON: f64 = 1e-9;
+
+/// Applies point and vector transformation functions to a geometry value.
+///
+/// This function recursively transforms geometry values, applying `point_fn`
+/// to positions and `vector_fn` to directional vectors (including normals).
+///
+/// # Supported Value Types
+///
+/// - `Value::Point` - Transformed using `point_fn`
+/// - `Value::Vector` - Transformed using `vector_fn`
+/// - `Value::CurveLine` - Both endpoints transformed using `point_fn`
+/// - `Value::Surface` - All vertices transformed using `point_fn` (legacy)
+/// - `Value::Mesh` - Vertices transformed using `point_fn`, normals using
+///   `vector_fn` with re-normalization; indices, UVs, and diagnostics preserved
+/// - `Value::List` - Each element recursively transformed
+///
+/// Other value types are cloned unchanged.
+///
+/// # Normal Handling
+///
+/// For `Value::Mesh`, normals are transformed using `vector_fn` and then
+/// re-normalized to unit length. This ensures correct behavior for:
+/// - Rotations (preserve length but numerical precision may drift)
+/// - Non-uniform scaling (normals need inverse-transpose transformation)
+///
+/// If a normal becomes degenerate (zero length after transformation),
+/// the original normal is preserved as a fallback.
+///
+/// # Diagnostics Preservation
+///
+/// Mesh diagnostics are preserved through transformations as they describe
+/// the original mesh quality metrics (open edges, welded vertices, etc.)
+/// which remain valid after spatial transformations.
 fn map_geometry<FPoint, FVector>(
     value: &Value,
     point_fn: &mut FPoint,
@@ -405,6 +440,58 @@ where
             vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
             faces: faces.clone(),
         },
+        Value::Mesh {
+            vertices,
+            indices,
+            normals,
+            uvs,
+            diagnostics,
+        } => {
+            // Transform vertex positions using the point function
+            let transformed_vertices: Vec<[f64; 3]> =
+                vertices.iter().map(|v| point_fn(*v)).collect();
+
+            // Transform normals using the vector function, then re-normalize.
+            // The vector_fn handles the directional transformation, but after
+            // scaling or due to numerical precision, normals may no longer be
+            // unit length. Re-normalization ensures consistent behavior.
+            let transformed_normals = normals.as_ref().map(|norms| {
+                norms
+                    .iter()
+                    .map(|n| {
+                        let transformed = vector_fn(*n);
+                        // Re-normalize to ensure unit length after transformation.
+                        // If the normal becomes degenerate (zero length after
+                        // transform), preserve the original direction as fallback.
+                        let len_sq = transformed[0] * transformed[0]
+                            + transformed[1] * transformed[1]
+                            + transformed[2] * transformed[2];
+                        if len_sq > EPSILON * EPSILON {
+                            let inv_len = 1.0 / len_sq.sqrt();
+                            [
+                                transformed[0] * inv_len,
+                                transformed[1] * inv_len,
+                                transformed[2] * inv_len,
+                            ]
+                        } else {
+                            // Degenerate case: normal collapsed to zero.
+                            // Keep original normal as fallback.
+                            *n
+                        }
+                    })
+                    .collect()
+            });
+
+            Value::Mesh {
+                vertices: transformed_vertices,
+                indices: indices.clone(),
+                normals: transformed_normals,
+                // UVs are texture coordinates and remain unchanged by spatial transforms
+                uvs: uvs.clone(),
+                // Diagnostics remain unchanged as they describe the original mesh quality
+                diagnostics: diagnostics.clone(),
+            }
+        }
         Value::List(values) => {
             let mut mapped = Vec::with_capacity(values.len());
             for value in values {

@@ -380,39 +380,39 @@ Tests + fixtures + tooling for Phase 2 (prove feature coverage before integratio
 - [x] `cargo build -p ghx-engine --no-default-features --features mesh_engine_next --target wasm32-unknown-unknown`: Passes for wasm.
 
 Gate (must be true before touching components/graph)
-- [ ] `mesh_engine_next` passes native tests.
-- [ ] `mesh_engine_next` passes wasm build (`wasm32-unknown-unknown`) and smoke tests.
-- [ ] Feature coverage parity checklist approved (loft/sweep/extrude/revolve/pipe/boolean/patch/offset/deform/simplify).
+- [x] `mesh_engine_next` passes native tests.
+- [x] `mesh_engine_next` passes wasm build (`wasm32-unknown-unknown`) and smoke tests.
+- [x] Feature coverage parity checklist approved (loft/sweep/extrude/revolve/pipe/boolean/patch/offset/deform/simplify).
 
 Phase 3 - Integration into `graph` and `components` (after gate passes)
 Goal: switch the live component layer to call the new `geom` engine (now proven in Phase 2) while keeping all existing graphs stable (pin order + GUIDs + legacy surface outputs).
 
 Graph/value layer (introduce the stable public mesh type)
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Add `Value::Mesh { vertices, faces, normals, uvs, diagnostics }` (or equivalent) and keep `Value::Surface { vertices, faces }` as a legacy shim.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshQuality` + parsing from `MetaMap` (defaults + presets); keep API wasm-friendly.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshDiagnostics` (match what Phase 2 produced internally) + conversion from `geom` diagnostics.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Update (de)serialization and any `expect_*` helpers to support `Value::Mesh`.
-- [ ] `alpha/ghx-engine/src/graph/value.rs`: Add explicit adapters: `mesh_to_surface_legacy()` and `surface_legacy_to_mesh()` (document lossy parts).
+- [x] `alpha/ghx-engine/src/graph/value.rs`: Add `Value::Mesh { vertices, faces, normals, uvs, diagnostics }` (or equivalent) and keep `Value::Surface { vertices, faces }` as a legacy shim.
+- [x] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshQuality` + parsing from `MetaMap` (defaults + presets); keep API wasm-friendly.
+- [x] `alpha/ghx-engine/src/graph/value.rs`: Define `MeshDiagnostics` (match what Phase 2 produced internally) + conversion from `geom` diagnostics.
+- [x] `alpha/ghx-engine/src/graph/value.rs`: Update (de)serialization and any `expect_*` helpers to support `Value::Mesh`.
+- [x] `alpha/ghx-engine/src/graph/value.rs`: Add explicit adapters: `mesh_to_surface_legacy()` and `surface_legacy_to_mesh()` (document lossy parts).
 
 Cross-cutting component helpers (must be updated before feature components)
-- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Accept `Value::Mesh` anywhere a mesh/surface is expected; keep accepting `Value::Surface` for backward compatibility.
-- [ ] `alpha/ghx-engine/src/components/coerce.rs`: Add conversions between `Value::{Surface,Mesh}` and `geom` payloads (including tolerance/quality/meta plumbing).
-- [ ] `alpha/ghx-engine/src/components/params_geometry.rs`: Treat `Value::Mesh` as a first-class geometry type anywhere `Value::Surface` was accepted; keep legacy behavior for lists/trees.
-- [ ] `alpha/ghx-engine/src/components/display_preview.rs`: Render `Value::Mesh` directly; for `Value::Surface` keep the current path (or adapt through the legacy adapter).
-- [ ] `alpha/ghx-engine/src/components/transform_affine.rs`: Apply transforms to `Value::Mesh` (positions + normals) and keep existing `Value::Surface` logic.
-- [ ] `alpha/ghx-engine/src/components/transform_euclidean.rs`: Apply transforms to `Value::Mesh` and keep existing `Value::Surface` logic.
-- [ ] `alpha/ghx-engine/src/components/transform_array.rs`: Array-copy/instance transforms must handle `Value::Mesh` while preserving deterministic ordering.
-- [ ] `alpha/ghx-engine/src/components/transform_util.rs`: Any generic transform helpers must handle `Value::Mesh` and preserve diagnostics where possible.
-- [ ] `alpha/ghx-engine/src/components/mesh_analysis.rs`: Accept `Value::Mesh` inputs everywhere it currently accepts `Value::Surface` meshes (DeconstructMesh, FaceNormals, MeshEdges, ClosestPoint, etc.).
-- [ ] `alpha/ghx-engine/src/components/mesh_primitive.rs`: Switch mesh construction outputs to `Value::Mesh` as primary; keep emitting `Value::Surface` legacy outputs where existing pins expect it.
-- [ ] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Switch algorithmic mesh outputs (FacetDome, Voronoi, DelaunayMesh, etc.) to `Value::Mesh` as primary; keep `Value::Surface` legacy adapters if consumers rely on them.
+- [x] `alpha/ghx-engine/src/components/coerce.rs`: Accept `Value::Mesh` anywhere a mesh/surface is expected; keep accepting `Value::Surface` for backward compatibility.
+- [x] `alpha/ghx-engine/src/components/coerce.rs`: Add conversions between `Value::{Surface,Mesh}` and `geom` payloads (including tolerance/quality/meta plumbing).
+- [x] `alpha/ghx-engine/src/components/params_geometry.rs`: Treat `Value::Mesh` as a first-class geometry type anywhere `Value::Surface` was accepted; keep legacy behavior for lists/trees.
+- [x] `alpha/ghx-engine/src/components/display_preview.rs`: Render `Value::Mesh` directly; for `Value::Surface` keep the current path (or adapt through the legacy adapter).
+- [x] `alpha/ghx-engine/src/components/transform_affine.rs`: Apply transforms to `Value::Mesh` (positions + normals) and keep existing `Value::Surface` logic.
+- [x] `alpha/ghx-engine/src/components/transform_euclidean.rs`: Apply transforms to `Value::Mesh` and keep existing `Value::Surface` logic.
+- [x] `alpha/ghx-engine/src/components/transform_array.rs`: Array-copy/instance transforms must handle `Value::Mesh` while preserving deterministic ordering.
+- [x] `alpha/ghx-engine/src/components/transform_util.rs`: Any generic transform helpers must handle `Value::Mesh` and preserve diagnostics where possible.
+- [x] `alpha/ghx-engine/src/components/mesh_analysis.rs`: Accept `Value::Mesh` inputs everywhere it currently accepts `Value::Surface` meshes (DeconstructMesh, FaceNormals, MeshEdges, ClosestPoint, etc.).
+- [x] `alpha/ghx-engine/src/components/mesh_primitive.rs`: Switch mesh construction outputs to `Value::Mesh` as primary; keep emitting `Value::Surface` legacy outputs where existing pins expect it.
+- [x] `alpha/ghx-engine/src/components/mesh_triangulation.rs`: Switch algorithmic mesh outputs (FacetDome, Voronoi, DelaunayMesh, etc.) to `Value::Mesh` as primary; keep `Value::Surface` legacy adapters if consumers rely on them.
 
 Curve components (switch to geom curves)
-- [ ] `alpha/ghx-engine/src/components/curve_primitive.rs`: Circle/Arc/Line/Polygon/Rectangle/Ellipse -> build `geom::curve` primitives and tessellate via `geom::tessellation`.
-- [ ] `alpha/ghx-engine/src/components/curve_spline.rs`: Nurbs/Bezier/Interpolate/Polyline -> build `geom::curve` splines and tessellate via `geom::tessellation`.
-- [ ] `alpha/ghx-engine/src/components/curve_division.rs`: Divide/Shatter/Contour -> use `geom::curve` splitting and sampling methods.
-- [ ] `alpha/ghx-engine/src/components/curve_analysis.rs`: Evaluate/Length/Curvature/Frames -> use `geom::curve` analysis methods.
-- [ ] `alpha/ghx-engine/src/components/curve_util.rs`: Offset/Fillet/Join/Flip/Extend -> use `geom` operations.
+- [x] `alpha/ghx-engine/src/components/curve_primitive.rs`: Circle/Arc/Line/Polygon/Rectangle/Ellipse -> build `geom::curve` primitives and tessellate via `geom::tessellation`.
+- [x] `alpha/ghx-engine/src/components/curve_spline.rs`: Nurbs/Bezier/Interpolate/Polyline -> build `geom::curve` splines and tessellate via `geom::tessellation`.
+- [x] `alpha/ghx-engine/src/components/curve_division.rs`: Divide/Shatter/Contour -> use `geom::curve` splitting and sampling methods.
+- [x] `alpha/ghx-engine/src/components/curve_analysis.rs`: Evaluate/Length/Curvature/Frames -> use `geom::curve` analysis methods.
+- [x] `alpha/ghx-engine/src/components/curve_util.rs`: Offset/Fillet/Join/Flip/Extend -> use `geom` operations.
 
 Surface “Freeform” components (wire each feature to `geom`, keep GUIDs/pins)
 - [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Extrude / ExtrudeLinear / ExtrudeAngled / ExtrudePoint / ExtrudeAlong -> call `geom::extrusion::*`; output `Value::Mesh` and (where required) a `Value::Surface` legacy adapter on existing surface pins.

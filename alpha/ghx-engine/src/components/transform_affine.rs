@@ -637,6 +637,55 @@ where
             vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
             faces: faces.clone(),
         },
+        Value::Mesh {
+            vertices,
+            indices,
+            normals,
+            uvs,
+            diagnostics,
+        } => {
+            // Transform vertex positions using the point function
+            let transformed_vertices: Vec<[f64; 3]> =
+                vertices.iter().map(|v| point_fn(*v)).collect();
+
+            // Transform normals using the vector function, then re-normalize
+            // to handle non-uniform scaling correctly.
+            // The vector_fn already handles the directional transformation,
+            // but after non-uniform scaling, normals may no longer be unit length.
+            let transformed_normals = normals.as_ref().map(|norms| {
+                norms
+                    .iter()
+                    .map(|n| {
+                        let transformed = vector_fn(*n);
+                        // Re-normalize to ensure unit length after transformation.
+                        // For non-uniform scaling, the normal direction changes and
+                        // must be normalized. If the normal becomes degenerate (zero
+                        // length after transform), preserve the original direction.
+                        let len_sq = transformed[0] * transformed[0]
+                            + transformed[1] * transformed[1]
+                            + transformed[2] * transformed[2];
+                        if len_sq > EPSILON * EPSILON {
+                            let len = len_sq.sqrt();
+                            [transformed[0] / len, transformed[1] / len, transformed[2] / len]
+                        } else {
+                            // Degenerate case: normal collapsed to zero.
+                            // Keep original normal as fallback.
+                            *n
+                        }
+                    })
+                    .collect()
+            });
+
+            Value::Mesh {
+                vertices: transformed_vertices,
+                indices: indices.clone(),
+                normals: transformed_normals,
+                // UVs are texture coordinates and remain unchanged by spatial transforms
+                uvs: uvs.clone(),
+                // Diagnostics remain unchanged as they describe the original mesh quality
+                diagnostics: diagnostics.clone(),
+            }
+        }
         Value::List(values) => {
             let mut mapped = Vec::with_capacity(values.len());
             for value in values {

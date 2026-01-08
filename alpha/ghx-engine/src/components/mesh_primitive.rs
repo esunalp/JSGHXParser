@@ -1,16 +1,218 @@
 //! Grasshopper-componenten voor het maken van primitieve mesh-geometrie.
 //!
 //! Categorie: Mesh > Primitive
+//!
+//! # Mesh Engine Integration (Phase 3)
+//!
+//! All mesh primitive components now output `Value::Mesh` as the primary type.
+//! This provides:
+//! - Indexed triangle list with flat indices (divisible by 3)
+//! - Optional per-vertex normals for smooth shading
+//! - Optional per-vertex UVs (for textured primitives)
+//! - Mesh diagnostics with vertex/triangle counts
+//!
+//! The legacy `Value::Surface` output is no longer emitted. Downstream consumers
+//! should use `expect_mesh_like()` for backward compatibility with both types.
 
 use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::Value;
+use crate::graph::value::{MeshDiagnostics, Value};
 
 use super::{Component, ComponentError, ComponentResult, coerce};
 
 /// Output pin name for the mesh.
 const OUTPUT_M: &str = "M";
+
+// ============================================================================
+// Mesh Primitive Helpers
+// ============================================================================
+
+/// Triangulates polygon faces into a flat triangle index list.
+///
+/// This function converts mixed polygon faces (triangles, quads, n-gons) into
+/// a flat list of triangle indices suitable for `Value::Mesh`.
+///
+/// # Triangulation Strategy
+///
+/// - **Triangles** (3 vertices): passed through unchanged
+/// - **Quads** (4 vertices): split into 2 triangles (0,1,2) and (0,2,3)
+/// - **N-gons** (5+ vertices): fan triangulation from first vertex
+/// - **Degenerate** (<3 vertices): skipped with warning in diagnostics
+///
+/// # Arguments
+///
+/// * `faces` - Polygon faces as lists of vertex indices
+/// * `vertex_count` - Total number of vertices (for bounds checking)
+///
+/// # Returns
+///
+/// A tuple of (triangle_indices, degenerate_count) where degenerate_count
+/// is the number of faces that were skipped due to insufficient vertices.
+fn triangulate_faces(faces: &[Vec<u32>], vertex_count: usize) -> (Vec<u32>, usize) {
+    let mut indices = Vec::with_capacity(faces.len() * 3);
+    let mut degenerate_count = 0;
+    let max_idx = vertex_count as u32;
+
+    for face in faces {
+        let n = face.len();
+        
+        // Skip faces with fewer than 3 vertices
+        if n < 3 {
+            degenerate_count += 1;
+            continue;
+        }
+
+        // Validate all indices are in bounds
+        if face.iter().any(|&idx| idx >= max_idx) {
+            degenerate_count += 1;
+            continue;
+        }
+
+        // Triangulate using fan method from first vertex
+        // For triangle: just add the 3 indices
+        // For quad: (0,1,2), (0,2,3)
+        // For n-gon: (0,1,2), (0,2,3), (0,3,4), ...
+        for i in 1..(n - 1) {
+            indices.push(face[0]);
+            indices.push(face[i] as u32);
+            indices.push(face[i + 1] as u32);
+        }
+    }
+
+    (indices, degenerate_count)
+}
+
+/// Computes smooth vertex normals by averaging adjacent face normals.
+///
+/// Each vertex normal is the normalized average of the normals of all
+/// triangles that share that vertex. This produces smooth shading.
+///
+/// # Arguments
+///
+/// * `vertices` - Vertex positions
+/// * `indices` - Triangle indices (length must be divisible by 3)
+///
+/// # Returns
+///
+/// Per-vertex normals matching the vertex array length. Vertices not
+/// referenced by any triangle get a default normal of (0, 0, 1).
+fn compute_smooth_normals(vertices: &[[f64; 3]], indices: &[u32]) -> Vec<[f64; 3]> {
+    let mut normals = vec![[0.0_f64; 3]; vertices.len()];
+
+    // Accumulate face normals at each vertex
+    for tri in indices.chunks_exact(3) {
+        let i0 = tri[0] as usize;
+        let i1 = tri[1] as usize;
+        let i2 = tri[2] as usize;
+
+        if i0 >= vertices.len() || i1 >= vertices.len() || i2 >= vertices.len() {
+            continue;
+        }
+
+        let v0 = vertices[i0];
+        let v1 = vertices[i1];
+        let v2 = vertices[i2];
+
+        // Edge vectors
+        let e1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+        let e2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];
+
+        // Cross product = face normal (not normalized, so area-weighted)
+        let n = [
+            e1[1] * e2[2] - e1[2] * e2[1],
+            e1[2] * e2[0] - e1[0] * e2[2],
+            e1[0] * e2[1] - e1[1] * e2[0],
+        ];
+
+        // Accumulate at each vertex
+        for &idx in &[i0, i1, i2] {
+            normals[idx][0] += n[0];
+            normals[idx][1] += n[1];
+            normals[idx][2] += n[2];
+        }
+    }
+
+    // Normalize all accumulated normals
+    for normal in &mut normals {
+        let len_sq = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
+        if len_sq > 1e-12 {
+            let len = len_sq.sqrt();
+            normal[0] /= len;
+            normal[1] /= len;
+            normal[2] /= len;
+        } else {
+            // Default to +Z for degenerate normals
+            *normal = [0.0, 0.0, 1.0];
+        }
+    }
+
+    normals
+}
+
+/// Creates a `Value::Mesh` output from vertices and polygon faces.
+///
+/// This is the standard helper for mesh primitive components. It:
+/// 1. Triangulates polygon faces to a flat index list
+/// 2. Computes smooth vertex normals
+/// 3. Builds mesh diagnostics
+///
+/// # Arguments
+///
+/// * `vertices` - Vertex positions
+/// * `faces` - Polygon faces (triangles, quads, or n-gons)
+///
+/// # Returns
+///
+/// A `Value::Mesh` with positions, triangle indices, smooth normals,
+/// and diagnostics information.
+fn create_mesh_from_faces(vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>>) -> Value {
+    let (indices, degenerate_count) = triangulate_faces(&faces, vertices.len());
+    let normals = compute_smooth_normals(&vertices, &indices);
+
+    let mut diagnostics = MeshDiagnostics::with_counts(vertices.len(), indices.len() / 3);
+    diagnostics.degenerate_triangle_count = degenerate_count;
+
+    Value::Mesh {
+        vertices,
+        indices,
+        normals: Some(normals),
+        uvs: None,
+        diagnostics: Some(diagnostics),
+    }
+}
+
+/// Creates a `Value::Mesh` output directly from vertices and triangle indices.
+///
+/// Use this when you already have a triangulated mesh (indices are already
+/// a flat list of triangle vertex indices).
+///
+/// # Arguments
+///
+/// * `vertices` - Vertex positions
+/// * `indices` - Triangle indices (length must be divisible by 3)
+///
+/// # Returns
+///
+/// A `Value::Mesh` with positions, indices, smooth normals, and diagnostics.
+#[allow(dead_code)] // Useful utility for future components
+fn create_mesh_from_triangles(vertices: Vec<[f64; 3]>, indices: Vec<u32>) -> Value {
+    let normals = compute_smooth_normals(&vertices, &indices);
+
+    let diagnostics = MeshDiagnostics::with_counts(vertices.len(), indices.len() / 3);
+
+    Value::Mesh {
+        vertices,
+        indices,
+        normals: Some(normals),
+        uvs: None,
+        diagnostics: Some(diagnostics),
+    }
+}
+
+// ============================================================================
+// ConstructMeshComponent
+// ============================================================================
 
 /// Component to construct a mesh from vertices and faces.
 #[derive(Debug, Default, Clone, Copy)]
@@ -28,10 +230,14 @@ impl Component for ConstructMeshComponent {
         let faces = coerce_faces(&inputs[1])?;
 
         // TODO: Kleuren-input (inputs[2]) wordt nog niet ondersteund.
-        // De `Value::Surface` enum heeft geen veld voor kleuren.
+        // Value::Mesh does not have a colors field; this would require
+        // a separate vertex colors attribute in the future.
+
+        // Create mesh with triangulated faces and smooth normals
+        let mesh = create_mesh_from_faces(vertices, faces);
 
         let mut outputs = BTreeMap::new();
-        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
+        outputs.insert(OUTPUT_M.to_owned(), mesh);
 
         Ok(outputs)
     }
@@ -258,8 +464,11 @@ impl Component for MeshSphereExComponent {
             }
         }
 
+        // Convert quad faces to triangulated Value::Mesh
+        let mesh = create_mesh_from_faces(vertices, faces);
+
         let mut outputs = BTreeMap::new();
-        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
+        outputs.insert(OUTPUT_M.to_owned(), mesh);
 
         Ok(outputs)
     }
@@ -473,8 +682,11 @@ impl Component for MeshSphereComponent {
             faces.push(vec![i0, i1, i2]);
         }
 
+        // Convert mixed triangle/quad faces to triangulated Value::Mesh
+        let mesh = create_mesh_from_faces(vertices, faces);
+
         let mut outputs = BTreeMap::new();
-        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
+        outputs.insert(OUTPUT_M.to_owned(), mesh);
 
         Ok(outputs)
     }
@@ -607,8 +819,11 @@ impl Component for MeshBoxComponent {
             z_count,
         );
 
+        // Convert quad faces to triangulated Value::Mesh
+        let mesh = create_mesh_from_faces(vertices, faces);
+
         let mut outputs = BTreeMap::new();
-        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
+        outputs.insert(OUTPUT_M.to_owned(), mesh);
 
         Ok(outputs)
     }
@@ -657,8 +872,11 @@ impl Component for MeshPlaneComponent {
             }
         }
 
+        // Convert quad faces to triangulated Value::Mesh
+        let mesh = create_mesh_from_faces(vertices, faces);
+
         let mut outputs = BTreeMap::new();
-        outputs.insert(OUTPUT_M.to_owned(), Value::Surface { vertices, faces });
+        outputs.insert(OUTPUT_M.to_owned(), mesh);
         // De 'Area' output wordt voorlopig niet berekend.
         outputs.insert("A".to_owned(), Value::Number(1.0));
 

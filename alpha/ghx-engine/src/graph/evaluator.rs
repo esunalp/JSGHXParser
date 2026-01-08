@@ -607,7 +607,10 @@ fn collect_value_geometry(
     geometry: &mut Vec<GeometryEntry>,
 ) {
     match value {
-        Value::Point(_) | Value::CurveLine { .. } | Value::Surface { .. } => {
+        Value::Point(_)
+        | Value::CurveLine { .. }
+        | Value::Surface { .. }
+        | Value::Mesh { .. } => {
             geometry.push(GeometryEntry {
                 source_node: node_id,
                 value: value.clone(),

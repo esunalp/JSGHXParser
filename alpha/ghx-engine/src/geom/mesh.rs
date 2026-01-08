@@ -561,7 +561,26 @@ fn generate_uvs_for_pole_surface(
     uvs
 }
 
-pub(crate) fn weld_mesh_vertices(
+/// Welds duplicate vertices within tolerance, returning remapped mesh data.
+///
+/// This function merges vertices that are within the specified tolerance
+/// of each other, producing a more compact mesh with shared vertices.
+///
+/// # Arguments
+///
+/// * `points` - Input vertex positions
+/// * `uvs` - Optional UV coordinates (per-vertex)
+/// * `indices` - Triangle indices into the points array
+/// * `tol` - Tolerance for vertex matching
+///
+/// # Returns
+///
+/// A tuple of:
+/// * Welded vertex positions
+/// * Welded UV coordinates (if input had UVs)
+/// * Remapped triangle indices
+/// * Count of vertices that were welded (merged)
+pub fn weld_mesh_vertices(
     points: Vec<Point3>,
     uvs: Option<&[[f64; 2]]>,
     indices: Vec<u32>,

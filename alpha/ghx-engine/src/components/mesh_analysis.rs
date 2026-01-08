@@ -1,7 +1,10 @@
 //! Grasshopper Mesh Analysis componenten.
+//!
+//! This module provides mesh analysis components that work with both the new
+//! `Value::Mesh` type and the legacy `Value::Surface` type for backward compatibility.
 
 use super::{Component, ComponentError, ComponentResult};
-use crate::components::coerce::{coerce_surface, coerce_text};
+use crate::components::coerce::{coerce_surface_like, coerce_text};
 use crate::graph::node::MetaMap;
 use crate::graph::value::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -155,7 +158,7 @@ impl Component for FaceBoundaries {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface(&inputs[0])?;
+        let surface = coerce_surface_like(&inputs[0])?;
 
         let polylines: Vec<Value> = surface
             .faces
@@ -180,11 +183,11 @@ impl Component for MeshEdges {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface(&inputs[0])?;
+        let surface = coerce_surface_like(&inputs[0])?;
 
         let mut edge_counts: HashMap<(u32, u32), u32> = HashMap::new();
 
-        for face in surface.faces {
+        for face in &surface.faces {
             for i in 0..face.len() {
                 let v1 = face[i];
                 let v2 = face[(i + 1) % face.len()];
@@ -229,7 +232,7 @@ impl Component for MeshClosestPoint {
             Value::Point(p) => p,
             _ => return Err(ComponentError::new("Input 'Point' must be a single Point.")),
         };
-        let surface = coerce_surface(&inputs[1])?;
+        let surface = coerce_surface_like(&inputs[1])?;
 
         let mut min_dist_sq = f64::INFINITY;
         let mut closest_point = [0.0, 0.0, 0.0];
@@ -339,7 +342,7 @@ impl Component for MeshEval {
                 "Inputs 'Mesh' and 'Parameter' are required.",
             ));
         }
-        let surface = coerce_surface(&inputs[0])?;
+        let surface = coerce_surface_like(&inputs[0])?;
         let (face_index_f64, u, v) = match &inputs[1] {
             Value::List(list) if list.len() == 3 => {
                 let face_idx = match list[0] {
@@ -420,12 +423,12 @@ impl Component for FaceCircles {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface(&inputs[0])?;
+        let surface = coerce_surface_like(&inputs[0])?;
 
         let mut centers = Vec::new();
         let mut ratios = Vec::new();
 
-        for face in surface.faces {
+        for face in &surface.faces {
             if face.len() < 3 {
                 continue;
             }
@@ -492,17 +495,10 @@ impl Component for DeconstructMesh {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
 
-        let mesh = &inputs[0];
-
-        let (vertices, faces) = match mesh {
-            Value::Surface { vertices, faces } => (vertices, faces),
-            _ => {
-                return Err(ComponentError::new(format!(
-                    "Expected a Surface, got {}",
-                    mesh.kind()
-                )));
-            }
-        };
+        // Accept both Value::Mesh and Value::Surface using coerce_surface_like
+        let surface = coerce_surface_like(&inputs[0])?;
+        let vertices = &surface.vertices;
+        let faces = &surface.faces;
 
         let vertices_list: Vec<Value> = vertices.iter().map(|&v| Value::Point(v)).collect();
 
@@ -582,12 +578,12 @@ impl Component for FaceNormals {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface(&inputs[0])?;
+        let surface = coerce_surface_like(&inputs[0])?;
 
         let mut centers = Vec::new();
         let mut normals = Vec::new();
 
-        for face in surface.faces {
+        for face in &surface.faces {
             if face.len() < 3 {
                 continue;
             }
