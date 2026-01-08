@@ -1219,27 +1219,9 @@ impl Curve3 for NurbsCurve3 {
 #[must_use]
 pub fn tessellate_curve_uniform(curve: &impl Curve3, steps: usize) -> Vec<Point3> {
     let steps = steps.max(1);
-    let denom = steps as f64;
-    let (t0, t1) = curve.domain();
-    let span = t1 - t0;
-    if !span.is_finite() || span == 0.0 {
-        return vec![curve.point_at(t0)];
-    }
-    if curve.is_closed() {
-        (0..steps)
-            .map(|i| {
-                let u = i as f64 / denom;
-                curve.point_at(t0 + span * u)
-            })
-            .collect()
-    } else {
-        (0..=steps)
-            .map(|i| {
-                let u = i as f64 / denom;
-                curve.point_at(t0 + span * u)
-            })
-            .collect()
-    }
+    let include_end = !curve.is_closed();
+    let params = curve_parameters_by_count(curve, steps, include_end);
+    params.into_iter().map(|t| curve.point_at(t)).collect()
 }
 
 fn lerp_point(a: Point3, b: Point3, t: f64) -> Point3 {
@@ -1493,7 +1475,7 @@ pub fn curve_arc_length<C: Curve3>(curve: &C, samples: usize) -> f64 {
     length
 }
 
-/// Divides a curve into a specified number of equal-parameter segments.
+/// Divides a curve into a specified number of equal arc-length segments.
 ///
 /// # Arguments
 /// * `curve` - The curve to divide.
@@ -1504,16 +1486,12 @@ pub fn curve_arc_length<C: Curve3>(curve: &C, samples: usize) -> f64 {
 #[must_use]
 pub fn divide_curve_by_count<C: Curve3>(curve: &C, count: usize) -> CurveDivisionResult {
     let count = count.max(1);
-    let (t0, t1) = curve.domain();
-    let span = t1 - t0;
-
     let mut points = Vec::with_capacity(count + 1);
     let mut tangents = Vec::with_capacity(count + 1);
     let mut parameters = Vec::with_capacity(count + 1);
 
-    for i in 0..=count {
-        let u = i as f64 / count as f64;
-        let t = t0 + span * u;
+    let sample_params = curve_parameters_by_count(curve, count, true);
+    for t in sample_params {
         let sample = sample_curve_at(curve, t);
         points.push(sample.point);
         tangents.push(sample.tangent);
@@ -1799,7 +1777,7 @@ pub fn horizontal_frame_at<C: Curve3>(curve: &C, t: f64) -> CurveFrame {
     parallel_frame_at(curve, t, Vec3::new(0.0, 0.0, 1.0))
 }
 
-/// Generates frames along a curve at regular parameter intervals.
+/// Generates frames along a curve at regular arc-length intervals.
 ///
 /// # Arguments
 /// * `curve` - The curve to evaluate.
@@ -1818,20 +1796,16 @@ where
     F: Fn(&C, f64) -> CurveFrame,
 {
     let count = count.max(1);
-    let (t0, t1) = curve.domain();
-    let span = t1 - t0;
-
+    let parameters = curve_parameters_by_count(curve, count, true);
     let mut frames = Vec::with_capacity(count + 1);
-    let mut parameters = Vec::with_capacity(count + 1);
+    let mut parameters_out = Vec::with_capacity(count + 1);
 
-    for i in 0..=count {
-        let u = i as f64 / count as f64;
-        let t = t0 + span * u;
+    for t in parameters {
         frames.push(frame_fn(curve, t));
-        parameters.push(t);
+        parameters_out.push(t);
     }
 
-    (frames, parameters)
+    (frames, parameters_out)
 }
 
 /// Generates Frenet frames along a curve.
@@ -1862,18 +1836,14 @@ pub fn perp_frames<C: Curve3>(
     align: bool,
 ) -> (Vec<CurveFrame>, Vec<f64>) {
     let count = count.max(1);
-    let (t0, t1) = curve.domain();
-    let span = t1 - t0;
-
+    let parameters = curve_parameters_by_count(curve, count, true);
     let mut frames = Vec::with_capacity(count + 1);
-    let mut parameters = Vec::with_capacity(count + 1);
+    let mut parameters_out = Vec::with_capacity(count + 1);
 
     let mut prev_y: Option<Vec3> = None;
     let mut prev_z: Option<Vec3> = None;
 
-    for i in 0..=count {
-        let u = i as f64 / count as f64;
-        let t = t0 + span * u;
+    for t in parameters {
         let mut frame = horizontal_frame_at(curve, t);
 
         if align {
@@ -1890,10 +1860,10 @@ pub fn perp_frames<C: Curve3>(
         }
 
         frames.push(frame);
-        parameters.push(t);
+        parameters_out.push(t);
     }
 
-    (frames, parameters)
+    (frames, parameters_out)
 }
 
 // ============================================================================
@@ -1934,6 +1904,41 @@ fn build_arc_length_table<C: Curve3>(curve: &C, samples: usize) -> Vec<ArcLength
     }
 
     table
+}
+
+/// Computes parameter values for evenly spaced arc-length segments.
+fn curve_parameters_by_count<C: Curve3>(curve: &C, count: usize, include_end: bool) -> Vec<f64> {
+    let count = count.max(1);
+    let (t0, t1) = curve.domain();
+    let span = t1 - t0;
+    if !span.is_finite() || span == 0.0 {
+        return vec![t0];
+    }
+
+    let sample_count = (count.saturating_mul(16)).clamp(32, 4096);
+    let table = build_arc_length_table(curve, sample_count);
+    let total = table.last().map(|e| e.arc_length).unwrap_or(0.0);
+    if !total.is_finite() || total <= 0.0 {
+        let denom = count as f64;
+        if include_end {
+            return (0..=count)
+                .map(|i| t0 + span * (i as f64 / denom))
+                .collect();
+        }
+        return (0..count)
+            .map(|i| t0 + span * (i as f64 / denom))
+            .collect();
+    }
+
+    let point_count = if include_end { count + 1 } else { count };
+    let denom = count as f64;
+    let mut params = Vec::with_capacity(point_count);
+    for i in 0..point_count {
+        let ratio = i as f64 / denom;
+        let target = total * ratio;
+        params.push(parameter_at_arc_length(&table, t0, t1, target));
+    }
+    params
 }
 
 /// Finds the parameter value corresponding to a target arc length.
