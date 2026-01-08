@@ -585,3 +585,84 @@ fn nurbs_interpolate_closed_curve_wraps_smoothly() {
         data_points[2]
     );
 }
+
+/// Tests that adaptive tessellation produces reasonably uniform arc-length spacing.
+/// 
+/// For curves with non-uniform parameterization (like NURBS), the tessellation
+/// should still produce points that are approximately evenly spaced in world coordinates,
+/// not just in parameter space.
+#[test]
+fn adaptive_tessellation_produces_uniform_arc_length_spacing() {
+    // Create a NURBS curve with non-uniform parameterization
+    // This is a cubic curve where the control points are not evenly spaced,
+    // causing non-uniform parameterization.
+    let curve = NurbsCurve3::new(
+        3,
+        vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(0.1, 0.5, 0.0),  // Close to start - fast change in parameter
+            Point3::new(2.0, 0.5, 0.0),  // Far from previous - slow change in parameter
+            Point3::new(3.0, 0.0, 0.0),
+        ],
+        vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0],
+        None,
+    )
+    .unwrap();
+
+    let opts = CurveTessellationOptions {
+        max_deviation: 0.01,
+        max_segments: 32,
+        max_depth: 10,
+        initial_segments: 4,
+    };
+
+    let pts = tessellate_curve_adaptive_points(&curve, opts);
+    
+    assert!(pts.len() >= 4, "Should have at least 4 points, got {}", pts.len());
+
+    // Calculate segment lengths
+    let mut segment_lengths: Vec<f64> = Vec::new();
+    for i in 0..pts.len() - 1 {
+        let len = pts[i + 1].sub_point(pts[i]).length();
+        segment_lengths.push(len);
+    }
+
+    // Filter out very short segments (these are just end caps)
+    let min_len = 0.001;
+    let significant_lengths: Vec<f64> = segment_lengths
+        .iter()
+        .copied()
+        .filter(|&l| l > min_len)
+        .collect();
+
+    if significant_lengths.len() < 2 {
+        return; // Not enough segments to analyze
+    }
+
+    // Calculate coefficient of variation (std_dev / mean)
+    // For uniform spacing, this should be relatively low
+    let mean: f64 = significant_lengths.iter().sum::<f64>() / significant_lengths.len() as f64;
+    let variance: f64 = significant_lengths
+        .iter()
+        .map(|l| (l - mean).powi(2))
+        .sum::<f64>() / significant_lengths.len() as f64;
+    let std_dev = variance.sqrt();
+    let cv = std_dev / mean;
+
+    // The coefficient of variation should be reasonably low for uniform spacing.
+    // A CV of 0.5 means the standard deviation is half the mean, which is acceptable
+    // for adaptive tessellation that may have some variation due to curvature.
+    assert!(
+        cv < 0.5,
+        "Segment lengths should be reasonably uniform. CV={:.3}, mean={:.4}, std_dev={:.4}, lengths={:?}",
+        cv, mean, std_dev, significant_lengths
+    );
+
+    // Also verify that no segment is more than 3x the mean length
+    let max_len = significant_lengths.iter().copied().fold(0.0, f64::max);
+    assert!(
+        max_len < mean * 3.0,
+        "No segment should be more than 3x the mean length. max={:.4}, mean={:.4}",
+        max_len, mean
+    );
+}

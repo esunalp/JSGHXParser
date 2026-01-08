@@ -617,10 +617,85 @@ fn initial_curve_parameters_arc_length(
     result
 }
 
+/// Finds the parameter value at approximately the arc-length midpoint of a curve segment.
+///
+/// Uses sampling to approximate the arc-length and binary search interpolation
+/// to find the parameter that corresponds to half the arc length.
+///
+/// # Arguments
+/// * `curve` - The curve to sample.
+/// * `t0` - Start parameter.
+/// * `t1` - End parameter.
+/// * `ratio` - Target ratio of arc length (0.0 = start, 1.0 = end, 0.5 = midpoint).
+/// * `samples` - Number of samples for arc-length approximation.
+///
+/// # Returns
+/// The parameter value at approximately the target arc-length ratio.
+fn parameter_at_arc_length_ratio<C: Curve3>(
+    curve: &C,
+    t0: f64,
+    t1: f64,
+    ratio: f64,
+    samples: usize,
+) -> f64 {
+    let samples = samples.max(4);
+    let span = t1 - t0;
+
+    if !span.is_finite() || span.abs() < 1e-15 {
+        return t0 + span * ratio;
+    }
+
+    // Build a small arc-length table for this segment
+    let mut params = Vec::with_capacity(samples + 1);
+    let mut cumulative = Vec::with_capacity(samples + 1);
+
+    params.push(t0);
+    cumulative.push(0.0);
+    let mut total = 0.0;
+    let mut prev = curve.point_at(t0);
+
+    for i in 1..=samples {
+        let u = i as f64 / samples as f64;
+        let t = t0 + span * u;
+        let p = curve.point_at(t);
+        let d = p.sub_point(prev).length();
+        if d.is_finite() {
+            total += d;
+        }
+        params.push(t);
+        cumulative.push(total);
+        prev = p;
+    }
+
+    if !total.is_finite() || total <= 0.0 {
+        return t0 + span * ratio;
+    }
+
+    let target = total * ratio.clamp(0.0, 1.0);
+
+    // Binary search for the target arc length
+    let idx = match cumulative.binary_search_by(|value| value.total_cmp(&target)) {
+        Ok(i) => i,
+        Err(i) => i,
+    };
+
+    let idx = idx.clamp(1, samples);
+    let c0 = cumulative[idx - 1];
+    let c1 = cumulative[idx];
+
+    if c1 > c0 {
+        let local_ratio = ((target - c0) / (c1 - c0)).clamp(0.0, 1.0);
+        params[idx - 1] + (params[idx] - params[idx - 1]) * local_ratio
+    } else {
+        params[idx]
+    }
+}
+
 /// Adaptively tessellates a single curve segment.
 ///
 /// Uses an explicit stack (iterative) to avoid stack overflow on deep recursion.
 /// Subdivides based on deviation at 25%, 50%, and 75% points within each segment.
+/// Uses arc-length based subdivision for uniform point distribution.
 fn tessellate_curve_segment_adaptive(
     curve: &impl Curve3,
     t0: f64,
@@ -640,6 +715,11 @@ fn tessellate_curve_segment_adaptive(
         p1: Point3,
         depth: usize,
     }
+
+    // Number of samples for arc-length approximation per segment.
+    // Higher values give more uniform distribution but cost more evaluations.
+    // Use fewer samples at deeper recursion levels since segments are shorter.
+    const BASE_ARC_LENGTH_SAMPLES: usize = 8;
 
     let mut stack = Vec::new();
     stack.push(Segment {
@@ -662,9 +742,14 @@ fn tessellate_curve_segment_adaptive(
             continue;
         }
 
-        let tm = 0.5 * (seg.t0 + seg.t1);
-        let t25 = seg.t0 + 0.25 * (seg.t1 - seg.t0);
-        let t75 = seg.t0 + 0.75 * (seg.t1 - seg.t0);
+        // Use arc-length based subdivision for uniform spacing.
+        // Reduce sample count at deeper levels since segments are shorter.
+        let samples = BASE_ARC_LENGTH_SAMPLES.saturating_sub(seg.depth).max(4);
+
+        let tm = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.5, samples);
+        let t25 = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.25, samples);
+        let t75 = parameter_at_arc_length_ratio(curve, seg.t0, seg.t1, 0.75, samples);
+
         let pm = curve.point_at(tm);
         let p25 = curve.point_at(t25);
         let p75 = curve.point_at(t75);
