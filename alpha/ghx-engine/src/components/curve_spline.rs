@@ -30,7 +30,7 @@ use super::{Component, ComponentError, ComponentResult};
 const DEFAULT_MAX_DEVIATION: f64 = 0.02;
 
 /// Default maximum number of segments for adaptive curve tessellation.
-const DEFAULT_MAX_SEGMENTS: usize = 64;
+const DEFAULT_MAX_SEGMENTS: usize = 32;
 
 // ============================================================================
 // Helper functions for conversion between [f64; 3] and geom types

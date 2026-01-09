@@ -27,7 +27,7 @@ const PIN_OUTPUT_ARC: &str = "A";
 const DEFAULT_MAX_DEVIATION: f64 = 0.02;
 
 /// Default maximum number of segments for adaptive curve tessellation.
-const DEFAULT_MAX_SEGMENTS: usize = 64;
+const DEFAULT_MAX_SEGMENTS: usize = 32;
 
 /// Legacy: Fixed segment count for backward compatibility fallback.
 const CURVE_SEGMENTS: usize = 32;
