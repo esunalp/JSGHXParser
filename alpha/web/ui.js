@@ -340,6 +340,9 @@ export function setupUi() {
   const errorList = document.getElementById('error-list');
   const errorEmpty = document.getElementById('error-empty');
   const errorCountLabel = document.getElementById('error-count-label');
+  const statsVertices = document.getElementById('stats-vertices');
+  const statsLines = document.getElementById('stats-lines');
+  const statsFaces = document.getElementById('stats-faces');
 
   const sliderElements = new Map();
   const handlers = {
@@ -523,6 +526,24 @@ export function setupUi() {
     }
   };
 
+  const formatNumber = (num) => {
+    if (!Number.isFinite(num)) return '0';
+    return num.toLocaleString('en-US');
+  };
+
+  const setStats = (stats = {}) => {
+    const { vertices = 0, lines = 0, faces = 0 } = stats;
+    if (statsVertices) {
+      statsVertices.textContent = formatNumber(vertices);
+    }
+    if (statsLines) {
+      statsLines.textContent = formatNumber(lines);
+    }
+    if (statsFaces) {
+      statsFaces.textContent = formatNumber(faces);
+    }
+  };
+
   return {
     canvas,
     setHandlers,
@@ -532,6 +553,7 @@ export function setupUi() {
     showLoading,
     setOverlayState,
     setErrors,
+    setStats,
   };
 }
 

@@ -203,6 +203,7 @@ async function init() {
       } catch (error) {
         console.error('Kon geometrie niet ophalen:', error);
         three.updateGeometry([]);
+        ui.setStats({ vertices: 0, lines: 0, faces: 0 });
         ui.setStatus('Geometrie ophalen mislukt: ' + (error?.message ?? String(error)));
         return;
       }
@@ -211,6 +212,9 @@ async function init() {
         preserveCamera,
         refitCamera,
       });
+
+      const stats = three.computeGeometryStats();
+      ui.setStats(stats);
 
       const errors = fetchErrorsSnapshot();
       ui.setErrors(errors);
@@ -221,6 +225,7 @@ async function init() {
     } catch (error) {
       console.error('Evaluatiefout:', error);
       three.updateGeometry([]);
+      ui.setStats({ vertices: 0, lines: 0, faces: 0 });
       ui.setErrors([error?.message ?? String(error)]);
       ui.setStatus('Evaluatie mislukt: ' + (error?.message ?? String(error)));
     } finally {
@@ -251,6 +256,7 @@ async function init() {
       console.error('Fout bij het laden van GHX:', error);
       ui.renderSliders([]);
       three.updateGeometry([]);
+      ui.setStats({ vertices: 0, lines: 0, faces: 0 });
       ui.setErrors([error?.message ?? String(error)]);
       ui.setStatus('Fout bij het laden van het GHX-bestand: ' + (error?.message ?? String(error)));
     } finally {
@@ -276,6 +282,7 @@ async function init() {
       ui.setStatus('Selecteer een GHX-bestand om te starten.');
       ui.renderSliders([]);
       three.updateGeometry([]);
+      ui.setStats({ vertices: 0, lines: 0, faces: 0 });
     }
   }
 

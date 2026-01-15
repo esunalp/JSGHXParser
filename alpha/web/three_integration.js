@@ -640,6 +640,48 @@ export function createThreeApp(canvas) {
 
   const geometryObjects = new Map();
 
+  function computeGeometryStats() {
+    let totalVertices = 0;
+    let totalLines = 0;
+    let totalFaces = 0;
+
+    // Count stats from mesh geometries
+    for (const group of geometryObjects.values()) {
+      if (!group?.isObject3D) continue;
+      group.traverse(child => {
+        if (child.geometry) {
+          const positionAttr = child.geometry.getAttribute('position');
+          if (positionAttr) {
+            totalVertices += positionAttr.count;
+          }
+          const index = child.geometry.getIndex();
+          if (index) {
+            // Faces are triangles (3 indices per face)
+            totalFaces += Math.floor(index.count / 3);
+          }
+        }
+      });
+    }
+
+    // Count lines from overlay items
+    for (const items of overlayItemsByNode.values()) {
+      for (const item of items) {
+        if (item.type === 'Line') {
+          totalLines += 1;
+        } else if (item.type === 'Polyline' && Array.isArray(item.points)) {
+          // A polyline with N points has N-1 line segments
+          totalLines += Math.max(0, item.points.length - 1);
+        }
+      }
+    }
+
+    return {
+      vertices: totalVertices,
+      lines: totalLines,
+      faces: totalFaces,
+    };
+  }
+
   function updateGeometry(diff, options = {}) {
       const { added = [], updated = [], removed = [] } = diff ?? {};
       const { preserveCamera = false, refitCamera = false } = options;
@@ -768,6 +810,7 @@ export function createThreeApp(canvas) {
     ready,
     updateGeometry,
     setOverlayEnabled,
+    computeGeometryStats,
     isWebGPUSupported: () => webgpuSupported,
     dispose,
     // For debugging
