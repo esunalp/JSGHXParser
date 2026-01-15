@@ -1,13 +1,31 @@
 //! Implementaties van Grasshopper "Surface → Primitive" componenten.
+//!
+//! This module uses `geom::surface` primitives (CylinderSurface, ConeSurface,
+//! SphereSurface, PlaneSurface) and the shared mesh pipeline when the
+//! `mesh_engine_next` feature is enabled. Components remain thin wrappers that
+//! coerce inputs, build geom surfaces, mesh them, and return outputs.
 
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::{Domain, Value};
+use crate::graph::value::{Domain, MeshDiagnostics, Value};
 
 use super::{Component, ComponentError, ComponentResult};
+
+// Import geom types for surface primitives and meshing
+use crate::geom::{
+    CylinderSurface as GeomCylinderSurface,
+    ConeSurface as GeomConeSurface,
+    SphereSurface as GeomSphereSurface,
+    PlaneSurface as GeomPlaneSurface,
+    Point3 as GeomPoint3,
+    Vec3 as GeomVec3,
+    GeomMesh, GeomMeshDiagnostics,
+    mesh_surface,
+    // Cube-sphere (QuadSphere) mesh generation
+    CubeSphereOptions, mesh_cube_sphere,
+};
 
 const PIN_OUTPUT_CYLINDER: &str = "C";
 const PIN_OUTPUT_CONE: &str = "C";
@@ -19,6 +37,10 @@ const PIN_OUTPUT_SURFACE: &str = "S";
 const PIN_OUTPUT_PLANE: &str = "P";
 const PIN_OUTPUT_CENTER: &str = "C";
 const PIN_OUTPUT_RADIUS: &str = "R";
+
+// Append-only mesh output pin (consistent with surface_freeform.rs pattern)
+// Provides Value::Mesh with normals, UVs, and diagnostics alongside legacy Value::Surface
+const PIN_OUTPUT_MESH: &str = "M";
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -252,10 +274,12 @@ fn evaluate_cylinder(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let surface = create_cylinder_surface(&plane, radius, height);
+    let dual_output = create_cylinder_surface(&plane, radius, height);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_CYLINDER.to_owned(), surface);
+    // Legacy surface on existing "C" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_CYLINDER);
     Ok(outputs)
 }
 
@@ -275,10 +299,12 @@ fn evaluate_cone(inputs: &[Value], include_tip: bool) -> ComponentResult {
         ));
     }
 
-    let (surface, tip) = create_cone_surface(&plane, radius, height);
+    let (dual_output, tip) = create_cone_surface(&plane, radius, height);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_CONE.to_owned(), surface);
+    // Legacy surface on existing "C" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_CONE);
     if include_tip {
         outputs.insert(PIN_OUTPUT_TIP.to_owned(), Value::Point(tip));
     }
@@ -422,10 +448,12 @@ fn evaluate_box_rectangle(inputs: &[Value]) -> ComponentResult {
             - profile_loop[j][0] * profile_loop[i][1];
     }
     let direction = if signed_area >= 0.0 { 1.0 } else { -1.0 };
-    let box_value = create_box_rectangle_surface(&plane, &profile_loop, height * direction);
+    let dual_output = create_box_rectangle_surface(&plane, &profile_loop, height * direction);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BOX.to_owned(), box_value);
+    // Legacy surface on existing "B" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_BOX);
     Ok(outputs)
 }
 
@@ -440,10 +468,12 @@ fn evaluate_plane_surface(inputs: &[Value]) -> ComponentResult {
     let size_x = coerce_number(inputs.get(1), "Plane Surface X")?;
     let size_y = coerce_number(inputs.get(2), "Plane Surface Y")?;
 
-    let surface = create_plane_surface(&plane, size_x, size_y);
+    let dual_output = create_plane_surface(&plane, size_x, size_y);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_PLANE.to_owned(), surface);
+    // Legacy surface on existing "P" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_PLANE);
     Ok(outputs)
 }
 
@@ -517,10 +547,22 @@ fn evaluate_sphere(inputs: &[Value], mode: SphereMode) -> ComponentResult {
     let plane = coerce_plane(inputs.get(0), "Sphere")?;
     let radius = coerce_positive_number(inputs.get(1), "Sphere straal")?;
 
-    let surface = create_sphere_surface(&plane, radius, matches!(mode, SphereMode::QuadSphere));
+    let dual_output = match mode {
+        SphereMode::Standard => {
+            // Standard sphere uses UV-sphere tessellation (latitude/longitude grid)
+            create_sphere_surface(&plane, radius, false)
+        }
+        SphereMode::QuadSphere => {
+            // QuadSphere uses cube-sphere tessellation (spherified cube)
+            // This produces a more uniform vertex distribution without pole compression
+            create_quad_sphere_surface(&plane, radius)
+        }
+    };
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_SURFACE.to_owned(), surface);
+    // Legacy surface on existing "S" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_SURFACE);
     Ok(outputs)
 }
 
@@ -561,12 +603,14 @@ fn evaluate_sphere_from_points(inputs: &[Value], mode: SphereInput) -> Component
         Plane::default()
     };
     let oriented_plane = Plane::normalize_axes(center, plane.x_axis, plane.y_axis, plane.z_axis);
-    let surface = create_sphere_surface(&oriented_plane, radius, true);
+    let dual_output = create_sphere_surface(&oriented_plane, radius, true);
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_CENTER.to_owned(), Value::Point(center));
     outputs.insert(PIN_OUTPUT_RADIUS.to_owned(), Value::Number(radius));
-    outputs.insert(PIN_OUTPUT_SURFACE.to_owned(), surface);
+    // Legacy surface on existing "S" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_SURFACE);
     Ok(outputs)
 }
 
@@ -614,10 +658,12 @@ fn evaluate_plane_through_collection(inputs: &[Value], shape: ShapeInput) -> Com
     max_x += inflate;
     max_y += inflate;
 
-    let surface = create_planar_surface_from_bounds(&plane, min_x, max_x, min_y, max_y);
+    let dual_output = create_planar_surface_from_bounds(&plane, min_x, max_x, min_y, max_y);
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_SURFACE.to_owned(), surface);
+    // Legacy surface on existing "S" pin for backward compatibility
+    // New mesh on append-only "M" pin with normals, UVs, and diagnostics
+    dual_output.insert_into(&mut outputs, PIN_OUTPUT_SURFACE);
     Ok(outputs)
 }
 
@@ -713,7 +759,504 @@ fn create_sphere_surface_points(
     (vertices, faces)
 }
 
-fn create_cylinder_surface(plane: &Plane, radius: f64, height: f64) -> Value {
+/// Creates a cylinder surface mesh using the geom pipeline.
+///
+/// This function now uses `geom::CylinderSurface` and the shared mesh pipeline
+/// Creates a cylinder surface mesh using the geom pipeline.
+///
+/// This function now uses `geom::CylinderSurface` and the shared mesh pipeline
+/// to create proper meshes with normals and UVs.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_cylinder_surface(plane: &Plane, radius: f64, height: f64) -> DualMeshOutput {
+    create_cylinder_mesh_geom(plane, radius, height)
+}
+
+/// Creates a cone surface mesh using the geom pipeline.
+///
+/// This function now uses `geom::ConeSurface` and the shared mesh pipeline
+/// to create proper meshes with normals and UVs.
+///
+/// Returns `(DualMeshOutput, tip_point)` with both output formats.
+fn create_cone_surface(plane: &Plane, radius: f64, height: f64) -> (DualMeshOutput, [f64; 3]) {
+    create_cone_mesh_geom(plane, radius, height)
+}
+
+/// Creates a plane surface mesh using the geom pipeline.
+///
+/// This function now uses `geom::PlaneSurface` and the shared mesh pipeline
+/// to create proper meshes with normals and UVs.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_plane_surface(plane: &Plane, size_x: f64, size_y: f64) -> DualMeshOutput {
+    create_plane_mesh_geom(plane, size_x, size_y)
+}
+
+/// Creates a planar surface mesh from bounds using the geom pipeline.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_planar_surface_from_bounds(
+    plane: &Plane,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
+) -> DualMeshOutput {
+    create_planar_mesh_from_bounds_geom(plane, min_x, max_x, min_y, max_y)
+}
+
+/// Creates a sphere surface mesh using the geom pipeline.
+///
+/// This function now uses `geom::SphereSurface` and the shared mesh pipeline
+/// to create proper meshes with normals and UVs.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_sphere_surface(plane: &Plane, radius: f64, detailed: bool) -> DualMeshOutput {
+    create_sphere_mesh_geom(plane, radius, detailed)
+}
+
+/// Legacy sphere surface creation for fallback.
+#[allow(dead_code)]
+fn create_sphere_surface_legacy(plane: &Plane, radius: f64, detailed: bool) -> Value {
+    let lat_segments = if detailed { 24 } else { 16 };
+    let lon_segments = if detailed { 32 } else { 16 };
+    let (vertices, faces) = create_sphere_surface_points(plane, radius, lat_segments, lon_segments);
+    Value::Surface { vertices, faces }
+}
+
+// ============================================================================
+// Geom-based surface creation using the shared mesh pipeline
+// ============================================================================
+
+/// Converts an array [f64; 3] to a geom Point3.
+#[inline]
+fn to_geom_point(p: [f64; 3]) -> GeomPoint3 {
+    GeomPoint3::new(p[0], p[1], p[2])
+}
+
+/// Converts an array [f64; 3] to a geom Vec3.
+#[inline]
+fn to_geom_vec(v: [f64; 3]) -> GeomVec3 {
+    GeomVec3::new(v[0], v[1], v[2])
+}
+
+/// Converts a geom Point3 to an array [f64; 3].
+#[inline]
+#[allow(dead_code)]
+fn from_geom_point(p: GeomPoint3) -> [f64; 3] {
+    p.to_array()
+}
+
+/// Converts a `geom::GeomMesh` to `Value::Mesh`.
+fn geom_mesh_to_value_mesh(
+    mesh: GeomMesh,
+    diagnostics: Option<GeomMeshDiagnostics>,
+) -> Value {
+    Value::Mesh {
+        vertices: mesh.positions,
+        indices: mesh.indices,
+        normals: mesh.normals,
+        uvs: mesh.uvs,
+        diagnostics: diagnostics.map(|d| MeshDiagnostics {
+            vertex_count: d.vertex_count,
+            triangle_count: d.triangle_count,
+            welded_vertex_count: d.welded_vertex_count,
+            flipped_triangle_count: d.flipped_triangle_count,
+            degenerate_triangle_count: d.degenerate_triangle_count,
+            open_edge_count: d.open_edge_count,
+            non_manifold_edge_count: d.non_manifold_edge_count,
+            self_intersection_count: d.self_intersection_count,
+            boolean_fallback_used: d.boolean_fallback_used,
+            warnings: d.warnings,
+        }),
+    }
+}
+
+/// Converts a `geom::GeomMesh` to `Value::Surface` (legacy format).
+///
+/// This is for backward compatibility with existing consumers expecting surfaces.
+fn geom_mesh_to_value_surface(mesh: &GeomMesh) -> Value {
+    let faces: Vec<Vec<u32>> = mesh
+        .indices
+        .chunks(3)
+        .filter(|chunk| chunk.len() == 3)
+        .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+        .collect();
+    Value::Surface {
+        vertices: mesh.positions.clone(),
+        faces,
+    }
+}
+
+/// Dual mesh output containing both `Value::Surface` (legacy, for backward compat) and `Value::Mesh` (new).
+///
+/// This struct is used to provide both output formats from surface primitive components.
+/// Following the pattern from `surface_freeform.rs`:
+/// - Legacy `Value::Surface` is emitted on existing pins (e.g., "C", "P", "S") for backward compatibility
+/// - New `Value::Mesh` is emitted on append-only "M" pin with normals, UVs, and diagnostics
+struct DualMeshOutput {
+    /// The new mesh output with normals, UVs, and diagnostics (emitted on "M" pin).
+    mesh: Value,
+    /// The legacy surface output for backward compatibility (emitted on existing pins).
+    surface_legacy: Value,
+}
+
+impl DualMeshOutput {
+    /// Creates a dual output from a `GeomMesh` and optional diagnostics.
+    ///
+    /// **Note**: This derives the legacy surface from the geom mesh, which may have
+    /// different vertex ordering than the original legacy algorithm. For primitives
+    /// that need backward-compatible vertex ordering (cylinder, cone, sphere), use
+    /// `from_geom_mesh_with_legacy_surface` instead.
+    fn from_geom_mesh(mesh: GeomMesh, diagnostics: Option<GeomMeshDiagnostics>) -> Self {
+        // Create legacy surface first (needs reference to positions/indices)
+        let surface_legacy = geom_mesh_to_value_surface(&mesh);
+        // Create the primary mesh output (consumes mesh)
+        let mesh_value = geom_mesh_to_value_mesh(mesh, diagnostics);
+        Self {
+            mesh: mesh_value,
+            surface_legacy,
+        }
+    }
+
+    /// Creates a dual output from a `GeomMesh` and a separately computed legacy surface.
+    ///
+    /// Use this constructor when the legacy surface must preserve specific vertex ordering
+    /// and face topology for backward compatibility (e.g., cylinder, cone, sphere primitives).
+    /// The primary `Value::Mesh` output uses the geom pipeline (with normals, UVs, diagnostics),
+    /// while the legacy `Value::Surface` output uses the pre-computed legacy representation.
+    fn from_geom_mesh_with_legacy_surface(
+        mesh: GeomMesh,
+        diagnostics: Option<GeomMeshDiagnostics>,
+        legacy_surface: Value,
+    ) -> Self {
+        let mesh_value = geom_mesh_to_value_mesh(mesh, diagnostics);
+        Self {
+            mesh: mesh_value,
+            surface_legacy: legacy_surface,
+        }
+    }
+
+    /// Inserts both outputs into a BTreeMap following the pattern from `surface_freeform.rs`.
+    ///
+    /// - `legacy_pin`: Pin name for the `Value::Surface` output (existing pin for backward compat)
+    ///
+    /// The `Value::Mesh` output is always emitted on the append-only "M" pin, consistent with
+    /// how `surface_freeform.rs` components expose mesh outputs. This ensures:
+    /// - Existing graphs that expect `Value::Surface` on standard pins continue to work
+    /// - New code can use the "M" pin to access `Value::Mesh` with normals, UVs, and diagnostics
+    fn insert_into(self, outputs: &mut BTreeMap<String, Value>, legacy_pin: &str) {
+        outputs.insert(legacy_pin.to_owned(), self.surface_legacy);
+        outputs.insert(PIN_OUTPUT_MESH.to_owned(), self.mesh);
+    }
+}
+
+/// Creates a cylinder mesh using geom::CylinderSurface and the shared mesh pipeline.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+///
+/// The primary mesh output uses the geom pipeline with proper normals and UVs.
+/// The legacy surface output uses the original algorithm to preserve vertex ordering:
+/// - 32 segments around the circumference
+/// - Vertices ordered as base/top pairs: `[base0, top0, base1, top1, ...]`
+/// - 64 triangular faces (2 per quad segment)
+fn create_cylinder_mesh_geom(plane: &Plane, radius: f64, height: f64) -> DualMeshOutput {
+    // Build the geom CylinderSurface
+    let base = to_geom_point(plane.origin);
+    let axis = to_geom_vec(plane.z_axis).mul_scalar(height);
+    let x_axis = to_geom_vec(plane.x_axis);
+
+    let cylinder = match GeomCylinderSurface::from_base_axis_xaxis(base, axis, x_axis, radius) {
+        Ok(cyl) => cyl,
+        Err(_) => {
+            // Fallback to legacy if geom construction fails
+            return create_cylinder_dual_legacy(plane, radius, height);
+        }
+    };
+
+    // Mesh the cylinder using the shared pipeline for the primary output
+    // Use fixed counts for cylinder: 32 around, 2 along height (open surface, no caps)
+    let u_count = 32; // Around the circumference
+    let v_count = 2;  // Along height (base to top)
+    let (mesh, diagnostics) = mesh_surface(&cylinder, u_count, v_count);
+
+    // Create the legacy surface using the original algorithm for backward-compatible ordering
+    let legacy_surface = create_cylinder_surface_legacy(plane, radius, height);
+
+    DualMeshOutput::from_geom_mesh_with_legacy_surface(mesh, Some(diagnostics), legacy_surface)
+}
+
+/// Legacy fallback for cylinder that returns dual output.
+fn create_cylinder_dual_legacy(plane: &Plane, radius: f64, height: f64) -> DualMeshOutput {
+    let surface = create_cylinder_surface_legacy(plane, radius, height);
+    // Extract mesh data from the legacy surface to create Value::Mesh
+    if let Value::Surface { vertices, faces } = &surface {
+        let indices: Vec<u32> = faces.iter().flat_map(|f| f.iter().copied()).collect();
+        let mesh = Value::Mesh {
+            vertices: vertices.clone(),
+            indices,
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        DualMeshOutput {
+            mesh,
+            surface_legacy: surface,
+        }
+    } else {
+        // Should never happen, but handle gracefully
+        DualMeshOutput {
+            mesh: surface.clone(),
+            surface_legacy: surface,
+        }
+    }
+}
+
+/// Creates a cone mesh using geom::ConeSurface and the shared mesh pipeline.
+///
+/// Returns `(DualMeshOutput, tip_point)` with proper normals, UVs, and diagnostics.
+///
+/// The primary mesh output uses the geom pipeline with proper normals and UVs.
+/// The legacy surface output uses the original algorithm to preserve vertex ordering:
+/// - 32 base vertices around the circumference + 1 tip vertex (33 total)
+/// - 32 triangular faces forming a fan from the tip
+fn create_cone_mesh_geom(plane: &Plane, radius: f64, height: f64) -> (DualMeshOutput, [f64; 3]) {
+    // Build the geom ConeSurface
+    let base = to_geom_point(plane.origin);
+    let axis = to_geom_vec(plane.z_axis).mul_scalar(height);
+    let x_axis = to_geom_vec(plane.x_axis);
+
+    // Cone goes from radius at base (v=0) to 0 at tip (v=1)
+    let cone = match GeomConeSurface::from_base_axis_xaxis(base, axis, x_axis, radius, 0.0) {
+        Ok(c) => c,
+        Err(_) => {
+            // Fallback to legacy if geom construction fails
+            return create_cone_dual_legacy(plane, radius, height);
+        }
+    };
+
+    // Calculate tip position
+    let tip = plane.apply(0.0, 0.0, height);
+
+    // Mesh the cone using the shared pipeline for the primary output
+    // Use fixed counts: 32 around, higher V count since surface tapers to a pole
+    let u_count = 32;
+    let v_count = 16; // More segments along height for pole handling
+    let (mesh, diagnostics) = mesh_surface(&cone, u_count, v_count);
+
+    // Create the legacy surface using the original algorithm for backward-compatible ordering
+    let (legacy_surface, _tip) = create_cone_surface_legacy(plane, radius, height);
+
+    (DualMeshOutput::from_geom_mesh_with_legacy_surface(mesh, Some(diagnostics), legacy_surface), tip)
+}
+
+/// Legacy fallback for cone that returns dual output.
+fn create_cone_dual_legacy(plane: &Plane, radius: f64, height: f64) -> (DualMeshOutput, [f64; 3]) {
+    let (surface, tip) = create_cone_surface_legacy(plane, radius, height);
+    // Extract mesh data from the legacy surface to create Value::Mesh
+    if let Value::Surface { vertices, faces } = &surface {
+        let indices: Vec<u32> = faces.iter().flat_map(|f| f.iter().copied()).collect();
+        let mesh = Value::Mesh {
+            vertices: vertices.clone(),
+            indices,
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        (DualMeshOutput {
+            mesh,
+            surface_legacy: surface,
+        }, tip)
+    } else {
+        // Should never happen, but handle gracefully
+        (DualMeshOutput {
+            mesh: surface.clone(),
+            surface_legacy: surface,
+        }, tip)
+    }
+}
+
+/// Creates a sphere mesh using geom::SphereSurface and the shared mesh pipeline.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+///
+/// The primary mesh output uses the geom pipeline with proper normals and UVs.
+/// The legacy surface output uses the original algorithm to preserve vertex ordering:
+/// - `(lat_segments + 1) * (lon_segments + 1)` vertices in lat/lon grid order
+/// - Special pole handling: no triangles at north pole row, no triangles at south pole row
+/// - Standard: 16 lat x 16 lon (289 vertices, 480 faces)
+/// - Detailed: 24 lat x 32 lon (833 vertices, 1472 faces)
+fn create_sphere_mesh_geom(plane: &Plane, radius: f64, detailed: bool) -> DualMeshOutput {
+    // Build the geom SphereSurface
+    let center = to_geom_point(plane.origin);
+    let x_axis = to_geom_vec(plane.x_axis);
+    let normal = to_geom_vec(plane.z_axis);
+
+    let sphere = match GeomSphereSurface::from_center_xaxis_normal(center, x_axis, normal, radius) {
+        Ok(s) => s,
+        Err(_) => {
+            // Fallback to legacy if geom construction fails
+            return create_sphere_dual_legacy(plane, radius, detailed);
+        }
+    };
+
+    // Mesh the sphere using the shared pipeline for the primary output
+    // Sphere has poles at v=0 and v=1, so use higher V count
+    let (u_count, v_count) = if detailed {
+        (32, 24) // Higher resolution for detailed view
+    } else {
+        (16, 16) // Standard resolution
+    };
+    let (mesh, diagnostics) = mesh_surface(&sphere, u_count, v_count);
+
+    // Create the legacy surface using the original algorithm for backward-compatible ordering
+    let legacy_surface = create_sphere_surface_legacy(plane, radius, detailed);
+
+    DualMeshOutput::from_geom_mesh_with_legacy_surface(mesh, Some(diagnostics), legacy_surface)
+}
+
+/// Legacy fallback for sphere that returns dual output.
+fn create_sphere_dual_legacy(plane: &Plane, radius: f64, detailed: bool) -> DualMeshOutput {
+    let surface = create_sphere_surface_legacy(plane, radius, detailed);
+    // Extract mesh data from the legacy surface to create Value::Mesh
+    if let Value::Surface { vertices, faces } = &surface {
+        let indices: Vec<u32> = faces.iter().flat_map(|f| f.iter().copied()).collect();
+        let mesh = Value::Mesh {
+            vertices: vertices.clone(),
+            indices,
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        };
+        DualMeshOutput {
+            mesh,
+            surface_legacy: surface,
+        }
+    } else {
+        // Should never happen, but handle gracefully
+        DualMeshOutput {
+            mesh: surface.clone(),
+            surface_legacy: surface,
+        }
+    }
+}
+
+/// Creates a cube-sphere mesh (QuadSphere) using the spherified cube algorithm.
+///
+/// A cube-sphere (also known as a quad-sphere or spherified cube) produces a more
+/// uniform vertex distribution across the sphere surface compared to a traditional
+/// UV-sphere, which suffers from vertex compression at the poles.
+///
+/// # Algorithm
+///
+/// 1. Start with a unit cube centered at the origin
+/// 2. Subdivide each of the 6 faces into a grid of quads
+/// 3. Project (normalize) each vertex onto the unit sphere
+/// 4. Scale by the desired radius and translate to the center
+///
+/// # Advantages over UV-sphere
+///
+/// - **Uniform distribution**: Vertices are spread more evenly across the surface
+/// - **No pole pinching**: UV-spheres have many triangles converging at poles
+/// - **Better triangle quality**: More uniform triangle aspect ratios
+/// - **Physics-friendly**: Better for collision detection and simulations
+///
+/// # Tessellation
+///
+/// Uses 8 subdivisions per cube face edge, producing approximately:
+/// - ~386 vertices (after welding shared edges/corners)
+/// - 768 triangles (128 per face × 6 faces)
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_quad_sphere_surface(plane: &Plane, radius: f64) -> DualMeshOutput {
+    // Build cube-sphere options with the plane's orientation frame
+    let center = to_geom_point(plane.origin);
+    let x_axis = to_geom_vec(plane.x_axis);
+    let y_axis = to_geom_vec(plane.y_axis);
+    let z_axis = to_geom_vec(plane.z_axis);
+
+    // Use 8 subdivisions for a good balance of quality and performance
+    // This produces ~386 vertices and 768 triangles
+    let subdivisions = 8;
+
+    let options = CubeSphereOptions::new(center, radius, subdivisions)
+        .with_frame(x_axis, y_axis, z_axis);
+
+    let (mesh, diagnostics) = mesh_cube_sphere(options);
+
+    // Convert to Value::Mesh with diagnostics
+    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
+
+    // Create legacy surface output for backward compatibility
+    // The cube-sphere mesh is converted to the legacy format
+    let legacy_surface = geom_mesh_to_value_surface(&mesh);
+
+    DualMeshOutput {
+        mesh: mesh_value,
+        surface_legacy: legacy_surface,
+    }
+}
+
+/// Creates a plane surface mesh using geom::PlaneSurface and the shared mesh pipeline.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_plane_mesh_geom(plane: &Plane, size_x: f64, size_y: f64) -> DualMeshOutput {
+    let half_x = size_x / 2.0;
+    let half_y = size_y / 2.0;
+    create_planar_mesh_from_bounds_geom(plane, -half_x, half_x, -half_y, half_y)
+}
+
+/// Creates a planar surface mesh from bounds using geom::PlaneSurface.
+///
+/// Returns a `DualMeshOutput` containing both `Value::Mesh` (primary) and
+/// `Value::Surface` (legacy) for backward compatibility.
+fn create_planar_mesh_from_bounds_geom(
+    plane: &Plane,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
+) -> DualMeshOutput {
+    // Build the geom PlaneSurface
+    // The plane surface uses u_axis and v_axis scaled to the bounds
+    let u_axis = to_geom_vec(plane.x_axis);
+    let v_axis = to_geom_vec(plane.y_axis);
+    
+    // Calculate corner of the plane (bottom-left in plane coordinates)
+    let origin = to_geom_point(plane.apply(min_x, min_y, 0.0));
+    
+    // Scale axes to span the bounds
+    let u_span = max_x - min_x;
+    let v_span = max_y - min_y;
+    
+    let plane_surface = GeomPlaneSurface::new(
+        origin,
+        u_axis.mul_scalar(u_span),
+        v_axis.mul_scalar(v_span),
+    );
+
+    // Mesh the plane - simple 2x2 grid is sufficient for a flat surface
+    let u_count = 2;
+    let v_count = 2;
+    let (mesh, diagnostics) = mesh_surface(&plane_surface, u_count, v_count);
+
+    DualMeshOutput::from_geom_mesh(mesh, Some(diagnostics))
+}
+
+// ============================================================================
+// Legacy surface creation functions (kept for fallback compatibility)
+// ============================================================================
+
+/// Legacy cylinder surface creation (for fallback).
+fn create_cylinder_surface_legacy(plane: &Plane, radius: f64, height: f64) -> Value {
     let segments = 32;
     let mut vertices = Vec::with_capacity(segments * 2);
     let mut faces = Vec::with_capacity(segments * 2);
@@ -741,7 +1284,8 @@ fn create_cylinder_surface(plane: &Plane, radius: f64, height: f64) -> Value {
     Value::Surface { vertices, faces }
 }
 
-fn create_cone_surface(plane: &Plane, radius: f64, height: f64) -> (Value, [f64; 3]) {
+/// Legacy cone surface creation (for fallback).
+fn create_cone_surface_legacy(plane: &Plane, radius: f64, height: f64) -> (Value, [f64; 3]) {
     let segments = 32;
     let mut vertices = Vec::with_capacity(segments + 1);
     let mut faces = Vec::with_capacity(segments);
@@ -763,36 +1307,6 @@ fn create_cone_surface(plane: &Plane, radius: f64, height: f64) -> (Value, [f64;
     }
 
     (Value::Surface { vertices, faces }, tip)
-}
-
-fn create_plane_surface(plane: &Plane, size_x: f64, size_y: f64) -> Value {
-    let half_x = size_x / 2.0;
-    let half_y = size_y / 2.0;
-    create_planar_surface_from_bounds(plane, -half_x, half_x, -half_y, half_y)
-}
-
-fn create_planar_surface_from_bounds(
-    plane: &Plane,
-    min_x: f64,
-    max_x: f64,
-    min_y: f64,
-    max_y: f64,
-) -> Value {
-    let vertices = vec![
-        plane.apply(min_x, min_y, 0.0),
-        plane.apply(max_x, min_y, 0.0),
-        plane.apply(max_x, max_y, 0.0),
-        plane.apply(min_x, max_y, 0.0),
-    ];
-    let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
-    Value::Surface { vertices, faces }
-}
-
-fn create_sphere_surface(plane: &Plane, radius: f64, detailed: bool) -> Value {
-    let lat_segments = if detailed { 24 } else { 16 };
-    let lon_segments = if detailed { 32 } else { 16 };
-    let (vertices, faces) = create_sphere_surface_points(plane, radius, lat_segments, lon_segments);
-    Value::Surface { vertices, faces }
 }
 
 fn create_axis_aligned_box(points: &[[f64; 3]]) -> Value {
@@ -855,7 +1369,7 @@ fn create_box_rectangle_surface(
     plane: &Plane,
     profile: &[[f64; 2]],
     height: f64,
-) -> Value {
+) -> DualMeshOutput {
     let vertex_count = profile.len();
     let mut vertices = Vec::with_capacity(vertex_count * 2);
     let base_z = 0.0;
@@ -908,7 +1422,26 @@ fn create_box_rectangle_surface(
         face.reverse();
     }
 
-    Value::Surface { vertices, faces }
+    // Create the legacy Value::Surface
+    let surface_legacy = Value::Surface {
+        vertices: vertices.clone(),
+        faces: faces.clone(),
+    };
+
+    // Create Value::Mesh with flattened indices
+    let indices: Vec<u32> = faces.iter().flat_map(|f| f.iter().copied()).collect();
+    let mesh = Value::Mesh {
+        vertices,
+        indices,
+        normals: None,
+        uvs: None,
+        diagnostics: None,
+    };
+
+    DualMeshOutput {
+        mesh,
+        surface_legacy,
+    }
 }
 
 fn collect_top_level_items(value: Option<&Value>) -> Vec<&Value> {
@@ -1108,6 +1641,11 @@ fn collect_points_into(
             Ok(())
         }
         Value::Surface { vertices, .. } => {
+            output.extend(vertices.iter().copied());
+            Ok(())
+        }
+        Value::Mesh { vertices, .. } => {
+            // Support new Value::Mesh inputs (from updated surface primitives)
             output.extend(vertices.iter().copied());
             Ok(())
         }

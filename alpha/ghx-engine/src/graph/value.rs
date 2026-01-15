@@ -925,6 +925,95 @@ impl<'a> MeshRef<'a> {
 }
 
 // ============================================================================
+// Polygon Face Triangulation
+// ============================================================================
+
+/// Triangulates polygon faces into triangles using fan triangulation.
+///
+/// This function properly handles quads and n-gons by triangulating from the first
+/// vertex as a fan, producing (n-2) triangles per n-gon. For 3-gon (triangle) faces,
+/// indices are passed through unchanged.
+///
+/// # Fan Triangulation
+///
+/// For a polygon with vertices [v0, v1, v2, v3, ...], fan triangulation produces:
+/// - Triangle 1: [v0, v1, v2]
+/// - Triangle 2: [v0, v2, v3]
+/// - Triangle 3: [v0, v3, v4]
+/// - etc.
+///
+/// This is efficient and works well for convex polygons and most quads. For highly
+/// non-convex polygons, more sophisticated ear-clipping may be needed, but fan
+/// triangulation provides a reasonable approximation that preserves all geometry.
+///
+/// # Arguments
+///
+/// * `faces` - Slice of polygon faces, where each face is a list of vertex indices
+///
+/// # Returns
+///
+/// A flat vector of triangle indices.
+///
+/// # Example
+///
+/// ```ignore
+/// // A quad face with vertices [0, 1, 2, 3] produces:
+/// // Triangle 1: [0, 1, 2]
+/// // Triangle 2: [0, 2, 3]
+/// let faces = vec![vec![0, 1, 2, 3]];
+/// let indices = triangulate_polygon_faces(&faces);
+/// assert_eq!(indices, vec![0, 1, 2, 0, 2, 3]);
+/// ```
+#[must_use]
+pub fn triangulate_polygon_faces(faces: &[Vec<u32>]) -> Vec<u32> {
+    // Pre-calculate capacity: each face contributes (n-2) triangles * 3 indices
+    let capacity: usize = faces
+        .iter()
+        .filter(|f| f.len() >= 3)
+        .map(|f| (f.len() - 2) * 3)
+        .sum();
+
+    let mut indices = Vec::with_capacity(capacity);
+
+    for face in faces {
+        if face.len() < 3 {
+            continue;
+        }
+        // Fan triangulation: all triangles share vertex 0
+        // Triangle i uses vertices [0, i+1, i+2]
+        let num_triangles = face.len() - 2;
+        for i in 0..num_triangles {
+            indices.push(face[0]);
+            indices.push(face[i + 1]);
+            indices.push(face[i + 2]);
+        }
+    }
+
+    indices
+}
+
+/// Consumes polygon faces and triangulates them into triangles using fan triangulation.
+///
+/// This is the owned/consuming version of [`triangulate_polygon_faces`], suitable for
+/// use with `into_iter()` when the face data is being moved.
+///
+/// # Arguments
+///
+/// * `faces` - Iterator of polygon faces to consume
+///
+/// # Returns
+///
+/// A flat vector of triangle indices.
+#[must_use]
+pub fn triangulate_polygon_faces_owned<I>(faces: I) -> Vec<u32>
+where
+    I: IntoIterator<Item = Vec<u32>>,
+{
+    let faces: Vec<Vec<u32>> = faces.into_iter().collect();
+    triangulate_polygon_faces(&faces)
+}
+
+// ============================================================================
 // MeshData - Owned mesh data (returned by expect_mesh_like and conversions)
 // ============================================================================
 
@@ -1801,12 +1890,10 @@ impl Value {
                 diagnostics: diagnostics.clone(),
             }),
             Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangle indices (take first 3 verts per face)
-                let indices = faces
-                    .iter()
-                    .filter(|f| f.len() >= 3)
-                    .flat_map(|f| [f[0], f[1], f[2]])
-                    .collect();
+                // Convert polygon faces to triangles using fan triangulation.
+                // This properly handles quads and n-gons by producing (n-2) triangles
+                // per n-gon face, preserving all geometry.
+                let indices = triangulate_polygon_faces(faces);
                 Ok(MeshData {
                     vertices: vertices.clone(),
                     indices,
@@ -1848,12 +1935,10 @@ impl Value {
                 diagnostics,
             }),
             Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangle indices (take first 3 verts per face)
-                let indices = faces
-                    .into_iter()
-                    .filter(|f| f.len() >= 3)
-                    .flat_map(|f| [f[0], f[1], f[2]])
-                    .collect();
+                // Convert polygon faces to triangles using fan triangulation.
+                // This properly handles quads and n-gons by producing (n-2) triangles
+                // per n-gon face, preserving all geometry.
+                let indices = triangulate_polygon_faces_owned(faces);
                 Ok(MeshData {
                     vertices,
                     indices,
@@ -1898,19 +1983,16 @@ impl Value {
     /// Returns `None` if this value is not a `Surface`.
     ///
     /// **Note**: 
-    /// - Only the first three vertices of each face are used (triangulation)
+    /// - Polygon faces are triangulated using fan triangulation (preserves all geometry)
     /// - Normals and UVs are not generated (set to `None`)
     /// - Diagnostics are not generated (set to `None`)
     #[must_use]
     pub fn surface_legacy_to_mesh(&self) -> Option<Value> {
         match self {
             Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangle indices
-                let indices: Vec<u32> = faces
-                    .iter()
-                    .filter(|f| f.len() >= 3)
-                    .flat_map(|f| [f[0], f[1], f[2]])
-                    .collect();
+                // Convert polygon faces to triangles using fan triangulation.
+                // This properly handles quads and n-gons.
+                let indices = triangulate_polygon_faces(faces);
                 Some(Value::Mesh {
                     vertices: vertices.clone(),
                     indices,
@@ -2535,6 +2617,118 @@ mod tests {
         assert_eq!(mesh_ref.triangle_count(), 2);
         assert!(!mesh_ref.has_normals());
         assert!(!mesh_ref.has_uvs());
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_triangles_pass_through() {
+        // Triangles should pass through unchanged
+        let faces = vec![vec![0, 1, 2], vec![3, 4, 5]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        assert_eq!(indices, vec![0, 1, 2, 3, 4, 5]);
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_quad_produces_two_triangles() {
+        // A quad [0, 1, 2, 3] should produce 2 triangles using fan triangulation
+        let faces = vec![vec![0, 1, 2, 3]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        // Fan from vertex 0: [0, 1, 2] and [0, 2, 3]
+        assert_eq!(indices, vec![0, 1, 2, 0, 2, 3]);
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_pentagon_produces_three_triangles() {
+        // A pentagon [0, 1, 2, 3, 4] should produce 3 triangles
+        let faces = vec![vec![0, 1, 2, 3, 4]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        // Fan from vertex 0: [0, 1, 2], [0, 2, 3], [0, 3, 4]
+        assert_eq!(indices, vec![0, 1, 2, 0, 2, 3, 0, 3, 4]);
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_hexagon_produces_four_triangles() {
+        // A hexagon [0, 1, 2, 3, 4, 5] should produce 4 triangles
+        let faces = vec![vec![0, 1, 2, 3, 4, 5]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        // Fan from vertex 0: [0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]
+        assert_eq!(indices, vec![0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5]);
+        assert_eq!(indices.len() / 3, 4); // 4 triangles
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_mixed_sizes() {
+        // Mix of triangle, quad, and pentagon
+        let faces = vec![vec![0, 1, 2], vec![3, 4, 5, 6], vec![7, 8, 9, 10, 11]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        // Triangle: 1 tri, Quad: 2 tris, Pentagon: 3 tris = 6 triangles
+        assert_eq!(indices.len() / 3, 6);
+        // Check specific indices
+        assert_eq!(&indices[0..3], &[0, 1, 2]); // triangle
+        assert_eq!(&indices[3..9], &[3, 4, 5, 3, 5, 6]); // quad
+        assert_eq!(&indices[9..18], &[7, 8, 9, 7, 9, 10, 7, 10, 11]); // pentagon
+    }
+
+    #[test]
+    fn triangulate_polygon_faces_skips_degenerate() {
+        // Faces with fewer than 3 vertices should be skipped
+        let faces = vec![vec![0, 1], vec![2, 3, 4]];
+        let indices = super::triangulate_polygon_faces(&faces);
+        assert_eq!(indices, vec![2, 3, 4]); // Only the triangle
+    }
+
+    #[test]
+    fn expect_mesh_like_quad_surface_produces_correct_triangles() {
+        // A surface with a single quad face should produce 2 triangles
+        let value = Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]], // Single quad face
+        };
+
+        let mesh_data = value.expect_mesh_like().unwrap();
+        assert_eq!(mesh_data.vertex_count(), 4);
+        assert_eq!(mesh_data.triangle_count(), 2); // Quad -> 2 triangles
+        assert_eq!(mesh_data.indices, vec![0, 1, 2, 0, 2, 3]);
+    }
+
+    #[test]
+    fn into_mesh_data_like_quad_surface_produces_correct_triangles() {
+        // Test the owned/consuming version
+        let value = Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]], // Single quad face
+        };
+
+        let mesh_data = value.into_mesh_data_like().unwrap();
+        assert_eq!(mesh_data.vertex_count(), 4);
+        assert_eq!(mesh_data.triangle_count(), 2); // Quad -> 2 triangles
+        assert_eq!(mesh_data.indices, vec![0, 1, 2, 0, 2, 3]);
+    }
+
+    #[test]
+    fn surface_legacy_to_mesh_quad_produces_correct_triangles() {
+        let surface = Value::Surface {
+            vertices: vec![
+                [0.0, 0.0, 0.0],
+                [1.0, 0.0, 0.0],
+                [1.0, 1.0, 0.0],
+                [0.0, 1.0, 0.0],
+            ],
+            faces: vec![vec![0, 1, 2, 3]], // Single quad face
+        };
+
+        let mesh = surface.surface_legacy_to_mesh().unwrap();
+        let mesh_ref = mesh.expect_mesh().unwrap();
+        assert_eq!(mesh_ref.triangle_count(), 2); // Quad -> 2 triangles
     }
 
     #[test]

@@ -559,6 +559,7 @@ fn evaluate_iso_curve(inputs: &[Value]) -> ComponentResult {
 
     let (vertices, _) = match inputs.get(0) {
         Some(Value::Surface { vertices, faces: _ }) => (vertices.clone(), ()),
+        Some(Value::Mesh { vertices, .. }) => (vertices.clone(), ()),
         Some(Value::List(values)) if !values.is_empty() => {
             let mut points = Vec::new();
             for value in values {
@@ -568,7 +569,7 @@ fn evaluate_iso_curve(inputs: &[Value]) -> ComponentResult {
         }
         Some(other) => {
             return Err(ComponentError::new(format!(
-                "Iso Curve verwacht een oppervlak, kreeg {}",
+                "Iso Curve verwacht een oppervlak of mesh, kreeg {}",
                 other.kind()
             )));
         }
@@ -1121,6 +1122,7 @@ fn evaluate_curve_on_surface(inputs: &[Value]) -> ComponentResult {
 
     let surface_vertices = match inputs.get(0) {
         Some(Value::Surface { vertices, faces: _ }) => vertices.clone(),
+        Some(Value::Mesh { vertices, .. }) => vertices.clone(),
         Some(Value::List(values)) => {
             let mut verts = Vec::new();
             for value in values {
@@ -1130,7 +1132,7 @@ fn evaluate_curve_on_surface(inputs: &[Value]) -> ComponentResult {
         }
         Some(other) => {
             return Err(ComponentError::new(format!(
-                "Curve On Surface verwacht een oppervlak, kreeg {}",
+                "Curve On Surface verwacht een oppervlak of mesh, kreeg {}",
                 other.kind()
             )));
         }

@@ -1,5 +1,6 @@
 mod analysis;
 mod boolean;
+mod brep_ops;
 mod bvh;
 mod cache;
 mod core;
@@ -21,6 +22,7 @@ mod simplify;
 mod solid;
 mod subdivision;
 mod surface_fit;
+mod surface_ops;
 mod sweep;
 mod surface;
 mod tessellation;
@@ -129,14 +131,16 @@ pub use loft::{
     loft_mesh_with_tolerance,
 };
 pub use revolve::{
-    FrenetFrame, RevolveCaps, RevolveError, RevolveOptions,
-    rail_revolve_polyline, rail_revolve_polyline_with_tolerance,
+    FrenetFrame, RailRevolveAxis, RailRevolveOptions, RevolveCaps, RevolveError, RevolveOptions,
+    rail_revolve_polyline, rail_revolve_polyline_with_options, rail_revolve_polyline_with_tolerance,
     revolve_polyline, revolve_polyline_with_options, revolve_polyline_with_tolerance,
 };
 pub use sweep::{
-    SweepCaps, SweepError, SweepOptions,
+    MiterType, ProfilePlaneTransform, RailAlignmentResult, SweepCaps, SweepError, SweepOptions,
+    Sweep2MultiSectionOptions, Sweep2Section,
+    align_sweep2_rails,
     sweep1_polyline, sweep1_polyline_with_tolerance,
-    sweep2_polyline, sweep2_polyline_with_tolerance,
+    sweep2_multi_section, sweep2_polyline, sweep2_polyline_with_tolerance,
 };
 pub use metrics::{GeomMetrics, GeomTimingReport, TimingBucket};
 pub use mesh::{
@@ -147,11 +151,18 @@ pub use mesh::{
     mesh_ruled_surface, mesh_edge_surface, mesh_edge_surface_from_edges,
     mesh_sum_surface, mesh_network_surface, mesh_network_surface_from_grid,
     weld_mesh_vertices,
+    // Cube-sphere (QuadSphere) mesh generation
+    CubeSphereOptions, mesh_cube_sphere, mesh_cube_sphere_with_context,
+    // Mesh flip operations
+    FlipMeshDiagnostics, MeshFlipGuide, flip_mesh,
+    // Closest point on mesh
+    ClosestPointResult, closest_point_on_mesh, closest_point_on_mesh_simple,
 };
 pub use patch::{
-    PatchError, boundary_surface_mesh, boundary_surface_mesh_with_tolerance,
+    PatchError, PatchOptions,
+    boundary_surface_mesh, boundary_surface_mesh_with_tolerance,
     fragment_patch_meshes, fragment_patch_meshes_with_tolerance,
-    patch_mesh, patch_mesh_with_tolerance,
+    patch_mesh, patch_mesh_with_tolerance, patch_mesh_with_options,
 };
 pub use offset::{
     OffsetDiagnostics, OffsetDirection, OffsetError, OffsetOptions,
@@ -170,10 +181,13 @@ pub use surface::{
     FlippedSurface, SurfaceFlipDiagnostics, SurfaceFlipGuide, flip_surface_orientation,
     // Surface builders
     FourPointSurface, RuledSurface, EdgeSurface, SumSurface, NetworkSurface,
+    // Surface curvature analysis
+    SurfaceCurvatureAnalysis, analyze_surface_curvature,
 };
 pub use surface_fit::{
     SurfaceFitDiagnostics, SurfaceFitError, SurfaceFitOptions,
     mesh_from_grid, mesh_from_grid_with_context,
+    mesh_from_grid_with_options, mesh_from_grid_with_options_and_context,
     mesh_from_scattered_points, mesh_from_scattered_points_with_context,
     surface_from_grid, surface_from_scattered_points,
 };
@@ -184,6 +198,7 @@ pub use tessellation::{
 pub use triangulation::{
     TriangulationDiagnostics, TriangulationOptions, TriangulationResult, triangulate_grid,
     triangulate_grid_wrapped, triangulate_trim_region, triangulate_trim_region_with_options,
+    triangulate_trim_region_with_steiner_points,
 };
 pub use trim::{
     TrimDiagnostics, TrimError, TrimLoop, TrimRegion, UvDomain, UvPoint,
@@ -205,6 +220,19 @@ pub use solid::{
     LegacySurfaceMesh, MergeFacesDiagnostics, MergeFacesResult,
     brep_join_legacy, cap_holes_ex_legacy, cap_holes_legacy, legacy_surface_is_closed,
     merge_faces_legacy,
+};
+pub use brep_ops::{
+    BrepJoinComponentResult, BrepJoinOptions, MergeFacesComponentResult, MergeFacesOptions,
+    brep_join, is_brep_closed, merge_brep_faces,
+};
+pub use surface_ops::{
+    DivideSurfaceBoundsOptions, DivideSurfaceBoundsResult, IsotrimBoundsDiagnostics,
+    IsotrimBoundsResult, SurfaceFrameArrays, SurfaceFramesBoundsResult,
+    VertexGridSurface, VertexSurfaceInput,
+    best_fit_plane,
+    divide_surface_from_bounds, divide_surface_from_vertices, divide_surface_generic,
+    isotrim_from_bounds, isotrim_from_vertices, isotrim_generic,
+    surface_frames_from_bounds, surface_frames_from_vertices, surface_frames_generic,
 };
 
 #[cfg(test)]

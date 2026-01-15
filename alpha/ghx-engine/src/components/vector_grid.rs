@@ -641,6 +641,10 @@ fn collect_points_into(
             output.extend(vertices.iter().copied());
             Ok(())
         }
+        Value::Mesh { vertices, .. } => {
+            output.extend(vertices.iter().copied());
+            Ok(())
+        }
         Value::List(values) => {
             if values.is_empty() {
                 return Ok(());
@@ -815,6 +819,9 @@ fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
         Value::Surface { vertices, .. } if vertices.len() >= 3 => {
             Ok(Plane::from_points(vertices[0], vertices[1], vertices[2]))
         }
+        Value::Mesh { vertices, .. } if vertices.len() >= 3 => {
+            Ok(Plane::from_points(vertices[0], vertices[1], vertices[2]))
+        }
         other => Err(ComponentError::new(format!(
             "{} verwacht een vlak, kreeg {}",
             context,
@@ -976,6 +983,25 @@ fn gather_geometry_into(
                 let last = vertices[*face.last().unwrap() as usize];
                 let second = vertices[face[1] as usize];
                 collection.push_triangle(a, last, second);
+            }
+            Ok(())
+        }
+        Value::Mesh { vertices, indices, .. } => {
+            // Add all vertices as points for fallback sampling
+            for vertex in vertices {
+                collection.push_point(*vertex);
+            }
+            // Process indexed triangles (indices come in groups of 3)
+            for tri in indices.chunks(3) {
+                if tri.len() == 3 {
+                    let a_idx = tri[0] as usize;
+                    let b_idx = tri[1] as usize;
+                    let c_idx = tri[2] as usize;
+                    // Bounds check to avoid panics on invalid meshes
+                    if a_idx < vertices.len() && b_idx < vertices.len() && c_idx < vertices.len() {
+                        collection.push_triangle(vertices[a_idx], vertices[b_idx], vertices[c_idx]);
+                    }
+                }
             }
             Ok(())
         }

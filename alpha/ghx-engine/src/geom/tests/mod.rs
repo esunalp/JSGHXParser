@@ -14,6 +14,7 @@ mod test_solid_basic;
 mod test_subdivision_basic;
 mod test_surface_basic;
 mod test_surface_builders;
+mod test_surface_curvature;
 mod test_sweep_basic;
 mod test_trim_basic;
 mod test_triangulation_basic;

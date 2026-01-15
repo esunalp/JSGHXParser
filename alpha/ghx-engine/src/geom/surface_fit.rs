@@ -17,7 +17,7 @@
 
 use super::core::{Point3, Tolerance, Vec3};
 use super::diagnostics::GeomMeshDiagnostics;
-use super::mesh::{GeomContext, GeomMesh, finalize_mesh};
+use super::mesh::{mesh_surface_with_context, GeomContext, GeomMesh, finalize_mesh};
 use super::metrics::TimingBucket;
 use super::surface::{NurbsSurface, PlaneSurface, Surface};
 use super::triangulation::delaunay_triangulate;
@@ -525,6 +525,138 @@ pub fn mesh_from_grid_with_context(
     );
 
     Ok((mesh, diagnostics))
+}
+
+/// Create a mesh from a grid of points with fitting options.
+///
+/// This function respects the `interpolate` flag in the options:
+/// - When `interpolate = true` (default): Creates a smooth NURBS surface that
+///   passes through all grid points, then tessellates it. The output mesh will
+///   have more vertices than the input grid, producing a smooth surface.
+/// - When `interpolate = false`: Uses the grid points directly as mesh vertices,
+///   producing a mesh that matches the input point positions exactly.
+///
+/// # Arguments
+/// * `points` - Grid points in row-major order (U varies fastest)
+/// * `u_count` - Number of points in U direction
+/// * `v_count` - Number of points in V direction
+/// * `options` - Fitting options including the interpolate flag
+///
+/// # Returns
+/// A triangulated mesh and fitting diagnostics.
+///
+/// # Example
+/// ```ignore
+/// use ghx_engine::geom::{Point3, SurfaceFitOptions, mesh_from_grid_with_options};
+///
+/// // Create a 3×3 grid of points
+/// let points = vec![
+///     Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.5), Point3::new(2.0, 0.0, 0.0),
+///     Point3::new(0.0, 1.0, 0.5), Point3::new(1.0, 1.0, 1.0), Point3::new(2.0, 1.0, 0.5),
+///     Point3::new(0.0, 2.0, 0.0), Point3::new(1.0, 2.0, 0.5), Point3::new(2.0, 2.0, 0.0),
+/// ];
+///
+/// // Interpolating mode: creates a smooth surface through the points
+/// let opts_interp = SurfaceFitOptions::interpolating();
+/// let (mesh_smooth, _) = mesh_from_grid_with_options(&points, 3, 3, opts_interp).unwrap();
+///
+/// // Direct mode: uses the exact input points as mesh vertices
+/// let opts_direct = SurfaceFitOptions::approximating();
+/// let (mesh_direct, _) = mesh_from_grid_with_options(&points, 3, 3, opts_direct).unwrap();
+///
+/// // The smooth mesh typically has more vertices for a refined representation
+/// assert!(mesh_smooth.positions.len() >= mesh_direct.positions.len());
+/// ```
+pub fn mesh_from_grid_with_options(
+    points: &[Point3],
+    u_count: usize,
+    v_count: usize,
+    options: SurfaceFitOptions,
+) -> Result<(GeomMesh, SurfaceFitDiagnostics), SurfaceFitError> {
+    let mut ctx = GeomContext::new();
+    mesh_from_grid_with_options_and_context(points, u_count, v_count, options, &mut ctx)
+}
+
+/// Create a mesh from a grid of points with fitting options and a shared context.
+pub fn mesh_from_grid_with_options_and_context(
+    points: &[Point3],
+    u_count: usize,
+    v_count: usize,
+    options: SurfaceFitOptions,
+    ctx: &mut GeomContext,
+) -> Result<(GeomMesh, SurfaceFitDiagnostics), SurfaceFitError> {
+    // Validate inputs
+    if u_count < 2 || v_count < 2 {
+        return Err(SurfaceFitError::InvalidGridSize { u_count, v_count });
+    }
+
+    let expected = u_count * v_count;
+    if points.len() != expected {
+        return Err(SurfaceFitError::GridSizeMismatch {
+            expected,
+            provided: points.len(),
+        });
+    }
+
+    ctx.metrics.begin();
+
+    if options.interpolate {
+        // Interpolating mode: create a NURBS surface through the points, then tessellate
+        // This produces a smooth surface that passes through all grid points
+        let (nurbs_surface, mut fit_diagnostics) = 
+            surface_from_grid(points, u_count, v_count, options)?;
+
+        // Determine tessellation resolution based on grid size and surface complexity
+        // Use higher resolution for smoother output; scale with input grid size
+        let tess_u = calculate_tessellation_resolution(u_count, options.degree_u);
+        let tess_v = calculate_tessellation_resolution(v_count, options.degree_v);
+
+        // Mesh the NURBS surface
+        let (mesh, mesh_diagnostics) = mesh_surface_with_context(&nurbs_surface, tess_u, tess_v, ctx);
+
+        // Combine diagnostics
+        fit_diagnostics.warnings.extend(mesh_diagnostics.warnings);
+
+        Ok((mesh, fit_diagnostics))
+    } else {
+        // Non-interpolating (direct) mode: use the grid points as exact mesh vertices
+        // This produces a mesh that matches the input points exactly
+        let (mesh, mesh_diagnostics) = mesh_from_grid_with_context(points, u_count, v_count, ctx)?;
+
+        let fit_diagnostics = SurfaceFitDiagnostics {
+            input_point_count: points.len(),
+            grid_size: (u_count, v_count),
+            max_deviation: 0.0, // Zero deviation when using exact points
+            avg_deviation: 0.0,
+            closed_u: options.close_u && check_u_closure(points, u_count, v_count, options.tolerance),
+            closed_v: options.close_v && check_v_closure(points, u_count, v_count, options.tolerance),
+            warnings: mesh_diagnostics.warnings,
+        };
+
+        Ok((mesh, fit_diagnostics))
+    }
+}
+
+/// Calculate appropriate tessellation resolution for a NURBS surface dimension.
+///
+/// The resolution is chosen to produce a smooth representation while avoiding
+/// excessive vertex counts. Higher degree surfaces and larger grids get more
+/// tessellation samples.
+fn calculate_tessellation_resolution(grid_count: usize, degree: usize) -> usize {
+    // Base resolution scales with input grid size
+    // Multiply by a factor based on the surface degree to capture curvature
+    let degree_factor = match degree {
+        1 => 1,           // Linear: no extra samples needed
+        2 => 2,           // Quadratic: double the samples
+        3 => 3,           // Cubic: triple the samples
+        _ => degree + 1,  // Higher degrees: proportional increase
+    };
+
+    // Minimum tessellation of 4 points per input point, scaled by degree
+    let base = (grid_count - 1) * degree_factor + 1;
+
+    // Clamp to reasonable bounds to avoid excessive tessellation
+    base.clamp(grid_count, 128)
 }
 
 // ============================================================================

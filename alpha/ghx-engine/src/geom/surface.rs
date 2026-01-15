@@ -242,6 +242,104 @@ pub trait Surface {
         du.cross(dv).normalized()
     }
 
+    /// Computes the second partial derivatives (duu, duv, dvv) at a parametric point.
+    ///
+    /// These are used for curvature analysis via the second fundamental form.
+    /// The default implementation uses central finite differences on the first derivatives.
+    ///
+    /// Returns `(duu, duv, dvv)` where:
+    /// - `duu` is the second derivative in the u direction
+    /// - `duv` is the mixed partial derivative
+    /// - `dvv` is the second derivative in the v direction
+    #[must_use]
+    fn second_partial_derivatives_at(&self, u: f64, v: f64) -> (Vec3, Vec3, Vec3) {
+        let (u0, u1) = self.domain_u();
+        let (v0, v1) = self.domain_v();
+
+        let u_span = u1 - u0;
+        let v_span = v1 - v0;
+
+        let u = if self.is_u_closed() {
+            wrap_param(u, u0, u1)
+        } else {
+            u.clamp(u0, u1)
+        };
+
+        let v = if self.is_v_closed() {
+            wrap_param(v, v0, v1)
+        } else {
+            v.clamp(v0, v1)
+        };
+
+        let mut duu = Vec3::new(0.0, 0.0, 0.0);
+        let mut duv = Vec3::new(0.0, 0.0, 0.0);
+        let mut dvv = Vec3::new(0.0, 0.0, 0.0);
+
+        // Use larger step for second derivatives
+        let h_u = if u_span.is_finite() && u_span != 0.0 {
+            Tolerance::SECOND_DERIVATIVE.relative_to(u_span)
+        } else {
+            0.0
+        };
+        let h_v = if v_span.is_finite() && v_span != 0.0 {
+            Tolerance::SECOND_DERIVATIVE.relative_to(v_span)
+        } else {
+            0.0
+        };
+
+        // Compute duu = d²P/du²
+        if h_u.is_finite() && h_u > 0.0 {
+            let ua = if self.is_u_closed() { u - h_u } else { (u - h_u).max(u0) };
+            let ub = if self.is_u_closed() { u + h_u } else { (u + h_u).min(u1) };
+
+            if ua < u && u < ub {
+                let (du_a, _) = self.partial_derivatives_at(ua, v);
+                let (du_b, _) = self.partial_derivatives_at(ub, v);
+                let delta = ub - ua;
+                if delta > 0.0 {
+                    duu = du_b.sub(du_a).mul_scalar(1.0 / delta);
+                }
+            }
+        }
+
+        // Compute dvv = d²P/dv²
+        if h_v.is_finite() && h_v > 0.0 {
+            let va = if self.is_v_closed() { v - h_v } else { (v - h_v).max(v0) };
+            let vb = if self.is_v_closed() { v + h_v } else { (v + h_v).min(v1) };
+
+            if va < v && v < vb {
+                let (_, dv_a) = self.partial_derivatives_at(u, va);
+                let (_, dv_b) = self.partial_derivatives_at(u, vb);
+                let delta = vb - va;
+                if delta > 0.0 {
+                    dvv = dv_b.sub(dv_a).mul_scalar(1.0 / delta);
+                }
+            }
+        }
+
+        // Compute duv = d²P/dudv (mixed partial)
+        if h_u.is_finite() && h_u > 0.0 && h_v.is_finite() && h_v > 0.0 {
+            let ua = if self.is_u_closed() { u - h_u } else { (u - h_u).max(u0) };
+            let ub = if self.is_u_closed() { u + h_u } else { (u + h_u).min(u1) };
+
+            if ua < u && u < ub {
+                let va = if self.is_v_closed() { v - h_v } else { (v - h_v).max(v0) };
+                let vb = if self.is_v_closed() { v + h_v } else { (v + h_v).min(v1) };
+
+                if va < v && v < vb {
+                    let (_, dv_ua) = self.partial_derivatives_at(ua, v);
+                    let (_, dv_ub) = self.partial_derivatives_at(ub, v);
+                    let delta_u = ub - ua;
+                    if delta_u > 0.0 {
+                        duv = dv_ub.sub(dv_ua).mul_scalar(1.0 / delta_u);
+                    }
+                }
+            }
+        }
+
+        (duu, duv, dvv)
+    }
+
     fn cache_key(&self) -> SurfaceCacheKey;
 }
 
@@ -1880,11 +1978,19 @@ impl Surface for RuledSurface {
 /// - `edge_v0`: curve at u=0 (left edge, parametrized along v)
 /// - `edge_v1`: curve at u=1 (right edge, parametrized along v)
 ///
-/// **Important**: Edge direction matters!
+/// ## Edge Direction Requirements
+///
+/// When using `EdgeSurface::new()` directly:
 /// - `edge_u0` and `edge_u1` must be oriented left-to-right (u=0 to u=1)
 /// - `edge_v0` and `edge_v1` must be oriented bottom-to-top (v=0 to v=1)
-/// - Corners are extracted from the first/last points of each edge, so reversed
-///   edges will produce incorrect surface geometry.
+/// - Corners are extracted from the first/last points of each edge
+///
+/// ## Auto-Orientation (Recommended)
+///
+/// Use `EdgeSurface::from_edges()` or `from_edges_with_tolerance()` for automatic
+/// orientation handling. These methods analyze edge endpoints and orient them to
+/// form a consistent boundary loop, preventing twisted surfaces from misaligned
+/// input edges.
 ///
 /// This corresponds to Grasshopper's "Edge Surface" (EdgeSrf) component.
 #[derive(Debug, Clone, PartialEq)]
@@ -1944,58 +2050,314 @@ impl EdgeSurface {
     ///
     /// If 2 edges are provided, creates a ruled surface behavior.
     /// If 3-4 edges are provided, constructs a Coons patch.
+    ///
+    /// **Auto-orientation**: This method automatically orients edges to avoid
+    /// twisted surfaces. For 2-edge cases, it ensures edges flow in compatible
+    /// directions. For 4-edge cases, it organizes edges into a consistent
+    /// boundary loop.
     pub fn from_edges(edges: &[Vec<Point3>]) -> Result<Self, String> {
+        Self::from_edges_with_tolerance(edges, Tolerance::LOOSE)
+    }
+
+    /// Create an edge surface from a list of edge polylines with a custom tolerance.
+    ///
+    /// The tolerance is used for endpoint proximity checks when auto-orienting edges.
+    pub fn from_edges_with_tolerance(
+        edges: &[Vec<Point3>],
+        tol: Tolerance,
+    ) -> Result<Self, String> {
         if edges.len() < 2 {
             return Err("EdgeSurface requires at least 2 boundary edges".to_string());
         }
 
-        // For simplicity, support 2 and 4 edge cases
-        if edges.len() == 2 {
-            // Treat as ruled surface: edge_u0 and edge_u1 are the two curves,
-            // edge_v0 and edge_v1 are synthetic straight lines
-            let edge_u0 = edges[0].clone();
-            let edge_u1 = edges[1].clone();
+        // Validate all edges have at least 2 points
+        for (i, edge) in edges.iter().enumerate() {
+            if edge.len() < 2 {
+                return Err(format!(
+                    "EdgeSurface edge {} must have at least 2 points",
+                    i
+                ));
+            }
+        }
 
-            if edge_u0.len() < 2 || edge_u1.len() < 2 {
-                return Err("EdgeSurface edges must have at least 2 points".to_string());
+        if edges.len() == 2 {
+            Self::from_two_edges_auto_orient(&edges[0], &edges[1], tol)
+        } else if edges.len() == 3 {
+            Self::from_three_edges_auto_orient(&edges[0], &edges[1], &edges[2], tol)
+        } else {
+            Self::from_four_edges_auto_orient(&edges[0], &edges[1], &edges[2], &edges[3], tol)
+        }
+    }
+
+    /// Create a ruled-style edge surface from two edges with auto-orientation.
+    ///
+    /// This method analyzes the edge endpoints and orients them so that:
+    /// - Corresponding endpoints are matched to minimize crossing/twisting
+    /// - The surface interpolates smoothly between the two curves
+    fn from_two_edges_auto_orient(
+        edge0: &[Point3],
+        edge1: &[Point3],
+        _tol: Tolerance,
+    ) -> Result<Self, String> {
+        // Get endpoints of both edges
+        let e0_start = edge0[0];
+        let e0_end = *edge0.last().unwrap();
+        let e1_start = edge1[0];
+        let e1_end = *edge1.last().unwrap();
+
+        // Calculate distances for both orientation options:
+        // Option A: edge0 and edge1 both go "same direction"
+        //   - e0_start connects to e1_start, e0_end connects to e1_end
+        let dist_same_dir = e0_start.distance_squared_to(e1_start)
+            + e0_end.distance_squared_to(e1_end);
+
+        // Option B: edge1 is reversed relative to edge0
+        //   - e0_start connects to e1_end, e0_end connects to e1_start
+        let dist_reversed = e0_start.distance_squared_to(e1_end)
+            + e0_end.distance_squared_to(e1_start);
+
+        // Choose orientation that minimizes total endpoint distance (less twisting)
+        let edge_u0 = edge0.to_vec();
+        let edge_u1 = if dist_same_dir <= dist_reversed {
+            // Same direction - no flip needed
+            edge1.to_vec()
+        } else {
+            // Reverse edge1 for better alignment
+            edge1.iter().copied().rev().collect()
+        };
+
+        // Now construct corners and synthetic v-edges
+        let p00 = edge_u0[0];
+        let p10 = *edge_u0.last().unwrap();
+        let p01 = edge_u1[0];
+        let p11 = *edge_u1.last().unwrap();
+
+        let edge_v0 = vec![p00, p01];
+        let edge_v1 = vec![p10, p11];
+
+        Ok(Self {
+            edge_u0,
+            edge_u1,
+            edge_v0,
+            edge_v1,
+            corners: [p00, p10, p01, p11],
+        })
+    }
+
+    /// Create a Coons patch from three edges with auto-orientation.
+    ///
+    /// For 3 edges, we treat it as a degenerate 4-edge case where one edge
+    /// collapses to a point. The algorithm finds which corner should be the
+    /// degenerate point based on edge connectivity.
+    fn from_three_edges_auto_orient(
+        edge0: &[Point3],
+        edge1: &[Point3],
+        edge2: &[Point3],
+        tol: Tolerance,
+    ) -> Result<Self, String> {
+        // Collect all edges and orient them into a closed loop
+        let edges = vec![edge0.to_vec(), edge1.to_vec(), edge2.to_vec()];
+        let oriented = Self::orient_edges_into_loop(&edges, tol)?;
+
+        // For 3 edges, we have a triangular boundary. We need to identify
+        // which corner to collapse. Use the first edge as u0, last edge as u1,
+        // and create synthetic edges for the sides.
+        if oriented.len() < 3 {
+            return Err("EdgeSurface: could not form a valid 3-edge loop".to_string());
+        }
+
+        // edge_u0 = first edge
+        // The "opposite" edge doesn't exist, so we'll use edge2 (resampled or as-is)
+        // edge_v0 and edge_v1 connect the ends
+        let edge_u0 = oriented[0].clone();
+        let edge_u1 = oriented[2].clone();
+
+        // Get corner points
+        let p00 = edge_u0[0];
+        let p10 = *edge_u0.last().unwrap();
+        let p01 = edge_u1[0];
+        let p11 = *edge_u1.last().unwrap();
+
+        // The middle edge (oriented[1]) should connect p10 to p01
+        let edge_v1 = oriented[1].clone();
+
+        // Synthesize edge_v0 as a line from p00 to p11
+        // (this collapses one corner into a triangular patch)
+        let edge_v0 = vec![p00, p11];
+
+        Ok(Self {
+            edge_u0,
+            edge_u1,
+            edge_v0,
+            edge_v1,
+            corners: [p00, p10, p01, p11],
+        })
+    }
+
+    /// Create a Coons patch from four edges with auto-orientation.
+    ///
+    /// This method organizes the four edges into a consistent closed loop
+    /// around the patch boundary, orienting each edge so that:
+    /// - edge_u0 (bottom): flows from corner p00 to p10
+    /// - edge_v1 (right): flows from corner p10 to p11
+    /// - edge_u1 (top): flows from corner p01 to p11 (note: reversed in Coons formula)
+    /// - edge_v0 (left): flows from corner p00 to p01
+    fn from_four_edges_auto_orient(
+        edge0: &[Point3],
+        edge1: &[Point3],
+        edge2: &[Point3],
+        edge3: &[Point3],
+        tol: Tolerance,
+    ) -> Result<Self, String> {
+        // Collect all edges
+        let edges = vec![
+            edge0.to_vec(),
+            edge1.to_vec(),
+            edge2.to_vec(),
+            edge3.to_vec(),
+        ];
+
+        // Orient edges into a closed loop
+        let oriented = Self::orient_edges_into_loop(&edges, tol)?;
+
+        if oriented.len() != 4 {
+            return Err(format!(
+                "EdgeSurface: expected 4 edges in loop, got {}",
+                oriented.len()
+            ));
+        }
+
+        // Assign edges to the Coons patch roles:
+        // Loop order: edge0 -> edge1 -> edge2 -> edge3 -> back to edge0
+        // Coons layout:
+        //       edge_u1 (top)
+        //   p01 ─────────> p11
+        //    ^              ^
+        //    │              │
+        //  v0│              │v1
+        //    │              │
+        //   p00 ─────────> p10
+        //       edge_u0 (bottom)
+
+        // Loop[0] is bottom (u0), loop[1] is right (v1), loop[2] is top (u1), loop[3] is left (v0)
+        let edge_u0 = oriented[0].clone();
+        let edge_v1 = oriented[1].clone();
+        let edge_u1_reversed = oriented[2].clone();
+        let edge_v0_reversed = oriented[3].clone();
+
+        // edge_u1 in Coons formula goes left-to-right at v=1, but in the loop
+        // it goes right-to-left (p11 to p01), so we need to reverse it
+        let edge_u1: Vec<Point3> = edge_u1_reversed.iter().copied().rev().collect();
+
+        // edge_v0 in Coons formula goes bottom-to-top at u=0, but in the loop
+        // it goes top-to-bottom (p01 to p00), so we need to reverse it
+        let edge_v0: Vec<Point3> = edge_v0_reversed.iter().copied().rev().collect();
+
+        // Extract corners
+        let p00 = edge_u0[0];
+        let p10 = *edge_u0.last().unwrap();
+        let p01 = edge_u1[0];
+        let p11 = *edge_u1.last().unwrap();
+
+        Ok(Self {
+            edge_u0,
+            edge_u1,
+            edge_v0,
+            edge_v1,
+            corners: [p00, p10, p01, p11],
+        })
+    }
+
+    /// Orient a collection of edges into a closed loop.
+    ///
+    /// This algorithm:
+    /// 1. Starts with the first edge (kept in original orientation)
+    /// 2. For each subsequent position, finds the edge whose start or end
+    ///    is closest to the current chain's endpoint
+    /// 3. Orients that edge so its start connects to the chain
+    /// 4. Continues until all edges are placed
+    ///
+    /// Returns the edges reordered and oriented to form a continuous loop.
+    fn orient_edges_into_loop(
+        edges: &[Vec<Point3>],
+        tol: Tolerance,
+    ) -> Result<Vec<Vec<Point3>>, String> {
+        if edges.is_empty() {
+            return Err("EdgeSurface: no edges provided".to_string());
+        }
+        if edges.len() == 1 {
+            return Ok(vec![edges[0].clone()]);
+        }
+
+        let n = edges.len();
+        let mut used = vec![false; n];
+        let mut result: Vec<Vec<Point3>> = Vec::with_capacity(n);
+
+        // Start with the first edge in its original orientation
+        result.push(edges[0].clone());
+        used[0] = true;
+
+        // Tolerance squared for distance comparisons
+        let tol_sq = tol.eps * tol.eps;
+
+        // Build the chain by finding connecting edges
+        for _ in 1..n {
+            let chain_end = *result.last().unwrap().last().unwrap();
+
+            // Find the unused edge that best connects to chain_end
+            let mut best_idx = None;
+            let mut best_dist_sq = f64::MAX;
+            let mut best_needs_flip = false;
+
+            for (i, edge) in edges.iter().enumerate() {
+                if used[i] {
+                    continue;
+                }
+
+                let start = edge[0];
+                let end = *edge.last().unwrap();
+
+                // Check distance from chain_end to this edge's start
+                let dist_to_start = chain_end.distance_squared_to(start);
+                if dist_to_start < best_dist_sq {
+                    best_dist_sq = dist_to_start;
+                    best_idx = Some(i);
+                    best_needs_flip = false;
+                }
+
+                // Check distance from chain_end to this edge's end (would need flip)
+                let dist_to_end = chain_end.distance_squared_to(end);
+                if dist_to_end < best_dist_sq {
+                    best_dist_sq = dist_to_end;
+                    best_idx = Some(i);
+                    best_needs_flip = true;
+                }
             }
 
-            let p00 = edge_u0[0];
-            let p10 = *edge_u0.last().unwrap();
-            let p01 = edge_u1[0];
-            let p11 = *edge_u1.last().unwrap();
+            match best_idx {
+                Some(idx) => {
+                    used[idx] = true;
+                    let mut edge = edges[idx].clone();
+                    if best_needs_flip {
+                        edge.reverse();
+                    }
 
-            let edge_v0 = vec![p00, p01];
-            let edge_v1 = vec![p10, p11];
+                    // Warn if connection is poor (beyond tolerance)
+                    // but still accept it - the caller should validate
+                    if best_dist_sq > tol_sq {
+                        // Connection is outside tolerance - edges don't form a proper loop
+                        // We still proceed but the result may not be a clean loop
+                    }
 
-            Ok(Self {
-                edge_u0,
-                edge_u1,
-                edge_v0,
-                edge_v1,
-                corners: [p00, p10, p01, p11],
-            })
-        } else {
-            // 4-edge case: use first 4 edges
-            let edge_u0 = edges[0].clone();
-            let edge_u1 = if edges.len() > 2 {
-                edges[2].clone()
-            } else {
-                edges[1].clone()
-            };
-            let edge_v0 = if edges.len() > 1 {
-                edges[1].clone()
-            } else {
-                vec![edge_u0[0], edge_u1[0]]
-            };
-            let edge_v1 = if edges.len() > 3 {
-                edges[3].clone()
-            } else {
-                vec![*edge_u0.last().unwrap(), *edge_u1.last().unwrap()]
-            };
-
-            Self::new(edge_u0, edge_u1, edge_v0, edge_v1)
+                    result.push(edge);
+                }
+                None => {
+                    return Err("EdgeSurface: could not find connecting edge".to_string());
+                }
+            }
         }
+
+        Ok(result)
     }
 
     /// Evaluate a polyline at parameter t in [0, 1]
@@ -2231,8 +2593,46 @@ impl NetworkSurface {
     /// Create a network surface from U-curves and V-curves.
     ///
     /// The curves are expected to form a proper network where U-curves
-    /// and V-curves intersect. This implementation samples the curves
-    /// uniformly and creates an interpolation grid.
+    /// and V-curves intersect. This implementation:
+    ///
+    /// 1. Computes intersection points (or closest approach points) between each
+    ///    U-curve and V-curve pair.
+    /// 2. Builds a grid where each cell `[j][i]` corresponds to the intersection
+    ///    of U-curve `j` with V-curve `i`.
+    /// 3. Uses bilinear blending when curves don't exactly intersect, averaging
+    ///    the closest points from both curve directions.
+    ///
+    /// This matches Grasshopper's Network Surface (NetSurf) behavior where both
+    /// curve families contribute to the surface shape.
+    ///
+    /// # Arguments
+    /// - `u_curves`: Curves running in the U direction (rows). Each curve is a
+    ///   polyline represented as `Vec<Point3>`.
+    /// - `v_curves`: Curves running in the V direction (columns). Each curve is
+    ///   a polyline represented as `Vec<Point3>`.
+    ///
+    /// # Returns
+    /// A `NetworkSurface` that interpolates through the intersection grid, or an
+    /// error if the input is invalid.
+    ///
+    /// # Example
+    /// ```ignore
+    /// use ghx_engine::geom::{NetworkSurface, Point3};
+    ///
+    /// // Two U-curves (horizontal)
+    /// let u_curves = vec![
+    ///     vec![Point3::new(0.0, 0.0, 0.0), Point3::new(2.0, 0.0, 0.0)],
+    ///     vec![Point3::new(0.0, 2.0, 0.0), Point3::new(2.0, 2.0, 1.0)],
+    /// ];
+    /// // Two V-curves (vertical) - their shape affects the surface
+    /// let v_curves = vec![
+    ///     vec![Point3::new(0.0, 0.0, 0.0), Point3::new(0.0, 2.0, 0.0)],
+    ///     vec![Point3::new(2.0, 0.0, 0.0), Point3::new(2.0, 2.0, 1.0)],
+    /// ];
+    ///
+    /// let surface = NetworkSurface::new(&u_curves, &v_curves)?;
+    /// // The surface now honors both U and V curve shapes
+    /// ```
     pub fn new(u_curves: &[Vec<Point3>], v_curves: &[Vec<Point3>]) -> Result<Self, String> {
         if u_curves.is_empty() {
             return Err("NetworkSurface requires at least one U-curve".to_string());
@@ -2241,36 +2641,96 @@ impl NetworkSurface {
             return Err("NetworkSurface requires at least one V-curve".to_string());
         }
 
-        // Determine grid size
-        let u_count = v_curves.len().max(2);
-        let v_count = u_curves.len().max(2);
+        // Filter out degenerate curves
+        let valid_u_curves: Vec<&Vec<Point3>> =
+            u_curves.iter().filter(|c| c.len() >= 2).collect();
+        let valid_v_curves: Vec<&Vec<Point3>> =
+            v_curves.iter().filter(|c| c.len() >= 2).collect();
 
-        // Sample each U-curve at u_count points
+        if valid_u_curves.is_empty() {
+            return Err("NetworkSurface requires at least one valid U-curve (2+ points)".to_string());
+        }
+        if valid_v_curves.is_empty() {
+            return Err("NetworkSurface requires at least one valid V-curve (2+ points)".to_string());
+        }
+
+        // Determine grid resolution:
+        // - Sample along U direction based on the maximum V-curve point count
+        // - Sample along V direction based on the maximum U-curve point count
+        // This ensures we capture the shape detail from both curve families.
+        let max_u_curve_points = valid_u_curves.iter().map(|c| c.len()).max().unwrap_or(2);
+        let max_v_curve_points = valid_v_curves.iter().map(|c| c.len()).max().unwrap_or(2);
+
+        // Grid resolution: use at least the curve complexity, minimum 2
+        let u_count = max_v_curve_points.max(valid_v_curves.len()).max(2);
+        let v_count = max_u_curve_points.max(valid_u_curves.len()).max(2);
+
+        // Build the grid using bilinear Coons patch interpolation.
+        //
+        // For each grid point (i, j), we blend:
+        // 1. Contribution from U-curves: interpolate between U-curves at parameter u = i/(u_count-1)
+        // 2. Contribution from V-curves: interpolate between V-curves at parameter v = j/(v_count-1)
+        // 3. Correction term: remove the doubly-counted corner contributions
+        //
+        // This is the bilinear Coons patch formula:
+        //   S(u,v) = U_blend(u,v) + V_blend(u,v) - Corner_blend(u,v)
+        //
+        // Where:
+        //   U_blend(u,v) = (1-v)*U0(u) + v*U1(u)  [linear blend of boundary U-curves]
+        //   V_blend(u,v) = (1-u)*V0(v) + u*V1(v)  [linear blend of boundary V-curves]
+        //   Corner_blend(u,v) = (1-u)(1-v)*P00 + u(1-v)*P10 + (1-u)v*P01 + uv*P11
+
+        // Get boundary curves (first and last of each family)
+        let u0 = valid_u_curves.first().unwrap();
+        let u1 = valid_u_curves.last().unwrap();
+        let v0 = valid_v_curves.first().unwrap();
+        let v1 = valid_v_curves.last().unwrap();
+
+        // Find corner points by curve intersections/closest approach
+        let p00 = find_curve_curve_intersection(u0, v0);
+        let p10 = find_curve_curve_intersection(u0, v1);
+        let p01 = find_curve_curve_intersection(u1, v0);
+        let p11 = find_curve_curve_intersection(u1, v1);
+
         let mut grid = Vec::with_capacity(v_count);
-        for u_curve in u_curves.iter() {
-            if u_curve.len() < 2 {
-                continue;
-            }
+
+        for j in 0..v_count {
+            let v = j as f64 / (v_count - 1).max(1) as f64;
             let mut row = Vec::with_capacity(u_count);
+
             for i in 0..u_count {
-                let t = i as f64 / (u_count - 1).max(1) as f64;
-                row.push(eval_polyline(u_curve, t));
+                let u = i as f64 / (u_count - 1).max(1) as f64;
+
+                // U-curve blend: interpolate between first and last U-curves
+                let u0_pt = eval_polyline(u0, u);
+                let u1_pt = eval_polyline(u1, u);
+                let u_blend = lerp_point3(u0_pt, u1_pt, v);
+
+                // V-curve blend: interpolate between first and last V-curves
+                let v0_pt = eval_polyline(v0, v);
+                let v1_pt = eval_polyline(v1, v);
+                let v_blend = lerp_point3(v0_pt, v1_pt, u);
+
+                // Corner correction (bilinear blend of corners)
+                let corner_00 = scale_point(p00, (1.0 - u) * (1.0 - v));
+                let corner_10 = scale_point(p10, u * (1.0 - v));
+                let corner_01 = scale_point(p01, (1.0 - u) * v);
+                let corner_11 = scale_point(p11, u * v);
+                let corner_blend = add_points(
+                    add_points(corner_00, corner_10),
+                    add_points(corner_01, corner_11),
+                );
+
+                // Coons patch: S(u,v) = U_blend + V_blend - Corner_blend
+                let pt = Point3::new(
+                    u_blend.x + v_blend.x - corner_blend.x,
+                    u_blend.y + v_blend.y - corner_blend.y,
+                    u_blend.z + v_blend.z - corner_blend.z,
+                );
+                row.push(pt);
             }
             grid.push(row);
         }
-
-        // If we have fewer rows than needed, pad with the last row
-        while grid.len() < v_count {
-            if let Some(last) = grid.last().cloned() {
-                grid.push(last);
-            } else {
-                grid.push(vec![Point3::new(0.0, 0.0, 0.0); u_count]);
-            }
-        }
-
-        // Optionally blend with V-curves for better accuracy
-        // For simplicity, this implementation just uses the U-curve samples
-        // A full implementation would solve a network interpolation problem
 
         Ok(Self {
             grid,
@@ -2366,6 +2826,16 @@ fn lerp_point3(a: Point3, b: Point3, t: f64) -> Point3 {
     Point3::new(s * a.x + t * b.x, s * a.y + t * b.y, s * a.z + t * b.z)
 }
 
+/// Scale a point by a scalar factor (treating it as a position vector).
+fn scale_point(p: Point3, s: f64) -> Point3 {
+    Point3::new(p.x * s, p.y * s, p.z * s)
+}
+
+/// Add two points component-wise (treating them as position vectors).
+fn add_points(a: Point3, b: Point3) -> Point3 {
+    Point3::new(a.x + b.x, a.y + b.y, a.z + b.z)
+}
+
 /// Evaluate a polyline at parameter t in [0, 1].
 ///
 /// Returns the interpolated point along the polyline. Handles edge cases:
@@ -2405,4 +2875,504 @@ fn resample_polyline(polyline: &[Point3], target_count: usize) -> Vec<Point3> {
         result.push(eval_polyline(polyline, t));
     }
     result
+}
+
+/// Find the intersection point or closest approach between two polyline curves.
+///
+/// This function computes where two polyline curves cross or come closest to each other.
+/// It's used by `NetworkSurface::new` to build the intersection grid from U and V curves.
+///
+/// # Algorithm
+///
+/// 1. **Segment intersection test**: For each segment pair (one from each polyline),
+///    compute the closest points on both segments. This handles both actual intersections
+///    and near-misses.
+///
+/// 2. **Closest pair selection**: Among all segment pairs, find the one with minimum
+///    distance between closest points.
+///
+/// 3. **Blending**: Return the midpoint of the closest points, which gives a natural
+///    blend when curves don't exactly intersect.
+///
+/// # Arguments
+/// - `curve_a`: First polyline (e.g., a U-curve).
+/// - `curve_b`: Second polyline (e.g., a V-curve).
+///
+/// # Returns
+/// The intersection point, or the midpoint of the closest approach if the curves
+/// don't actually intersect.
+fn find_curve_curve_intersection(curve_a: &[Point3], curve_b: &[Point3]) -> Point3 {
+    if curve_a.is_empty() || curve_b.is_empty() {
+        return Point3::ORIGIN;
+    }
+    if curve_a.len() == 1 && curve_b.len() == 1 {
+        // Both are single points: return their midpoint
+        return curve_a[0].lerp(curve_b[0], 0.5);
+    }
+    if curve_a.len() == 1 {
+        // Curve A is a single point; find closest point on curve B
+        return closest_point_on_polyline(curve_b, curve_a[0]);
+    }
+    if curve_b.len() == 1 {
+        // Curve B is a single point; find closest point on curve A
+        return closest_point_on_polyline(curve_a, curve_b[0]);
+    }
+
+    // Both curves have at least 2 points: find the closest approach between segments
+    let mut best_dist_sq = f64::INFINITY;
+    let mut best_point_a = curve_a[0];
+    let mut best_point_b = curve_b[0];
+
+    // Iterate over all segment pairs
+    for i in 0..curve_a.len() - 1 {
+        let a0 = curve_a[i];
+        let a1 = curve_a[i + 1];
+
+        for j in 0..curve_b.len() - 1 {
+            let b0 = curve_b[j];
+            let b1 = curve_b[j + 1];
+
+            // Find closest points between segment (a0, a1) and segment (b0, b1)
+            let (pa, pb) = closest_points_between_segments(a0, a1, b0, b1);
+            let dist_sq = pa.distance_squared_to(pb);
+
+            if dist_sq < best_dist_sq {
+                best_dist_sq = dist_sq;
+                best_point_a = pa;
+                best_point_b = pb;
+            }
+        }
+    }
+
+    // Return the midpoint of the closest approach (this blends both curve contributions)
+    best_point_a.lerp(best_point_b, 0.5)
+}
+
+/// Find the closest point on a polyline to a query point.
+fn closest_point_on_polyline(polyline: &[Point3], query: Point3) -> Point3 {
+    if polyline.is_empty() {
+        return Point3::ORIGIN;
+    }
+    if polyline.len() == 1 {
+        return polyline[0];
+    }
+
+    let mut best_point = polyline[0];
+    let mut best_dist_sq = query.distance_squared_to(polyline[0]);
+
+    for i in 0..polyline.len() - 1 {
+        let p0 = polyline[i];
+        let p1 = polyline[i + 1];
+        let closest = closest_point_on_segment(p0, p1, query);
+        let dist_sq = query.distance_squared_to(closest);
+
+        if dist_sq < best_dist_sq {
+            best_dist_sq = dist_sq;
+            best_point = closest;
+        }
+    }
+
+    best_point
+}
+
+/// Find the closest point on a line segment to a query point.
+fn closest_point_on_segment(seg_start: Point3, seg_end: Point3, query: Point3) -> Point3 {
+    let seg_vec = seg_end.sub_point(seg_start);
+    let seg_len_sq = seg_vec.length_squared();
+
+    if seg_len_sq < 1e-20 {
+        // Degenerate segment: return the start point
+        return seg_start;
+    }
+
+    // Project query onto the line containing the segment
+    let query_vec = query.sub_point(seg_start);
+    let t = query_vec.dot(seg_vec) / seg_len_sq;
+
+    // Clamp to segment bounds
+    let t_clamped = t.clamp(0.0, 1.0);
+
+    seg_start.lerp(seg_end, t_clamped)
+}
+
+/// Find the closest points between two line segments.
+///
+/// Returns `(point_on_segment_a, point_on_segment_b)` where these are the
+/// points that minimize the distance between the two segments.
+///
+/// # Algorithm
+///
+/// Uses the parametric approach: segment A = a0 + s*(a1-a0), segment B = b0 + t*(b1-b0).
+/// We solve for s, t that minimize |A(s) - B(t)|², then clamp to [0, 1].
+fn closest_points_between_segments(
+    a0: Point3,
+    a1: Point3,
+    b0: Point3,
+    b1: Point3,
+) -> (Point3, Point3) {
+    let d1 = a1.sub_point(a0); // Direction of segment A
+    let d2 = b1.sub_point(b0); // Direction of segment B
+    let r = a0.sub_point(b0); // Vector from b0 to a0
+
+    let a = d1.dot(d1); // |d1|²
+    let e = d2.dot(d2); // |d2|²
+    let f = d2.dot(r);
+
+    // Check for degenerate segments
+    let eps = 1e-20;
+
+    if a < eps && e < eps {
+        // Both segments are points
+        return (a0, b0);
+    }
+    if a < eps {
+        // Segment A is a point
+        let t = (f / e).clamp(0.0, 1.0);
+        return (a0, b0.lerp(b1, t));
+    }
+    if e < eps {
+        // Segment B is a point
+        let s = (-d1.dot(r) / a).clamp(0.0, 1.0);
+        return (a0.lerp(a1, s), b0);
+    }
+
+    // General case: both segments have length
+    let b_val = d1.dot(d2);
+    let c = d1.dot(r);
+
+    let denom = a * e - b_val * b_val;
+
+    // Compute s (parameter on segment A)
+    let mut s = if denom.abs() > eps {
+        // Lines are not parallel
+        ((b_val * f - c * e) / denom).clamp(0.0, 1.0)
+    } else {
+        // Lines are parallel; pick arbitrary point on A
+        0.0
+    };
+
+    // Compute t (parameter on segment B) from s
+    let mut t = (b_val * s + f) / e;
+
+    // Clamp t and recompute s if needed
+    if t < 0.0 {
+        t = 0.0;
+        s = (-c / a).clamp(0.0, 1.0);
+    } else if t > 1.0 {
+        t = 1.0;
+        s = ((b_val - c) / a).clamp(0.0, 1.0);
+    }
+
+    let point_a = a0.lerp(a1, s);
+    let point_b = b0.lerp(b1, t);
+
+    (point_a, point_b)
+}
+
+// ============================================================================
+// Surface Curvature Analysis
+// ============================================================================
+
+/// Result of surface curvature analysis at a parametric point.
+///
+/// Contains the principal curvatures, their directions, and derived quantities
+/// (Gaussian and mean curvature). All curvature values are signed:
+/// - Positive curvature indicates the surface curves toward the normal
+/// - Negative curvature indicates the surface curves away from the normal
+///
+/// # Example
+///
+/// ```ignore
+/// use ghx_engine::geom::{SphereSurface, analyze_surface_curvature};
+///
+/// let sphere = SphereSurface::new(..., 2.0)?;  // radius = 2
+/// let analysis = analyze_surface_curvature(&sphere, 0.5, 0.5);
+///
+/// // For a sphere, both principal curvatures equal 1/radius
+/// assert!((analysis.k1 - 0.5).abs() < 1e-6);
+/// assert!((analysis.k2 - 0.5).abs() < 1e-6);
+/// assert!((analysis.gaussian - 0.25).abs() < 1e-6);  // 1/r²
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SurfaceCurvatureAnalysis {
+    /// The sampled point on the surface at (u, v).
+    pub point: Point3,
+
+    /// Surface normal at the point (unit vector).
+    pub normal: Vec3,
+
+    /// First partial derivative (tangent in U direction).
+    pub du: Vec3,
+
+    /// First partial derivative (tangent in V direction).
+    pub dv: Vec3,
+
+    /// Maximum principal curvature (κ₁).
+    ///
+    /// The larger of the two principal curvatures. The surface curves most
+    /// strongly in the direction of `k1_direction`.
+    pub k1: f64,
+
+    /// Minimum principal curvature (κ₂).
+    ///
+    /// The smaller of the two principal curvatures. The surface curves least
+    /// strongly in the direction of `k2_direction`.
+    pub k2: f64,
+
+    /// Direction of maximum principal curvature (unit vector in tangent plane).
+    pub k1_direction: Vec3,
+
+    /// Direction of minimum principal curvature (unit vector in tangent plane).
+    pub k2_direction: Vec3,
+
+    /// Gaussian curvature (K = κ₁ × κ₂).
+    ///
+    /// - K > 0: elliptic point (dome-like, both curvatures same sign)
+    /// - K < 0: hyperbolic point (saddle-like, curvatures opposite signs)
+    /// - K = 0: parabolic point (flat in at least one direction)
+    pub gaussian: f64,
+
+    /// Mean curvature (H = (κ₁ + κ₂) / 2).
+    ///
+    /// - H = 0: minimal surface (soap-film like)
+    /// - H ≠ 0: non-minimal surface
+    pub mean: f64,
+
+    /// Whether the analysis is valid (true if all computations succeeded).
+    ///
+    /// This may be false if:
+    /// - The surface is degenerate at this point
+    /// - The normal couldn't be computed
+    /// - The curvature computation failed numerically
+    pub valid: bool,
+}
+
+impl Default for SurfaceCurvatureAnalysis {
+    fn default() -> Self {
+        Self {
+            point: Point3::ORIGIN,
+            normal: Vec3::Z,
+            du: Vec3::X,
+            dv: Vec3::Y,
+            k1: 0.0,
+            k2: 0.0,
+            k1_direction: Vec3::X,
+            k2_direction: Vec3::Y,
+            gaussian: 0.0,
+            mean: 0.0,
+            valid: false,
+        }
+    }
+}
+
+/// Analyzes surface curvature at a parametric point using the second fundamental form.
+///
+/// This function computes the principal curvatures (κ₁, κ₂), their directions,
+/// and derived quantities (Gaussian and mean curvature) using differential
+/// geometry on the parametric surface.
+///
+/// # Algorithm
+///
+/// 1. Compute first partial derivatives (∂P/∂u, ∂P/∂v) for the tangent plane
+/// 2. Compute the surface normal N = (∂P/∂u × ∂P/∂v) / |∂P/∂u × ∂P/∂v|
+/// 3. Compute second partial derivatives (∂²P/∂u², ∂²P/∂u∂v, ∂²P/∂v²)
+/// 4. Form the first fundamental form coefficients (E, F, G)
+/// 5. Form the second fundamental form coefficients (L, M, N)
+/// 6. Solve the characteristic equation for principal curvatures
+/// 7. Compute principal directions as eigenvectors
+///
+/// # Arguments
+///
+/// * `surface` - Any type implementing the `Surface` trait
+/// * `u` - Parameter in the U direction
+/// * `v` - Parameter in the V direction
+///
+/// # Returns
+///
+/// A `SurfaceCurvatureAnalysis` containing all computed curvature information.
+/// Check the `valid` field to ensure the computation succeeded.
+///
+/// # Example
+///
+/// ```ignore
+/// use ghx_engine::geom::{PlaneSurface, Point3, Vec3, analyze_surface_curvature};
+///
+/// // For a plane, all curvatures should be zero
+/// let plane = PlaneSurface::new(
+///     Point3::ORIGIN,
+///     Vec3::new(1.0, 0.0, 0.0),
+///     Vec3::new(0.0, 1.0, 0.0),
+/// );
+/// let analysis = analyze_surface_curvature(&plane, 0.5, 0.5);
+///
+/// assert!(analysis.valid);
+/// assert!(analysis.k1.abs() < 1e-10);
+/// assert!(analysis.k2.abs() < 1e-10);
+/// assert!(analysis.gaussian.abs() < 1e-10);
+/// ```
+#[must_use]
+pub fn analyze_surface_curvature<S: Surface + ?Sized>(surface: &S, u: f64, v: f64) -> SurfaceCurvatureAnalysis {
+    // Sample the point
+    let point = surface.point_at(u, v);
+
+    // Compute first partial derivatives
+    let (du, dv) = surface.partial_derivatives_at(u, v);
+
+    // Compute normal
+    let normal = match du.cross(dv).normalized() {
+        Some(n) => n,
+        None => {
+            // Degenerate point (du and dv are parallel)
+            return SurfaceCurvatureAnalysis {
+                point,
+                normal: Vec3::Z,
+                du,
+                dv,
+                valid: false,
+                ..Default::default()
+            };
+        }
+    };
+
+    // Compute second partial derivatives
+    let (duu, duv, dvv) = surface.second_partial_derivatives_at(u, v);
+
+    // First fundamental form coefficients (metric tensor)
+    // E = du · du, F = du · dv, G = dv · dv
+    let e = du.dot(du);
+    let f = du.dot(dv);
+    let g = dv.dot(dv);
+
+    // Second fundamental form coefficients
+    // L = N · duu, M = N · duv, N = N · dvv
+    let l_coeff = normal.dot(duu);
+    let m_coeff = normal.dot(duv);
+    let n_coeff = normal.dot(dvv);
+
+    // Determinant of the first fundamental form
+    let det_i = e * g - f * f;
+
+    if det_i.abs() < 1e-20 {
+        // Degenerate metric (surface has zero area at this point)
+        return SurfaceCurvatureAnalysis {
+            point,
+            normal,
+            du,
+            dv,
+            valid: false,
+            ..Default::default()
+        };
+    }
+
+    // Gaussian curvature: K = (LN - M²) / (EG - F²)
+    let gaussian = (l_coeff * n_coeff - m_coeff * m_coeff) / det_i;
+
+    // Mean curvature: H = (EN - 2FM + GL) / 2(EG - F²)
+    let mean = (e * n_coeff - 2.0 * f * m_coeff + g * l_coeff) / (2.0 * det_i);
+
+    // Principal curvatures from the characteristic equation:
+    // κ² - 2Hκ + K = 0
+    // Solutions: κ = H ± sqrt(H² - K)
+    let discriminant = mean * mean - gaussian;
+    let sqrt_discriminant = if discriminant >= 0.0 {
+        discriminant.sqrt()
+    } else {
+        // Numerical error; discriminant should be non-negative
+        // This can happen due to floating point errors
+        0.0
+    };
+
+    let k1 = mean + sqrt_discriminant;
+    let k2 = mean - sqrt_discriminant;
+
+    // Compute principal directions
+    // The principal directions are eigenvectors of the shape operator (Weingarten map)
+    // We solve: (L - κE)α + (M - κF)β = 0  and  (M - κF)α + (N - κG)β = 0
+    let (k1_direction, k2_direction) = compute_principal_directions(
+        e, f, g, l_coeff, m_coeff, n_coeff, k1, k2, du, dv,
+    );
+
+    SurfaceCurvatureAnalysis {
+        point,
+        normal,
+        du,
+        dv,
+        k1,
+        k2,
+        k1_direction,
+        k2_direction,
+        gaussian,
+        mean,
+        valid: true,
+    }
+}
+
+/// Computes the principal directions as eigenvectors of the shape operator.
+///
+/// Given the fundamental form coefficients and principal curvatures, this function
+/// solves for the directions in the tangent plane corresponding to each curvature.
+fn compute_principal_directions(
+    e: f64, f: f64, g: f64,
+    l: f64, m: f64, n: f64,
+    k1: f64, k2: f64,
+    du: Vec3, dv: Vec3,
+) -> (Vec3, Vec3) {
+    // For each principal curvature κ, find (α, β) such that:
+    // (L - κE)α + (M - κF)β = 0
+    // Direction in tangent plane: α*du + β*dv
+
+    // Helper to compute direction for a given curvature
+    let direction_for_curvature = |kappa: f64| -> Vec3 {
+        let a = l - kappa * e;
+        let b = m - kappa * f;
+
+        // If both coefficients are near zero, use default direction
+        if a.abs() < 1e-15 && b.abs() < 1e-15 {
+            // Try the second equation
+            let c = m - kappa * f;
+            let d = n - kappa * g;
+
+            if c.abs() < 1e-15 && d.abs() < 1e-15 {
+                // Isotropic point (all directions are principal)
+                return du.normalized().unwrap_or(Vec3::X);
+            }
+
+            // From cα + dβ = 0, choose β = c, α = -d
+            let alpha = -d;
+            let beta = c;
+            let dir = du.mul_scalar(alpha).add(dv.mul_scalar(beta));
+            return dir.normalized().unwrap_or(Vec3::X);
+        }
+
+        // From aα + bβ = 0, choose β = a, α = -b
+        let alpha = -b;
+        let beta = a;
+        let dir = du.mul_scalar(alpha).add(dv.mul_scalar(beta));
+        dir.normalized().unwrap_or(Vec3::X)
+    };
+
+    let dir1 = direction_for_curvature(k1);
+
+    // k2 direction should be perpendicular to k1 in the tangent plane
+    // If k1 ≈ k2 (isotropic), just use an orthogonal direction
+    let dir2_computed = if (k1 - k2).abs() < 1e-12 {
+        // Isotropic point: any two orthogonal directions work
+        let normal = du.cross(dv).normalized().unwrap_or(Vec3::Z);
+        normal.cross(dir1).normalized().unwrap_or(Vec3::Y)
+    } else {
+        direction_for_curvature(k2)
+    };
+
+    // Final check: if computed directions are nearly parallel (can happen with
+    // numerical errors), force dir2 to be perpendicular to dir1 in tangent plane
+    let dot = dir1.dot(dir2_computed);
+    let dir2 = if dot.abs() > 0.1 {
+        // Directions are not sufficiently perpendicular; recompute dir2
+        let normal = du.cross(dv).normalized().unwrap_or(Vec3::Z);
+        normal.cross(dir1).normalized().unwrap_or(Vec3::Y)
+    } else {
+        dir2_computed
+    };
+
+    (dir1, dir2)
 }

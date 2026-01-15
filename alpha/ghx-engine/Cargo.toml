@@ -23,7 +23,7 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["console_error_panic_hook"]
+default = ["console_error_panic_hook", "mesh_engine_next"]
 console_error_panic_hook = ["dep:console_error_panic_hook"]
 debug_logs = ["dep:wasm-bindgen-console-logger"]
 parallel = ["dep:rayon", "dep:wasm-bindgen-rayon"]

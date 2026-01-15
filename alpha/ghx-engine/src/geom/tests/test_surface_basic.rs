@@ -282,3 +282,126 @@ fn flip_surface_orientation_aligns_with_guide_vector() {
     let normal = not_flipped.normal_at(0.5, 0.5).unwrap();
     assert!(normal.z > 0.0);
 }
+
+// ============================================================================
+// Tests for mesh_from_grid_with_options (interpolate flag behavior)
+// ============================================================================
+
+use crate::geom::{SurfaceFitOptions, mesh_from_grid_with_options};
+
+#[test]
+fn mesh_from_grid_direct_mode_uses_exact_points() {
+    // Create a 3×3 grid of points with a known "tent" shape
+    let points = vec![
+        Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0), Point3::new(2.0, 0.0, 0.0),
+        Point3::new(0.0, 1.0, 0.0), Point3::new(1.0, 1.0, 1.0), Point3::new(2.0, 1.0, 0.0),
+        Point3::new(0.0, 2.0, 0.0), Point3::new(1.0, 2.0, 0.0), Point3::new(2.0, 2.0, 0.0),
+    ];
+
+    // Direct mode (interpolate=false): mesh vertices should exactly match input points
+    let options = SurfaceFitOptions {
+        interpolate: false,
+        ..Default::default()
+    };
+
+    let (mesh, diag) = mesh_from_grid_with_options(&points, 3, 3, options).expect("mesh_from_grid_with_options failed");
+
+    // Direct mode should use exactly 9 vertices (the input points)
+    assert_eq!(mesh.positions.len(), 9, "direct mode should have exactly 9 vertices");
+    assert_eq!(diag.grid_size, (3, 3));
+    assert_eq!(diag.input_point_count, 9);
+    assert_eq!(diag.max_deviation, 0.0, "direct mode should have zero deviation");
+
+    // Check that the center point (1,1,1) is preserved exactly
+    let center_found = mesh.positions.iter().any(|p| {
+        (p[0] - 1.0).abs() < 1e-9 && (p[1] - 1.0).abs() < 1e-9 && (p[2] - 1.0).abs() < 1e-9
+    });
+    assert!(center_found, "center point (1,1,1) should be preserved in direct mode");
+}
+
+#[test]
+fn mesh_from_grid_interpolate_mode_produces_smooth_surface() {
+    // Create a 3×3 grid of points with a known "tent" shape
+    let points = vec![
+        Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0), Point3::new(2.0, 0.0, 0.0),
+        Point3::new(0.0, 1.0, 0.0), Point3::new(1.0, 1.0, 1.0), Point3::new(2.0, 1.0, 0.0),
+        Point3::new(0.0, 2.0, 0.0), Point3::new(1.0, 2.0, 0.0), Point3::new(2.0, 2.0, 0.0),
+    ];
+
+    // Interpolating mode: creates a NURBS surface and tessellates it
+    let options = SurfaceFitOptions {
+        interpolate: true,
+        ..Default::default()
+    };
+
+    let (mesh, diag) = mesh_from_grid_with_options(&points, 3, 3, options).expect("mesh_from_grid_with_options failed");
+
+    // Interpolating mode should produce MORE vertices than the input (refined tessellation)
+    assert!(
+        mesh.positions.len() >= 9,
+        "interpolating mode should have at least as many vertices as input, got {}",
+        mesh.positions.len()
+    );
+    assert_eq!(diag.grid_size, (3, 3));
+    assert_eq!(diag.input_point_count, 9);
+}
+
+#[test]
+fn mesh_from_grid_interpolate_vs_direct_produce_different_results() {
+    // Create a wavy 4×4 grid
+    let points = vec![
+        Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.5), Point3::new(2.0, 0.0, 0.0), Point3::new(3.0, 0.0, 0.5),
+        Point3::new(0.0, 1.0, 0.5), Point3::new(1.0, 1.0, 1.0), Point3::new(2.0, 1.0, 0.5), Point3::new(3.0, 1.0, 1.0),
+        Point3::new(0.0, 2.0, 0.0), Point3::new(1.0, 2.0, 0.5), Point3::new(2.0, 2.0, 0.0), Point3::new(3.0, 2.0, 0.5),
+        Point3::new(0.0, 3.0, 0.5), Point3::new(1.0, 3.0, 1.0), Point3::new(2.0, 3.0, 0.5), Point3::new(3.0, 3.0, 1.0),
+    ];
+
+    let direct_options = SurfaceFitOptions {
+        interpolate: false,
+        ..Default::default()
+    };
+    let interp_options = SurfaceFitOptions {
+        interpolate: true,
+        ..Default::default()
+    };
+
+    let (direct_mesh, _) = mesh_from_grid_with_options(&points, 4, 4, direct_options).unwrap();
+    let (interp_mesh, _) = mesh_from_grid_with_options(&points, 4, 4, interp_options).unwrap();
+
+    // Direct mode should have exactly 16 vertices
+    assert_eq!(direct_mesh.positions.len(), 16);
+
+    // Interpolating mode typically produces a finer tessellation
+    // (vertex count depends on degree and resolution calculation)
+    assert!(
+        interp_mesh.positions.len() >= direct_mesh.positions.len(),
+        "interpolating mode should have at least as many vertices"
+    );
+
+    // The meshes should produce valid triangle indices
+    assert!(
+        direct_mesh.indices.len() >= 18,
+        "direct mesh should have at least 18 indices (6 triangles for 3×3 quads)"
+    );
+    assert!(
+        interp_mesh.indices.len() >= 18,
+        "interp mesh should have at least 18 indices"
+    );
+}
+
+#[test]
+fn mesh_from_grid_with_options_validates_grid_size() {
+    let points = vec![
+        Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0),
+    ];
+
+    let options = SurfaceFitOptions::default();
+
+    // Too few points for a 2×2 grid
+    let result = mesh_from_grid_with_options(&points, 2, 2, options);
+    assert!(result.is_err(), "should fail with mismatched point count");
+
+    // Invalid grid size (1×2 is not valid)
+    let result = mesh_from_grid_with_options(&points, 1, 2, options);
+    assert!(result.is_err(), "should fail with invalid grid dimensions");
+}

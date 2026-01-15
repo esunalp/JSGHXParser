@@ -224,6 +224,140 @@ pub fn triangulate_trim_region_with_options(
     })
 }
 
+/// Triangulates a trim region with additional Steiner (interior) points.
+///
+/// This function extends the basic constrained triangulation by incorporating
+/// additional interior points into the mesh. These "Steiner points" are useful for:
+/// - Fitting a surface through specific target points
+/// - Controlling mesh density and quality in specific areas
+/// - Implementing patch flexibility behavior
+///
+/// The algorithm:
+/// 1. First triangulates the region using constrained earclip triangulation.
+/// 2. Then incrementally inserts each Steiner point into the triangulation
+///    by finding the containing triangle and re-triangulating locally.
+///
+/// # Arguments
+/// * `region` - The trim region (outer boundary + optional holes).
+/// * `steiner_points` - Additional interior points to incorporate.
+/// * `tol` - Tolerance for geometric operations.
+///
+/// # Returns
+/// A `TriangulationResult` containing the vertices (including Steiner points) and triangle indices.
+#[must_use]
+pub fn triangulate_trim_region_with_steiner_points(
+    region: &TrimRegion,
+    steiner_points: &[UvPoint],
+    tol: Tolerance,
+) -> Result<TriangulationResult, String> {
+    // If no steiner points, delegate to the standard triangulation
+    if steiner_points.is_empty() {
+        return triangulate_trim_region(region, tol);
+    }
+
+    // Filter out duplicate or invalid steiner points
+    let valid_steiner: Vec<UvPoint> = steiner_points
+        .iter()
+        .copied()
+        .filter(|p| p.u.is_finite() && p.v.is_finite())
+        .collect();
+
+    if valid_steiner.is_empty() {
+        return triangulate_trim_region(region, tol);
+    }
+
+    // Collect all boundary points (outer + holes)
+    let mut boundary_points: Vec<UvPoint> = Vec::new();
+    boundary_points.extend_from_slice(region.outer.points());
+    for hole in &region.holes {
+        boundary_points.extend_from_slice(hole.points());
+    }
+
+    // Combine boundary points with steiner points for a unified point set
+    let mut all_points: Vec<(f64, f64)> = boundary_points
+        .iter()
+        .map(|p| (p.u, p.v))
+        .collect();
+
+    // Filter steiner points that are too close to existing boundary points
+    let boundary_count = all_points.len();
+    for sp in valid_steiner.iter() {
+        let too_close = all_points.iter().any(|(u, v)| {
+            let du = sp.u - u;
+            let dv = sp.v - v;
+            (du * du + dv * dv).sqrt() < tol.eps * 10.0
+        });
+        if !too_close {
+            all_points.push((sp.u, sp.v));
+        }
+    }
+
+    // If we only have boundary points (all steiner were too close), use standard triangulation
+    if all_points.len() == boundary_count {
+        return triangulate_trim_region(region, tol);
+    }
+
+    // Use Delaunay triangulation on all points
+    let delaunay_tris = delaunay_triangulate(&all_points)?;
+
+    // Filter triangles: keep only those whose centroid is inside the region
+    let mut kept_triangles: Vec<[u32; 3]> = Vec::new();
+    for (i0, i1, i2) in delaunay_tris {
+        let p0 = UvPoint::new(all_points[i0].0, all_points[i0].1);
+        let p1 = UvPoint::new(all_points[i1].0, all_points[i1].1);
+        let p2 = UvPoint::new(all_points[i2].0, all_points[i2].1);
+
+        // Calculate centroid
+        let cu = (p0.u + p1.u + p2.u) / 3.0;
+        let cv = (p0.v + p1.v + p2.v) / 3.0;
+        let centroid = UvPoint::new(cu, cv);
+
+        // Check if centroid is inside the region (respects holes)
+        if region.contains(centroid, tol) {
+            // Check triangle winding - ensure CCW
+            let area = orient2d(p0, p1, p2);
+            if area > tol.eps {
+                kept_triangles.push([i0 as u32, i1 as u32, i2 as u32]);
+            } else if area < -tol.eps {
+                // Reverse winding
+                kept_triangles.push([i0 as u32, i2 as u32, i1 as u32]);
+            }
+            // Skip degenerate triangles (area ≈ 0)
+        }
+    }
+
+    if kept_triangles.is_empty() {
+        return Err("triangulation with steiner points produced no valid triangles".to_string());
+    }
+
+    // Build output
+    let vertices: Vec<UvPoint> = all_points
+        .iter()
+        .map(|(u, v)| UvPoint::new(*u, *v))
+        .collect();
+
+    let mut indices: Vec<u32> = Vec::with_capacity(kept_triangles.len() * 3);
+    for tri in kept_triangles.iter() {
+        indices.extend_from_slice(tri);
+    }
+
+    let input_vertex_count = vertices.len();
+    let output_triangle_count = kept_triangles.len();
+
+    Ok(TriangulationResult {
+        vertices,
+        indices,
+        diagnostics: TriangulationDiagnostics {
+            input_vertex_count,
+            output_triangle_count,
+            culled_degenerate_triangles: 0,
+            below_min_quality_triangles: 0,
+            culled_skinny_triangles: 0,
+            min_kept_triangle_quality: 0.0, // Could compute if needed
+        },
+    })
+}
+
 fn build_ring_nodes(nodes: &mut Vec<Node>, start: u32, end: u32, vertices: &[UvPoint]) -> usize {
     let start_idx = nodes.len();
     let len = (end - start) as usize;

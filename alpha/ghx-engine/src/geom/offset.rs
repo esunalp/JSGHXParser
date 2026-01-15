@@ -576,8 +576,9 @@ fn add_edge_caps(
             let i1 = loop_indices[tri[1] as usize];
             let i2 = loop_indices[tri[2] as usize];
 
-            // Determine winding: cap should face outward (same direction as loop normal)
-            // Check if the triangle normal matches the loop normal
+            // Determine winding: cap should face opposite to the loop normal
+            // (the loop normal points "outward" from the mesh, so the cap must face "inward"
+            // to close the hole properly, acting as the "back" face)
             if let (Some(&p0), Some(&p1), Some(&p2)) = (
                 positions.get(i0 as usize),
                 positions.get(i1 as usize),
@@ -587,8 +588,9 @@ fn add_edge_caps(
                 let v1 = p2.sub_point(p0);
                 let tri_normal = v0.cross(v1);
 
-                // If triangle normal points opposite to loop normal, flip winding
-                if tri_normal.dot(normal) < 0.0 {
+                // If triangle normal points same direction as loop normal, flip winding
+                // to make the cap face the opposite direction
+                if tri_normal.dot(normal) > 0.0 {
                     result_indices.extend_from_slice(&[i0, i2, i1]);
                 } else {
                     result_indices.extend_from_slice(&[i0, i1, i2]);

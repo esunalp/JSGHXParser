@@ -5,9 +5,10 @@
 //! - Manipulated (fuse, smooth, tag edges/vertices)
 //! - Converted to triangle meshes for rendering
 //!
-//! # Phase 2 Note
-//! This is a geom-internal implementation. The component wrappers in
-//! `components/surface_subd.rs` will be updated in Phase 3 to call these APIs.
+//! # Phase 3 Integration
+//! This module is now integrated with the component layer. Use the bridge methods
+//! (`from_value`, `to_value`, `to_mesh_value`) to convert between `SubdMesh` and
+//! `Value` types.
 //!
 //! # Example
 //! ```ignore
@@ -28,6 +29,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use super::core::{BBox, Point3};
 use super::diagnostics::GeomMeshDiagnostics;
 use super::mesh::GeomMesh;
+use crate::graph::value::Value;
 
 // ============================================================================
 // Error types
@@ -97,6 +99,42 @@ impl EdgeTag {
         }
     }
 
+    /// Parse an edge tag from a `Value`.
+    ///
+    /// Accepts:
+    /// - `Value::Text` - parsed as descriptor
+    /// - `Value::Number` - 1 = crease, other = smooth
+    /// - `Value::List` - uses first element
+    ///
+    /// Returns `None` for incompatible values.
+    #[must_use]
+    pub fn parse(value: Option<&Value>) -> Option<Self> {
+        match value {
+            Some(Value::Text(text)) => Some(Self::from_descriptor(text)),
+            Some(Value::Number(number)) => {
+                if number.round() as i32 == 1 {
+                    Some(Self::Crease)
+                } else {
+                    Some(Self::Smooth)
+                }
+            }
+            Some(Value::List(values)) if !values.is_empty() => Self::parse(values.first()),
+            None => Some(Self::default()),
+            _ => None,
+        }
+    }
+
+    /// Parse an edge tag from a `Value`, returning an error on failure.
+    ///
+    /// # Arguments
+    /// * `value` - The value to parse
+    /// * `context` - Context string for error messages
+    pub fn parse_or_err(value: Option<&Value>, context: &str) -> Result<Self, SubdError> {
+        Self::parse(value).ok_or_else(|| {
+            SubdError::OperationFailed(format!("{context} requires a tag value (text or number)"))
+        })
+    }
+
     /// Convert to a string representation.
     #[must_use]
     pub fn as_str(&self) -> &str {
@@ -157,6 +195,36 @@ impl VertexTag {
             3 => Self::Dart,
             _ => Self::Smooth,
         }
+    }
+
+    /// Parse a vertex tag from a `Value`.
+    ///
+    /// Accepts:
+    /// - `Value::Text` - parsed as descriptor
+    /// - `Value::Number` - 0=smooth, 1=crease, 2=corner, 3=dart
+    /// - `Value::List` - uses first element
+    ///
+    /// Returns `None` for incompatible values.
+    #[must_use]
+    pub fn parse(value: Option<&Value>) -> Option<Self> {
+        match value {
+            Some(Value::Text(text)) => Some(Self::from_descriptor(text)),
+            Some(Value::Number(number)) => Some(Self::from_int(number.round() as i32)),
+            Some(Value::List(values)) if !values.is_empty() => Self::parse(values.first()),
+            None => Some(Self::default()),
+            _ => None,
+        }
+    }
+
+    /// Parse a vertex tag from a `Value`, returning an error on failure.
+    ///
+    /// # Arguments
+    /// * `value` - The value to parse
+    /// * `context` - Context string for error messages
+    pub fn parse_or_err(value: Option<&Value>, context: &str) -> Result<Self, SubdError> {
+        Self::parse(value).ok_or_else(|| {
+            SubdError::OperationFailed(format!("{context} requires a tag value (text or number)"))
+        })
     }
 
     /// Convert to a string representation.
@@ -916,6 +984,430 @@ impl SubdMesh {
     #[must_use]
     pub fn to_control_mesh(&self) -> (GeomMesh, SubdDiagnostics) {
         self.triangulate()
+    }
+
+    // ========================================================================
+    // Value bridge methods (Phase 3 integration)
+    // ========================================================================
+
+    /// Attempt to parse a `SubdMesh` from a `Value`.
+    ///
+    /// Accepts either:
+    /// - A serialized SubD: `List["subd", vertices, edges, faces]`
+    /// - A `Value::Surface` or `Value::Mesh` (converted to SubD faces)
+    ///
+    /// Returns `None` if the value cannot be parsed.
+    #[must_use]
+    pub fn from_value(value: &Value) -> Option<Self> {
+        // Try parsing as serialized SubD format
+        if let Some(subd) = Self::try_parse_subd_value(value) {
+            return Some(subd);
+        }
+        // Try parsing as surface/mesh
+        Self::from_surface_value(value)
+    }
+
+    /// Try to parse a `Value::Surface` or `Value::Mesh` as a `SubdMesh`.
+    #[must_use]
+    pub fn from_surface_value(value: &Value) -> Option<Self> {
+        match value {
+            Value::Surface { vertices, faces } => {
+                let face_indices: Vec<Vec<usize>> = faces
+                    .iter()
+                    .filter(|face| face.len() >= 3)
+                    .map(|face| face.iter().map(|idx| *idx as usize).collect())
+                    .collect();
+                Some(Self::from_vertices_faces(vertices.clone(), face_indices))
+            }
+            Value::Mesh {
+                vertices, indices, ..
+            } => {
+                // Convert triangle indices to faces
+                let face_indices: Vec<Vec<usize>> = indices
+                    .chunks(3)
+                    .filter(|chunk| chunk.len() == 3)
+                    .map(|chunk| vec![chunk[0] as usize, chunk[1] as usize, chunk[2] as usize])
+                    .collect();
+                Some(Self::from_vertices_faces(vertices.clone(), face_indices))
+            }
+            Value::List(values) => {
+                // Try each element in the list
+                for entry in values {
+                    if let Some(subd) = Self::from_surface_value(entry) {
+                        return Some(subd);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// Try to parse a serialized SubD value (format: `["subd", vertices, edges, faces]`).
+    fn try_parse_subd_value(value: &Value) -> Option<Self> {
+        let Value::List(items) = value else {
+            return None;
+        };
+        if items.len() != 4 {
+            return None;
+        }
+        let Value::Text(label) = &items[0] else {
+            return None;
+        };
+        if !label.eq_ignore_ascii_case("subd") {
+            return None;
+        }
+        let vertices = Self::parse_vertex_list(&items[1])?;
+        let edges = Self::parse_edge_list(&items[2]).unwrap_or_default();
+        let faces = Self::parse_face_list(&items[3])?;
+
+        let mut subd = Self {
+            vertices,
+            edges,
+            faces,
+        };
+        subd.rebuild_topology();
+        Some(subd)
+    }
+
+    /// Parse a list of vertices from a Value.
+    fn parse_vertex_list(value: &Value) -> Option<Vec<SubdVertex>> {
+        let Value::List(entries) = value else {
+            return None;
+        };
+        let mut vertices = Vec::with_capacity(entries.len());
+        for (index, entry) in entries.iter().enumerate() {
+            let Value::List(items) = entry else {
+                return None;
+            };
+            let mut id = index;
+            let mut position = None;
+            let mut tag = VertexTag::default();
+            for item in items {
+                match item {
+                    Value::Number(number) => {
+                        if number.is_finite() {
+                            id = number.round().max(0.0) as usize;
+                        }
+                    }
+                    Value::Point(value) | Value::Vector(value) => {
+                        position = Some(*value);
+                    }
+                    Value::List(values) => {
+                        if position.is_none() {
+                            if let Some(parsed) = Self::list_to_point(values) {
+                                position = Some(parsed);
+                            }
+                        }
+                    }
+                    Value::Text(text) => {
+                        tag = VertexTag::from_descriptor(text);
+                    }
+                    _ => {}
+                }
+            }
+            let position = position?;
+            vertices.push(SubdVertex { id, position, tag });
+        }
+        Some(vertices)
+    }
+
+    /// Parse a list of edges from a Value.
+    fn parse_edge_list(value: &Value) -> Option<Vec<SubdEdge>> {
+        let Value::List(entries) = value else {
+            return None;
+        };
+        let mut edges = Vec::with_capacity(entries.len());
+        for (index, entry) in entries.iter().enumerate() {
+            let Value::List(items) = entry else {
+                return None;
+            };
+            let mut iter = items.iter();
+            let mut id = index;
+            if let Some(Value::Number(number)) = iter.next() {
+                if number.is_finite() {
+                    id = number.round().max(0.0) as usize;
+                }
+            }
+            let vertex_indices = Self::collect_indices_from_value(iter.next());
+            let vertices = if vertex_indices.len() >= 2 {
+                normalized_edge_pair(vertex_indices[0], vertex_indices[1])
+            } else {
+                (0, 0)
+            };
+            let mut tag = EdgeTag::default();
+            let mut faces = Vec::new();
+            if let Some(v) = iter.next() {
+                if let Value::Text(text) = v {
+                    tag = EdgeTag::from_descriptor(text);
+                } else {
+                    faces = Self::collect_indices_from_value(Some(v));
+                }
+            }
+            if faces.is_empty() {
+                faces = Self::collect_indices_from_value(iter.next());
+            }
+            edges.push(SubdEdge {
+                id,
+                vertices,
+                tag,
+                faces,
+            });
+        }
+        Some(edges)
+    }
+
+    /// Parse a list of faces from a Value.
+    fn parse_face_list(value: &Value) -> Option<Vec<SubdFace>> {
+        let Value::List(entries) = value else {
+            return None;
+        };
+        let mut faces = Vec::with_capacity(entries.len());
+        for (index, entry) in entries.iter().enumerate() {
+            let Value::List(items) = entry else {
+                return None;
+            };
+            let mut iter = items.iter();
+            let mut id = index;
+            if let Some(Value::Number(number)) = iter.next() {
+                if number.is_finite() {
+                    id = number.round().max(0.0) as usize;
+                }
+            }
+            let vertices = iter
+                .next()
+                .map(|v| Self::collect_indices_from_value(Some(v)))
+                .unwrap_or_default();
+            let edge_list = iter
+                .next()
+                .map(|v| Self::collect_indices_from_value(Some(v)))
+                .unwrap_or_default();
+            faces.push(SubdFace {
+                id,
+                vertices,
+                edges: edge_list,
+            });
+        }
+        Some(faces)
+    }
+
+    /// Helper to convert a list of numbers to a point.
+    fn list_to_point(values: &[Value]) -> Option<[f64; 3]> {
+        if values.len() < 3 {
+            return None;
+        }
+        let x = match &values[0] {
+            Value::Number(v) => *v,
+            _ => return None,
+        };
+        let y = match &values[1] {
+            Value::Number(v) => *v,
+            _ => return None,
+        };
+        let z = match &values[2] {
+            Value::Number(v) => *v,
+            _ => return None,
+        };
+        Some([x, y, z])
+    }
+
+    /// Helper to collect indices from a Value.
+    fn collect_indices_from_value(value: Option<&Value>) -> Vec<usize> {
+        match value {
+            Some(Value::Number(number)) if number.is_finite() => {
+                if *number < 0.0 {
+                    Vec::new()
+                } else {
+                    vec![number.round() as usize]
+                }
+            }
+            Some(Value::Text(text)) => text
+                .split(|c| c == ',' || c == ';' || c == ' ')
+                .filter_map(|part| part.trim().parse::<usize>().ok())
+                .collect(),
+            Some(Value::List(values)) => values
+                .iter()
+                .flat_map(|v| Self::collect_indices_from_value(Some(v)))
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    /// Serialize this `SubdMesh` to a `Value` in SubD format.
+    ///
+    /// Format: `["subd", [vertices...], [edges...], [faces...]]`
+    ///
+    /// This format preserves all topology information including edge/vertex tags.
+    #[must_use]
+    pub fn to_value(&self) -> Value {
+        let mut clone = self.clone();
+        clone.rebuild_topology();
+
+        let vertices = clone
+            .vertices
+            .iter()
+            .map(|vertex| {
+                Value::List(vec![
+                    Value::Number(vertex.id as f64),
+                    Value::Point(vertex.position),
+                    Value::Text(vertex.tag.as_str().to_owned()),
+                ])
+            })
+            .collect();
+
+        let edges = clone
+            .edges
+            .iter()
+            .map(|edge| {
+                let mut entry = vec![
+                    Value::Number(edge.id as f64),
+                    Value::List(vec![
+                        Value::Number(edge.vertices.0 as f64),
+                        Value::Number(edge.vertices.1 as f64),
+                    ]),
+                    Value::Text(edge.tag.as_str().to_owned()),
+                ];
+                if !edge.faces.is_empty() {
+                    entry.push(Value::List(
+                        edge.faces
+                            .iter()
+                            .map(|id| Value::Number(*id as f64))
+                            .collect(),
+                    ));
+                }
+                Value::List(entry)
+            })
+            .collect();
+
+        let faces = clone
+            .faces
+            .iter()
+            .map(|face| {
+                let mut entry = vec![
+                    Value::Number(face.id as f64),
+                    Value::List(
+                        face.vertices
+                            .iter()
+                            .map(|id| Value::Number(*id as f64))
+                            .collect(),
+                    ),
+                ];
+                if !face.edges.is_empty() {
+                    entry.push(Value::List(
+                        face.edges
+                            .iter()
+                            .map(|id| Value::Number(*id as f64))
+                            .collect(),
+                    ));
+                }
+                Value::List(entry)
+            })
+            .collect();
+
+        Value::List(vec![
+            Value::Text("subd".to_owned()),
+            Value::List(vertices),
+            Value::List(edges),
+            Value::List(faces),
+        ])
+    }
+
+    /// Convert to a legacy `Value::Surface`.
+    ///
+    /// This creates a polygon mesh (not triangulated) from the SubD control mesh.
+    #[must_use]
+    pub fn to_surface_value(&self) -> Value {
+        let mut clone = self.clone();
+        clone.rebuild_topology();
+        let vertices = clone.vertices.iter().map(|v| v.position).collect();
+        let faces = clone
+            .faces
+            .iter()
+            .filter(|face| face.vertices.len() >= 3)
+            .map(|face| face.vertices.iter().map(|idx| *idx as u32).collect())
+            .collect();
+        Value::Surface { vertices, faces }
+    }
+
+    /// Convert to a `Value::Surface` with subdivision/smoothing applied.
+    ///
+    /// # Arguments
+    /// * `density` - Subdivision density (1 = control mesh, 2+ = smoothed).
+    #[must_use]
+    pub fn to_surface_with_density(&self, density: usize) -> Value {
+        if density <= 1 {
+            return self.to_surface_value();
+        }
+        let mut clone = self.clone();
+        let steps = density.saturating_sub(1);
+        if steps > 0 {
+            clone.smooth(steps);
+        }
+        clone.rebuild_topology();
+
+        let mut vertices: Vec<[f64; 3]> = clone.vertices.iter().map(|v| v.position).collect();
+        let mut faces: Vec<Vec<u32>> = Vec::new();
+
+        for face in &clone.faces {
+            if face.vertices.len() < 3 {
+                continue;
+            }
+            let mut centroid = [0.0, 0.0, 0.0];
+            let mut count = 0usize;
+            for id in &face.vertices {
+                if let Some(vertex) = clone.vertex(*id) {
+                    centroid[0] += vertex.position[0];
+                    centroid[1] += vertex.position[1];
+                    centroid[2] += vertex.position[2];
+                    count += 1;
+                }
+            }
+            if count < 3 {
+                continue;
+            }
+            centroid[0] /= count as f64;
+            centroid[1] /= count as f64;
+            centroid[2] /= count as f64;
+            let centroid_index = vertices.len();
+            vertices.push(centroid);
+            for index in 0..face.vertices.len() {
+                let a = face.vertices[index] as u32;
+                let b = face.vertices[(index + 1) % face.vertices.len()] as u32;
+                faces.push(vec![a, b, centroid_index as u32]);
+            }
+        }
+
+        if faces.is_empty() {
+            return clone.to_surface_value();
+        }
+        Value::Surface { vertices, faces }
+    }
+
+    /// Convert to a `Value::Mesh` (triangle mesh).
+    ///
+    /// # Arguments
+    /// * `options` - Subdivision options (density, interpolation).
+    #[must_use]
+    pub fn to_mesh_value(&self, options: SubdOptions) -> Value {
+        let (mesh, diag) = self.to_triangle_mesh(options);
+        Value::Mesh {
+            vertices: mesh.positions,
+            indices: mesh.indices,
+            normals: mesh.normals,
+            uvs: mesh.uvs,
+            diagnostics: Some(crate::graph::value::MeshDiagnostics {
+                triangle_count: diag.triangle_count,
+                vertex_count: diag.vertex_count,
+                degenerate_triangle_count: diag.degenerate_faces,
+                open_edge_count: 0,
+                non_manifold_edge_count: 0,
+                welded_vertex_count: 0,
+                flipped_triangle_count: 0,
+                self_intersection_count: 0,
+                boolean_fallback_used: false,
+                warnings: diag.warnings.clone(),
+            }),
+        }
     }
 }
 

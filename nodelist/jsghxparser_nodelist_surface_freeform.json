@@ -224,6 +224,12 @@
         "nickname": "S",
         "access": "item",
         "description": "Resulting surface"
+      },
+      {
+        "name": "Mesh",
+        "nickname": "M",
+        "access": "item",
+        "description": "Resulting mesh with diagnostics"
       }
     ]
   },

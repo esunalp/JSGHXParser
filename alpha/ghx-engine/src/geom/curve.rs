@@ -86,6 +86,22 @@ pub trait Curve3 {
     fn tangent_at(&self, t: f64) -> Option<Vec3> {
         self.derivative_at(t).normalized()
     }
+
+    /// Returns `true` if this curve uses arc-length parameterization.
+    /// When `true`, the parameter `t` in `[domain().0, domain().1]` maps
+    /// linearly to arc length along the curve. This allows exact arc-length
+    /// division without numerical approximation.
+    #[must_use]
+    fn is_arc_length_parameterized(&self) -> bool {
+        false
+    }
+
+    /// Returns the exact total arc length if known, `None` otherwise.
+    /// Override for curve types that store or can compute exact arc length.
+    #[must_use]
+    fn total_arc_length(&self) -> Option<f64> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -224,6 +240,14 @@ impl Curve3 for Polyline3 {
 
     fn is_closed(&self) -> bool {
         self.closed
+    }
+
+    fn is_arc_length_parameterized(&self) -> bool {
+        true
+    }
+
+    fn total_arc_length(&self) -> Option<f64> {
+        Some(self.total_length)
     }
 }
 
@@ -1913,6 +1937,16 @@ fn curve_parameters_by_count<C: Curve3>(curve: &C, count: usize, include_end: bo
     let span = t1 - t0;
     if !span.is_finite() || span == 0.0 {
         return vec![t0];
+    }
+
+    // For arc-length parameterized curves, parameters map linearly to arc length,
+    // so we can use exact linear spacing without numerical approximation.
+    if curve.is_arc_length_parameterized() {
+        let denom = count as f64;
+        let point_count = if include_end { count + 1 } else { count };
+        return (0..point_count)
+            .map(|i| t0 + span * (i as f64 / denom))
+            .collect();
     }
 
     let sample_count = (count.saturating_mul(16)).clamp(32, 4096);

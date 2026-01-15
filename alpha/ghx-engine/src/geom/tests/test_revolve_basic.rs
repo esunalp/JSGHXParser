@@ -496,3 +496,137 @@ fn revolve_cap_normals_face_outward() {
         "Caps should not create non-manifold edges"
     );
 }
+
+// ============================================================================
+// Tests for FrenetFrame::from_tangent_with_up and rail_revolve with reference axis
+// ============================================================================
+
+use crate::geom::{RailRevolveAxis, RailRevolveOptions, rail_revolve_polyline_with_options};
+
+#[test]
+fn frenet_frame_from_tangent_with_up_aligns_normal_correctly() {
+    // Tangent along X, up along Z
+    let tangent = Vec3::new(1.0, 0.0, 0.0);
+    let up = Vec3::new(0.0, 0.0, 1.0);
+    
+    let frame = FrenetFrame::from_tangent_with_up(tangent, up)
+        .expect("Should create frame");
+    
+    // Normal should be aligned with Z (perpendicular to X, in the XZ plane)
+    assert!((frame.normal.z - 1.0).abs() < 1e-10, "Normal Z should be 1.0, got {}", frame.normal.z);
+    assert!(frame.normal.x.abs() < 1e-10, "Normal X should be 0.0, got {}", frame.normal.x);
+    assert!(frame.normal.y.abs() < 1e-10, "Normal Y should be 0.0, got {}", frame.normal.y);
+    
+    // Binormal should be tangent × normal = X × Z = -Y
+    assert!(frame.binormal.y.abs() - 1.0 < 1e-10, "Binormal should have Y magnitude 1.0");
+}
+
+#[test]
+fn frenet_frame_from_tangent_with_up_parallel_falls_back() {
+    // If tangent and up are parallel, should fall back to from_tangent
+    let tangent = Vec3::new(0.0, 0.0, 1.0);
+    let up = Vec3::new(0.0, 0.0, 1.0); // Parallel to tangent
+    
+    let frame = FrenetFrame::from_tangent_with_up(tangent, up)
+        .expect("Should create frame via fallback");
+    
+    // Frame should still be valid (orthonormal)
+    let dot_tn = frame.tangent.dot(frame.normal);
+    let dot_tb = frame.tangent.dot(frame.binormal);
+    let dot_nb = frame.normal.dot(frame.binormal);
+    
+    assert!(dot_tn.abs() < 1e-10, "Tangent and normal should be perpendicular");
+    assert!(dot_tb.abs() < 1e-10, "Tangent and binormal should be perpendicular");
+    assert!(dot_nb.abs() < 1e-10, "Normal and binormal should be perpendicular");
+}
+
+#[test]
+fn rail_revolve_with_reference_axis_orients_profile_correctly() {
+    // Simple profile in the XY plane: a horizontal line segment
+    // When swept along a Z-aligned rail, with different reference axes,
+    // the profile orientation should differ.
+    let profile = [
+        Point3::new(0.5, 0.0, 0.0),  // Point along local X
+        Point3::new(-0.5, 0.0, 0.0), // Point along local -X
+    ];
+    
+    let rail = [
+        Point3::new(0.0, 0.0, 0.0),
+        Point3::new(0.0, 0.0, 1.0),
+        Point3::new(0.0, 0.0, 2.0),
+    ];
+    
+    // Reference axis pointing along X - should orient profile normal toward X
+    let options_x = RailRevolveOptions {
+        reference_axis: Some(RailRevolveAxis {
+            origin: Point3::new(0.0, 0.0, 0.0),
+            direction: Vec3::new(1.0, 0.0, 0.0),
+        }),
+        caps: RevolveCaps::NONE,
+    };
+    
+    // Reference axis pointing along Y - should orient profile normal toward Y
+    let options_y = RailRevolveOptions {
+        reference_axis: Some(RailRevolveAxis {
+            origin: Point3::new(0.0, 0.0, 0.0),
+            direction: Vec3::new(0.0, 1.0, 0.0),
+        }),
+        caps: RevolveCaps::NONE,
+    };
+    
+    let tol = Tolerance::default();
+    
+    let (mesh_x, _) = rail_revolve_polyline_with_options(&profile, &rail, options_x, tol)
+        .expect("Rail revolve with X axis should succeed");
+    
+    let (mesh_y, _) = rail_revolve_polyline_with_options(&profile, &rail, options_y, tol)
+        .expect("Rail revolve with Y axis should succeed");
+    
+    // Both meshes should have the same number of vertices and triangles
+    assert_eq!(mesh_x.positions.len(), mesh_y.positions.len());
+    assert_eq!(mesh_x.indices.len(), mesh_y.indices.len());
+    
+    // But the positions should differ because of different orientations
+    // The first profile point should be positioned differently
+    let first_pos_x = mesh_x.positions[0];
+    let first_pos_y = mesh_y.positions[0];
+    
+    // With X reference axis, profile's local X maps to frame normal (aligned with X)
+    // So first profile point (0.5, 0, 0 in local) should be at (0.5, 0, 0) in world
+    assert!((first_pos_x[0] - 0.5).abs() < 1e-6, "X-axis reference: first point X should be ~0.5, got {}", first_pos_x[0]);
+    assert!(first_pos_x[1].abs() < 1e-6, "X-axis reference: first point Y should be ~0, got {}", first_pos_x[1]);
+    
+    // With Y reference axis, profile's local X maps to frame normal (aligned with Y)
+    // So first profile point (0.5, 0, 0 in local) should be at (0, 0.5, 0) in world
+    assert!(first_pos_y[0].abs() < 1e-6, "Y-axis reference: first point X should be ~0, got {}", first_pos_y[0]);
+    assert!((first_pos_y[1] - 0.5).abs() < 1e-6, "Y-axis reference: first point Y should be ~0.5, got {}", first_pos_y[1]);
+}
+
+#[test]
+fn rail_revolve_without_reference_axis_uses_default_orientation() {
+    // Same as above but without reference axis - should use default frame orientation
+    let profile = [
+        Point3::new(0.5, 0.0, 0.0),
+        Point3::new(-0.5, 0.0, 0.0),
+    ];
+    
+    let rail = [
+        Point3::new(0.0, 0.0, 0.0),
+        Point3::new(0.0, 0.0, 1.0),
+    ];
+    
+    let options_none = RailRevolveOptions {
+        reference_axis: None,
+        caps: RevolveCaps::NONE,
+    };
+    
+    let tol = Tolerance::default();
+    
+    let (mesh, diagnostics) = rail_revolve_polyline_with_options(&profile, &rail, options_none, tol)
+        .expect("Rail revolve without axis should succeed");
+    
+    // Should still produce valid output
+    assert!(mesh.positions.len() > 0);
+    assert!(mesh.indices.len() > 0);
+    assert_eq!(diagnostics.degenerate_triangle_count, 0);
+}

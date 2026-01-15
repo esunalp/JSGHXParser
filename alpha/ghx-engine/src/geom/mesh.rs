@@ -140,6 +140,164 @@ impl GeomMesh {
     pub fn tangents_flat(&self) -> Option<&[f64]> {
         self.tangents.as_deref().map(flatten_f64_array_slice::<3>)
     }
+
+    /// Compute mesh diagnostics by analyzing topology without modifying the mesh.
+    ///
+    /// This method analyzes the mesh to count open edges, non-manifold edges, and
+    /// degenerate triangles without performing any repairs. Use this to get accurate
+    /// diagnostics for an already-constructed mesh.
+    ///
+    /// # Arguments
+    /// * `tolerance` - Tolerance for detecting degenerate triangles and coincident vertices
+    ///
+    /// # Returns
+    /// A `GeomMeshDiagnostics` struct with accurate counts for:
+    /// - `vertex_count` and `triangle_count` (basic stats)
+    /// - `open_edge_count` (boundary edges with only one adjacent triangle)
+    /// - `non_manifold_edge_count` (edges with more than two adjacent triangles)
+    /// - `degenerate_triangle_count` (zero-area or near-zero-area triangles)
+    ///
+    /// Note: `welded_vertex_count` and `flipped_triangle_count` will be 0 since
+    /// this method does not perform repairs. If you need repair diagnostics, use
+    /// the mesh construction functions that include repair passes.
+    ///
+    /// # Example
+    /// ```ignore
+    /// use ghx_engine::geom::{GeomMesh, Tolerance};
+    ///
+    /// let mesh = GeomMesh::new(
+    ///     vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+    ///     vec![0, 1, 2],
+    /// );
+    /// let diag = mesh.compute_diagnostics(Tolerance::default());
+    /// assert_eq!(diag.vertex_count, 3);
+    /// assert_eq!(diag.triangle_count, 1);
+    /// assert_eq!(diag.open_edge_count, 3); // Single triangle has 3 boundary edges
+    /// ```
+    #[must_use]
+    pub fn compute_diagnostics(&self, tolerance: Tolerance) -> GeomMeshDiagnostics {
+        let vertex_count = self.positions.len();
+        let triangle_count = self.indices.len() / 3;
+
+        // Count edge topology (open and non-manifold edges)
+        let (open_edge_count, non_manifold_edge_count) = count_edge_topology(&self.indices);
+
+        // Count degenerate triangles without removing them
+        let degenerate_triangle_count = count_degenerate_triangles(
+            &self.positions,
+            &self.indices,
+            tolerance,
+        );
+
+        let mut warnings = Vec::new();
+        if open_edge_count > 0 {
+            warnings.push("mesh has open edges".to_string());
+        }
+        if non_manifold_edge_count > 0 {
+            warnings.push("mesh has non-manifold edges".to_string());
+        }
+        if degenerate_triangle_count > 0 {
+            warnings.push(format!(
+                "mesh has {} degenerate triangle(s)",
+                degenerate_triangle_count
+            ));
+        }
+
+        GeomMeshDiagnostics {
+            vertex_count,
+            triangle_count,
+            welded_vertex_count: 0,         // Not applicable - no repair performed
+            flipped_triangle_count: 0,      // Not applicable - no repair performed
+            degenerate_triangle_count,
+            open_edge_count,
+            non_manifold_edge_count,
+            self_intersection_count: 0,     // Reserved for future use
+            boolean_fallback_used: false,
+            timing: None,
+            warnings,
+        }
+    }
+
+    /// Compute mesh diagnostics and merge with existing warnings.
+    ///
+    /// This is a convenience method that computes diagnostics and appends any
+    /// existing warnings (e.g., from surface fitting or tessellation) to the
+    /// result.
+    ///
+    /// # Arguments
+    /// * `tolerance` - Tolerance for detecting degenerate triangles
+    /// * `existing_warnings` - Warnings from prior processing steps to include
+    ///
+    /// # Returns
+    /// A `GeomMeshDiagnostics` struct with topology analysis and merged warnings.
+    #[must_use]
+    pub fn compute_diagnostics_with_warnings(
+        &self,
+        tolerance: Tolerance,
+        existing_warnings: Vec<String>,
+    ) -> GeomMeshDiagnostics {
+        let mut diag = self.compute_diagnostics(tolerance);
+        // Prepend existing warnings so they appear first (chronological order)
+        let mesh_warnings = std::mem::take(&mut diag.warnings);
+        diag.warnings = existing_warnings;
+        diag.warnings.extend(mesh_warnings);
+        diag
+    }
+}
+
+/// Count degenerate triangles without modifying the mesh.
+///
+/// A triangle is considered degenerate if its area is below the tolerance threshold.
+fn count_degenerate_triangles(
+    positions: &[[f64; 3]],
+    indices: &[u32],
+    tolerance: Tolerance,
+) -> usize {
+    // Use eps^2 as the area threshold (area is in square units)
+    let area_threshold = tolerance.eps_squared() * 0.5;
+    let mut count = 0;
+
+    for tri in indices.chunks_exact(3) {
+        let i0 = tri[0] as usize;
+        let i1 = tri[1] as usize;
+        let i2 = tri[2] as usize;
+
+        // Skip invalid indices
+        if i0 >= positions.len() || i1 >= positions.len() || i2 >= positions.len() {
+            count += 1; // Count as degenerate
+            continue;
+        }
+
+        // Check for coincident vertex indices
+        if i0 == i1 || i1 == i2 || i0 == i2 {
+            count += 1;
+            continue;
+        }
+
+        let p0 = positions[i0];
+        let p1 = positions[i1];
+        let p2 = positions[i2];
+
+        // Compute edge vectors
+        let e1 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+        let e2 = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
+
+        // Cross product gives twice the area
+        let cross = [
+            e1[1] * e2[2] - e1[2] * e2[1],
+            e1[2] * e2[0] - e1[0] * e2[2],
+            e1[0] * e2[1] - e1[1] * e2[0],
+        ];
+
+        let area_sq = cross[0] * cross[0] + cross[1] * cross[1] + cross[2] * cross[2];
+        let area = (area_sq * 0.25).sqrt(); // Actual area = 0.5 * |cross|
+
+        if area < area_threshold {
+            count += 1;
+        }
+    }
+
+    count
 }
 
 fn flatten_f64_array_slice<const N: usize>(data: &[[f64; N]]) -> &[f64] {
@@ -1081,6 +1239,63 @@ impl SurfaceBuilderQuality {
             v_subdivisions: 20,
         }
     }
+
+    /// Ultra quality (finest detail, slowest).
+    #[must_use]
+    pub const fn ultra() -> Self {
+        Self {
+            u_subdivisions: 32,
+            v_subdivisions: 32,
+        }
+    }
+
+    /// Create quality from min/max subdivision range (uses geometric mean).
+    ///
+    /// This is useful when converting from general mesh quality settings
+    /// that specify subdivision bounds rather than exact counts.
+    ///
+    /// # Arguments
+    /// * `min_subdiv` - Minimum subdivisions (clamped to 2)
+    /// * `max_subdiv` - Maximum subdivisions (clamped to min_subdiv..4096)
+    ///
+    /// # Example
+    /// ```
+    /// use ghx_engine::geom::SurfaceBuilderQuality;
+    /// let q = SurfaceBuilderQuality::from_subdivision_range(4, 256);
+    /// assert_eq!(q.u_subdivisions, 32); // geometric mean
+    /// ```
+    #[must_use]
+    pub fn from_subdivision_range(min_subdiv: usize, max_subdiv: usize) -> Self {
+        let min = min_subdiv.max(2);
+        let max = max_subdiv.max(min).min(4096);
+        // Use geometric mean for balanced quality
+        let subdiv = ((min as f64) * (max as f64)).sqrt().round() as usize;
+        let subdiv = subdiv.clamp(min, max);
+        Self {
+            u_subdivisions: subdiv,
+            v_subdivisions: subdiv,
+        }
+    }
+
+    /// Create quality from a preset name.
+    ///
+    /// Accepted names (case-insensitive):
+    /// - "low" → 4×4
+    /// - "medium" → 10×10 (default)
+    /// - "high" → 20×20
+    /// - "ultra" → 32×32
+    ///
+    /// Returns `None` for unrecognized names.
+    #[must_use]
+    pub fn from_preset_name(name: &str) -> Option<Self> {
+        match name.to_lowercase().as_str() {
+            "low" | "fast" | "preview" => Some(Self::low()),
+            "medium" | "default" | "normal" => Some(Self::default()),
+            "high" | "fine" | "detailed" => Some(Self::high()),
+            "ultra" | "max" | "maximum" => Some(Self::ultra()),
+            _ => None,
+        }
+    }
 }
 
 /// Mesh a four-point surface (bilinear patch).
@@ -1292,4 +1507,679 @@ pub fn mesh_network_surface_from_grid(
         quality.u_subdivisions.max(2),
         quality.v_subdivisions.max(2),
     ))
+}
+
+// ============================================================================
+// Mesh Flip Operations
+// ============================================================================
+
+/// Guide direction for mesh flip operations.
+///
+/// Used to determine whether a mesh should be flipped based on its
+/// orientation relative to a reference direction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MeshFlipGuide {
+    /// Flip if mesh normal doesn't align with this vector.
+    Vector(Vec3),
+    /// Flip if mesh normal doesn't point toward this point.
+    Point(Point3),
+}
+
+/// Diagnostics from a mesh flip operation.
+#[derive(Debug, Clone, Default)]
+pub struct FlipMeshDiagnostics {
+    /// Whether the mesh was flipped.
+    pub flipped: bool,
+    /// Whether a guide was used to determine flip direction.
+    pub guide_used: bool,
+    /// Dot product between mesh normal and guide direction (before flip).
+    /// Negative means normals were pointing away from guide.
+    pub dot_before: Option<f64>,
+    /// The computed average normal before flip (if available).
+    pub average_normal: Option<[f64; 3]>,
+    /// Any warnings generated during the operation.
+    pub warnings: Vec<String>,
+}
+
+/// Flips the orientation of a mesh (reverses triangle winding).
+///
+/// This function reverses the winding order of all triangles in the mesh,
+/// effectively flipping the surface normals. If the mesh has explicit normals,
+/// they are also negated.
+///
+/// # Arguments
+///
+/// * `mesh` - The mesh to flip
+/// * `guide` - Optional guide direction. If provided, the mesh is only flipped
+///   if its average normal doesn't align with the guide direction.
+///   - `MeshFlipGuide::Vector(v)`: Flip if average normal dot v < 0
+///   - `MeshFlipGuide::Point(p)`: Flip if average normal points away from p
+///   - `None`: Always flip the mesh
+///
+/// # Returns
+///
+/// A tuple containing the flipped mesh and diagnostics.
+///
+/// # Example
+///
+/// ```
+/// use ghx_engine::geom::{GeomMesh, MeshFlipGuide, Vec3, flip_mesh};
+///
+/// let mesh = GeomMesh::new(
+///     vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+///     vec![0, 1, 2],
+/// );
+///
+/// // Always flip
+/// let (flipped, diag) = flip_mesh(mesh.clone(), None);
+/// assert!(diag.flipped);
+///
+/// // Flip only if normal doesn't point up
+/// let (flipped, diag) = flip_mesh(mesh, Some(MeshFlipGuide::Vector(Vec3::new(0.0, 0.0, 1.0))));
+/// // The CCW triangle has normal pointing up, so it won't be flipped
+/// assert!(!diag.flipped);
+/// ```
+#[must_use]
+pub fn flip_mesh(mesh: GeomMesh, guide: Option<MeshFlipGuide>) -> (GeomMesh, FlipMeshDiagnostics) {
+    let mut diagnostics = FlipMeshDiagnostics::default();
+
+    // Convert positions to Point3 for normal computation
+    let points: Vec<Point3> = mesh.positions.iter().map(|p| Point3::new(p[0], p[1], p[2])).collect();
+
+    // Compute average normal from triangles
+    let avg_normal = compute_average_normal(&points, &mesh.indices);
+    diagnostics.average_normal = avg_normal.map(|n| [n.x, n.y, n.z]);
+
+    // Determine whether to flip based on guide
+    let should_flip = match guide {
+        None => true,
+        Some(guide_dir) => {
+            diagnostics.guide_used = true;
+            
+            let Some(avg_normal) = avg_normal else {
+                diagnostics.warnings.push("flip_mesh: could not compute average normal".to_string());
+                return (mesh, diagnostics);
+            };
+
+            let desired = match guide_dir {
+                MeshFlipGuide::Vector(v) => v.normalized(),
+                MeshFlipGuide::Point(p) => {
+                    // Compute mesh centroid
+                    let centroid = compute_mesh_centroid(&points);
+                    p.sub_point(centroid).normalized()
+                }
+            };
+
+            let Some(desired) = desired else {
+                diagnostics.warnings.push("flip_mesh: guide direction is zero".to_string());
+                return (mesh, diagnostics);
+            };
+
+            let dot = avg_normal.dot(desired);
+            diagnostics.dot_before = Some(dot);
+            dot < 0.0
+        }
+    };
+
+    diagnostics.flipped = should_flip;
+
+    if !should_flip {
+        return (mesh, diagnostics);
+    }
+
+    // Flip triangle winding
+    let mut flipped_indices = mesh.indices.clone();
+    for tri in flipped_indices.chunks_exact_mut(3) {
+        tri.swap(1, 2);
+    }
+
+    // Negate normals if present
+    let flipped_normals = mesh.normals.map(|normals| {
+        normals.iter().map(|n| [-n[0], -n[1], -n[2]]).collect()
+    });
+
+    (
+        GeomMesh {
+            positions: mesh.positions,
+            indices: flipped_indices,
+            uvs: mesh.uvs,
+            normals: flipped_normals,
+            tangents: mesh.tangents,
+        },
+        diagnostics,
+    )
+}
+
+/// Computes the average normal of a mesh from its triangle faces.
+fn compute_average_normal(points: &[Point3], indices: &[u32]) -> Option<Vec3> {
+    let mut sum = Vec3::new(0.0, 0.0, 0.0);
+    let mut count = 0usize;
+
+    for tri in indices.chunks_exact(3) {
+        let (Some(a), Some(b), Some(c)) = (
+            points.get(tri[0] as usize),
+            points.get(tri[1] as usize),
+            points.get(tri[2] as usize),
+        ) else {
+            continue;
+        };
+
+        let ab = b.sub_point(*a);
+        let ac = c.sub_point(*a);
+        let normal = ab.cross(ac);
+
+        // Weight by triangle area (normal length is 2x area)
+        sum = sum.add(normal);
+        count += 1;
+    }
+
+    if count == 0 {
+        return None;
+    }
+
+    sum.normalized()
+}
+
+/// Computes the centroid of a mesh.
+fn compute_mesh_centroid(points: &[Point3]) -> Point3 {
+    if points.is_empty() {
+        return Point3::ORIGIN;
+    }
+
+    let mut sum = Vec3::new(0.0, 0.0, 0.0);
+    for p in points {
+        sum = sum.add(Vec3::new(p.x, p.y, p.z));
+    }
+
+    let n = points.len() as f64;
+    Point3::new(sum.x / n, sum.y / n, sum.z / n)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Closest Point on Mesh
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Result of finding the closest point on a mesh surface.
+#[derive(Debug, Clone, Copy)]
+pub struct ClosestPointResult {
+    /// The closest point on the mesh surface.
+    pub point: Point3,
+    /// Squared distance from the query point to the closest point.
+    pub distance_squared: f64,
+    /// The triangle index (0-based, i.e., triangle 0 uses indices 0,1,2).
+    pub triangle_index: usize,
+    /// Barycentric coordinates (u, v, w) where w = 1 - u - v.
+    /// The closest point = A*(1-u-v) + B*u + C*v for triangle vertices A, B, C.
+    pub barycentric: (f64, f64, f64),
+    /// Normal at the closest point (interpolated from triangle normal).
+    pub normal: Vec3,
+}
+
+/// Finds the closest point on a triangle mesh to a given query point.
+///
+/// This function iterates over all triangles in the mesh and computes the closest
+/// point on each triangle, returning the globally closest result. For large meshes,
+/// consider using a BVH-accelerated version.
+///
+/// # Arguments
+///
+/// * `mesh` - The triangle mesh to query.
+/// * `query` - The point to find the closest mesh point for.
+///
+/// # Returns
+///
+/// `Some(ClosestPointResult)` if the mesh has valid triangles, `None` otherwise.
+///
+/// # Example
+///
+/// ```
+/// use ghx_engine::geom::{GeomMesh, Point3, closest_point_on_mesh};
+///
+/// // Simple triangle mesh (single triangle in XY plane)
+/// let mesh = GeomMesh::new(
+///     vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
+///     vec![0, 1, 2],
+/// );
+///
+/// // Query point above the triangle
+/// let query = Point3::new(0.5, 0.3, 1.0);
+/// let result = closest_point_on_mesh(&mesh, query).unwrap();
+///
+/// // Closest point should be on the triangle surface (z = 0)
+/// assert!((result.point.z).abs() < 1e-10);
+/// assert!((result.distance_squared - 1.0).abs() < 1e-10);
+/// ```
+#[must_use]
+pub fn closest_point_on_mesh(mesh: &GeomMesh, query: Point3) -> Option<ClosestPointResult> {
+    if mesh.indices.len() < 3 || mesh.positions.is_empty() {
+        return None;
+    }
+
+    let points: Vec<Point3> = mesh.positions.iter().map(|p| Point3::from(*p)).collect();
+    
+    let mut best_result: Option<ClosestPointResult> = None;
+    let mut best_dist_sq = f64::INFINITY;
+
+    for (tri_idx, tri) in mesh.indices.chunks_exact(3).enumerate() {
+        let i0 = tri[0] as usize;
+        let i1 = tri[1] as usize;
+        let i2 = tri[2] as usize;
+
+        if i0 >= points.len() || i1 >= points.len() || i2 >= points.len() {
+            continue;
+        }
+
+        let a = points[i0];
+        let b = points[i1];
+        let c = points[i2];
+
+        let (closest, bary) = closest_point_on_triangle(query, a, b, c);
+        let dist_sq = query.sub_point(closest).length_squared();
+
+        if dist_sq < best_dist_sq {
+            best_dist_sq = dist_sq;
+
+            // Compute triangle normal
+            let ab = b.sub_point(a);
+            let ac = c.sub_point(a);
+            let normal = ab.cross(ac).normalized().unwrap_or(Vec3::Z);
+
+            best_result = Some(ClosestPointResult {
+                point: closest,
+                distance_squared: dist_sq,
+                triangle_index: tri_idx,
+                barycentric: bary,
+                normal,
+            });
+        }
+    }
+
+    best_result
+}
+
+/// Finds the closest point on a triangle mesh to a given query point,
+/// returning only the closest point and distance (simplified API).
+///
+/// # Arguments
+///
+/// * `mesh` - The triangle mesh to query.
+/// * `query` - The point to find the closest mesh point for.
+///
+/// # Returns
+///
+/// A tuple of (closest_point, distance) if the mesh has valid triangles, `None` otherwise.
+#[must_use]
+pub fn closest_point_on_mesh_simple(mesh: &GeomMesh, query: Point3) -> Option<(Point3, f64)> {
+    closest_point_on_mesh(mesh, query).map(|r| (r.point, r.distance_squared.sqrt()))
+}
+
+/// Computes the closest point on a triangle to a given query point.
+///
+/// Uses the algorithm from "Real-Time Collision Detection" by Christer Ericson.
+/// This correctly handles all cases: query point projects inside the triangle,
+/// onto an edge, or onto a vertex.
+///
+/// # Arguments
+///
+/// * `p` - The query point.
+/// * `a`, `b`, `c` - The triangle vertices (in counter-clockwise order for standard normal).
+///
+/// # Returns
+///
+/// A tuple of:
+/// * The closest point on the triangle.
+/// * Barycentric coordinates (u, v, w) where the closest point = a*w + b*u + c*v
+///   and w = 1 - u - v.
+fn closest_point_on_triangle(p: Point3, a: Point3, b: Point3, c: Point3) -> (Point3, (f64, f64, f64)) {
+    // Check if P is in vertex region outside A
+    let ab = b.sub_point(a);
+    let ac = c.sub_point(a);
+    let ap = p.sub_point(a);
+    
+    let d1 = ab.dot(ap);
+    let d2 = ac.dot(ap);
+    
+    // Closest to vertex A
+    if d1 <= 0.0 && d2 <= 0.0 {
+        return (a, (0.0, 0.0, 1.0));
+    }
+
+    // Check if P is in vertex region outside B
+    let bp = p.sub_point(b);
+    let d3 = ab.dot(bp);
+    let d4 = ac.dot(bp);
+    
+    // Closest to vertex B
+    if d3 >= 0.0 && d4 <= d3 {
+        return (b, (1.0, 0.0, 0.0));
+    }
+
+    // Check if P is in edge region of AB
+    let vc = d1 * d4 - d3 * d2;
+    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+        let v = d1 / (d1 - d3);
+        let closest = a.add_vec(ab.mul_scalar(v));
+        return (closest, (v, 0.0, 1.0 - v));
+    }
+
+    // Check if P is in vertex region outside C
+    let cp = p.sub_point(c);
+    let d5 = ab.dot(cp);
+    let d6 = ac.dot(cp);
+    
+    // Closest to vertex C
+    if d6 >= 0.0 && d5 <= d6 {
+        return (c, (0.0, 1.0, 0.0));
+    }
+
+    // Check if P is in edge region of AC
+    let vb = d5 * d2 - d1 * d6;
+    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+        let w = d2 / (d2 - d6);
+        let closest = a.add_vec(ac.mul_scalar(w));
+        return (closest, (0.0, w, 1.0 - w));
+    }
+
+    // Check if P is in edge region of BC
+    let va = d3 * d6 - d5 * d4;
+    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
+        let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        let bc = c.sub_point(b);
+        let closest = b.add_vec(bc.mul_scalar(w));
+        return (closest, (1.0 - w, w, 0.0));
+    }
+
+    // P is inside the triangle - compute barycentric coordinates
+    let denom = 1.0 / (va + vb + vc);
+    let v = vb * denom;
+    let w = vc * denom;
+    let u = 1.0 - v - w;
+    
+    // Closest point is the projection onto the triangle plane
+    let closest = Point3::new(
+        a.x * u + b.x * v + c.x * w,
+        a.y * u + b.y * v + c.y * w,
+        a.z * u + b.z * v + c.z * w,
+    );
+    
+    (closest, (v, w, u))
+}
+
+// ============================================================================
+// Cube-sphere (QuadSphere) mesh generation
+// ============================================================================
+
+/// Configuration for cube-sphere mesh generation.
+#[derive(Debug, Clone, Copy)]
+pub struct CubeSphereOptions {
+    /// Center point of the sphere.
+    pub center: Point3,
+    /// Radius of the sphere.
+    pub radius: f64,
+    /// Number of subdivisions per cube face edge. Higher values produce
+    /// smoother spheres with more triangles.
+    /// - 1 subdivision = 8 vertices, 12 triangles (cube)
+    /// - 4 subdivisions = 98 vertices, 192 triangles
+    /// - 8 subdivisions = 386 vertices, 768 triangles
+    /// - 16 subdivisions = 1538 vertices, 3072 triangles
+    pub subdivisions: usize,
+    /// Orientation frame: X-axis direction on the sphere.
+    pub x_axis: Vec3,
+    /// Orientation frame: Y-axis direction on the sphere.
+    pub y_axis: Vec3,
+    /// Orientation frame: Z-axis direction on the sphere (normal/up).
+    pub z_axis: Vec3,
+}
+
+impl Default for CubeSphereOptions {
+    fn default() -> Self {
+        Self {
+            center: Point3::ORIGIN,
+            radius: 1.0,
+            subdivisions: 8,
+            x_axis: Vec3::new(1.0, 0.0, 0.0),
+            y_axis: Vec3::new(0.0, 1.0, 0.0),
+            z_axis: Vec3::new(0.0, 0.0, 1.0),
+        }
+    }
+}
+
+impl CubeSphereOptions {
+    /// Create options for a unit sphere centered at the origin with given subdivisions.
+    #[must_use]
+    pub fn unit(subdivisions: usize) -> Self {
+        Self {
+            subdivisions,
+            ..Default::default()
+        }
+    }
+
+    /// Create options with explicit center, radius, and subdivisions.
+    #[must_use]
+    pub fn new(center: Point3, radius: f64, subdivisions: usize) -> Self {
+        Self {
+            center,
+            radius,
+            subdivisions,
+            ..Default::default()
+        }
+    }
+
+    /// Set the orientation frame from explicit axis vectors.
+    #[must_use]
+    pub fn with_frame(mut self, x_axis: Vec3, y_axis: Vec3, z_axis: Vec3) -> Self {
+        self.x_axis = x_axis;
+        self.y_axis = y_axis;
+        self.z_axis = z_axis;
+        self
+    }
+}
+
+/// Generates a cube-sphere mesh (spherified cube) with uniform vertex distribution.
+///
+/// A cube-sphere is created by subdividing each face of a cube into a grid of quads,
+/// then projecting (normalizing) each vertex onto the sphere. This produces a much
+/// more uniform vertex distribution compared to a traditional UV-sphere, which has
+/// vertex compression at the poles.
+///
+/// # Algorithm
+///
+/// For each of the 6 cube faces:
+/// 1. Generate a grid of `(subdivisions+1) × (subdivisions+1)` points on the face
+/// 2. Normalize each point (project onto unit sphere)
+/// 3. Scale by radius and translate to center
+/// 4. Triangulate each quad in the grid (2 triangles per quad)
+///
+/// # Advantages over UV-sphere
+///
+/// - More uniform vertex distribution across the entire sphere
+/// - No pole pinching/compression artifacts
+/// - Better for physics simulations and uniform sampling
+/// - More predictable triangle aspect ratios
+///
+/// # Arguments
+///
+/// * `options` - Configuration for center, radius, subdivisions, and orientation
+///
+/// # Returns
+///
+/// A tuple containing:
+/// * `GeomMesh` - The generated mesh with positions, normals, and UVs
+/// * `GeomMeshDiagnostics` - Diagnostics about the mesh quality
+///
+/// # Example
+///
+/// ```
+/// use ghx_engine::geom::{mesh_cube_sphere, CubeSphereOptions, Point3};
+///
+/// let options = CubeSphereOptions::new(Point3::ORIGIN, 2.0, 8);
+/// let (mesh, diag) = mesh_cube_sphere(options);
+/// assert!(mesh.vertex_count() > 0);
+/// ```
+#[must_use]
+pub fn mesh_cube_sphere(options: CubeSphereOptions) -> (GeomMesh, GeomMeshDiagnostics) {
+    let mut ctx = GeomContext::new();
+    mesh_cube_sphere_with_context(options, &mut ctx)
+}
+
+/// Generates a cube-sphere mesh with a provided context for caching and metrics.
+#[must_use]
+pub fn mesh_cube_sphere_with_context(
+    options: CubeSphereOptions,
+    ctx: &mut GeomContext,
+) -> (GeomMesh, GeomMeshDiagnostics) {
+    ctx.metrics.begin();
+
+    let subdivisions = options.subdivisions.max(1);
+    let n = subdivisions + 1; // vertices per edge
+
+    // Pre-calculate sizes
+    // Each face has n*n vertices, but corner and edge vertices are shared between faces.
+    // For a cube-sphere, we handle this by creating vertices per-face and welding.
+    let vertices_per_face = n * n;
+    let total_vertices_before_weld = 6 * vertices_per_face;
+    let quads_per_face = subdivisions * subdivisions;
+    let triangles_per_face = quads_per_face * 2;
+    let total_triangles = 6 * triangles_per_face;
+
+    let mut positions: Vec<[f64; 3]> = Vec::with_capacity(total_vertices_before_weld);
+    let mut normals: Vec<[f64; 3]> = Vec::with_capacity(total_vertices_before_weld);
+    let mut uvs: Vec<[f64; 2]> = Vec::with_capacity(total_vertices_before_weld);
+    let mut indices: Vec<u32> = Vec::with_capacity(total_triangles * 3);
+
+    // The 6 cube face definitions: (tangent, bitangent, face_normal)
+    // Each face is a unit square in the plane perpendicular to face_normal.
+    // We parameterize s,t in [-1, 1] to cover the face.
+    //
+    // Faces are ordered: +X, -X, +Y, -Y, +Z, -Z
+    let faces: [(Vec3, Vec3, Vec3); 6] = [
+        // +X face: tangent=+Z, bitangent=+Y, normal=+X
+        (Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(1.0, 0.0, 0.0)),
+        // -X face: tangent=-Z, bitangent=+Y, normal=-X
+        (Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(-1.0, 0.0, 0.0)),
+        // +Y face: tangent=+X, bitangent=-Z, normal=+Y
+        (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 0.0, -1.0), Vec3::new(0.0, 1.0, 0.0)),
+        // -Y face: tangent=+X, bitangent=+Z, normal=-Y
+        (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 0.0, 1.0), Vec3::new(0.0, -1.0, 0.0)),
+        // +Z face: tangent=+X, bitangent=+Y, normal=+Z
+        (Vec3::new(1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, 1.0)),
+        // -Z face: tangent=-X, bitangent=+Y, normal=-Z
+        (Vec3::new(-1.0, 0.0, 0.0), Vec3::new(0.0, 1.0, 0.0), Vec3::new(0.0, 0.0, -1.0)),
+    ];
+
+    // Generate vertices for each face
+    for (face_idx, (tangent, bitangent, face_normal)) in faces.iter().enumerate() {
+        let base_vertex = positions.len() as u32;
+
+        // Generate n x n vertices for this face
+        for j in 0..n {
+            let t = (j as f64 / subdivisions as f64) * 2.0 - 1.0; // t in [-1, 1]
+            for i in 0..n {
+                let s = (i as f64 / subdivisions as f64) * 2.0 - 1.0; // s in [-1, 1]
+
+                // Point on unit cube face
+                let cube_point = face_normal
+                    .add(tangent.mul_scalar(s))
+                    .add(bitangent.mul_scalar(t));
+
+                // Normalize to project onto unit sphere
+                let sphere_normal = cube_point.normalized().unwrap_or(*face_normal);
+
+                // Transform by orientation frame and scale by radius
+                let local_x = sphere_normal.x;
+                let local_y = sphere_normal.y;
+                let local_z = sphere_normal.z;
+
+                let world_normal = options.x_axis.mul_scalar(local_x)
+                    .add(options.y_axis.mul_scalar(local_y))
+                    .add(options.z_axis.mul_scalar(local_z));
+
+                let pos = options.center.add_vec(world_normal.mul_scalar(options.radius));
+
+                positions.push(pos.to_array());
+                normals.push(world_normal.to_array());
+
+                // UV mapping: each face gets its own UV region
+                // We use a cross-layout UV mapping common for cube maps:
+                //       [+Y]
+                // [-X][+Z][+X][-Z]
+                //       [-Y]
+                //
+                // But for simplicity, we'll map each face to a 1/3 x 1/2 region
+                let (u_offset, v_offset) = match face_idx {
+                    0 => (2.0 / 3.0, 1.0 / 2.0), // +X
+                    1 => (0.0, 1.0 / 2.0),       // -X
+                    2 => (1.0 / 3.0, 0.0),       // +Y (top)
+                    3 => (1.0 / 3.0, 1.0),       // -Y (bottom, flipped for layout)
+                    4 => (1.0 / 3.0, 1.0 / 2.0), // +Z (front)
+                    5 => (1.0, 1.0 / 2.0),       // -Z (back, wraps or separate)
+                    _ => (0.0, 0.0),
+                };
+
+                // Normalize s,t from [-1,1] to [0,1] for UV
+                let u_local = (s + 1.0) / 2.0;
+                let v_local = (t + 1.0) / 2.0;
+
+                // Scale to face region (1/3 width, 1/2 height per face)
+                let u = u_offset + u_local / 3.0;
+                let v = v_offset + v_local / 2.0;
+
+                uvs.push([u.clamp(0.0, 1.0), v.clamp(0.0, 1.0)]);
+            }
+        }
+
+        // Generate triangles for this face (2 per quad)
+        for j in 0..subdivisions {
+            for i in 0..subdivisions {
+                // Quad corners (CCW winding when viewed from outside)
+                let v00 = base_vertex + (j * n + i) as u32;
+                let v10 = base_vertex + (j * n + i + 1) as u32;
+                let v01 = base_vertex + ((j + 1) * n + i) as u32;
+                let v11 = base_vertex + ((j + 1) * n + i + 1) as u32;
+
+                // Two triangles per quad (CCW winding)
+                // Triangle 1: v00 -> v10 -> v11
+                indices.push(v00);
+                indices.push(v10);
+                indices.push(v11);
+
+                // Triangle 2: v00 -> v11 -> v01
+                indices.push(v00);
+                indices.push(v11);
+                indices.push(v01);
+            }
+        }
+    }
+
+    // Weld duplicate vertices at cube edges/corners
+    let points: Vec<Point3> = positions.iter().map(|p| Point3::new(p[0], p[1], p[2])).collect();
+    let (welded_points, welded_uvs, welded_indices, welded_count) =
+        weld_mesh_vertices(points, Some(&uvs), indices, ctx.tolerance);
+
+    // Rebuild positions and normals from welded points
+    // For a sphere, normals are just the normalized direction from center to vertex
+    let welded_positions: Vec<[f64; 3]> = welded_points.iter().map(|p| p.to_array()).collect();
+    let welded_normals: Vec<[f64; 3]> = welded_points
+        .iter()
+        .map(|p| {
+            let dir = p.sub_point(options.center);
+            dir.normalized()
+                .unwrap_or(Vec3::new(0.0, 0.0, 1.0))
+                .to_array()
+        })
+        .collect();
+
+    let mesh = GeomMesh::with_attributes(
+        welded_positions,
+        welded_indices,
+        welded_uvs,
+        Some(welded_normals),
+    );
+
+    let mut diag = mesh.compute_diagnostics(ctx.tolerance);
+    diag.welded_vertex_count = welded_count;
+
+    let _ = ctx.metrics.end();
+
+    (mesh, diag)
 }

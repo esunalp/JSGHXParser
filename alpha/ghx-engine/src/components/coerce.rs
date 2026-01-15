@@ -97,6 +97,13 @@ impl SurfaceOwned {
 }
 
 // ============================================================================
+// Polygon Triangulation - re-export from graph::value
+// ============================================================================
+
+// Use the centralized triangulation function from graph::value
+use crate::graph::value::triangulate_polygon_faces;
+
+// ============================================================================
 // Mesh types - the preferred representation for mesh-like values
 // ============================================================================
 
@@ -451,6 +458,20 @@ pub fn coerce_number(value: &Value, context: Option<&str>) -> Result<f64, Compon
             }
         },
         Value::List(l) if l.len() == 1 => coerce_number(&l[0], context),
+        // Value::Null indicates an unconnected input; for required inputs this is an error.
+        // For optional inputs, callers should use coerce_optional_number_with_default instead.
+        Value::Null => {
+            if let Some(ctx) = context {
+                Err(ComponentError::new(format!(
+                    "{} is niet aangesloten (ontbrekende waarde)",
+                    ctx
+                )))
+            } else {
+                Err(ComponentError::new(
+                    "Input is niet aangesloten (ontbrekende waarde)".to_string()
+                ))
+            }
+        }
         other => {
             if let Some(ctx) = context {
                 Err(ComponentError::new(format!(
@@ -512,6 +533,12 @@ pub fn coerce_boolean_with_context(value: &Value, context: &str) -> Result<bool,
         Value::List(values) if values.len() == 1 => {
             coerce_boolean_with_context(&values[0], context)
         }
+        // Value::Null indicates an unconnected input; for required inputs this is an error.
+        // For optional inputs, callers should use coerce_boolean_with_default instead.
+        Value::Null => Err(ComponentError::new(format!(
+            "{} is niet aangesloten (ontbrekende waarde)",
+            context
+        ))),
         other => Err(ComponentError::new(format!(
             "{} verwacht een booleaanse waarde, kreeg {}",
             context,
@@ -525,18 +552,65 @@ pub fn coerce_optional_number(
     context: &str,
 ) -> Result<Option<f64>, ComponentError> {
     match value {
+        Some(Value::Null) => Ok(None),
         Some(value) => coerce_number(value, Some(context)).map(Some),
         None => Ok(None),
     }
 }
 
+/// Coerces an optional value to a number, returning a default when the value is
+/// `None` or `Value::Null` (unconnected pin). This is the preferred function for
+/// optional numeric inputs with sensible defaults.
+///
+/// # Arguments
+/// * `value` - The optional value to coerce
+/// * `default` - The default value to use when unset
+/// * `context` - Context string for error messages
+///
+/// # Returns
+/// * `Ok(number)` - The coerced number or default
+/// * `Err(ComponentError)` - If the value is present but cannot be coerced to a number
+pub fn coerce_optional_number_with_default(
+    value: Option<&Value>,
+    default: f64,
+    context: &str,
+) -> Result<f64, ComponentError> {
+    match value {
+        Some(Value::Null) | None => Ok(default),
+        Some(value) => coerce_number(value, Some(context)),
+    }
+}
+
+/// Coerces an optional value to a boolean, returning a default when the value is
+/// `None` or `Value::Null` (unconnected pin). This is the preferred function for
+/// optional boolean inputs with sensible defaults.
+///
+/// # Arguments
+/// * `value` - The optional value to coerce
+/// * `default` - The default value to use when unset
+/// * `context` - Context string for error messages
+///
+/// # Returns
+/// * `Ok(boolean)` - The coerced boolean or default
+/// * `Err(ComponentError)` - If the value is present but cannot be coerced to a boolean
+pub fn coerce_optional_boolean_with_default(
+    value: Option<&Value>,
+    default: bool,
+    context: &str,
+) -> Result<bool, ComponentError> {
+    match value {
+        Some(Value::Null) | None => Ok(default),
+        Some(value) => coerce_boolean_with_context(value, context),
+    }
+}
+
 pub fn to_optional_number(value: Option<&Value>) -> Result<Option<f64>, ComponentError> {
     match value {
+        Some(Value::Null) | None => Ok(None),
         Some(Value::Number(number)) if number.is_finite() => Ok(Some(*number)),
         Some(Value::Boolean(boolean)) => Ok(Some(if *boolean { 1.0 } else { 0.0 })),
         Some(Value::List(values)) if values.len() == 1 => to_optional_number(values.first()),
         Some(_) => Ok(None),
-        None => Ok(None),
     }
 }
 
@@ -585,6 +659,11 @@ pub fn coerce_boolean(value: &Value) -> Result<bool, ComponentError> {
             ))
         }),
         Value::List(l) if l.len() == 1 => coerce_boolean(&l[0]),
+        // Value::Null indicates an unconnected input; for required inputs this is an error.
+        // For optional inputs, callers should use coerce_boolean_with_default instead.
+        Value::Null => Err(ComponentError::new(
+            "Input is niet aangesloten (ontbrekende booleaanse waarde)".to_string()
+        )),
         other => Err(ComponentError::new(format!(
             "Verwachtte een booleaanse waarde, kreeg {}",
             other.kind()
@@ -819,12 +898,10 @@ pub fn coerce_mesh_like(value: &Value) -> Result<Mesh, ComponentError> {
             uvs: uvs.clone(),
         }),
         Value::Surface { vertices, faces } => {
-            // Convert polygon faces to triangle indices (take first 3 verts per face)
-            let indices = faces
-                .iter()
-                .filter(|f| f.len() >= 3)
-                .flat_map(|f| [f[0], f[1], f[2]])
-                .collect();
+            // Convert polygon faces to triangles using fan triangulation.
+            // This properly handles quads and n-gons by producing (n-2) triangles
+            // per n-gon face, preserving all geometry.
+            let indices = triangulate_polygon_faces(faces);
             Ok(Mesh {
                 vertices: vertices.clone(),
                 indices,
@@ -858,11 +935,10 @@ pub fn coerce_mesh_like_with_context(value: &Value, context: &str) -> Result<Mes
             uvs: uvs.clone(),
         }),
         Value::Surface { vertices, faces } => {
-            let indices = faces
-                .iter()
-                .filter(|f| f.len() >= 3)
-                .flat_map(|f| [f[0], f[1], f[2]])
-                .collect();
+            // Convert polygon faces to triangles using fan triangulation.
+            // This properly handles quads and n-gons by producing (n-2) triangles
+            // per n-gon face, preserving all geometry.
+            let indices = triangulate_polygon_faces(faces);
             Ok(Mesh {
                 vertices: vertices.clone(),
                 indices,
@@ -1318,7 +1394,7 @@ pub mod geom_bridge {
     //! ```
 
     use super::{ComponentError, Mesh, MeshData, SurfaceOwned};
-    use crate::geom::{GeomMesh, GeomMeshDiagnostics};
+    use crate::geom::{GeomMesh, GeomMeshDiagnostics, SurfaceBuilderQuality};
     use crate::graph::value::{MeshDiagnostics, Value};
 
     /// Converts a `geom::GeomMesh` to a `Value::Mesh`.
@@ -1442,11 +1518,8 @@ pub mod geom_bridge {
                 tangents: None,
             }),
             Value::Surface { vertices, faces } => {
-                let indices: Vec<u32> = faces
-                    .iter()
-                    .filter(|f| f.len() >= 3)
-                    .flat_map(|f| [f[0], f[1], f[2]])
-                    .collect();
+                // Use proper fan triangulation to preserve all geometry in quads/n-gons
+                let indices = super::triangulate_polygon_faces(faces);
                 Ok(GeomMesh {
                     positions: vertices.clone(),
                     indices,
@@ -1835,6 +1908,127 @@ pub mod geom_bridge {
             }
             None => GeomMeshQuality::default(),
         }
+    }
+
+    // ========================================================================
+    // SurfaceBuilderQuality Conversions
+    // ========================================================================
+
+    /// Extracts `SurfaceBuilderQuality` from a `MetaMap`.
+    ///
+    /// This function parses mesh quality settings from component metadata and
+    /// converts them to `SurfaceBuilderQuality` for surface builder operations
+    /// (e.g., FourPointSurface, RuledSurface, EdgeSurface, NetworkSurface, SumSurface).
+    ///
+    /// The conversion uses `min_subdivisions` and `max_subdivisions` from the
+    /// `MeshQuality` settings to compute appropriate surface subdivisions using
+    /// the geometric mean for a balanced result.
+    ///
+    /// # Supported Keys
+    ///
+    /// Inherits all keys from `MeshQuality::from_meta`:
+    /// - `mesh_quality` / `quality` / `preset` - Preset name ("low", "medium", "high", "ultra")
+    /// - `min_subdivisions` / `min_subdiv` - Minimum subdivisions
+    /// - `max_subdivisions` / `max_subdiv` - Maximum subdivisions
+    ///
+    /// Additionally supports direct surface builder keys:
+    /// - `u_subdivisions` / `u_subdiv` - Explicit U subdivisions (overrides preset)
+    /// - `v_subdivisions` / `v_subdiv` - Explicit V subdivisions (overrides preset)
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let mut meta = MetaMap::new();
+    /// meta.insert("mesh_quality".to_string(), MetaValue::Text("high".to_string()));
+    /// let quality = surface_builder_quality_from_meta(&meta);
+    /// assert_eq!(quality.u_subdivisions, 20); // High preset
+    /// ```
+    #[must_use]
+    pub fn surface_builder_quality_from_meta(meta: &MetaMap) -> SurfaceBuilderQuality {
+        // Check for explicit u/v subdivision overrides first
+        let u_subdiv = extract_usize_from_meta(meta, &["u_subdivisions", "u_subdiv", "usubdiv"]);
+        let v_subdiv = extract_usize_from_meta(meta, &["v_subdivisions", "v_subdiv", "vsubdiv"]);
+
+        // If both explicit values are provided, use them directly
+        if let (Some(u), Some(v)) = (u_subdiv, v_subdiv) {
+            return SurfaceBuilderQuality::new(u.max(2), v.max(2));
+        }
+
+        // Check for preset name directly
+        for key in &["mesh_quality", "quality", "preset", "surface_quality"] {
+            if let Some(MetaValue::Text(preset)) = meta.get_normalized(key) {
+                if let Some(quality) = SurfaceBuilderQuality::from_preset_name(preset) {
+                    // Apply any explicit overrides
+                    let u = u_subdiv.unwrap_or(quality.u_subdivisions);
+                    let v = v_subdiv.unwrap_or(quality.v_subdivisions);
+                    return SurfaceBuilderQuality::new(u.max(2), v.max(2));
+                }
+            }
+        }
+
+        // Fall back to deriving from MeshQuality settings
+        let graph_quality = GraphMeshQuality::from_meta(meta);
+        let base = SurfaceBuilderQuality::from_subdivision_range(
+            graph_quality.min_subdivisions,
+            graph_quality.max_subdivisions,
+        );
+
+        // Apply any explicit overrides
+        SurfaceBuilderQuality::new(
+            u_subdiv.unwrap_or(base.u_subdivisions).max(2),
+            v_subdiv.unwrap_or(base.v_subdivisions).max(2),
+        )
+    }
+
+    /// Extracts an optional `SurfaceBuilderQuality` from a `MetaMap`.
+    ///
+    /// Returns `Some(quality)` only if quality settings are explicitly specified
+    /// in the `MetaMap`. This allows the caller to use `SurfaceBuilderQuality::default()`
+    /// when no quality is specified.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let quality = surface_builder_quality_from_meta_optional(&meta)
+    ///     .unwrap_or_else(SurfaceBuilderQuality::default);
+    /// ```
+    #[must_use]
+    pub fn surface_builder_quality_from_meta_optional(meta: &MetaMap) -> Option<SurfaceBuilderQuality> {
+        // Check if any quality-related keys are present
+        const QUALITY_KEYS: &[&str] = &[
+            "mesh_quality",
+            "quality",
+            "preset",
+            "surface_quality",
+            "min_subdivisions",
+            "max_subdivisions",
+            "u_subdivisions",
+            "v_subdivisions",
+            "u_subdiv",
+            "v_subdiv",
+        ];
+
+        let has_quality_settings = QUALITY_KEYS.iter().any(|key| meta.get_normalized(key).is_some());
+
+        if has_quality_settings {
+            Some(surface_builder_quality_from_meta(meta))
+        } else {
+            None
+        }
+    }
+
+    /// Helper to extract a usize value from meta by trying multiple key names.
+    fn extract_usize_from_meta(meta: &MetaMap, keys: &[&str]) -> Option<usize> {
+        for key in keys {
+            if let Some(meta_value) = meta.get_normalized(key) {
+                match meta_value {
+                    MetaValue::Number(n) if *n >= 0.0 => return Some(*n as usize),
+                    MetaValue::Integer(n) if *n >= 0 => return Some(*n as usize),
+                    _ => {}
+                }
+            }
+        }
+        None
     }
 
     // ========================================================================
@@ -2287,6 +2481,81 @@ pub mod geom_bridge {
             let mut meta = MetaMap::new();
             meta.insert("max_edge_length".to_string(), MetaValue::Number(0.5));
             let quality = geom_quality_from_meta_optional(&meta);
+            assert!(quality.is_some());
+        }
+
+        // ====================================================================
+        // SurfaceBuilderQuality Tests
+        // ====================================================================
+
+        #[test]
+        fn surface_builder_quality_from_meta_low_preset() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("mesh_quality".to_string(), MetaValue::Text("low".to_string()));
+            let quality = surface_builder_quality_from_meta(&meta);
+            assert_eq!(quality.u_subdivisions, 4);
+            assert_eq!(quality.v_subdivisions, 4);
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_high_preset() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("mesh_quality".to_string(), MetaValue::Text("high".to_string()));
+            let quality = surface_builder_quality_from_meta(&meta);
+            assert_eq!(quality.u_subdivisions, 20);
+            assert_eq!(quality.v_subdivisions, 20);
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_explicit_subdivisions() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("u_subdivisions".to_string(), MetaValue::Integer(8));
+            meta.insert("v_subdivisions".to_string(), MetaValue::Integer(12));
+            let quality = surface_builder_quality_from_meta(&meta);
+            assert_eq!(quality.u_subdivisions, 8);
+            assert_eq!(quality.v_subdivisions, 12);
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_preset_with_u_override() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("mesh_quality".to_string(), MetaValue::Text("high".to_string()));
+            meta.insert("u_subdivisions".to_string(), MetaValue::Integer(5));
+            let quality = surface_builder_quality_from_meta(&meta);
+            // U should be overridden, V should come from preset
+            assert_eq!(quality.u_subdivisions, 5);
+            assert_eq!(quality.v_subdivisions, 20);
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_optional_returns_none_for_empty() {
+            use crate::graph::node::MetaMap;
+            let meta = MetaMap::new();
+            let quality = surface_builder_quality_from_meta_optional(&meta);
+            assert!(quality.is_none());
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_optional_returns_some_for_preset() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("mesh_quality".to_string(), MetaValue::Text("low".to_string()));
+            let quality = surface_builder_quality_from_meta_optional(&meta);
+            assert!(quality.is_some());
+            let q = quality.unwrap();
+            assert_eq!(q.u_subdivisions, 4);
+        }
+
+        #[test]
+        fn surface_builder_quality_from_meta_optional_returns_some_for_subdiv() {
+            use crate::graph::node::MetaMap;
+            let mut meta = MetaMap::new();
+            meta.insert("u_subdivisions".to_string(), MetaValue::Number(15.0));
+            let quality = surface_builder_quality_from_meta_optional(&meta);
             assert!(quality.is_some());
         }
 

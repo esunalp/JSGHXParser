@@ -40,6 +40,100 @@ impl Default for RevolveOptions {
     }
 }
 
+/// Options for rail revolution operations.
+/// 
+/// This struct provides fine control over how the profile is positioned and oriented
+/// along the rail curve. The most important option is `reference_axis`, which defines
+/// how the profile's local coordinate system maps to the rail's Frenet frames.
+/// 
+/// # Profile Coordinate System
+/// 
+/// The profile is defined in a local coordinate system where:
+/// - Profile points with `z` offset map along the rail tangent
+/// - Profile points with `x` offset map along the frame normal
+/// - Profile points with `y` offset map along the frame binormal
+/// 
+/// Without a reference axis, the initial frame orientation is arbitrary (but consistent).
+/// With a reference axis, the frame's normal is aligned to be as close as possible to
+/// the axis direction, giving predictable and controllable orientation.
+/// 
+/// # Example
+/// 
+/// ```ignore
+/// // Create a rail revolve with the profile oriented so its "up" direction
+/// // aligns with the world Z axis
+/// let options = RailRevolveOptions {
+///     reference_axis: Some(RailRevolveAxis {
+///         origin: Point3::new(0.0, 0.0, 0.0),
+///         direction: Vec3::new(0.0, 0.0, 1.0),
+///     }),
+///     ..Default::default()
+/// };
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct RailRevolveOptions {
+    /// Reference axis for orienting the profile frames along the rail.
+    /// 
+    /// When provided, this axis controls the initial orientation of the Frenet frames:
+    /// - The axis direction is used as a "reference up" vector
+    /// - The frame's normal is aligned to lie in the plane containing both the
+    ///   rail tangent and the axis direction
+    /// - Parallel transport preserves this orientation along the rail
+    /// 
+    /// When `None`, the initial frame uses an arbitrary but consistent orientation
+    /// based on world axes.
+    pub reference_axis: Option<RailRevolveAxis>,
+    
+    /// Cap configuration for closed profiles.
+    pub caps: RevolveCaps,
+}
+
+impl Default for RailRevolveOptions {
+    fn default() -> Self {
+        Self {
+            reference_axis: None,
+            caps: RevolveCaps::NONE,
+        }
+    }
+}
+
+/// Defines a reference axis for rail revolution operations.
+/// 
+/// The axis specifies how the profile should be oriented relative to the rail.
+/// In Grasshopper terms, this corresponds to the "Axis" input of the RailRevolution
+/// component.
+/// 
+/// # Interpretation
+/// 
+/// The axis defines a line in 3D space. The direction of this line establishes
+/// a preferred "up" direction for the profile orientation:
+/// 
+/// - **origin**: A point on the axis (used for profile positioning if the profile
+///   needs to be translated to the rail start)
+/// - **direction**: The axis direction vector (used to orient frames so the profile's
+///   local X-axis is as close as possible to this direction)
+/// 
+/// # Behavior
+/// 
+/// When the reference axis is nearly parallel to the rail tangent at a point,
+/// the frame orientation gracefully degrades to the default behavior (using
+/// world axes as reference).
+#[derive(Debug, Clone, Copy)]
+pub struct RailRevolveAxis {
+    /// Origin point of the reference axis.
+    /// 
+    /// This can be used to define where the profile should be positioned
+    /// before sweeping along the rail.
+    pub origin: Point3,
+    
+    /// Direction of the reference axis.
+    /// 
+    /// This vector establishes the preferred orientation for the profile's
+    /// local coordinate frame. The frame's normal will be oriented to lie
+    /// in the plane containing both the rail tangent and this direction.
+    pub direction: Vec3,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum RevolveError {
     #[error("revolve axis must be finite and non-zero")]
@@ -239,6 +333,148 @@ pub fn rail_revolve_polyline_with_tolerance(
     
     // Compute Frenet frames along the rail
     let frames = compute_rail_frames(rail, tol)?;
+    
+    // Build vertices by positioning profile at each rail point using Frenet frames
+    let mut vertices = Vec::with_capacity(rail.len() * cleaned_profile.points.len());
+    let mut uvs = Vec::with_capacity(rail.len() * cleaned_profile.points.len());
+    
+    // Calculate total rail arc length for UV parameterization
+    let rail_arc_lengths = compute_arc_lengths(rail);
+    let total_arc_length = *rail_arc_lengths.last().unwrap_or(&1.0);
+    
+    for (rail_idx, (rail_point, frame)) in rail.iter().zip(frames.iter()).enumerate() {
+        let u_param = if total_arc_length > tol.eps {
+            rail_arc_lengths[rail_idx] / total_arc_length
+        } else {
+            rail_idx as f64 / (rail.len() - 1).max(1) as f64
+        };
+        
+        for (profile_idx, &profile_point) in cleaned_profile.points.iter().enumerate() {
+            // Transform profile point using the frame
+            // Profile is assumed to be in a local coordinate system
+            let local_offset = profile_point.sub_point(Point3::new(0.0, 0.0, 0.0));
+            
+            let world_point = rail_point
+                .add_vec(frame.tangent.mul_scalar(local_offset.z))
+                .add_vec(frame.normal.mul_scalar(local_offset.x))
+                .add_vec(frame.binormal.mul_scalar(local_offset.y));
+            
+            vertices.push(world_point);
+            
+            let v_param = profile_idx as f64 / (cleaned_profile.points.len() - 1).max(1) as f64;
+            uvs.push([u_param, v_param]);
+        }
+    }
+    
+    // Build indices
+    let profile_len = cleaned_profile.points.len();
+    let is_closed_profile = cleaned_profile.closed;
+    let mut indices = Vec::new();
+    
+    for rail_segment in 0..rail.len() - 1 {
+        let profile_edge_count = if is_closed_profile { profile_len } else { profile_len - 1 };
+        
+        for i in 0..profile_edge_count {
+            let i_next = (i + 1) % profile_len;
+            
+            let i0 = (rail_segment * profile_len + i) as u32;
+            let i1 = (rail_segment * profile_len + i_next) as u32;
+            let i2 = ((rail_segment + 1) * profile_len + i_next) as u32;
+            let i3 = ((rail_segment + 1) * profile_len + i) as u32;
+            
+            // Two triangles per quad
+            indices.extend_from_slice(&[i0, i1, i2]);
+            indices.extend_from_slice(&[i0, i2, i3]);
+        }
+    }
+    
+    // Add caps if requested
+    let (vertices, uvs, indices) = if (caps.start || caps.end) && is_closed_profile {
+        add_rail_revolve_caps(vertices, uvs, indices, &cleaned_profile.points, &frames, rail, caps, tol)?
+    } else if caps.start || caps.end {
+        return Err(RevolveError::CapsRequireClosedProfile);
+    } else {
+        (vertices, uvs, indices)
+    };
+    
+    Ok(finalize_mesh(vertices, Some(uvs), indices, tol))
+}
+
+/// Rail revolution with full options control including reference axis.
+/// 
+/// This is the most flexible rail revolution function, allowing control over:
+/// - Profile orientation via a reference axis
+/// - Cap generation for closed profiles
+/// 
+/// # Arguments
+/// * `profile` - Points defining the profile curve. The profile should be defined
+///   in a local coordinate system where the origin is the point that will be placed
+///   on the rail. See `RailRevolveOptions` for details on coordinate interpretation.
+/// * `rail` - Points defining the rail/axis path curve
+/// * `options` - Configuration options including reference axis and caps
+/// * `tol` - Tolerance for geometric operations
+/// 
+/// # Profile Coordinate System
+/// 
+/// The profile is transformed at each rail point using Frenet frames:
+/// - Profile Z-coordinate → along rail tangent
+/// - Profile X-coordinate → along frame normal (influenced by reference axis)
+/// - Profile Y-coordinate → along frame binormal
+/// 
+/// If a reference axis is provided in options, the frame's normal is aligned to
+/// lie in the plane containing the tangent and the axis direction. This gives
+/// predictable, controllable orientation instead of arbitrary frame selection.
+/// 
+/// # Example
+/// ```ignore
+/// use geom::{Point3, Vec3, RailRevolveOptions, RailRevolveAxis, RevolveCaps};
+/// 
+/// // Profile centered at origin, oriented in XY plane
+/// let profile = vec![
+///     Point3::new(0.5, 0.0, 0.0),
+///     Point3::new(0.0, 0.5, 0.0),
+///     Point3::new(-0.5, 0.0, 0.0),
+/// ];
+/// 
+/// let rail = vec![
+///     Point3::new(0.0, 0.0, 0.0),
+///     Point3::new(0.0, 0.0, 1.0),
+///     Point3::new(0.0, 0.0, 2.0),
+/// ];
+/// 
+/// // Orient so profile's X aligns with world X direction
+/// let options = RailRevolveOptions {
+///     reference_axis: Some(RailRevolveAxis {
+///         origin: Point3::ORIGIN,
+///         direction: Vec3::new(1.0, 0.0, 0.0),
+///     }),
+///     caps: RevolveCaps::BOTH,
+/// };
+/// 
+/// let (mesh, diagnostics) = rail_revolve_polyline_with_options(&profile, &rail, options, tol)?;
+/// ```
+#[must_use]
+pub fn rail_revolve_polyline_with_options(
+    profile: &[Point3],
+    rail: &[Point3],
+    options: RailRevolveOptions,
+    tol: Tolerance,
+) -> Result<(GeomMesh, GeomMeshDiagnostics), RevolveError> {
+    let caps = options.caps;
+    
+    // Validate rail curve
+    if rail.len() < 2 {
+        return Err(RevolveError::RailTooShort);
+    }
+
+    if !rail.iter().all(|p| p.x.is_finite() && p.y.is_finite() && p.z.is_finite()) {
+        return Err(RevolveError::NonFinitePoint);
+    }
+
+    let cleaned_profile = clean_profile(profile, caps.start || caps.end, tol)?;
+    
+    // Compute Frenet frames along the rail, optionally using reference axis for initial orientation
+    let frames = compute_rail_frames_with_reference(rail, options.reference_axis, tol)?;
     
     // Build vertices by positioning profile at each rail point using Frenet frames
     let mut vertices = Vec::with_capacity(rail.len() * cleaned_profile.points.len());
@@ -855,6 +1091,64 @@ impl FrenetFrame {
         Some(Self { tangent, normal, binormal })
     }
     
+    /// Create a frame from a tangent vector with a preferred "up" direction.
+    /// 
+    /// This method creates a frame where the normal is oriented to be as close
+    /// as possible to the provided reference direction while remaining perpendicular
+    /// to the tangent. This is essential for rail revolution operations where
+    /// the user specifies an axis to control profile orientation.
+    /// 
+    /// # Arguments
+    /// * `tangent` - The tangent direction (will be normalized)
+    /// * `up` - A preferred direction for the normal. The actual normal will be
+    ///   the component of `up` that is perpendicular to the tangent.
+    /// 
+    /// # Returns
+    /// `None` if:
+    /// - The tangent vector is zero or cannot be normalized
+    /// - The `up` vector is parallel to the tangent (no perpendicular component)
+    /// 
+    /// # Behavior
+    /// The frame is constructed so that:
+    /// - `binormal = tangent × up` (normalized, perpendicular to both)
+    /// - `normal = binormal × tangent` (completing the orthonormal frame)
+    /// 
+    /// This ensures the normal lies in the plane defined by `tangent` and `up`,
+    /// pointing in the direction of the `up` component perpendicular to `tangent`.
+    /// 
+    /// # Example
+    /// ```ignore
+    /// // Create a frame where the normal aligns with world Z as much as possible
+    /// let tangent = Vec3::new(1.0, 0.0, 0.0); // Along X
+    /// let up = Vec3::new(0.0, 0.0, 1.0);      // World Z
+    /// if let Some(frame) = FrenetFrame::from_tangent_with_up(tangent, up) {
+    ///     // frame.normal will point along Z
+    ///     // frame.binormal will point along -Y (right-hand rule)
+    /// }
+    /// ```
+    pub fn from_tangent_with_up(tangent: Vec3, up: Vec3) -> Option<Self> {
+        let tangent = tangent.normalized()?;
+        let up_normalized = up.normalized()?;
+        
+        // First compute binormal: perpendicular to both tangent and up
+        let binormal = tangent.cross(up_normalized);
+        let binormal_len_sq = binormal.length_squared();
+        
+        // If tangent and up are parallel, we can't establish a unique frame
+        // Fall back to the standard from_tangent method
+        if binormal_len_sq < 1e-12 {
+            return Self::from_tangent(tangent);
+        }
+        
+        let binormal = binormal.mul_scalar(1.0 / binormal_len_sq.sqrt());
+        
+        // Normal is perpendicular to both tangent and binormal
+        // This ensures normal is in the tangent-up plane, pointing toward up
+        let normal = binormal.cross(tangent);
+        
+        Some(Self { tangent, normal, binormal })
+    }
+    
     /// Check if this frame is approximately equal to another within tolerance.
     #[allow(dead_code)]
     pub fn approx_eq(&self, other: &FrenetFrame, eps: f64) -> bool {
@@ -879,6 +1173,71 @@ fn compute_rail_frames(rail: &[Point3], tol: Tolerance) -> Result<Vec<FrenetFram
     let initial_tangent = rail[1].sub_point(rail[0]);
     let first_frame = FrenetFrame::from_tangent(initial_tangent)
         .ok_or(RevolveError::InvalidRailCurve)?;
+    frames.push(first_frame);
+    
+    // Use rotation-minimizing frames (parallel transport) for subsequent points
+    for i in 1..rail.len() {
+        let prev_idx = i - 1;
+        let next_idx = (i + 1).min(rail.len() - 1);
+        
+        // Compute tangent at current point
+        let tangent = if i < rail.len() - 1 {
+            // Use central difference for interior points
+            let forward = rail[next_idx].sub_point(rail[i]);
+            let backward = rail[i].sub_point(rail[prev_idx]);
+            forward.add(backward)
+        } else {
+            // Use backward difference for last point
+            rail[i].sub_point(rail[prev_idx])
+        };
+        
+        let tangent = tangent.normalized().ok_or(RevolveError::InvalidRailCurve)?;
+        
+        // Parallel transport: rotate previous frame to align with new tangent
+        let prev_frame = &frames[prev_idx];
+        let new_frame = parallel_transport_frame(prev_frame, tangent, tol);
+        frames.push(new_frame);
+    }
+    
+    Ok(frames)
+}
+
+/// Compute Frenet frames along a polyline rail curve with optional reference axis.
+/// 
+/// When a reference axis is provided, the initial frame is oriented so that its
+/// normal lies in the plane containing both the rail tangent and the axis direction.
+/// This provides predictable, user-controllable orientation for the profile.
+/// 
+/// Subsequent frames are computed using parallel transport (rotation-minimizing),
+/// preserving the initial orientation as much as possible along the rail.
+fn compute_rail_frames_with_reference(
+    rail: &[Point3],
+    reference: Option<RailRevolveAxis>,
+    tol: Tolerance,
+) -> Result<Vec<FrenetFrame>, RevolveError> {
+    if rail.len() < 2 {
+        return Err(RevolveError::RailTooShort);
+    }
+    
+    let mut frames = Vec::with_capacity(rail.len());
+    
+    // Compute initial tangent
+    let initial_tangent = rail[1].sub_point(rail[0]);
+    
+    // Compute first frame, optionally using reference axis for orientation
+    let first_frame = if let Some(ref axis) = reference {
+        // Validate reference axis direction
+        let axis_dir = axis.direction.normalized()
+            .ok_or(RevolveError::InvalidAxis)?;
+        
+        // Try to create a frame aligned with the reference axis
+        // If the axis is parallel to the tangent, fall back to default
+        FrenetFrame::from_tangent_with_up(initial_tangent, axis_dir)
+            .ok_or(RevolveError::InvalidRailCurve)?
+    } else {
+        FrenetFrame::from_tangent(initial_tangent)
+            .ok_or(RevolveError::InvalidRailCurve)?
+    };
     frames.push(first_frame);
     
     // Use rotation-minimizing frames (parallel transport) for subsequent points

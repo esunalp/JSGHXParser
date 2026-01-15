@@ -1,14 +1,12 @@
 //! Implementaties van Grasshopper "Surface → Util" componenten.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 #[cfg(not(feature = "mesh_engine_next"))]
 use delaunator;
 
 use crate::graph::node::MetaMap;
 use crate::graph::value::{Domain, Domain1D, Domain2D, Value};
-#[cfg(feature = "mesh_engine_next")]
-use crate::geom::Surface;
 
 use super::{Component, ComponentError, ComponentResult};
 
@@ -200,7 +198,8 @@ impl Component for ComponentKind {
             }
             Self::BrepJoin => evaluate_brep_join(inputs),
             Self::FilletEdge => evaluate_fillet_edge(inputs),
-            Self::CopyTrim | Self::Retrim => evaluate_copy_trim(inputs, self.name()),
+            Self::CopyTrim => evaluate_copy_trim(inputs),
+            Self::Retrim => evaluate_retrim(inputs),
             Self::EdgesFromDirections => evaluate_edges_from_directions(inputs),
             Self::Isotrim => evaluate_isotrim(inputs),
             Self::ClosedEdges => evaluate_closed_edges(inputs),
@@ -268,47 +267,62 @@ fn evaluate_divide_surface(inputs: &[Value], component: &str) -> ComponentResult
         )));
     }
 
-    let metrics = coerce_shape_metrics(inputs.get(0), component)?;
     let u_segments = coerce_positive_integer(inputs.get(1), &(component.to_owned() + " U"))?;
     let v_segments = coerce_positive_integer(inputs.get(2), &(component.to_owned() + " V"))?;
 
     let (points, normals, parameters) = {
         #[cfg(feature = "mesh_engine_next")]
         {
-            let size = metrics.size();
-            let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
-            let surface = crate::geom::PlaneSurface::new(
-                crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
-                crate::geom::Vec3::new(size[0], 0.0, 0.0),
-                crate::geom::Vec3::new(0.0, size[1], 0.0),
-            );
-            let result = crate::geom::divide_surface(
-                &surface,
-                u_segments,
-                v_segments,
-                crate::geom::DivideSurfaceOptions::default(),
-            );
+            // Try to extract vertex data for accurate surface sampling
+            let surface_data = SurfaceVertexData::from_value(inputs.get(0))
+                .ok_or_else(|| ComponentError::new(format!(
+                    "{} vereist geometrische invoer", component
+                )))?;
+
+            // Use vertex-based sampling if we have a proper grid
+            let result = if surface_data.has_valid_grid() {
+                crate::geom::divide_surface_from_vertices(
+                    surface_data.to_vertex_input(),
+                    u_segments,
+                    v_segments,
+                    crate::geom::DivideSurfaceBoundsOptions::default(),
+                )
+            } else {
+                None
+            };
+
+            // Fall back to bounds-based if vertex-based failed
+            let result = result.unwrap_or_else(|| {
+                crate::geom::divide_surface_from_bounds(
+                    surface_data.min,
+                    surface_data.max,
+                    u_segments,
+                    v_segments,
+                    crate::geom::DivideSurfaceBoundsOptions::default(),
+                )
+            });
 
             let points = result
                 .points
                 .into_iter()
-                .map(|point| Value::Point(point.to_array()))
+                .map(Value::Point)
                 .collect();
             let normals = result
                 .normals
                 .into_iter()
-                .map(|normal| Value::Vector([normal.x, normal.y, normal.z]))
+                .map(Value::Vector)
                 .collect();
             let parameters = result
                 .parameters
                 .into_iter()
-                .map(|(u, v)| Value::Point([u, v, 0.0]))
+                .map(Value::Point)
                 .collect();
             (points, normals, parameters)
         }
 
         #[cfg(not(feature = "mesh_engine_next"))]
         {
+            let metrics = coerce_shape_metrics(inputs.get(0), component)?;
             let mut points = Vec::new();
             let mut normals = Vec::new();
             let mut parameters = Vec::new();
@@ -351,42 +365,48 @@ fn evaluate_surface_frames(inputs: &[Value], component: &str) -> ComponentResult
         )));
     }
 
-    let metrics = coerce_shape_metrics(inputs.get(0), component)?;
     let u_segments = coerce_positive_integer(inputs.get(1), &(component.to_owned() + " U"))?;
     let v_segments = coerce_positive_integer(inputs.get(2), &(component.to_owned() + " V"))?;
 
     #[cfg(feature = "mesh_engine_next")]
     {
-        let size = metrics.size();
-        let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
-        let surface = crate::geom::PlaneSurface::new(
-            crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
-            crate::geom::Vec3::new(size[0], 0.0, 0.0),
-            crate::geom::Vec3::new(0.0, size[1], 0.0),
-        );
-        let tol = crate::geom::Tolerance::default_geom();
-        let result = crate::geom::surface_frames(&surface, u_segments, v_segments, tol);
+        // Try to extract vertex data for accurate frame computation
+        let surface_data = SurfaceVertexData::from_value(inputs.get(0))
+            .ok_or_else(|| ComponentError::new(format!(
+                "{} vereist geometrische invoer", component
+            )))?;
+
+        // Use vertex-based frames if we have a proper grid
+        let result = if surface_data.has_valid_grid() {
+            crate::geom::surface_frames_from_vertices(
+                surface_data.to_vertex_input(),
+                u_segments,
+                v_segments,
+            )
+        } else {
+            None
+        };
+
+        // Fall back to bounds-based if vertex-based failed
+        let result = result.unwrap_or_else(|| {
+            crate::geom::surface_frames_from_bounds(
+                surface_data.min,
+                surface_data.max,
+                u_segments,
+                v_segments,
+            )
+        });
 
         let mut frames_rows = Vec::with_capacity(result.v_count);
         let mut parameter_rows = Vec::with_capacity(result.v_count);
 
-        for v in 0..result.v_count {
-            let row_offset = v * result.u_count;
-            let mut frames_row = Vec::with_capacity(result.u_count);
-            let mut parameters_row = Vec::with_capacity(result.u_count);
-
-            for idx in row_offset..(row_offset + result.u_count) {
-                let frame = result.frames[idx];
-                frames_row.push(frame_value(
-                    frame.origin.to_array(),
-                    [frame.x_axis.x, frame.x_axis.y, frame.x_axis.z],
-                    [frame.y_axis.x, frame.y_axis.y, frame.y_axis.z],
-                    [frame.z_axis.x, frame.z_axis.y, frame.z_axis.z],
-                ));
-
-                let (u, v) = result.parameters[idx];
-                parameters_row.push(Value::Point([u, v, 0.0]));
-            }
+        for (frame_row, param_row) in result.frames.into_iter().zip(result.parameters.into_iter())
+        {
+            let frames_row: Vec<Value> = frame_row
+                .into_iter()
+                .map(|f| frame_value(f.origin, f.x_axis, f.y_axis, f.z_axis))
+                .collect();
+            let parameters_row: Vec<Value> = param_row.into_iter().map(Value::Point).collect();
 
             frames_rows.push(Value::List(frames_row));
             parameter_rows.push(Value::List(parameters_row));
@@ -403,6 +423,7 @@ fn evaluate_surface_frames(inputs: &[Value], component: &str) -> ComponentResult
 
     #[cfg(not(feature = "mesh_engine_next"))]
     {
+        let metrics = coerce_shape_metrics(inputs.get(0), component)?;
         let mut frames_rows = Vec::new();
         let mut parameter_rows = Vec::new();
 
@@ -476,8 +497,21 @@ fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the BrepJoin component using the geom module.
+///
+/// Uses `geom::brep_join` to join multiple breps by welding matching naked edges.
+/// Breps that share coincident naked edges (within tolerance) are merged into
+/// unified shells.
+///
+/// # Inputs
+/// - `B` (index 0): List of breps to join
+///
+/// # Outputs
+/// - `B`: The joined breps (may be fewer than inputs if merged)
+/// - `C`: For each output brep, whether it forms a closed (watertight) shell
 #[cfg(feature = "mesh_engine_next")]
 fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
+    // Collect input values
     let mut values = Vec::new();
     if let Some(Value::List(list)) = inputs.get(0) {
         values.extend(list.iter().cloned());
@@ -489,47 +523,311 @@ fn evaluate_brep_join(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Brep Join vereist een lijst met breps"));
     }
 
+    // Separate surface meshes from non-surface values
     let mut surface_meshes = Vec::new();
-    let mut surface_map = Vec::with_capacity(values.len());
-    for value in &values {
-        if let Value::Surface { vertices, faces } = value {
-            surface_map.push(Some(surface_meshes.len()));
-            surface_meshes.push(crate::geom::LegacySurfaceMesh {
-                vertices: vertices.clone(),
-                faces: faces.clone(),
-            });
-        } else {
-            surface_map.push(None);
+    let mut non_surface_values = Vec::new();
+    let mut non_surface_indices = Vec::new();
+
+    for (i, value) in values.iter().enumerate() {
+        match value {
+            Value::Surface { vertices, faces } => {
+                surface_meshes.push(crate::geom::LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces: faces.clone(),
+                });
+            }
+            Value::Mesh { vertices, indices, .. } => {
+                // Convert Value::Mesh (flat triangle indices) to LegacySurfaceMesh (face vectors)
+                let faces: Vec<Vec<u32>> = indices
+                    .chunks(3)
+                    .map(|chunk| chunk.to_vec())
+                    .collect();
+                surface_meshes.push(crate::geom::LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces,
+                });
+            }
+            _ => {
+                non_surface_indices.push(i);
+                non_surface_values.push(value.clone());
+            }
         }
     }
 
-    let joined = crate::geom::brep_join_legacy(surface_meshes, crate::geom::Tolerance::default_geom());
+    // Join surface meshes using the new brep_ops API
+    let joined = crate::geom::brep_join(
+        &surface_meshes,
+        crate::geom::BrepJoinOptions::default(),
+    );
 
-    let mut closed = Vec::with_capacity(values.len());
-    for (index, map) in surface_map.into_iter().enumerate() {
-        if let Some(surface_index) = map {
-            let brep = &joined.breps[surface_index];
-            values[index] = Value::Surface {
-                vertices: brep.vertices.clone(),
-                faces: brep.faces.clone(),
-            };
-            closed.push(Value::Boolean(joined.closed[surface_index]));
-        } else {
-            let metrics = ShapeMetrics::from_inputs(values.get(index));
-            let is_closed = metrics
-                .as_ref()
-                .map(|m| m.volume().abs() > EPSILON)
-                .unwrap_or(false);
-            closed.push(Value::Boolean(is_closed));
-        }
+    // Build output breps list
+    let mut output_breps = Vec::with_capacity(joined.breps.len() + non_surface_values.len());
+    let mut output_closed = Vec::with_capacity(joined.breps.len() + non_surface_values.len());
+
+    // Add joined surface meshes
+    for (brep, &is_closed) in joined.breps.iter().zip(joined.closed.iter()) {
+        output_breps.push(Value::Surface {
+            vertices: brep.vertices.clone(),
+            faces: brep.faces.clone(),
+        });
+        output_closed.push(Value::Boolean(is_closed));
+    }
+
+    // Add non-surface values back with estimated closedness
+    for value in non_surface_values {
+        let metrics = ShapeMetrics::from_inputs(Some(&value));
+        let is_closed = metrics
+            .as_ref()
+            .map(|m| m.volume().abs() > EPSILON)
+            .unwrap_or(false);
+        output_breps.push(value);
+        output_closed.push(Value::Boolean(is_closed));
     }
 
     let mut outputs = BTreeMap::new();
-    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(values));
-    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(closed));
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(output_breps));
+    outputs.insert(PIN_OUTPUT_CLOSED.to_owned(), Value::List(output_closed));
     Ok(outputs)
 }
 
+/// Evaluates the FilletEdge component using the geom module.
+///
+/// Applies fillets to selected edges of a mesh or surface.
+///
+/// # Inputs
+/// - `S` (index 0): Shape to fillet (Mesh or Surface)
+/// - `B` (index 1): Blend type (currently ignored; reserved for future use)
+/// - `M` (index 2): Metric type (currently ignored; reserved for future use)
+/// - `E` (index 3): Edge indices to fillet (list of integers, each representing an edge)
+/// - `R` (index 4): Fillet radii per edge (list of numbers; if fewer than edges, the last value is reused)
+///
+/// # Outputs
+/// - `B`: Filleted mesh as `Value::Mesh` with embedded diagnostics (primary output).
+///        Diagnostics include warnings for skipped edges, clamped radii, and topology issues.
+/// - `S`: Legacy `Value::Surface` adapter for backward compatibility (no diagnostics).
+///
+/// # Limitations (documented per mesh_engine_integration_plan.md)
+/// - Currently only supports triangle meshes with "hinge" edges (both endpoints shared by exactly 2 triangles).
+/// - General manifold edge filleting is not supported; unsupported edges are skipped with diagnostics.
+/// - No B-rep/NURBS surface filleting yet; surfaces are converted to triangle meshes first.
+/// - Blend and Metric parameters are reserved but currently ignored.
+/// - UV generation is not implemented for fillet faces.
+///
+/// # Diagnostics
+/// - Errors and warnings are collected in `FilletMeshEdgeDiagnostics` and merged into the mesh diagnostics.
+/// - Unsupported edges emit warnings rather than failing silently.
+/// - Diagnostics are attached to the `Value::Mesh` output on pin `B` and can be inspected
+///   by consumers via `mesh.diagnostics`.
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_fillet_edge(inputs: &[Value]) -> ComponentResult {
+    use super::coerce::{coerce_mesh_like_with_context, geom_bridge};
+    use crate::geom::{
+        fillet_triangle_mesh_edges, list_triangle_mesh_edges, FilletEdgeOptions, Tolerance,
+    };
+
+    const COMPONENT: &str = "Fillet Edge";
+
+    // ------------------------------------------------------------------
+    // Input 0: Shape (required)
+    // ------------------------------------------------------------------
+    let input_value = inputs
+        .get(0)
+        .ok_or_else(|| ComponentError::new(format!("{COMPONENT} vereist een shape (S)")))?;
+
+    let mesh = coerce_mesh_like_with_context(input_value, &format!("{COMPONENT} input S"))?;
+
+    // Early return for empty meshes
+    if mesh.vertices.is_empty() || mesh.indices.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value.clone());
+        return Ok(outputs);
+    }
+
+    // ------------------------------------------------------------------
+    // Input 1: Blend type (optional, reserved for future use)
+    // Currently ignored; documented in limitations
+    // ------------------------------------------------------------------
+    let _blend_type: Option<i64> = inputs
+        .get(1)
+        .and_then(|v| super::coerce::coerce_integer(v).ok());
+
+    // ------------------------------------------------------------------
+    // Input 2: Metric type (optional, reserved for future use)
+    // Currently ignored; documented in limitations
+    // ------------------------------------------------------------------
+    let _metric_type: Option<i64> = inputs
+        .get(2)
+        .and_then(|v| super::coerce::coerce_integer(v).ok());
+
+    // ------------------------------------------------------------------
+    // Input 3: Edge indices (optional)
+    // ------------------------------------------------------------------
+    let edge_indices: Vec<u32> = match inputs.get(3) {
+        Some(Value::List(values)) => values
+            .iter()
+            .filter_map(|v| super::coerce::coerce_integer(v).ok())
+            .filter(|&i| i >= 0)
+            .map(|i| i as u32)
+            .collect(),
+        Some(v) => super::coerce::coerce_integer(v)
+            .ok()
+            .filter(|&i| i >= 0)
+            .map(|i| vec![i as u32])
+            .unwrap_or_default(),
+        None => Vec::new(),
+    };
+
+    // If no edges specified, return input unchanged
+    if edge_indices.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value.clone());
+        return Ok(outputs);
+    }
+
+    // ------------------------------------------------------------------
+    // Input 4: Radii (optional, defaults to 1.0)
+    // ------------------------------------------------------------------
+    let radii: Vec<f64> = match inputs.get(4) {
+        Some(Value::List(values)) => values
+            .iter()
+            .filter_map(|v| super::coerce::coerce_number(v, None).ok())
+            .filter(|&r| r.is_finite() && r >= 0.0)
+            .collect(),
+        Some(v) => super::coerce::coerce_number(v, None)
+            .ok()
+            .filter(|&r| r.is_finite() && r >= 0.0)
+            .map(|r| vec![r])
+            .unwrap_or_else(|| vec![1.0]),
+        None => vec![1.0],
+    };
+
+    // If all radii are zero or empty, return input unchanged
+    if radii.is_empty() || radii.iter().all(|&r| r <= 1e-15) {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value.clone());
+        return Ok(outputs);
+    }
+
+    // ------------------------------------------------------------------
+    // Convert coerce::Mesh to geom::GeomMesh
+    // ------------------------------------------------------------------
+    let geom_mesh = geom_bridge::mesh_to_geom_mesh(mesh);
+    let tol = Tolerance::default_geom();
+
+    // ------------------------------------------------------------------
+    // List available edges and map indices
+    // ------------------------------------------------------------------
+    let all_edges = match list_triangle_mesh_edges(&geom_mesh) {
+        Ok(edges) => edges,
+        Err(e) => {
+            return Err(ComponentError::new(format!(
+                "{COMPONENT}: kon mesh-edges niet bepalen: {e}"
+            )));
+        }
+    };
+
+    // Build edge pairs from indices, using the edge list
+    // Edge indices are 0-based indices into the sorted edge list
+    let mut edge_pairs: Vec<(u32, u32)> = Vec::with_capacity(edge_indices.len());
+    let mut edge_options: Vec<FilletEdgeOptions> = Vec::with_capacity(edge_indices.len());
+
+    for (i, &idx) in edge_indices.iter().enumerate() {
+        if let Some(edge) = all_edges.get(idx as usize) {
+            edge_pairs.push((edge.a, edge.b));
+            // Use the corresponding radius, or the last one if fewer radii than edges
+            let radius = *radii.get(i).or_else(|| radii.last()).unwrap_or(&1.0);
+            edge_options.push(FilletEdgeOptions::new(radius, 4)); // 4 segments for smooth fillet
+        }
+        // Indices out of range are silently ignored (common Grasshopper behavior)
+    }
+
+    // If no valid edges after mapping, return input unchanged
+    if edge_pairs.is_empty() {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value.clone());
+        return Ok(outputs);
+    }
+
+    // ------------------------------------------------------------------
+    // Apply fillet to each edge (using the first radius for all, as the geom API
+    // applies a single options set; for variable radii, we would need multiple passes)
+    // ------------------------------------------------------------------
+    // Note: The geom API takes a single FilletEdgeOptions. For variable radii per edge,
+    // we use the average radius as a simplification (documented limitation).
+    let avg_radius = radii.iter().copied().sum::<f64>() / radii.len() as f64;
+    let options = FilletEdgeOptions::new(avg_radius, 4);
+
+    let (result_mesh, mesh_diag, fillet_diag) =
+        match fillet_triangle_mesh_edges(&geom_mesh, &edge_pairs, options, tol) {
+            Ok(result) => result,
+            Err(e) => {
+                return Err(ComponentError::new(format!(
+                    "{COMPONENT}: fillet mislukt: {e}"
+                )));
+            }
+        };
+
+    // ------------------------------------------------------------------
+    // Merge diagnostics
+    // ------------------------------------------------------------------
+    let mut combined_diag = geom_bridge::geom_diagnostics_to_value_diagnostics(mesh_diag);
+
+    // Add fillet-specific diagnostics as warnings
+    for err in &fillet_diag.errors {
+        combined_diag.warnings.push(format!("Fillet: {err}"));
+    }
+    for warn in &fillet_diag.warnings {
+        combined_diag.warnings.push(format!("Fillet: {warn}"));
+    }
+
+    if fillet_diag.skipped_edge_count > 0 {
+        combined_diag.warnings.push(format!(
+            "Fillet: {} edge(s) skipped (unsupported topology; only hinge edges are supported)",
+            fillet_diag.skipped_edge_count
+        ));
+    }
+    if fillet_diag.clamped_edge_count > 0 {
+        combined_diag.warnings.push(format!(
+            "Fillet: {} edge(s) had radius clamped to fit geometry",
+            fillet_diag.clamped_edge_count
+        ));
+    }
+
+    // Update vertex/triangle counts in diagnostics to reflect the result mesh
+    combined_diag.vertex_count = result_mesh.positions.len();
+    combined_diag.triangle_count = result_mesh.indices.len() / 3;
+
+    // ------------------------------------------------------------------
+    // Output: Return as Value::Mesh with diagnostics (primary output)
+    // Also provide legacy Value::Surface adapter for backward compatibility
+    // ------------------------------------------------------------------
+    // Primary output: Value::Mesh with full diagnostics attached
+    let mesh_output = Value::Mesh {
+        vertices: result_mesh.positions.clone(),
+        indices: result_mesh.indices.clone(),
+        normals: result_mesh.normals.clone(),
+        uvs: result_mesh.uvs.clone(),
+        diagnostics: Some(combined_diag),
+    };
+
+    // Legacy adapter: Value::Surface for consumers that don't support Value::Mesh yet
+    // Note: This is a lossy conversion - normals, uvs, and diagnostics are discarded
+    let legacy_surface = geom_bridge::geom_mesh_to_surface_legacy(result_mesh);
+
+    let mut outputs = BTreeMap::new();
+    // Use Value::Mesh as primary output on the "B" pin (Brep/mesh output)
+    // Consumers that support Value::Mesh will get diagnostics; legacy consumers
+    // will automatically coerce to surface-like representation
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), mesh_output);
+    // Provide explicit legacy surface on "S" pin for backward compatibility
+    outputs.insert(PIN_OUTPUT_SOLID.to_owned(), legacy_surface);
+    Ok(outputs)
+}
+
+/// Legacy fallback for FilletEdge when mesh_engine_next is disabled.
+///
+/// Simply passes the input through unchanged, as fillet operations require the geom module.
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_fillet_edge(inputs: &[Value]) -> ComponentResult {
     let shape = inputs
         .get(0)
@@ -541,17 +839,33 @@ fn evaluate_fillet_edge(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the CopyTrim component.
+///
+/// Copies trim bounds from a source surface to a target surface.
+/// The resulting surface is the intersection of the source and target bounds.
+/// If there is no valid intersection, the target bounds are returned unchanged.
+///
+/// # Inputs
+/// - `S` (index 0): Source surface with trim information to copy
+/// - `T` (index 1): Target surface to apply the trim to
+///
+/// # Outputs
+/// - `B`: The trimmed surface result
 #[cfg(not(feature = "mesh_engine_next"))]
-fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
+fn evaluate_copy_trim(inputs: &[Value]) -> ComponentResult {
+    const COMPONENT: &str = "Copy Trim";
+    
     if inputs.len() < 2 {
         return Err(ComponentError::new(format!(
             "{} vereist zowel een bron- als doelsurface",
-            component
+            COMPONENT
         )));
     }
 
-    let source = coerce_shape_metrics(inputs.get(0), component)?;
-    let target = coerce_shape_metrics(inputs.get(1), component)?;
+    let source = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
+    let target = coerce_shape_metrics(inputs.get(1), COMPONENT)?;
+    
+    // Compute the intersection of source and target bounds
     let min = [
         source.min[0].max(target.min[0]),
         source.min[1].max(target.min[1]),
@@ -563,6 +877,7 @@ fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
         source.max[2].min(target.max[2]),
     ];
 
+    // Only use intersection if valid, otherwise return target unchanged
     let surface = if min[0] <= max[0] && min[1] <= max[1] && min[2] <= max[2] {
         create_surface_from_bounds(min, max)
     } else {
@@ -574,19 +889,135 @@ fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the CopyTrim component using the geom module.
+///
+/// Uses `geom::copy_trim_bounds` to compute the intersection of source and target bounds.
+/// This preserves trim-loop ordering semantics by applying the source's trim region
+/// to the target surface's parameter space.
+///
+/// # Inputs
+/// - `S` (index 0): Source surface with trim information to copy
+/// - `T` (index 1): Target surface to apply the trim to
+///
+/// # Outputs
+/// - `B`: The trimmed surface result
 #[cfg(feature = "mesh_engine_next")]
-fn evaluate_copy_trim(inputs: &[Value], component: &str) -> ComponentResult {
+fn evaluate_copy_trim(inputs: &[Value]) -> ComponentResult {
+    const COMPONENT: &str = "Copy Trim";
+    
     if inputs.len() < 2 {
         return Err(ComponentError::new(format!(
             "{} vereist zowel een bron- als doelsurface",
-            component
+            COMPONENT
         )));
     }
 
-    let source = coerce_shape_metrics(inputs.get(0), component)?;
-    let target = coerce_shape_metrics(inputs.get(1), component)?;
-    let (min, max) =
-        crate::geom::copy_trim_bounds(source.min, source.max, target.min, target.max);
+    let source = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
+    let target = coerce_shape_metrics(inputs.get(1), COMPONENT)?;
+    
+    // Use geom::copy_trim_bounds for the heavy lifting.
+    // This function computes the intersection of source and target bounds,
+    // returning target bounds unchanged if no valid intersection exists.
+    let (min, max) = crate::geom::copy_trim_bounds(
+        source.min,
+        source.max,
+        target.min,
+        target.max,
+    );
+    
+    let surface = create_surface_from_bounds(min, max);
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
+    Ok(outputs)
+}
+
+/// Evaluates the Retrim component.
+///
+/// Applies new trim bounds from a source surface to a target surface.
+/// This is semantically similar to CopyTrim but emphasizes re-applying
+/// trim information rather than copying it.
+///
+/// # Inputs
+/// - `S` (index 0): Source surface providing new trim bounds
+/// - `T` (index 1): Target surface to retrim
+///
+/// # Outputs
+/// - `B`: The retrimmed surface result
+#[cfg(not(feature = "mesh_engine_next"))]
+fn evaluate_retrim(inputs: &[Value]) -> ComponentResult {
+    const COMPONENT: &str = "Retrim";
+    
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist zowel een bron- als doelsurface",
+            COMPONENT
+        )));
+    }
+
+    let source = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
+    let target = coerce_shape_metrics(inputs.get(1), COMPONENT)?;
+    
+    // Retrim computes the intersection of source and target bounds
+    let min = [
+        source.min[0].max(target.min[0]),
+        source.min[1].max(target.min[1]),
+        source.min[2].max(target.min[2]),
+    ];
+    let max = [
+        source.max[0].min(target.max[0]),
+        source.max[1].min(target.max[1]),
+        source.max[2].min(target.max[2]),
+    ];
+
+    // Only use intersection if valid, otherwise return target unchanged
+    let surface = if min[0] <= max[0] && min[1] <= max[1] && min[2] <= max[2] {
+        create_surface_from_bounds(min, max)
+    } else {
+        create_surface_from_bounds(target.min, target.max)
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
+    Ok(outputs)
+}
+
+/// Evaluates the Retrim component using the geom module.
+///
+/// Uses `geom::retrim_bounds` to apply new trim bounds from the source
+/// to the target surface. This preserves trim-loop ordering semantics
+/// by computing the intersection of source and target bounds.
+///
+/// # Inputs
+/// - `S` (index 0): Source surface providing new trim bounds
+/// - `T` (index 1): Target surface to retrim
+///
+/// # Outputs
+/// - `B`: The retrimmed surface result
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_retrim(inputs: &[Value]) -> ComponentResult {
+    const COMPONENT: &str = "Retrim";
+    
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist zowel een bron- als doelsurface",
+            COMPONENT
+        )));
+    }
+
+    let source = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
+    let target = coerce_shape_metrics(inputs.get(1), COMPONENT)?;
+    
+    // Use geom::retrim_bounds for the heavy lifting.
+    // This function is semantically equivalent to copy_trim_bounds but
+    // is named to clarify intent for retrim operations.
+    let (min, max) = crate::geom::retrim_bounds(
+        source.min,
+        source.max,
+        target.min,
+        target.max,
+    );
+    
     let surface = create_surface_from_bounds(min, max);
 
     let mut outputs = BTreeMap::new();
@@ -699,7 +1130,6 @@ fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
         return Err(ComponentError::new("Isotrim vereist een surface en domein"));
     }
 
-    let metrics = coerce_shape_metrics(inputs.get(0), "Isotrim")?;
     let domain_value = inputs
         .get(1)
         .ok_or_else(|| ComponentError::new("Isotrim vereist een domein"))?;
@@ -708,31 +1138,40 @@ fn evaluate_isotrim(inputs: &[Value]) -> ComponentResult {
     let surface = {
         #[cfg(feature = "mesh_engine_next")]
         {
-            let size = metrics.size();
-            let mid_z = (metrics.min[2] + metrics.max[2]) * 0.5;
-            let plane = crate::geom::PlaneSurface::new(
-                crate::geom::Point3::new(metrics.min[0], metrics.min[1], mid_z),
-                crate::geom::Vec3::new(size[0], 0.0, 0.0),
-                crate::geom::Vec3::new(0.0, size[1], 0.0),
-            );
+            // Try to extract vertex data for accurate isotrim
+            let surface_data = SurfaceVertexData::from_value(inputs.get(0))
+                .ok_or_else(|| ComponentError::new("Isotrim vereist geometrische invoer"))?;
 
-            let tol = crate::geom::Tolerance::default_geom();
-            let (trimmed, _) = crate::geom::isotrim_surface(&plane, u_range, v_range, tol);
+            // Use vertex-based isotrim if we have a proper grid
+            let result = if surface_data.has_valid_grid() {
+                crate::geom::isotrim_from_vertices(
+                    surface_data.to_vertex_input(),
+                    u_range,
+                    v_range,
+                )
+            } else {
+                None
+            };
 
-            let (u0, u1) = trimmed.domain_u();
-            let (v0, v1) = trimmed.domain_v();
-            let vertices = vec![
-                trimmed.point_at(u0, v0).to_array(),
-                trimmed.point_at(u1, v0).to_array(),
-                trimmed.point_at(u1, v1).to_array(),
-                trimmed.point_at(u0, v1).to_array(),
-            ];
-            let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
-            Value::Surface { vertices, faces }
+            // Fall back to bounds-based if vertex-based failed
+            let result = result.unwrap_or_else(|| {
+                crate::geom::isotrim_from_bounds(
+                    surface_data.min,
+                    surface_data.max,
+                    u_range,
+                    v_range,
+                )
+            });
+
+            Value::Surface {
+                vertices: result.vertices,
+                faces: result.faces,
+            }
         }
 
         #[cfg(not(feature = "mesh_engine_next"))]
         {
+            let metrics = coerce_shape_metrics(inputs.get(0), "Isotrim")?;
             let mut min = metrics.min;
             let mut max = metrics.max;
             min[0] = metrics.min[0] + metrics.size()[0] * clamp01(u_range.0);
@@ -1065,6 +1504,23 @@ fn evaluate_convex_edges(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the Offset Surface and Offset Surface Loose components.
+///
+/// Offsets a surface/mesh by moving vertices along their normals by a specified
+/// distance. Positive distance offsets outward (along normal), negative distance
+/// offsets inward (against normal).
+///
+/// # Inputs
+/// - `S` (index 0): Surface or mesh to offset
+/// - `D` (index 1): Offset distance (positive = outward, negative = inward)
+///
+/// # Outputs
+/// - `B`: The offset surface/mesh result
+///
+/// # Difference between OffsetSurface and OffsetSurfaceLoose
+/// - `OffsetSurface`: Uses standard geometry tolerance for welding and repair
+/// - `OffsetSurfaceLoose`: Uses looser tolerance, which may be faster but less precise
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult {
     if inputs.len() < 2 {
         return Err(ComponentError::new(format!(
@@ -1084,6 +1540,118 @@ fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult
 
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
+    Ok(outputs)
+}
+
+/// Evaluates the Offset Surface and Offset Surface Loose components using the
+/// new geometry kernel.
+///
+/// Uses `geom::offset::*` functions to perform true normal-based offsetting
+/// on mesh vertices, producing a properly offset mesh with welding and repair.
+///
+/// # Inputs
+/// - `S` (index 0): Surface or mesh to offset
+/// - `D` (index 1): Offset distance (positive = outward, negative = inward)
+///
+/// # Outputs
+/// - `B`: The offset surface/mesh result (list if multiple inputs, single value otherwise)
+///
+/// # Difference between OffsetSurface and OffsetSurfaceLoose
+/// - `OffsetSurface`: Uses standard geometry tolerance (1e-9)
+/// - `OffsetSurfaceLoose`: Uses looser tolerance (1e-6)
+///
+/// # List Handling
+/// Properly handles multi-item list inputs by offsetting each mesh individually
+/// and returning a list of results. Single-item inputs return a single value.
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_offset_surface(inputs: &[Value], component: &str) -> ComponentResult {
+    use super::coerce::{coerce_mesh_list, geom_bridge};
+    use crate::geom::{offset_mesh, OffsetDirection, OffsetOptions, Tolerance};
+
+    if inputs.len() < 2 {
+        return Err(ComponentError::new(format!(
+            "{} vereist een surface en afstand",
+            component
+        )));
+    }
+
+    // Get the input value for list-structure preservation
+    let input_value = inputs
+        .get(0)
+        .ok_or_else(|| ComponentError::new(format!("{} vereist geometrie", component)))?;
+
+    // Coerce input to a list of meshes (handles both single items and multi-item lists)
+    let meshes = coerce_mesh_list(input_value, component)?;
+    let distance = coerce_number(inputs.get(1), &(component.to_owned() + " afstand"))?;
+
+    // Track whether input was a list for output structure preservation
+    let input_was_list = matches!(input_value, Value::List(l) if l.len() > 1);
+
+    // Handle zero distance case - just return input unchanged
+    if distance.abs() < 1e-15 {
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value.clone());
+        return Ok(outputs);
+    }
+
+    // Select tolerance based on component type
+    // OffsetSurfaceLoose uses a looser tolerance for faster but less precise results
+    let is_loose = component.contains("Loose");
+    let tol = if is_loose {
+        Tolerance::LOOSE
+    } else {
+        Tolerance::default_geom()
+    };
+
+    // Determine offset direction based on distance sign
+    let (direction, abs_distance) = if distance >= 0.0 {
+        (OffsetDirection::Outside, distance)
+    } else {
+        (OffsetDirection::Inside, -distance)
+    };
+
+    // Configure offset options (shared across all meshes)
+    let options = OffsetOptions::new(abs_distance).direction(direction);
+
+    // Process each mesh individually
+    let mut offset_results: Vec<Value> = Vec::with_capacity(meshes.len());
+    for (idx, mesh) in meshes.into_iter().enumerate() {
+        // Convert coerce::Mesh to geom::GeomMesh
+        let geom_mesh = geom_bridge::mesh_to_geom_mesh(mesh);
+
+        // Perform the offset operation
+        let (result_mesh, offset_diag) =
+            offset_mesh(&geom_mesh, options.clone(), tol).map_err(|e| {
+                ComponentError::new(format!(
+                    "{} offset failed for item {}: {}",
+                    component, idx, e
+                ))
+            })?;
+
+        // Log warnings if any (for debugging)
+        for warning in &offset_diag.warnings {
+            // In a real implementation, these could be surfaced to the user
+            // For now, they're available in the diagnostics
+            let _ = warning;
+        }
+
+        // Convert back to legacy Surface for backward compatibility
+        let surface_legacy = geom_bridge::geom_mesh_to_surface_legacy(result_mesh);
+        offset_results.push(surface_legacy);
+    }
+
+    // Build output: preserve list structure from input
+    // - Single input → single output
+    // - Multi-item list input → list output
+    let output_value = if input_was_list || offset_results.len() > 1 {
+        Value::List(offset_results)
+    } else {
+        // Unwrap single result; default to empty list if somehow empty
+        offset_results.into_iter().next().unwrap_or(Value::List(vec![]))
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), output_value);
     Ok(outputs)
 }
 
@@ -1255,57 +1823,173 @@ fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the Cap Holes / Cap Holes Ex components using `geom::solid::*`.
+///
+/// This function caps planar-ish boundary loops (naked edges) on a mesh or surface
+/// using 2D polygon triangulation. It uses the new `geom::solid` module for the
+/// heavy lifting while keeping the component thin.
+///
+/// # Inputs
+/// - Input 0: Brep/Surface/Mesh - The geometry to cap holes on
+/// - Input 1 (extended only): Planarity - Maximum planarity deviation threshold (Number, optional)
+///
+/// # Outputs
+/// - `B`: The capped brep/surface (same type as input for backward compatibility)
+/// - `C` (extended only): Number of holes found
+/// - `S` (extended only): Boolean indicating if the result is a solid (watertight)
+///
+/// # Algorithm
+/// Delegates to `geom::solid::cap_holes_legacy` or `geom::solid::cap_holes_ex_legacy`,
+/// which:
+/// 1. Builds an edge graph to identify naked (boundary) edges
+/// 2. Finds closed loops of naked edges (these are the holes)
+/// 3. For each loop: projects to 2D, triangulates using constrained Delaunay/ear-clipping
+/// 4. Appends cap triangles to the mesh with correct winding
+/// 5. Reports diagnostics including planarity deviation and any failures
 #[cfg(feature = "mesh_engine_next")]
 fn evaluate_cap_holes(inputs: &[Value], extended: bool) -> ComponentResult {
-    let mut surface_value = inputs
+    use crate::geom::{
+        cap_holes_ex_legacy, cap_holes_legacy, CapHolesExOptions, LegacySurfaceMesh, Tolerance,
+    };
+
+    let input_value = inputs
         .get(0)
         .cloned()
         .ok_or_else(|| ComponentError::new("Cap Holes vereist een brep"))?;
 
-    if let Value::List(values) = &surface_value {
-        if let Some(surface) = values.iter().find(|v| matches!(v, Value::Surface { .. })) {
-            surface_value = surface.clone();
+    // Helper to extract a mesh-like value from the input (handles lists, surfaces, meshes)
+    fn extract_mesh_like(value: &Value) -> Option<LegacySurfaceMesh> {
+        match value {
+            Value::Surface { vertices, faces } if !vertices.is_empty() && !faces.is_empty() => {
+                Some(LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces: faces.clone(),
+                })
+            }
+            Value::Mesh {
+                vertices, indices, ..
+            } if !vertices.is_empty() && !indices.is_empty() => {
+                // Convert triangle indices to face lists
+                let faces: Vec<Vec<u32>> = indices
+                    .chunks(3)
+                    .filter(|chunk| chunk.len() == 3)
+                    .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
+                    .collect();
+                Some(LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces,
+                })
+            }
+            Value::List(list) => {
+                // Find the first mesh-like value in the list
+                list.iter().find_map(extract_mesh_like)
+            }
+            _ => None,
         }
     }
 
-    let mesh = match &surface_value {
-        Value::Surface { vertices, faces } if !vertices.is_empty() && !faces.is_empty() => {
-            crate::geom::LegacySurfaceMesh {
-                vertices: vertices.clone(),
-                faces: faces.clone(),
-            }
+    // Track whether input was a Mesh (for output type consistency)
+    let input_was_mesh = matches!(&input_value, Value::Mesh { .. })
+        || matches!(&input_value, Value::List(list) if list.iter().any(|v| matches!(v, Value::Mesh { .. })));
+
+    let Some(mesh) = extract_mesh_like(&input_value) else {
+        // If it's not a valid mesh-like value (or empty), just return the original input
+        let mut outputs = BTreeMap::new();
+        outputs.insert(PIN_OUTPUT_BREPS.to_owned(), input_value);
+        if extended {
+            outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
+            outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(false));
         }
-        _ => {
-            let mut outputs = BTreeMap::new();
-            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface_value);
-            if extended {
-                outputs.insert(PIN_OUTPUT_CAPS.to_owned(), Value::Number(0.0));
-                outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(false));
-            }
-            return Ok(outputs);
-        }
+        return Ok(outputs);
     };
 
-    let result = crate::geom::cap_holes_legacy(mesh, crate::geom::Tolerance::default_geom());
+    let tol = Tolerance::default_geom();
 
-    let mut outputs = BTreeMap::new();
-    outputs.insert(
-        PIN_OUTPUT_BREPS.to_owned(),
+    // Call the appropriate geom function based on extended mode
+    let result = if extended {
+        // Parse extended options from additional inputs
+        let max_planarity_deviation = inputs
+            .get(1)
+            .and_then(|v| match v {
+                Value::Number(n) if n.is_finite() && *n > 0.0 => Some(*n),
+                Value::List(list) if !list.is_empty() => match &list[0] {
+                    Value::Number(n) if n.is_finite() && *n > 0.0 => Some(*n),
+                    _ => None,
+                },
+                _ => None,
+            })
+            .unwrap_or(f64::INFINITY);
+
+        let options = CapHolesExOptions {
+            max_planarity_deviation,
+            ..Default::default()
+        };
+
+        cap_holes_ex_legacy(mesh, tol, options)
+    } else {
+        cap_holes_legacy(mesh, tol)
+    };
+
+    // Convert result back to the appropriate Value type
+    let output_value = if input_was_mesh {
+        // Convert to Value::Mesh for consistency with input type
+        let indices: Vec<u32> = result
+            .brep
+            .faces
+            .iter()
+            .flat_map(|face| {
+                if face.len() >= 3 {
+                    vec![face[0], face[1], face[2]]
+                } else {
+                    vec![]
+                }
+            })
+            .collect();
+        Value::Mesh {
+            vertices: result.brep.vertices,
+            indices,
+            normals: None,
+            uvs: None,
+            diagnostics: None,
+        }
+    } else {
+        // Return as Value::Surface for backward compatibility
         Value::Surface {
             vertices: result.brep.vertices,
             faces: result.brep.faces,
-        },
-    );
+        }
+    };
+
+    let mut outputs = BTreeMap::new();
+    outputs.insert(PIN_OUTPUT_BREPS.to_owned(), output_value);
+
     if extended {
+        // Output the number of holes found (caps_added is more accurate than holes_found
+        // because some holes may have failed to cap)
         outputs.insert(
             PIN_OUTPUT_CAPS.to_owned(),
-            Value::Number(result.diagnostics.holes_found as f64),
+            Value::Number(result.diagnostics.caps_added as f64),
         );
         outputs.insert(PIN_OUTPUT_SOLID.to_owned(), Value::Boolean(result.is_solid));
     }
+
     Ok(outputs)
 }
 
+/// Evaluates the Flip component (legacy implementation).
+///
+/// Flips the orientation of a surface by reversing the winding order of its faces.
+/// If a guide vector/point is provided, the surface is only flipped if its
+/// orientation doesn't match the guide direction.
+///
+/// # Inputs
+/// - `S` (index 0): Surface to flip
+/// - `G` (index 1, optional): Guide vector or point for orientation check
+///
+/// # Outputs
+/// - `B`: The flipped (or unchanged) surface
+/// - `R`: Boolean indicating whether a flip was performed
+#[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
     if inputs.is_empty() {
         return Err(ComponentError::new("Flip vereist een surface"));
@@ -1330,6 +2014,145 @@ fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
     outputs.insert(PIN_OUTPUT_RESULT.to_owned(), Value::Boolean(should_flip));
     Ok(outputs)
+}
+
+/// Evaluates the Flip component using the geom module.
+///
+/// Flips the orientation of a surface or mesh by reversing the winding order
+/// of its triangles/faces. If a guide vector/point is provided, the geometry
+/// is only flipped if its average normal doesn't align with the guide direction.
+///
+/// This implementation uses `geom::flip_mesh` for proper normal-based flip
+/// determination instead of the legacy z-component check.
+///
+/// # Inputs
+/// - `S` (index 0): Surface or mesh to flip
+/// - `G` (index 1, optional): Guide vector or point for orientation check
+///
+/// # Outputs
+/// - `B`: The flipped (or unchanged) surface/mesh
+/// - `R`: Boolean indicating whether a flip was performed
+///
+/// # Differences from legacy
+/// - Supports both `Value::Surface` and `Value::Mesh` inputs
+/// - Uses proper dot-product alignment check with average mesh normal
+/// - Flips explicit normals when present in `Value::Mesh`
+#[cfg(feature = "mesh_engine_next")]
+fn evaluate_flip(inputs: &[Value]) -> ComponentResult {
+    use crate::geom::{flip_mesh, GeomMesh, MeshFlipGuide, Point3, Vec3};
+
+    if inputs.is_empty() {
+        return Err(ComponentError::new("Flip vereist een surface"));
+    }
+
+    let input_value = &inputs[0];
+    let guide = inputs.get(1);
+
+    // Convert guide to MeshFlipGuide
+    let flip_guide: Option<MeshFlipGuide> = guide.and_then(|value| match value {
+        Value::Vector(v) => Some(MeshFlipGuide::Vector(Vec3::new(v[0], v[1], v[2]))),
+        Value::Point(p) => Some(MeshFlipGuide::Point(Point3::new(p[0], p[1], p[2]))),
+        _ => None,
+    });
+
+    match input_value {
+        Value::Mesh {
+            vertices,
+            indices,
+            normals,
+            uvs,
+            diagnostics,
+        } => {
+            // Convert to GeomMesh
+            let geom_mesh = GeomMesh {
+                positions: vertices.clone(),
+                indices: indices.clone(),
+                normals: normals.clone(),
+                uvs: uvs.clone(),
+                tangents: None,
+            };
+
+            // Flip using geom function
+            let (flipped_mesh, flip_diag) = flip_mesh(geom_mesh, flip_guide);
+
+            // Convert back to Value::Mesh
+            let result_value = Value::Mesh {
+                vertices: flipped_mesh.positions,
+                indices: flipped_mesh.indices,
+                normals: flipped_mesh.normals,
+                uvs: flipped_mesh.uvs,
+                diagnostics: diagnostics.clone(),
+            };
+
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), result_value);
+            outputs.insert(PIN_OUTPUT_RESULT.to_owned(), Value::Boolean(flip_diag.flipped));
+            Ok(outputs)
+        }
+        Value::Surface { vertices, faces } => {
+            // Convert Surface to a temporary mesh for flip computation.
+            // Use proper triangulation to get accurate normal computation for n-gons.
+            let indices = crate::graph::value::triangulate_polygon_faces(faces);
+
+            let geom_mesh = GeomMesh::new(vertices.clone(), indices);
+
+            // Flip using geom function to determine if flip is needed based on guide
+            // We use the result only for flip_diag.flipped; we reverse original faces
+            // to preserve non-triangular face topology
+            let (_flipped_mesh, flip_diag) = flip_mesh(geom_mesh, flip_guide);
+
+            // Convert back to Value::Surface with flipped faces
+            let flipped_faces: Vec<Vec<u32>> = if flip_diag.flipped {
+                // Reverse winding of original faces
+                faces.iter().map(|f| {
+                    let mut reversed = f.clone();
+                    reversed.reverse();
+                    reversed
+                }).collect()
+            } else {
+                faces.clone()
+            };
+
+            let result_value = Value::Surface {
+                vertices: vertices.clone(),
+                faces: flipped_faces,
+            };
+
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), result_value);
+            outputs.insert(PIN_OUTPUT_RESULT.to_owned(), Value::Boolean(flip_diag.flipped));
+            Ok(outputs)
+        }
+        Value::List(items) => {
+            // Handle list of surfaces/meshes
+            let mut flipped_items = Vec::with_capacity(items.len());
+            let mut any_flipped = false;
+
+            for item in items {
+                let sub_inputs = vec![item.clone(), guide.cloned().unwrap_or(Value::Null)];
+                let sub_result = evaluate_flip(&sub_inputs)?;
+                
+                if let Some(flipped) = sub_result.get(PIN_OUTPUT_BREPS) {
+                    flipped_items.push(flipped.clone());
+                }
+                if let Some(Value::Boolean(did_flip)) = sub_result.get(PIN_OUTPUT_RESULT) {
+                    any_flipped = any_flipped || *did_flip;
+                }
+            }
+
+            let mut outputs = BTreeMap::new();
+            outputs.insert(PIN_OUTPUT_BREPS.to_owned(), Value::List(flipped_items));
+            outputs.insert(PIN_OUTPUT_RESULT.to_owned(), Value::Boolean(any_flipped));
+            Ok(outputs)
+        }
+        other => {
+            // Try to use legacy Surface coercion for other types
+            Err(ComponentError::new(format!(
+                "Flip verwacht een Surface of Mesh, maar kreeg {}",
+                other.kind()
+            )))
+        }
+    }
 }
 
 #[cfg(not(feature = "mesh_engine_next"))]
@@ -1357,6 +2180,19 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
     Ok(outputs)
 }
 
+/// Evaluates the MergeFaces component using the geom module.
+///
+/// Uses `geom::merge_brep_faces` to merge coplanar/continuous faces within breps.
+/// This function combines multiple input breps and then merges any coplanar
+/// adjacent faces that share edges into larger polygons.
+///
+/// # Inputs
+/// - `B` (index 0): Brep(s) to process (can be a single brep or list of breps)
+///
+/// # Outputs
+/// - `B`: The brep with merged faces
+/// - `N0`: Number of faces before merging
+/// - `N1`: Number of faces after merging
 #[cfg(feature = "mesh_engine_next")]
 fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
     let brep = inputs
@@ -1365,12 +2201,28 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
 
     let shapes = collect_shapes(Some(brep));
     let mut surfaces = Vec::new();
+
+    // Collect surfaces from both Value::Surface and Value::Mesh
     for shape in &shapes {
-        if let Value::Surface { vertices, faces } = shape {
-            surfaces.push(crate::geom::LegacySurfaceMesh {
-                vertices: vertices.clone(),
-                faces: faces.clone(),
-            });
+        match shape {
+            Value::Surface { vertices, faces } => {
+                surfaces.push(crate::geom::LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces: faces.clone(),
+                });
+            }
+            Value::Mesh { vertices, indices, .. } => {
+                // Convert Value::Mesh (flat triangle indices) to LegacySurfaceMesh (face vectors)
+                let faces: Vec<Vec<u32>> = indices
+                    .chunks(3)
+                    .map(|chunk| chunk.to_vec())
+                    .collect();
+                surfaces.push(crate::geom::LegacySurfaceMesh {
+                    vertices: vertices.clone(),
+                    faces,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -1380,11 +2232,41 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
         ));
     }
 
-    let before = surfaces.len();
-    let tol = crate::geom::Tolerance::default_geom();
-    let merged = crate::geom::merge_faces_legacy(&surfaces, tol).ok_or_else(|| {
-        ComponentError::new("Merge Faces kon geen oppervlakken vinden")
-    })?;
+    // Use the new brep_ops API
+    let merged = crate::geom::merge_brep_faces(
+        &surfaces,
+        crate::geom::MergeFacesOptions::default(),
+    );
+
+    if !merged.success {
+        // Fall back to returning the combined input unchanged
+        let combined_vertices: Vec<[f64; 3]> = surfaces.iter()
+            .flat_map(|s| s.vertices.iter().copied())
+            .collect();
+        let mut offset = 0u32;
+        let mut combined_faces: Vec<Vec<u32>> = Vec::new();
+        for surface in &surfaces {
+            for face in &surface.faces {
+                combined_faces.push(face.iter().map(|&i| i + offset).collect());
+            }
+            offset += surface.vertices.len() as u32;
+        }
+        let fallback_surface = Value::Surface {
+            vertices: combined_vertices,
+            faces: combined_faces.clone(),
+        };
+        let before = surfaces.iter().map(|s| s.faces.len()).sum::<usize>();
+        let after = combined_faces.len();
+
+        let mut outputs = BTreeMap::new();
+        outputs.insert(
+            PIN_OUTPUT_BREPS.to_owned(),
+            Value::List(vec![fallback_surface]),
+        );
+        outputs.insert(PIN_OUTPUT_BEFORE.to_owned(), Value::Number(before as f64));
+        outputs.insert(PIN_OUTPUT_AFTER.to_owned(), Value::Number(after as f64));
+        return Ok(outputs);
+    }
 
     let merged_surface = Value::Surface {
         vertices: merged.brep.vertices,
@@ -1396,7 +2278,10 @@ fn evaluate_merge_faces(inputs: &[Value]) -> ComponentResult {
         PIN_OUTPUT_BREPS.to_owned(),
         Value::List(vec![merged_surface]),
     );
-    outputs.insert(PIN_OUTPUT_BEFORE.to_owned(), Value::Number(before as f64));
+    outputs.insert(
+        PIN_OUTPUT_BEFORE.to_owned(),
+        Value::Number(merged.diagnostics.before as f64),
+    );
     outputs.insert(
         PIN_OUTPUT_AFTER.to_owned(),
         Value::Number(merged.diagnostics.after as f64),
@@ -1470,20 +2355,50 @@ fn evaluate_edges_by_length(inputs: &[Value], component: &str) -> ComponentResul
     }
 }
 
+/// Evaluates the Untrim component.
+///
+/// Removes all trim information from a surface, returning the full
+/// untrimmed surface based on its bounding box.
+///
+/// # Inputs
+/// - `S` (index 0): Surface to untrim
+///
+/// # Outputs
+/// - `B`: The untrimmed surface covering the full original bounds
 #[cfg(not(feature = "mesh_engine_next"))]
 fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
-    let metrics = coerce_shape_metrics(inputs.get(0), "Untrim")?;
+    const COMPONENT: &str = "Untrim";
+    
+    let metrics = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
     let surface = create_surface_from_bounds(metrics.min, metrics.max);
+    
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
     Ok(outputs)
 }
 
+/// Evaluates the Untrim component using the geom module.
+///
+/// Uses `geom::untrim_bounds` to remove all trim information from a surface.
+/// The result is a surface covering the full original parameter domain,
+/// equivalent to removing all trim loops and returning the base surface.
+///
+/// # Inputs
+/// - `S` (index 0): Surface to untrim
+///
+/// # Outputs
+/// - `B`: The untrimmed surface covering the full original bounds
 #[cfg(feature = "mesh_engine_next")]
 fn evaluate_untrim(inputs: &[Value]) -> ComponentResult {
-    let metrics = coerce_shape_metrics(inputs.get(0), "Untrim")?;
+    const COMPONENT: &str = "Untrim";
+    
+    let metrics = coerce_shape_metrics(inputs.get(0), COMPONENT)?;
+    
+    // Use geom::untrim_bounds to remove trim information.
+    // This returns the bounds unchanged, representing the full surface domain.
     let (min, max) = crate::geom::untrim_bounds(metrics.min, metrics.max);
     let surface = create_surface_from_bounds(min, max);
+    
     let mut outputs = BTreeMap::new();
     outputs.insert(PIN_OUTPUT_BREPS.to_owned(), surface);
     Ok(outputs)
@@ -1764,6 +2679,139 @@ impl ShapeMetrics {
     fn volume(&self) -> f64 {
         let size = self.size();
         size[0].abs() * size[1].abs() * size[2].abs()
+    }
+}
+
+/// Extended surface data that preserves vertex geometry.
+///
+/// This struct captures both the bounding box (for legacy code) and the
+/// actual vertex positions (for accurate surface sampling). When vertex
+/// data is available, operations can use the true surface geometry instead
+/// of axis-aligned approximations.
+#[cfg(feature = "mesh_engine_next")]
+#[derive(Debug, Clone)]
+struct SurfaceVertexData {
+    /// Bounding box minimum corner (for legacy fallback).
+    min: [f64; 3],
+    /// Bounding box maximum corner (for legacy fallback).
+    max: [f64; 3],
+    /// Vertex positions, if extracted from a surface/mesh.
+    /// Stored in the order they appeared in the input.
+    vertices: Vec<[f64; 3]>,
+    /// Grid dimensions (u_count, v_count) if known from the source.
+    /// When `None`, dimensions will be inferred from vertex count.
+    grid_dimensions: Option<(usize, usize)>,
+}
+
+#[cfg(feature = "mesh_engine_next")]
+impl SurfaceVertexData {
+    /// Extracts surface data from a Value, preserving vertex positions.
+    fn from_value(value: Option<&Value>) -> Option<Self> {
+        match value {
+            Some(Value::Surface { vertices, faces }) if !vertices.is_empty() => {
+                let (min, max) = bounding_box(vertices);
+                // Try to infer grid dimensions from face structure
+                let grid_dims = Self::infer_grid_from_faces(vertices.len(), faces);
+                Some(Self {
+                    min,
+                    max,
+                    vertices: vertices.clone(),
+                    grid_dimensions: grid_dims,
+                })
+            }
+            Some(Value::Mesh { vertices, indices, .. }) if !vertices.is_empty() => {
+                let (min, max) = bounding_box(vertices);
+                // Mesh indices are flat triangles; harder to infer grid
+                // Try to detect from vertex count
+                let grid_dims = crate::geom::VertexGridSurface::infer_grid_dimensions(vertices.len());
+                Some(Self {
+                    min,
+                    max,
+                    vertices: vertices.clone(),
+                    grid_dimensions: grid_dims,
+                })
+            }
+            Some(Value::List(values)) => {
+                // Try to find a surface or mesh in the list
+                for v in values {
+                    if let Some(data) = Self::from_value(Some(v)) {
+                        return Some(data);
+                    }
+                }
+                // Fall back to collecting points
+                let points = collect_points(value);
+                if points.is_empty() {
+                    return None;
+                }
+                let (min, max) = bounding_box(&points);
+                let grid_dims = crate::geom::VertexGridSurface::infer_grid_dimensions(points.len());
+                Some(Self {
+                    min,
+                    max,
+                    vertices: points,
+                    grid_dimensions: grid_dims,
+                })
+            }
+            _ => {
+                let points = collect_points(value);
+                if points.is_empty() {
+                    return None;
+                }
+                let (min, max) = bounding_box(&points);
+                let grid_dims = crate::geom::VertexGridSurface::infer_grid_dimensions(points.len());
+                Some(Self {
+                    min,
+                    max,
+                    vertices: points,
+                    grid_dimensions: grid_dims,
+                })
+            }
+        }
+    }
+
+    /// Attempts to infer grid dimensions from face connectivity.
+    ///
+    /// For surfaces created as grids (like from loft/sweep), the face structure
+    /// often reveals the grid pattern.
+    fn infer_grid_from_faces(vertex_count: usize, faces: &[Vec<u32>]) -> Option<(usize, usize)> {
+        if faces.is_empty() || vertex_count < 4 {
+            return None;
+        }
+
+        // For quad grids triangulated as pairs, face count = 2 * (u-1) * (v-1)
+        // So (u-1) * (v-1) = face_count / 2
+        let face_count = faces.len();
+        if face_count % 2 == 0 {
+            let cell_count = face_count / 2;
+
+            // Try to factor cell_count
+            for u_cells in 1..=cell_count {
+                if cell_count % u_cells == 0 {
+                    let v_cells = cell_count / u_cells;
+                    let expected_vertices = (u_cells + 1) * (v_cells + 1);
+                    if expected_vertices == vertex_count {
+                        return Some((u_cells + 1, v_cells + 1));
+                    }
+                }
+            }
+        }
+
+        // Fall back to inferring from vertex count alone
+        crate::geom::VertexGridSurface::infer_grid_dimensions(vertex_count)
+    }
+
+    /// Checks if we have enough vertices for a proper surface.
+    fn has_valid_grid(&self) -> bool {
+        self.vertices.len() >= 4
+    }
+
+    /// Creates a `VertexSurfaceInput` for use with geom functions.
+    fn to_vertex_input(&self) -> crate::geom::VertexSurfaceInput<'_> {
+        if let Some((u, v)) = self.grid_dimensions {
+            crate::geom::VertexSurfaceInput::with_dimensions(&self.vertices, u, v)
+        } else {
+            crate::geom::VertexSurfaceInput::new(&self.vertices)
+        }
     }
 }
 

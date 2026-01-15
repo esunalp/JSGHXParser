@@ -415,43 +415,44 @@ Curve components (switch to geom curves)
 - [x] `alpha/ghx-engine/src/components/curve_util.rs`: Offset/Fillet/Join/Flip/Extend -> use `geom` operations.
 
 Surface “Freeform” components (wire each feature to `geom`, keep GUIDs/pins)
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Extrude / ExtrudeLinear / ExtrudeAngled / ExtrudePoint / ExtrudeAlong -> call `geom::extrusion::*`; output `Value::Mesh` and (where required) a `Value::Surface` legacy adapter on existing surface pins.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Loft / FitLoft / ControlPointLoft + LoftOptions -> call `geom::loft::*`; preserve LoftOptions pin parsing and forward to `MeshQuality`/loft options.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Sweep1 / Sweep2 -> call `geom::sweep::*`; preserve twist/frames semantics; surface/mesh outputs remain compatible.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Pipe / PipeVariable -> call `geom::pipe::*`; preserve parameter/radius list handling and error messages.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Patch / FragmentPatch / BoundarySurfaces -> call `geom::patch::*` (trim loops + constrained triangulation); preserve input coercion rules.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: Revolution / RailRevolution -> call `geom::revolve::*`; preserve seam defaults and cap behavior.
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: FourPointSurface / EdgeSurface / RuledSurface / NetworkSurface / SumSurface -> construct through `geom::surface::*` builders then mesh via the shared pipeline (no more ad-hoc vertex math).
-- [ ] `alpha/ghx-engine/src/components/surface_freeform.rs`: SurfaceFromPoints -> call `geom::surface_fit::*`; preserve grid sizing/ordering behavior.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Extrude / ExtrudeLinear / ExtrudeAngled / ExtrudePoint / ExtrudeAlong -> call `geom::extrusion::*`; output `Value::Mesh` and (where required) a `Value::Surface` legacy adapter on existing surface pins.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Loft / FitLoft / ControlPointLoft + LoftOptions -> call `geom::loft::*`; preserve LoftOptions pin parsing and forward to `MeshQuality`/loft options.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Sweep1 / Sweep2 -> call `geom::sweep::*`; preserve twist/frames semantics; surface/mesh outputs remain compatible. **Enhanced:** Sweep2 now supports multiple section profiles with interpolation along rails and automatic rail direction alignment/correction.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Pipe / PipeVariable -> call `geom::pipe::*`; preserve parameter/radius list handling and error messages.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Patch / FragmentPatch / BoundarySurfaces -> call `geom::patch::*` (trim loops + constrained triangulation); preserve input coercion rules.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: Revolution / RailRevolution -> call `geom::revolve::*`; preserve seam defaults and cap behavior.
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: FourPointSurface / EdgeSurface / RuledSurface / NetworkSurface / SumSurface -> construct through `geom::surface::*` builders then mesh via the shared pipeline (no more ad-hoc vertex math).
+- [x] `alpha/ghx-engine/src/components/surface_freeform.rs`: SurfaceFromPoints -> call `geom::surface_fit::mesh_from_grid_with_options`; **Fixed:** the Interpolate pin now correctly controls behavior: when true (default) creates a smooth NURBS surface through grid points then tessellates it; when false uses grid points directly as mesh vertices.
 
 Surface “Primitive” components (switch to geom surfaces + mesher)
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Cylinder/Cone/Sphere/PlaneSurface/QuadSphere -> build `geom::surface` primitives and mesh via shared pipeline; keep existing outputs (including “tip” outputs) stable.
-- [ ] `alpha/ghx-engine/src/components/surface_primitive.rs`: Any component that currently emits a mesh as `Value::Surface` should additionally expose `Value::Mesh` (append-only pin) or keep emitting legacy as an adapter.
+- [x] `alpha/ghx-engine/src/components/surface_primitive.rs`: Cylinder/Cone/Sphere/PlaneSurface/QuadSphere -> build `geom::surface` primitives and mesh via shared pipeline; keep existing outputs (including "tip" outputs) stable.
+- [x] `alpha/ghx-engine/src/components/surface_primitive.rs`: Any component that currently emits a mesh as `Value::Surface` should additionally expose `Value::Mesh` (append-only pin) or keep emitting legacy as an adapter.
 
 Surface “Util” components (move geometry logic to geom; keep wrappers thin)
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: DivideSurface / SurfaceFrames / Isotrim -> call `geom::surface_ops::*` or `geom::analysis::*` and return the same shapes/trees as today.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: CopyTrim / Retrim / Untrim -> call `geom::trim::*`; preserve trim-loop ordering semantics.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: OffsetSurface / OffsetSurfaceLoose -> call `geom::offset::*` and return mesh/surface outputs consistent with today.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: CapHoles / CapHolesEx -> call `geom::brep_ops::*` (or `geom::solid::*`) and preserve the “solid” boolean pin semantics.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: BrepJoin / MergeFaces -> call `geom::brep_ops::*` and preserve diagnostic/boolean pins.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: Flip -> call `geom::surface_ops::flip()` (or equivalent) and preserve result flags.
-- [ ] `alpha/ghx-engine/src/components/surface_util.rs`: FilletEdge -> call `geom::fillet_chamfer::*` (document limitations; emit diagnostics instead of silent failures).
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: DivideSurface / SurfaceFrames / Isotrim -> call `geom::surface_ops::*` or `geom::analysis::*` and return the same shapes/trees as today.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: CopyTrim / Retrim / Untrim -> call `geom::trim::*`; preserve trim-loop ordering semantics.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: OffsetSurface / OffsetSurfaceLoose -> call `geom::offset::*` and return mesh/surface outputs consistent with today.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: CapHoles / CapHolesEx -> call `geom::solid::cap_holes_legacy` and `cap_holes_ex_legacy`; accepts both Value::Surface and Value::Mesh inputs; preserves the "solid" boolean pin semantics on the `S` output.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: BrepJoin / MergeFaces -> call `geom::brep_ops::*` and preserve diagnostic/boolean pins.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: Flip -> call `geom::flip_mesh()` for meshes and surfaces; uses proper dot-product alignment check with guide direction; flips explicit normals when present.
+- [x] `alpha/ghx-engine/src/components/surface_util.rs`: FilletEdge -> call `geom::fillet_chamfer::*` (document limitations; emit diagnostics instead of silent failures).
 
 Surface “Analysis” components (add Mesh support where appropriate)
-- [ ] `alpha/ghx-engine/src/components/surface_analysis.rs`: Accept `Value::Mesh` inputs where the component only needs a triangulated representation (e.g., normals/areas/bounds); otherwise keep surface-only behavior explicit and error clearly.
+- [x] `alpha/ghx-engine/src/components/surface_analysis.rs`: Accept `Value::Mesh` inputs where the component only needs a triangulated representation (e.g., normals/areas/bounds); otherwise keep surface-only behavior explicit and error clearly.
 
 Surface “SubD” components (bridge to geom SubD)
-- [ ] `alpha/ghx-engine/src/components/surface_subd.rs`: Box/Fuse/MultiPipe/FromMesh/MeshFromSubd/Tags/ControlPolygon/Vertices -> move data model into `geom::subdivision` and keep component as a thin wrapper; keep existing pins stable.
-- [ ] `alpha/ghx-engine/src/components/surface_subd.rs`: Ensure `MeshFromSubd` emits `Value::Mesh` (and optionally `Value::Surface` legacy adapter).
+- [x] `alpha/ghx-engine/src/components/surface_subd.rs`: Box/Fuse/MultiPipe/FromMesh/MeshFromSubd/Tags/ControlPolygon/Vertices -> move data model into `geom::subdivision` and keep component as a thin wrapper; keep existing pins stable.
+- [x] `alpha/ghx-engine/src/components/surface_subd.rs`: Ensure `MeshFromSubd` emits `Value::Mesh` (and optionally `Value::Surface` legacy adapter).
 
 Other component files that must become `Mesh`-aware (because they mention `Value::Surface` today)
-- [ ] `alpha/ghx-engine/src/components/curve_spline.rs`: Where a surface’s vertex set is accepted as an input, accept `Value::Mesh` too (or hard-error with a clear message if true surface parameterization is required).
-- [ ] `alpha/ghx-engine/src/components/vector_grid.rs`: Accept `Value::Mesh` anywhere `Value::Surface` meshes are currently used for grid/triangulation logic.
-- [ ] `alpha/ghx-engine/src/components/vector_point.rs`: Update any type-dispatch logic that currently treats `Value::Surface` as “mesh-like” to include `Value::Mesh`.
-- [ ] `alpha/ghx-engine/src/components/maths_script.rs`: Update any “allowed input types” lists to include `Value::Mesh` where `Value::Surface` is currently allowed.
+- [x] `alpha/ghx-engine/src/components/curve_spline.rs`: Where a surface's vertex set is accepted as an input, accept `Value::Mesh` too (or hard-error with a clear message if true surface parameterization is required).
+- [x] `alpha/ghx-engine/src/components/vector_grid.rs`: Accept `Value::Mesh` anywhere `Value::Surface` meshes are currently used for grid/triangulation logic.
+- [x] `alpha/ghx-engine/src/components/vector_point.rs`: Update any type-dispatch logic that currently treats `Value::Surface` as "mesh-like" to include `Value::Mesh`.
+- [x] `alpha/ghx-engine/src/components/maths_script.rs`: Update any "allowed input types" lists to include `Value::Mesh` where `Value::Surface` is currently allowed.
 
 Integration verification (native + wasm)
-- [ ] `cargo test -p ghx-engine`: passes with default features (no `mesh_engine_next` required anymore for runtime behavior).
-- [ ] `cargo test -p ghx-engine --features mesh_engine_next`: still passes (keeps the isolated engine healthy).
-- [ ] `cargo build -p ghx-engine --target wasm32-unknown-unknown`: passes (default feature set used by wasm).
-- [ ] Add/extend regression tests that compare a handful of key component outputs before/after (vertex/face counts, watertightness diagnostics, stable pin outputs) without requiring perfect geometric identity.
+- [x] `cargo test -p ghx-engine`: passes with default features (no `mesh_engine_next` required anymore for runtime behavior).
+- [x] `cargo test -p ghx-engine --features mesh_engine_next`: still passes (keeps the isolated engine healthy).
+- [x] `cargo build -p ghx-engine --target wasm32-unknown-unknown`: passes (default feature set used by wasm).
+- [x] Add/extend regression tests that compare a handful of key component outputs before/after (vertex/face counts, watertightness diagnostics, stable pin outputs) without requiring perfect geometric identity. **Done:** `alpha/ghx-engine/tests/regression_component_outputs.rs` (25 tests covering Extrude, Loft, Sweep, Pipe, Revolution, MeshPrimitives, SurfacePrimitives, pin stability, watertightness, diagnostics, and cross-component compatibility).
+

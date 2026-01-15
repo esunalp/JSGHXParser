@@ -1,2 +1,5 @@
 npm_output.log
 server_output.log
+
+# Ignore wasm-pack's auto-generated .gitignore (we want to track pkg/ files)
+pkg/.gitignore

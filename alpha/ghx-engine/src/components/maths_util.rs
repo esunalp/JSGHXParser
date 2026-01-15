@@ -548,8 +548,8 @@ fn coerce_optional_number(
     context: &str,
 ) -> Result<f64, ComponentError> {
     match value {
+        Some(Value::Null) | None => Ok(default),
         Some(value) => coerce_number(value, context),
-        None => Ok(default),
     }
 }
 

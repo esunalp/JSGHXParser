@@ -240,20 +240,20 @@ impl Component for SurfaceComponent {
 /// # Conversion Rules
 ///
 /// - `Value::Mesh` → passed through unchanged
-/// - `Value::Surface` → faces are triangulated (first 3 vertices of each face)
+/// - `Value::Surface` → faces are triangulated using fan triangulation (preserves all geometry)
 /// - `Value::List` → each element is recursively converted
 /// - `Value::Null` → passed through unchanged
 fn convert_to_mesh_value(value: &Value) -> Result<Value, ComponentError> {
+    use crate::graph::value::triangulate_polygon_faces;
+
     match value {
         Value::Null => Ok(Value::Null),
         Value::Mesh { .. } => Ok(value.clone()),
         Value::Surface { vertices, faces } => {
-            // Convert polygon faces to triangle indices (take first 3 vertices per face)
-            let indices: Vec<u32> = faces
-                .iter()
-                .filter(|f| f.len() >= 3)
-                .flat_map(|f| vec![f[0], f[1], f[2]])
-                .collect();
+            // Convert polygon faces to triangles using fan triangulation.
+            // This properly handles quads and n-gons by producing (n-2) triangles
+            // per n-gon face, preserving all geometry.
+            let indices = triangulate_polygon_faces(faces);
             Ok(Value::Mesh {
                 vertices: vertices.clone(),
                 indices,
