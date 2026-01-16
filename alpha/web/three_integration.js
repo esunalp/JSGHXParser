@@ -649,15 +649,18 @@ export function createThreeApp(canvas) {
     for (const group of geometryObjects.values()) {
       if (!group?.isObject3D) continue;
       group.traverse(child => {
-        if (child.geometry) {
+        if (child.isMesh && child.geometry) {
           const positionAttr = child.geometry.getAttribute('position');
           if (positionAttr) {
             totalVertices += positionAttr.count;
           }
           const index = child.geometry.getIndex();
           if (index) {
-            // Faces are triangles (3 indices per face)
+            // Indexed geometry: faces are triangles (3 indices per face)
             totalFaces += Math.floor(index.count / 3);
+          } else if (positionAttr) {
+            // Non-indexed geometry: each 3 vertices form a triangle
+            totalFaces += Math.floor(positionAttr.count / 3);
           }
         }
       });
