@@ -1,13 +1,13 @@
 //! Higher-level surface operations for component integration.
 //!
-//! This module provides surface utility functions that operate on legacy mesh
-//! representations (vertices/faces from `Value::Surface`) while leveraging the
-//! `geom` kernel's surface abstractions where applicable.
+//! This module provides surface utility functions that operate on mesh
+//! representations (vertices/faces) while leveraging the `geom` kernel's
+//! surface abstractions where applicable.
 //!
 //! # Design Philosophy
 //!
 //! These functions bridge the gap between:
-//! - Legacy `Value::Surface { vertices, faces }` representations in components
+//! - Mesh representations (`Value::Mesh`) in components
 //! - The type-safe `geom::Surface` trait implementations
 //!
 //! ## Vertex-Based Operations (Recommended)
@@ -1012,7 +1012,7 @@ pub struct IsotrimBoundsResult {
 ///
 /// This function creates a `PlaneSurface` from the given bounds and extracts
 /// a rectangular region based on the UV parameter ranges. The result is
-/// returned as vertices and faces suitable for `Value::Surface`.
+/// returned as vertices and faces suitable for mesh construction.
 ///
 /// # Arguments
 ///

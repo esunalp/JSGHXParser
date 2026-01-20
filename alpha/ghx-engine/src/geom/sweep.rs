@@ -1626,6 +1626,7 @@ pub struct RailFrameResult {
     /// Frames along the rail, one per rail point.
     pub frames: Vec<FrenetFrame>,
     /// Indices of cusp points (sharp tangent changes) in the rail.
+    #[allow(dead_code)] // Populated for diagnostics/future use but not currently consumed
     pub cusp_indices: Vec<usize>,
     /// Warnings generated during computation.
     pub warnings: Vec<String>,
@@ -1769,12 +1770,6 @@ fn compute_rail_frames_with_miter(
         cusp_indices,
         warnings,
     }
-}
-
-fn compute_rail_frames(rail: &[Point3], tol: Tolerance) -> (Vec<FrenetFrame>, Vec<String>) {
-    // Legacy wrapper that uses no miter handling
-    let result = compute_rail_frames_with_miter(rail, MiterType::None, tol);
-    (result.frames, result.warnings)
 }
 
 fn parallel_transport_frame(prev_frame: &FrenetFrame, new_tangent: Vec3, tol: Tolerance) -> FrenetFrame {

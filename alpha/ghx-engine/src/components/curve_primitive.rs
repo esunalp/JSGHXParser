@@ -1245,12 +1245,6 @@ fn create_arc_points_geom(
     (points, length)
 }
 
-/// Legacy create_arc_points wrapper for backward compatibility.
-fn create_arc_points(plane: &Plane, radius: f64, angle: f64) -> (Vec<[f64; 3]>, f64) {
-    let (max_deviation, max_segments) = default_curve_tessellation_options();
-    create_arc_points_geom(plane, radius, 0.0, angle, max_deviation, max_segments)
-}
-
 /// Legacy segments_for_angle - kept for backward compatibility with rectangle fillet.
 fn segments_for_angle(_angle: f64) -> usize {
     CURVE_SEGMENTS
@@ -2301,12 +2295,6 @@ impl Plane {
         let x_axis = subtract(point_x, origin);
         let y_axis = subtract(point_y, origin);
         let z_axis = cross(x_axis, y_axis);
-        Self::normalize_axes(origin, x_axis, y_axis, z_axis)
-    }
-
-    fn from_origin_and_normal(origin: [f64; 3], z_axis: [f64; 3]) -> Self {
-        let x_axis = orthogonal_vector(z_axis);
-        let y_axis = cross(z_axis, x_axis);
         Self::normalize_axes(origin, x_axis, y_axis, z_axis)
     }
 

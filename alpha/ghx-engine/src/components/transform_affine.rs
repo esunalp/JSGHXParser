@@ -633,10 +633,6 @@ where
             p1: point_fn(*p1),
             p2: point_fn(*p2),
         },
-        Value::Surface { vertices, faces } => Value::Surface {
-            vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
-            faces: faces.clone(),
-        },
         Value::Mesh {
             vertices,
             indices,
@@ -1108,7 +1104,7 @@ fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
-        Some(Value::Surface { vertices, .. }) => vertices.clone(),
+        Some(Value::Mesh { vertices, .. }) => vertices.clone(),
         Some(Value::List(values)) => values
             .iter()
             .flat_map(|value| collect_points(Some(value)))

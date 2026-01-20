@@ -1136,6 +1136,7 @@ const EPSILON: f64 = 1e-9;
 struct Plane {
     pub origin: [f64; 3],
     pub x_axis: [f64; 3],
+    #[allow(dead_code)] // Computed for struct completeness but not directly accessed
     pub y_axis: [f64; 3],
     pub normal: [f64; 3],
 }

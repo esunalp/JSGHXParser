@@ -3,43 +3,43 @@
 //! This module provides coercion utilities for converting between `Value` types
 //! and more specific Rust types used by component implementations.
 //!
-//! # Mesh and Surface Interoperability
+//! # Mesh Coercion
 //!
-//! The module supports both the legacy `Value::Surface` and the new `Value::Mesh` types.
-//! Components should prefer the `*_like` functions (`coerce_mesh_like`, `coerce_surface_like`)
-//! to accept both types transparently:
+//! The module provides mesh coercion utilities through the `Mesh` type and related
+//! functions like `coerce_mesh_like`.
 //!
 //! ```ignore
-//! // Preferred: accepts both Mesh and Surface
+//! // Coerce a Value::Mesh to a Mesh struct
 //! let mesh = coerce_mesh_like(&inputs[0])?;
-//!
-//! // Legacy: only accepts Surface (use for backward compatibility)
-//! let surface = coerce_surface(&inputs[0])?;
 //! ```
+//!
+//! For working with polygon face data (instead of triangle indices), use the
+//! `SurfaceOwned` type and `coerce_surface_like` function which convert triangle
+//! indices to polygon face lists.
 
 use super::ComponentError;
 use crate::graph::value::{Domain, Domain1D, MeshData, MeshDiagnostics, PlaneValue, Value};
 use time::{Date, Month, PrimitiveDateTime, Time};
 
 // ============================================================================
-// Surface types - for backward compatibility with Value::Surface
+// Surface types - polygon face representation from Value::Mesh
 // ============================================================================
 
-/// Borrowed reference to legacy surface data.
+/// Borrowed reference to surface/polygon face data.
 ///
-/// This struct provides a borrowed view over `Value::Surface` data.
-/// For accepting both `Value::Mesh` and `Value::Surface`, use [`SurfaceOwned`]
-/// via the [`coerce_surface_like`] function.
+/// This struct provides a borrowed view over mesh data with polygon faces.
+/// For coercing from `Value::Mesh`, use [`SurfaceOwned`] via the
+/// [`coerce_surface_like`] function.
 pub struct Surface<'a> {
     pub vertices: &'a Vec<[f64; 3]>,
     pub faces: &'a Vec<Vec<u32>>,
 }
 
-/// Owned surface data, compatible with both `Value::Mesh` and `Value::Surface`.
+/// Owned surface data with polygon faces.
 ///
-/// This struct provides a unified owned representation for surface-like values.
-/// When constructed from a `Value::Mesh`, the triangle indices are converted
-/// to polygon face lists.
+/// This struct provides an owned representation for mesh data with polygon faces.
+/// Triangle indices from `Value::Mesh` are converted to polygon face lists
+/// (each triangle becomes a 3-element face).
 ///
 /// # Example
 ///
@@ -77,12 +77,18 @@ impl SurfaceOwned {
         self.faces.len()
     }
 
-    /// Converts to a `Value::Surface`.
+    /// Converts to a `Value::Mesh`.
+    ///
+    /// Polygon faces are triangulated using fan triangulation.
     #[must_use]
     pub fn into_value(self) -> Value {
-        Value::Surface {
+        let indices = triangulate_polygon_faces(&self.faces);
+        Value::Mesh {
             vertices: self.vertices,
-            faces: self.faces,
+            indices,
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         }
     }
 
@@ -107,13 +113,9 @@ use crate::graph::value::triangulate_polygon_faces;
 // Mesh types - the preferred representation for mesh-like values
 // ============================================================================
 
-/// Owned mesh data, compatible with both `Value::Mesh` and `Value::Surface`.
+/// Owned mesh data from `Value::Mesh`.
 ///
-/// This struct provides a unified view over mesh-like values. When constructed from
-/// a `Value::Surface`, the polygon faces are converted to triangle indices.
-///
-/// This is the preferred type for components working with mesh data, as it
-/// accepts both the new `Value::Mesh` type and the legacy `Value::Surface` type.
+/// This struct provides a unified view over mesh values with triangle indices.
 ///
 /// # Example
 ///
@@ -296,23 +298,6 @@ impl Mesh {
             normals: self.normals,
             uvs: self.uvs,
             diagnostics: Some(diagnostics),
-        }
-    }
-
-    /// Converts to a legacy `Value::Surface`.
-    ///
-    /// **Note**: This is a lossy conversion - normals and UVs are discarded.
-    #[must_use]
-    pub fn into_surface_legacy(self) -> Value {
-        let faces: Vec<Vec<u32>> = self
-            .indices
-            .chunks(3)
-            .filter(|chunk| chunk.len() == 3)
-            .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
-            .collect();
-        Value::Surface {
-            vertices: self.vertices,
-            faces,
         }
     }
 
@@ -686,40 +671,22 @@ pub fn coerce_point(value: &Value) -> Result<[f64; 3], ComponentError> {
 // Surface coercion functions
 // ============================================================================
 
-/// Coerces a `Value::Surface` to a borrowed `Surface` struct.
+/// Deprecated: Coerces a `Value::Mesh` to a borrowed `Surface` struct.
 ///
-/// This function only accepts `Value::Surface` values (the legacy mesh format).
-/// For accepting both `Value::Mesh` and `Value::Surface`, use [`coerce_surface_like`].
-///
-/// # Example
-///
-/// ```ignore
-/// let surface = coerce_surface(&inputs[0])?;
-/// for face in surface.faces {
-///     // Each face is a polygon as a list of vertex indices
-/// }
-/// ```
+/// **Note**: This function is deprecated. Use `coerce_surface_like` instead
+/// which returns an owned `SurfaceOwned` that works with `Value::Mesh`.
 ///
 /// # Errors
 ///
-/// Returns an error if the value is not a `Value::Surface`.
-pub fn coerce_surface<'a>(value: &'a Value) -> Result<Surface<'a>, ComponentError> {
-    match value {
-        Value::Surface { vertices, faces } => Ok(Surface { vertices, faces }),
-        Value::List(l) if l.len() == 1 => coerce_surface(&l[0]),
-        other => Err(ComponentError::new(format!(
-            "Verwachtte een surface, kreeg {}",
-            other.kind()
-        ))),
-    }
+/// Returns an error if the value is not a `Value::Mesh`.
+#[deprecated(note = "Use coerce_surface_like instead which works with Value::Mesh")]
+pub fn coerce_surface(value: &Value) -> Result<SurfaceOwned, ComponentError> {
+    coerce_surface_like(value)
 }
 
-/// Coerces a surface-like value (`Value::Surface` or `Value::Mesh`) to a `SurfaceOwned` struct.
+/// Coerces a `Value::Mesh` to a `SurfaceOwned` struct with polygon faces.
 ///
-/// This is the preferred function for components that work with surface/polygon data
-/// and should accept both the legacy `Value::Surface` and the new `Value::Mesh` type.
-///
-/// For `Value::Mesh`, triangle indices are converted to polygon face lists
+/// Triangle indices are converted to polygon face lists
 /// (each triangle becomes a 3-element face list).
 ///
 /// # Example
@@ -734,13 +701,9 @@ pub fn coerce_surface<'a>(value: &'a Value) -> Result<Surface<'a>, ComponentErro
 ///
 /// # Errors
 ///
-/// Returns an error if the value is not a `Value::Surface` or `Value::Mesh`.
+/// Returns an error if the value is not a `Value::Mesh`.
 pub fn coerce_surface_like(value: &Value) -> Result<SurfaceOwned, ComponentError> {
     match value {
-        Value::Surface { vertices, faces } => Ok(SurfaceOwned {
-            vertices: vertices.clone(),
-            faces: faces.clone(),
-        }),
         Value::Mesh {
             vertices, indices, ..
         } => {
@@ -757,13 +720,13 @@ pub fn coerce_surface_like(value: &Value) -> Result<SurfaceOwned, ComponentError
         }
         Value::List(l) if l.len() == 1 => coerce_surface_like(&l[0]),
         other => Err(ComponentError::new(format!(
-            "Verwachtte een surface of mesh, kreeg {}",
+            "Verwachtte een mesh, kreeg {}",
             other.kind()
         ))),
     }
 }
 
-/// Coerces a surface-like value with a context message for error reporting.
+/// Coerces a mesh to a surface-like value with a context message for error reporting.
 ///
 /// Similar to [`coerce_surface_like`] but includes a context string in error messages.
 ///
@@ -777,10 +740,6 @@ pub fn coerce_surface_like_with_context(
     context: &str,
 ) -> Result<SurfaceOwned, ComponentError> {
     match value {
-        Value::Surface { vertices, faces } => Ok(SurfaceOwned {
-            vertices: vertices.clone(),
-            faces: faces.clone(),
-        }),
         Value::Mesh {
             vertices, indices, ..
         } => {
@@ -796,7 +755,7 @@ pub fn coerce_surface_like_with_context(
         }
         Value::List(l) if l.len() == 1 => coerce_surface_like_with_context(&l[0], context),
         other => Err(ComponentError::new(format!(
-            "{} verwacht een surface of mesh, kreeg {}",
+            "{} verwacht een mesh, kreeg {}",
             context,
             other.kind()
         ))),
@@ -834,9 +793,6 @@ pub fn coerce_surface_list(value: &Value, context: &str) -> Result<Vec<SurfaceOw
 
 /// Coerces a `Value::Mesh` to a `Mesh` struct.
 ///
-/// This function only accepts `Value::Mesh` values. For accepting both
-/// `Value::Mesh` and `Value::Surface`, use `coerce_mesh_like`.
-///
 /// # Errors
 ///
 /// Returns an error if the value is not a `Value::Mesh`.
@@ -862,13 +818,9 @@ pub fn coerce_mesh(value: &Value) -> Result<Mesh, ComponentError> {
     }
 }
 
-/// Coerces a mesh-like value (`Value::Mesh` or `Value::Surface`) to a `Mesh` struct.
+/// Coerces a `Value::Mesh` to a `Mesh` struct.
 ///
-/// This is the preferred function for components that need to work with mesh data
-/// and should accept both the new `Value::Mesh` type and the legacy `Value::Surface` type.
-///
-/// For `Value::Surface`, faces are converted to triangle indices by taking
-/// the first three vertices of each face.
+/// This is the preferred function for components that need to work with mesh data.
 ///
 /// # Example
 ///
@@ -882,7 +834,7 @@ pub fn coerce_mesh(value: &Value) -> Result<Mesh, ComponentError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the value is not a `Value::Mesh` or `Value::Surface`.
+/// Returns an error if the value is not a `Value::Mesh`.
 pub fn coerce_mesh_like(value: &Value) -> Result<Mesh, ComponentError> {
     match value {
         Value::Mesh {
@@ -897,27 +849,15 @@ pub fn coerce_mesh_like(value: &Value) -> Result<Mesh, ComponentError> {
             normals: normals.clone(),
             uvs: uvs.clone(),
         }),
-        Value::Surface { vertices, faces } => {
-            // Convert polygon faces to triangles using fan triangulation.
-            // This properly handles quads and n-gons by producing (n-2) triangles
-            // per n-gon face, preserving all geometry.
-            let indices = triangulate_polygon_faces(faces);
-            Ok(Mesh {
-                vertices: vertices.clone(),
-                indices,
-                normals: None,
-                uvs: None,
-            })
-        }
         Value::List(l) if l.len() == 1 => coerce_mesh_like(&l[0]),
         other => Err(ComponentError::new(format!(
-            "Verwachtte een mesh of surface, kreeg {}",
+            "Verwachtte een mesh, kreeg {}",
             other.kind()
         ))),
     }
 }
 
-/// Coerces a mesh-like value with a context message for error reporting.
+/// Coerces a mesh value with a context message for error reporting.
 ///
 /// Similar to `coerce_mesh_like` but includes a context string in error messages.
 pub fn coerce_mesh_like_with_context(value: &Value, context: &str) -> Result<Mesh, ComponentError> {
@@ -934,21 +874,9 @@ pub fn coerce_mesh_like_with_context(value: &Value, context: &str) -> Result<Mes
             normals: normals.clone(),
             uvs: uvs.clone(),
         }),
-        Value::Surface { vertices, faces } => {
-            // Convert polygon faces to triangles using fan triangulation.
-            // This properly handles quads and n-gons by producing (n-2) triangles
-            // per n-gon face, preserving all geometry.
-            let indices = triangulate_polygon_faces(faces);
-            Ok(Mesh {
-                vertices: vertices.clone(),
-                indices,
-                normals: None,
-                uvs: None,
-            })
-        }
         Value::List(l) if l.len() == 1 => coerce_mesh_like_with_context(&l[0], context),
         other => Err(ComponentError::new(format!(
-            "{} verwacht een mesh of surface, kreeg {}",
+            "{} verwacht een mesh, kreeg {}",
             context,
             other.kind()
         ))),
@@ -1011,7 +939,7 @@ pub fn coerce_curve_segments(value: &Value) -> Result<Vec<([f64; 3], [f64; 3])>,
             }
             Ok(segments)
         }
-        Value::Surface { vertices, .. } => {
+        Value::Mesh { vertices, .. } => {
             if vertices.len() < 2 {
                 return Ok(Vec::new());
             }
@@ -1262,10 +1190,6 @@ pub fn default_datetime() -> PrimitiveDateTime {
 
 const EPSILON: f64 = 1e-9;
 
-fn clamp_to_unit(value: f64) -> f64 {
-    value.max(-1.0).min(1.0)
-}
-
 fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
@@ -1434,23 +1358,6 @@ pub mod geom_bridge {
         }
     }
 
-    /// Converts a `geom::GeomMesh` to a legacy `Value::Surface`.
-    ///
-    /// **Note**: This is a lossy conversion - normals and UVs are discarded.
-    #[must_use]
-    pub fn geom_mesh_to_surface_legacy(mesh: GeomMesh) -> Value {
-        let faces: Vec<Vec<u32>> = mesh
-            .indices
-            .chunks(3)
-            .filter(|chunk| chunk.len() == 3)
-            .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
-            .collect();
-        Value::Surface {
-            vertices: mesh.positions,
-            faces,
-        }
-    }
-
     /// Converts a `geom::GeomMesh` to a `SurfaceOwned`.
     ///
     /// **Note**: Normals and UVs are discarded.
@@ -1466,6 +1373,16 @@ pub mod geom_bridge {
             vertices: mesh.positions,
             faces,
         }
+    }
+
+    /// Deprecated: Converts a `geom::GeomMesh` to a `Value::Mesh`.
+    ///
+    /// **Note**: This function is deprecated and will be removed.
+    /// Use `geom_mesh_to_value` instead which returns `Value::Mesh`.
+    #[deprecated(note = "Use geom_mesh_to_value instead which returns Value::Mesh")]
+    #[must_use]
+    pub fn geom_mesh_to_surface_legacy(mesh: GeomMesh) -> Value {
+        geom_mesh_to_value(mesh, None)
     }
 
     /// Converts a `Value::Mesh` to a `geom::GeomMesh`.
@@ -1495,13 +1412,11 @@ pub mod geom_bridge {
         }
     }
 
-    /// Converts a mesh-like value (`Value::Mesh` or `Value::Surface`) to a `geom::GeomMesh`.
-    ///
-    /// For `Value::Surface`, faces are converted to triangle indices.
+    /// Converts a `Value::Mesh` to a `geom::GeomMesh`.
     ///
     /// # Errors
     ///
-    /// Returns an error if the value is not a mesh-like type.
+    /// Returns an error if the value is not a `Value::Mesh`.
     pub fn value_to_geom_mesh_like(value: &Value) -> Result<GeomMesh, ComponentError> {
         match value {
             Value::Mesh {
@@ -1517,19 +1432,8 @@ pub mod geom_bridge {
                 uvs: uvs.clone(),
                 tangents: None,
             }),
-            Value::Surface { vertices, faces } => {
-                // Use proper fan triangulation to preserve all geometry in quads/n-gons
-                let indices = super::triangulate_polygon_faces(faces);
-                Ok(GeomMesh {
-                    positions: vertices.clone(),
-                    indices,
-                    normals: None,
-                    uvs: None,
-                    tangents: None,
-                })
-            }
             other => Err(ComponentError::new(format!(
-                "Expected Mesh or Surface, got {}",
+                "Expected Mesh, got {}",
                 other.kind()
             ))),
         }
@@ -2119,20 +2023,19 @@ pub mod geom_bridge {
     // Enhanced Mesh/Surface Conversion with Tolerance
     // ========================================================================
 
-    /// Converts a `Value::Surface` or `Value::Mesh` to a `GeomMesh` with welding.
+    /// Converts a `Value::Mesh` to a `GeomMesh` with welding.
     ///
-    /// For `Value::Surface`, converts polygon faces to triangles and optionally
-    /// welds coincident vertices within the specified tolerance.
+    /// Optionally welds coincident vertices within the specified tolerance.
     ///
     /// # Arguments
     ///
-    /// * `value` - The mesh-like value to convert
+    /// * `value` - The mesh value to convert
     /// * `weld` - Whether to weld coincident vertices
     /// * `tolerance` - Tolerance for vertex welding
     ///
     /// # Errors
     ///
-    /// Returns an error if the value is not a mesh-like type.
+    /// Returns an error if the value is not a `Value::Mesh`.
     pub fn value_to_geom_mesh_welded(
         value: &Value,
         weld: bool,
@@ -2303,10 +2206,13 @@ pub mod geom_bridge {
         }
 
         #[test]
-        fn value_to_geom_mesh_like_accepts_surface() {
-            let value = Value::Surface {
+        fn value_to_geom_mesh_like_accepts_mesh() {
+            let value = Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-                faces: vec![vec![0, 1, 2]],
+                indices: vec![0, 1, 2],
+                normals: None,
+                uvs: None,
+                diagnostics: None,
             };
 
             let geom_mesh = value_to_geom_mesh_like(&value).unwrap();
@@ -2643,9 +2549,12 @@ pub mod geom_bridge {
                     uvs: None,
                     diagnostics: None,
                 },
-                Value::Surface {
+                Value::Mesh {
                     vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-                    faces: vec![vec![0, 1, 2]],
+                    indices: vec![0, 1, 2],
+                    normals: None,
+                    uvs: None,
+                    diagnostics: None,
                 },
             ]);
 
@@ -2704,11 +2613,8 @@ mod tests {
     }
 
     #[test]
-    fn coerce_mesh_rejects_surface() {
-        let value = Value::Surface {
-            vertices: vec![[0.0, 0.0, 0.0]],
-            faces: vec![],
-        };
+    fn coerce_mesh_rejects_non_mesh() {
+        let value = Value::Number(42.0);
 
         let result = coerce_mesh(&value);
         assert!(result.is_err());
@@ -2731,23 +2637,10 @@ mod tests {
     }
 
     #[test]
-    fn coerce_mesh_like_accepts_surface() {
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let mesh = coerce_mesh_like(&value).unwrap();
-        assert_eq!(mesh.vertex_count(), 4);
-        assert_eq!(mesh.triangle_count(), 2);
-        assert_eq!(mesh.indices, vec![0, 1, 2, 0, 2, 3]);
-        assert!(!mesh.has_normals());
-        assert!(!mesh.has_uvs());
+    fn coerce_mesh_like_rejects_non_mesh() {
+        let value = Value::Number(42.0);
+        let result = coerce_mesh_like(&value);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -2775,9 +2668,12 @@ mod tests {
                 uvs: None,
                 diagnostics: None,
             },
-            Value::Surface {
+            Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-                faces: vec![vec![0, 1, 2]],
+                indices: vec![0, 1, 2],
+                normals: None,
+                uvs: None,
+                diagnostics: None,
             },
         ]);
 
@@ -2826,54 +2722,6 @@ mod tests {
     // ========================================================================
 
     #[test]
-    fn coerce_surface_accepts_surface_value() {
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let surface = coerce_surface(&value).unwrap();
-        assert_eq!(surface.vertices.len(), 4);
-        assert_eq!(surface.faces.len(), 2);
-    }
-
-    #[test]
-    fn coerce_surface_rejects_mesh() {
-        let value = Value::Mesh {
-            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            indices: vec![0, 1, 2],
-            normals: None,
-            uvs: None,
-            diagnostics: None,
-        };
-
-        let result = coerce_surface(&value);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn coerce_surface_like_accepts_surface() {
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let surface = coerce_surface_like(&value).unwrap();
-        assert_eq!(surface.vertex_count(), 4);
-        assert_eq!(surface.face_count(), 2);
-    }
-
-    #[test]
     fn coerce_surface_like_accepts_mesh() {
         let value = Value::Mesh {
             vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
@@ -2913,9 +2761,12 @@ mod tests {
 
     #[test]
     fn coerce_surface_like_unwraps_single_element_list() {
-        let value = Value::List(vec![Value::Surface {
+        let value = Value::List(vec![Value::Mesh {
             vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            faces: vec![vec![0, 1, 2]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         }]);
 
         let surface = coerce_surface_like(&value).unwrap();
@@ -2924,11 +2775,21 @@ mod tests {
     }
 
     #[test]
-    fn coerce_surface_list_accepts_list_of_surfaces() {
+    fn coerce_surface_like_rejects_non_mesh() {
+        let value = Value::Number(42.0);
+        let result = coerce_surface_like(&value);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn coerce_surface_list_accepts_list_of_meshes() {
         let value = Value::List(vec![
-            Value::Surface {
+            Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-                faces: vec![vec![0, 1, 2]],
+                indices: vec![0, 1, 2],
+                normals: None,
+                uvs: None,
+                diagnostics: None,
             },
             Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
@@ -2946,10 +2807,13 @@ mod tests {
     }
 
     #[test]
-    fn coerce_surface_list_wraps_single_surface() {
-        let value = Value::Surface {
+    fn coerce_surface_list_wraps_single_mesh() {
+        let value = Value::Mesh {
             vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            faces: vec![vec![0, 1, 2]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         };
 
         let surfaces = coerce_surface_list(&value, "test").unwrap();
@@ -2965,11 +2829,11 @@ mod tests {
         );
 
         let value = surface.into_value();
-        if let Value::Surface { vertices, faces } = value {
+        if let Value::Mesh { vertices, indices, .. } = value {
             assert_eq!(vertices.len(), 3);
-            assert_eq!(faces.len(), 1);
+            assert_eq!(indices, vec![0, 1, 2]);
         } else {
-            panic!("Expected Value::Surface");
+            panic!("Expected Value::Mesh");
         }
     }
 
@@ -2984,23 +2848,6 @@ mod tests {
         assert_eq!(surface.vertex_count(), 3);
         assert_eq!(surface.face_count(), 1);
         assert_eq!(surface.faces[0], vec![0, 1, 2]);
-    }
-
-    #[test]
-    fn mesh_into_surface_legacy() {
-        let mesh = Mesh::new(
-            vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            vec![0, 1, 2],
-        );
-
-        let value = mesh.into_surface_legacy();
-        if let Value::Surface { vertices, faces } = value {
-            assert_eq!(vertices.len(), 3);
-            assert_eq!(faces.len(), 1);
-            assert_eq!(faces[0], vec![0, 1, 2]);
-        } else {
-            panic!("Expected Value::Surface");
-        }
     }
 
     #[test]

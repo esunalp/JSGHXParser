@@ -7,16 +7,16 @@
 //!
 //! # Operations
 //!
-//! - [`brep_join`]: Join multiple surface meshes by welding matching naked edges.
+//! - [`brep_join_component`]: Join multiple surface meshes by welding matching naked edges.
 //! - [`merge_brep_faces`]: Merge coplanar/continuous faces within a B-rep.
 //!
 //! # Usage
 //!
 //! ```ignore
-//! use crate::geom::{brep_join, merge_brep_faces, Tolerance};
+//! use crate::geom::{brep_join_component, merge_brep_faces, Tolerance};
 //!
 //! // Join multiple surface meshes
-//! let result = brep_join(&[mesh1, mesh2], BrepJoinOptions::default());
+//! let result = brep_join_component(&[mesh1, mesh2], BrepJoinOptions::default());
 //! for (brep, is_closed) in result.breps.iter().zip(result.closed.iter()) {
 //!     println!("Brep closed: {}", is_closed);
 //! }
@@ -27,8 +27,8 @@
 //! ```
 
 use super::solid::{
-    brep_join_legacy, merge_faces_legacy, BrepJoinDiagnostics,
-    LegacySurfaceMesh, MergeFacesDiagnostics,
+    brep_join, merge_faces, BrepJoinDiagnostics,
+    BrepMesh, MergeFacesDiagnostics,
 };
 use super::Tolerance;
 
@@ -64,7 +64,7 @@ impl BrepJoinOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct BrepJoinComponentResult {
     /// The resulting breps after joining (may be fewer than inputs if merged).
-    pub breps: Vec<LegacySurfaceMesh>,
+    pub breps: Vec<BrepMesh>,
     /// For each output brep, whether it forms a closed (watertight) shell.
     pub closed: Vec<bool>,
     /// Mapping from input index to output index (None if the input was merged into another).
@@ -95,11 +95,11 @@ pub struct BrepJoinComponentResult {
 ///
 /// # Example
 /// ```ignore
-/// let result = brep_join(&[mesh1, mesh2], BrepJoinOptions::default());
+/// let result = brep_join_component(&[mesh1, mesh2], BrepJoinOptions::default());
 /// assert!(result.breps.len() <= 2); // May be fewer if merged
 /// ```
 #[must_use]
-pub fn brep_join(breps: &[LegacySurfaceMesh], options: BrepJoinOptions) -> BrepJoinComponentResult {
+pub fn brep_join_component(breps: &[BrepMesh], options: BrepJoinOptions) -> BrepJoinComponentResult {
     if breps.is_empty() {
         return BrepJoinComponentResult {
             breps: Vec::new(),
@@ -109,14 +109,14 @@ pub fn brep_join(breps: &[LegacySurfaceMesh], options: BrepJoinOptions) -> BrepJ
         };
     }
 
-    // Clone breps for the legacy call
-    let breps_owned: Vec<LegacySurfaceMesh> = breps.to_vec();
+    // Clone breps for the call
+    let breps_owned: Vec<BrepMesh> = breps.to_vec();
     let num_inputs = breps_owned.len();
 
-    let result = brep_join_legacy(breps_owned, options.tolerance);
+    let result = brep_join(breps_owned, options.tolerance);
 
     // Build input-to-output mapping
-    // Since brep_join_legacy uses union-find and merges, we need to track this.
+    // Since brep_join uses union-find and merges, we need to track this.
     // For now, if the output count equals input count, map 1:1.
     // Otherwise, we'd need to modify the underlying function to provide mapping.
     let input_to_output_map = if result.breps.len() == num_inputs {
@@ -181,7 +181,7 @@ impl MergeFacesOptions {
 #[derive(Debug, Clone, PartialEq)]
 pub struct MergeFacesComponentResult {
     /// The brep with merged faces.
-    pub brep: LegacySurfaceMesh,
+    pub brep: BrepMesh,
     /// Whether the operation succeeded.
     pub success: bool,
     /// Diagnostics about the merge operation.
@@ -213,35 +213,35 @@ pub struct MergeFacesComponentResult {
 /// ```
 #[must_use]
 pub fn merge_brep_faces(
-    breps: &[LegacySurfaceMesh],
+    breps: &[BrepMesh],
     options: MergeFacesOptions,
 ) -> MergeFacesComponentResult {
     if breps.is_empty() {
         return MergeFacesComponentResult {
-            brep: LegacySurfaceMesh::new(),
+            brep: BrepMesh::new(),
             success: false,
             diagnostics: MergeFacesDiagnostics::default(),
         };
     }
 
-    match merge_faces_legacy(breps, options.tolerance) {
+    match merge_faces(breps, options.tolerance) {
         Some(result) => MergeFacesComponentResult {
             brep: result.brep,
             success: true,
             diagnostics: result.diagnostics,
         },
         None => MergeFacesComponentResult {
-            brep: LegacySurfaceMesh::new(),
+            brep: BrepMesh::new(),
             success: false,
             diagnostics: MergeFacesDiagnostics {
-                warnings: vec!["merge_faces_legacy returned None".to_string()],
+                warnings: vec!["merge_faces returned None".to_string()],
                 ..Default::default()
             },
         },
     }
 }
 
-/// Check if a legacy surface mesh is closed (watertight).
+/// Check if a B-rep mesh is closed (watertight).
 ///
 /// A mesh is considered closed if it has no naked (boundary) edges,
 /// meaning every edge is shared by exactly two faces.
@@ -253,17 +253,17 @@ pub fn merge_brep_faces(
 /// # Returns
 /// `true` if the mesh is closed, `false` otherwise.
 #[must_use]
-pub fn is_brep_closed(brep: &LegacySurfaceMesh, tol: Tolerance) -> bool {
-    super::solid::legacy_surface_is_closed(brep, tol)
+pub fn is_brep_closed_with_tolerance(brep: &BrepMesh, tol: Tolerance) -> bool {
+    super::solid::is_brep_closed(brep, tol)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn make_quad_mesh(origin: [f64; 3], size: f64) -> LegacySurfaceMesh {
+    fn make_quad_mesh(origin: [f64; 3], size: f64) -> BrepMesh {
         // Simple quad with 4 vertices
-        LegacySurfaceMesh {
+        BrepMesh {
             vertices: vec![
                 origin,
                 [origin[0] + size, origin[1], origin[2]],
@@ -274,7 +274,7 @@ mod tests {
         }
     }
 
-    fn make_box_mesh() -> LegacySurfaceMesh {
+    fn make_box_mesh() -> BrepMesh {
         // A simple box with 8 vertices and 6 quad faces
         let vertices = vec![
             [0.0, 0.0, 0.0], // 0: front-bottom-left
@@ -294,12 +294,12 @@ mod tests {
             vec![3, 2, 6, 7], // top
             vec![4, 5, 1, 0], // bottom
         ];
-        LegacySurfaceMesh { vertices, faces }
+        BrepMesh { vertices, faces }
     }
 
     #[test]
     fn test_brep_join_empty() {
-        let result = brep_join(&[], BrepJoinOptions::default());
+        let result = brep_join_component(&[], BrepJoinOptions::default());
         assert!(result.breps.is_empty());
         assert!(result.closed.is_empty());
     }
@@ -307,7 +307,7 @@ mod tests {
     #[test]
     fn test_brep_join_single() {
         let mesh = make_box_mesh();
-        let result = brep_join(&[mesh], BrepJoinOptions::default());
+        let result = brep_join_component(&[mesh], BrepJoinOptions::default());
         assert_eq!(result.breps.len(), 1);
         assert_eq!(result.closed.len(), 1);
         // A closed box should be detected as closed
@@ -319,7 +319,7 @@ mod tests {
         // Two quads that don't share edges
         let mesh1 = make_quad_mesh([0.0, 0.0, 0.0], 1.0);
         let mesh2 = make_quad_mesh([10.0, 0.0, 0.0], 1.0);
-        let result = brep_join(&[mesh1, mesh2], BrepJoinOptions::default());
+        let result = brep_join_component(&[mesh1, mesh2], BrepJoinOptions::default());
         // Should remain as two separate breps
         assert_eq!(result.breps.len(), 2);
         // Neither should be closed (they're just quads)
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn test_merge_faces_coplanar_triangles() {
         // Two coplanar triangles that share an edge
-        let mesh = LegacySurfaceMesh {
+        let mesh = BrepMesh {
             vertices: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
@@ -367,9 +367,9 @@ mod tests {
     #[test]
     fn test_is_brep_closed() {
         let closed_box = make_box_mesh();
-        assert!(is_brep_closed(&closed_box, Tolerance::default_geom()));
+        assert!(is_brep_closed_with_tolerance(&closed_box, Tolerance::default_geom()));
 
         let open_quad = make_quad_mesh([0.0, 0.0, 0.0], 1.0);
-        assert!(!is_brep_closed(&open_quad, Tolerance::default_geom()));
+        assert!(!is_brep_closed_with_tolerance(&open_quad, Tolerance::default_geom()));
     }
 }

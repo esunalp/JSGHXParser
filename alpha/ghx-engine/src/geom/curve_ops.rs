@@ -199,6 +199,7 @@ struct OffsetPlane {
     origin: [f64; 3],
     x_axis: [f64; 3],
     y_axis: [f64; 3],
+    #[allow(dead_code)] // Stored for completeness but not directly accessed
     normal: [f64; 3],
 }
 

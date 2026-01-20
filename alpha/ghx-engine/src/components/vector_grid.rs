@@ -637,10 +637,6 @@ fn collect_points_into(
             output.push(*p2);
             Ok(())
         }
-        Value::Surface { vertices, .. } => {
-            output.extend(vertices.iter().copied());
-            Ok(())
-        }
         Value::Mesh { vertices, .. } => {
             output.extend(vertices.iter().copied());
             Ok(())
@@ -816,9 +812,6 @@ fn coerce_plane(value: &Value, context: &str) -> Result<Plane, ComponentError> {
             };
             Ok(Plane::from(line))
         }
-        Value::Surface { vertices, .. } if vertices.len() >= 3 => {
-            Ok(Plane::from_points(vertices[0], vertices[1], vertices[2]))
-        }
         Value::Mesh { vertices, .. } if vertices.len() >= 3 => {
             Ok(Plane::from_points(vertices[0], vertices[1], vertices[2]))
         }
@@ -964,26 +957,6 @@ fn gather_geometry_into(
         }
         Value::CurveLine { p1, p2 } => {
             collection.push_line(*p1, *p2);
-            Ok(())
-        }
-        Value::Surface { vertices, faces } => {
-            for vertex in vertices {
-                collection.push_point(*vertex);
-            }
-            for face in faces {
-                if face.len() < 3 {
-                    continue;
-                }
-                let a = vertices[face[0] as usize];
-                for window in face.windows(2) {
-                    let b = vertices[window[0] as usize];
-                    let c = vertices[window[1] as usize];
-                    collection.push_triangle(a, b, c);
-                }
-                let last = vertices[*face.last().unwrap() as usize];
-                let second = vertices[face[1] as usize];
-                collection.push_triangle(a, last, second);
-            }
             Ok(())
         }
         Value::Mesh { vertices, indices, .. } => {

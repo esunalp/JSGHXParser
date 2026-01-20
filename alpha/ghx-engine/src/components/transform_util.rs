@@ -398,7 +398,6 @@ const EPSILON: f64 = 1e-9;
 /// - `Value::Point` - Transformed using `point_fn`
 /// - `Value::Vector` - Transformed using `vector_fn`
 /// - `Value::CurveLine` - Both endpoints transformed using `point_fn`
-/// - `Value::Surface` - All vertices transformed using `point_fn` (legacy)
 /// - `Value::Mesh` - Vertices transformed using `point_fn`, normals using
 ///   `vector_fn` with re-normalization; indices, UVs, and diagnostics preserved
 /// - `Value::List` - Each element recursively transformed
@@ -435,10 +434,6 @@ where
         Value::CurveLine { p1, p2 } => Value::CurveLine {
             p1: point_fn(*p1),
             p2: point_fn(*p2),
-        },
-        Value::Surface { vertices, faces } => Value::Surface {
-            vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
-            faces: faces.clone(),
         },
         Value::Mesh {
             vertices,

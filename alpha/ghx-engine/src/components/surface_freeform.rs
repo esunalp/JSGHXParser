@@ -5,7 +5,7 @@
 //! wrappers that coerce inputs, call geom functions, and return outputs.
 
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use crate::graph::node::{MetaMap, MetaValue};
 use crate::graph::value::{Domain, Value};
@@ -32,7 +32,7 @@ use crate::geom::{
     SweepOptions as GeomSweepOptions, Vec3,
     Sweep2MultiSectionOptions, Sweep2Section,
     align_sweep2_rails,
-    sweep1_polyline_with_tolerance, sweep2_multi_section, sweep2_polyline_with_tolerance,
+    sweep1_polyline_with_tolerance, sweep2_multi_section,
 };
 
 // Import geom types for pipe
@@ -56,7 +56,6 @@ use crate::geom::{
 
 // Import geom types for surface builders (FourPointSurface, RuledSurface, EdgeSurface, SumSurface, NetworkSurface)
 use crate::geom::{
-    SurfaceBuilderQuality,
     mesh_four_point_surface_from_points,
     mesh_ruled_surface,
     mesh_edge_surface_from_edges,
@@ -379,21 +378,7 @@ fn geom_mesh_to_value_mesh(
     }
 }
 
-/// Converts a `geom::GeomMesh` to `Value::Surface` (legacy format).
-///
-/// This is for backward compatibility with existing consumers expecting surfaces.
-fn geom_mesh_to_value_surface(mesh: crate::geom::GeomMesh) -> Value {
-    let faces: Vec<Vec<u32>> = mesh
-        .indices
-        .chunks(3)
-        .filter(|chunk| chunk.len() == 3)
-        .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
-        .collect();
-    Value::Surface {
-        vertices: mesh.positions,
-        faces,
-    }
-}
+
 
 /// Converts an `ExtrusionError` to a `ComponentError`.
 fn extrusion_error_to_component_error(err: ExtrusionError, component: &str) -> ComponentError {
@@ -911,8 +896,8 @@ fn evaluate_loft_with_variant(
                 invalid_branch = true;
                 continue;
             }
-            let (surface, mesh_val) = build_loft_surface_geom(polylines, loft_options.clone(), tol, component)?;
-            lofts.push(surface);
+            let mesh_val = build_loft_surface_geom(polylines, loft_options.clone(), tol, component)?;
+            lofts.push(mesh_val.clone());
             mesh_outputs.push(mesh_val);
         }
 
@@ -930,10 +915,10 @@ fn evaluate_loft_with_variant(
     }
 
     let polylines = collect_ruled_surface_curves(curves_value)?;
-    let (surface, mesh_val) = build_loft_surface_geom(polylines, loft_options, tol, component)?;
+    let mesh_val = build_loft_surface_geom(polylines, loft_options, tol, component)?;
     
     let mut out = BTreeMap::new();
-    out.insert(output.to_string(), surface);
+    out.insert(output.to_string(), mesh_val.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_val);
     Ok(out)
 }
@@ -944,7 +929,7 @@ fn build_loft_surface_geom(
     options: GeomLoftOptions,
     tol: Tolerance,
     component: &str,
-) -> Result<(Value, Value), ComponentError> {
+) -> Result<Value, ComponentError> {
     if polylines.len() < 2 {
         return Err(ComponentError::new(format!(
             "{component} vereist minimaal twee sectiecurves"
@@ -968,70 +953,9 @@ fn build_loft_surface_geom(
         .map_err(|e| loft_error_to_component_error(e, component))?;
 
     // Convert to Value::Mesh (primary output)
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(mesh_diag));
-    
-    // Also provide legacy Value::Surface for backward compatibility
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(mesh_diag));
 
-    Ok((surface_value, mesh_value))
-}
-
-/// Legacy build_loft_surface function - kept for reference but now uses geom internally.
-#[allow(dead_code)]
-fn build_loft_surface_legacy(
-    mut polylines: Vec<Vec<[f64; 3]>>,
-    component: &str,
-) -> Result<Value, ComponentError> {
-    if polylines.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist minimaal twee sectiecurves"
-        )));
-    }
-
-    unify_curve_directions(&mut polylines);
-
-    let target_count = polylines.iter().map(|p| p.len()).max().unwrap_or(0);
-    if target_count < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} kon geen curves met voldoende punten vinden"
-        )));
-    }
-
-    let resampled_polylines: Vec<Vec<[f64; 3]>> = polylines
-        .iter()
-        .map(|p| {
-            let dummy_target = vec![[0.0; 3]; target_count];
-            super::curve_sampler::resample_polylines(p, &dummy_target).0
-        })
-        .collect();
-
-    let mut vertices = Vec::new();
-    let mut faces: Vec<Vec<u32>> = Vec::new();
-
-    for polyline in &resampled_polylines {
-        vertices.extend_from_slice(polyline);
-    }
-
-    let num_curves = resampled_polylines.len();
-    let num_points_per_curve = target_count;
-
-    for i in 0..(num_curves - 1) {
-        for j in 0..(num_points_per_curve - 1) {
-            let base_idx = (i * num_points_per_curve + j) as u32;
-            let next_in_row_idx = base_idx + 1;
-            let base_in_next_curve_idx = ((i + 1) * num_points_per_curve + j) as u32;
-            let next_in_next_curve_idx = base_in_next_curve_idx + 1;
-
-            faces.push(vec![base_idx, next_in_next_curve_idx, next_in_row_idx]);
-            faces.push(vec![
-                base_idx,
-                base_in_next_curve_idx,
-                next_in_next_curve_idx,
-            ]);
-        }
-    }
-
-    Ok(Value::Surface { vertices, faces })
+    Ok(mesh_value)
 }
 
 fn collect_loft_branch_values(value: &Value, multi_source: bool) -> Vec<Value> {
@@ -1260,13 +1184,12 @@ fn evaluate_edge_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
     let (mesh, diagnostics) = mesh_edge_surface_from_edges(&edge_polylines, quality)
         .map_err(|e| ComponentError::new(format!("{component}: {e}")))?;
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -1313,13 +1236,12 @@ fn evaluate_extrude(inputs: &[Value]) -> ComponentResult {
     let (mesh, diagnostics) = extrude_polyline_with_tolerance(&profile, geom_direction, caps, tol)
         .map_err(|e| extrusion_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return primary mesh on "S" pin for backward compatibility
+    // Return mesh on "S" pin (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -1379,13 +1301,12 @@ fn evaluate_extrude_along(inputs: &[Value]) -> ComponentResult {
     let (mesh, diagnostics) = extrude_polyline_with_tolerance(&profile, geom_direction, caps, tol)
         .map_err(|e| extrusion_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs
+    // Return mesh outputs (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -1549,14 +1470,11 @@ fn evaluate_surface_from_points(inputs: &[Value], component: &str) -> ComponentR
         Tolerance::default(),
         diagnostics.warnings.clone(),
     );
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(mesh_diagnostics));
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(mesh_diagnostics));
 
-    // Also create legacy Value::Surface for backward compatibility
-    let surface_value = geom_mesh_to_value_surface(mesh);
-
-    // Return both outputs: Surface on "S" pin and Mesh on "M" pin
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -1669,11 +1587,10 @@ fn evaluate_patch(inputs: &[Value]) -> ComponentResult {
             diagnostics.add_warning(warning.clone());
         }
 
-        let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-        let surface_value = geom_mesh_to_value_surface(mesh);
+        let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
         let mut out = BTreeMap::new();
-        out.insert(PIN_OUTPUT_PATCH.to_string(), surface_value);
+        out.insert(PIN_OUTPUT_PATCH.to_string(), mesh_value.clone());
         out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
         return Ok(out);
     }
@@ -1683,7 +1600,7 @@ fn evaluate_patch(inputs: &[Value]) -> ComponentResult {
     let mut areas: Vec<(usize, f64)> = geom_polylines
         .iter()
         .enumerate()
-        .map(|(i, poly)| {
+        .map(|(i, _poly)| {
             // Use a simple normal estimate for the plane
             let normal = polyline_normal(&closed_polylines[i]);
             let area = signed_area_in_plane(&closed_polylines[i], normal).abs();
@@ -1716,11 +1633,10 @@ fn evaluate_patch(inputs: &[Value]) -> ComponentResult {
         diagnostics.add_warning(warning.clone());
     }
 
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_PATCH.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_PATCH.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -1878,7 +1794,6 @@ fn evaluate_sum_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 
     // Build output values with merged diagnostics that include warnings about skipped pairs
     let mut mesh_values = Vec::with_capacity(successes.len());
-    let mut surface_values = Vec::with_capacity(successes.len());
 
     for (result_idx, result) in successes.into_iter().enumerate() {
         let mut diagnostics = result.diagnostics;
@@ -1893,24 +1808,20 @@ fn evaluate_sum_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
             }
         }
 
-        mesh_values.push(geom_mesh_to_value_mesh(result.mesh.clone(), Some(diagnostics)));
-        surface_values.push(geom_mesh_to_value_surface(result.mesh));
+        mesh_values.push(geom_mesh_to_value_mesh(result.mesh, Some(diagnostics)));
     }
 
     // Return output matching the count pattern:
     // - Single result: return unwrapped values
     // - Multiple results: return as lists
-    let (surface_output, mesh_output) = match (surface_values.len(), mesh_values.len()) {
-        (1, 1) => (
-            surface_values.into_iter().next().unwrap(),
-            mesh_values.into_iter().next().unwrap(),
-        ),
-        _ => (Value::List(surface_values), Value::List(mesh_values)),
+    let output_value = match mesh_values.len() {
+        1 => mesh_values.into_iter().next().unwrap(),
+        _ => Value::List(mesh_values),
     };
 
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_output);
-    out.insert(PIN_OUTPUT_MESH.to_string(), mesh_output);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), output_value.clone());
+    out.insert(PIN_OUTPUT_MESH.to_string(), output_value);
     Ok(out)
 }
 
@@ -1957,7 +1868,7 @@ fn collect_sum_surface_curves(value: &Value) -> Result<Vec<Vec<[f64; 3]>>, Compo
             let segments = coerce::coerce_curve_segments(value)?;
             Ok(group_segments_into_polylines(segments))
         }
-        Value::Surface { .. } => {
+        Value::Mesh { .. } => {
             let segments = coerce::coerce_curve_segments(value)?;
             Ok(group_segments_into_polylines(segments))
         }
@@ -2005,7 +1916,7 @@ fn collect_ruled_surface_curves(value: &Value) -> Result<Vec<Vec<[f64; 3]>>, Com
             let segments = coerce::coerce_curve_segments(value)?;
             Ok(group_segments_into_polylines(segments))
         }
-        Value::Surface { .. } => {
+        Value::Mesh { .. } => {
             let segments = coerce::coerce_curve_segments(value)?;
             Ok(group_segments_into_polylines(segments))
         }
@@ -2254,7 +2165,6 @@ fn evaluate_ruled_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 
     // Build output values with merged diagnostics that include warnings about skipped pairs
     let mut mesh_values = Vec::with_capacity(successes.len());
-    let mut surface_values = Vec::with_capacity(successes.len());
 
     for (result_idx, result) in successes.into_iter().enumerate() {
         let mut diagnostics = result.diagnostics;
@@ -2269,22 +2179,20 @@ fn evaluate_ruled_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
             }
         }
 
-        mesh_values.push(geom_mesh_to_value_mesh(result.mesh.clone(), Some(diagnostics)));
-        surface_values.push(geom_mesh_to_value_surface(result.mesh));
+        mesh_values.push(geom_mesh_to_value_mesh(result.mesh, Some(diagnostics)));
     }
 
-    // Return output matching the count pattern
-    let (surface_output, mesh_output) = match (surface_values.len(), mesh_values.len()) {
-        (1, 1) => (
-            surface_values.into_iter().next().unwrap(),
-            mesh_values.into_iter().next().unwrap(),
-        ),
-        _ => (Value::List(surface_values), Value::List(mesh_values)),
+    // Return output matching the count pattern:
+    // - Single result: return unwrapped values
+    // - Multiple results: return as lists
+    let output_value = match mesh_values.len() {
+        1 => mesh_values.into_iter().next().unwrap(),
+        _ => Value::List(mesh_values),
     };
 
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_output);
-    out.insert(PIN_OUTPUT_MESH.to_string(), mesh_output);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), output_value.clone());
+    out.insert(PIN_OUTPUT_MESH.to_string(), output_value);
     Ok(out)
 }
 
@@ -2313,8 +2221,8 @@ fn evaluate_ruled_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
 /// created with G0 continuity and a diagnostic warning is added.
 ///
 /// # Outputs
-/// - `S`: Surface output (legacy `Value::Surface` for backward compatibility)
-/// - `M`: Mesh output (`Value::Mesh` for new consumers)
+/// - `S`: Surface output (`Value::Mesh`)
+/// - `M`: Mesh output (`Value::Mesh`)
 fn evaluate_network_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
     let component = "Network Surface";
     if inputs.len() < 2 {
@@ -2380,13 +2288,12 @@ fn evaluate_network_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult
     // Add any extra warnings (e.g., continuity not implemented)
     diagnostics.warnings.extend(extra_warnings);
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -2425,8 +2332,8 @@ fn evaluate_network_surface(inputs: &[Value], meta: &MetaMap) -> ComponentResult
 /// - Diagnostics warn when corrections are applied.
 ///
 /// # Outputs
-/// - `S`: Surface output (legacy `Value::Surface` for backward compatibility)
-/// - `M`: Mesh output (`Value::Mesh` for new consumers)
+/// - `S`: Surface output (`Value::Mesh`)
+/// - `M`: Mesh output (`Value::Mesh`)
 fn evaluate_sweep_two(inputs: &[Value]) -> ComponentResult {
     let component = "Sweep2";
     if inputs.len() < 3 {
@@ -2594,13 +2501,12 @@ fn evaluate_sweep_two(inputs: &[Value]) -> ComponentResult {
     // Add any extra warnings (e.g., Same Height not implemented)
     diagnostics.warnings.extend(extra_warnings);
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), Value::List(vec![surface_value]));
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), Value::List(vec![mesh_value.clone()]));
     out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(vec![mesh_value]));
     Ok(out)
 }
@@ -2696,13 +2602,12 @@ fn evaluate_pipe_variable(inputs: &[Value]) -> ComponentResult {
     )
     .map_err(|e| pipe_error_to_component_error(e, component))?;
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_PIPE.to_string(), Value::List(vec![surface_value]));
+    out.insert(PIN_OUTPUT_PIPE.to_string(), Value::List(vec![mesh_value.clone()]));
     out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(vec![mesh_value]));
     Ok(out)
 }
@@ -2758,13 +2663,12 @@ fn evaluate_extrude_linear(inputs: &[Value]) -> ComponentResult {
     let (mesh, diagnostics) = extrude_polyline_with_tolerance(&profile, geom_direction, caps, tol)
         .map_err(|e| extrusion_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs
+    // Return mesh outputs (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -2807,13 +2711,12 @@ fn evaluate_extrude_angled(inputs: &[Value]) -> ComponentResult {
     )
     .map_err(|e| extrusion_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs
+    // Return mesh outputs (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SHAPE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SHAPE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -2835,12 +2738,12 @@ fn evaluate_extrude_angled(inputs: &[Value]) -> ComponentResult {
 /// - **2 (Rotate)**: Smooth rotation through corners using bisector orientation.
 ///
 /// # Outputs
-/// - `S`: Surface output (legacy `Value::Surface` for backward compatibility)
-/// - `M`: Mesh output (`Value::Mesh` for new consumers)
+/// - `S`: Surface output (`Value::Mesh`)
+/// - `M`: Mesh output (`Value::Mesh`)
 ///
 /// # Section handling
-/// - If the section is a surface, uses `sweep_surface_along_polyline` (legacy behavior)
 /// - If the section is a single closed polyline, uses `geom::sweep1_polyline_with_tolerance`
+/// - If the section is a single open polyline, uses `geom::sweep1_polyline_with_tolerance`
 /// - If the section is a single open polyline, uses `geom::sweep1_polyline_with_tolerance`
 /// - If multiple section curves are provided, lofts them first then sweeps
 fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
@@ -2867,29 +2770,6 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         MiterType::from_int(miter_int)
     };
 
-    // Check for surface inputs (legacy path)
-    let mut section_surfaces = Vec::new();
-    collect_surfaces_recursive(&inputs[1], &mut section_surfaces)?;
-
-    if !section_surfaces.is_empty() {
-        // Legacy surface sweep path (miter not applicable to surface sweeps)
-        let mut sweeps = Vec::new();
-        let mut mesh_outputs = Vec::new();
-        for surface in section_surfaces {
-            let solid = sweep_surface_along_polyline(surface, &rail_polyline, component, true)?;
-            // For legacy surface sweeps, also create a mesh output
-            if let Value::Surface { ref vertices, ref faces } = solid {
-                let mesh_val = legacy_surface_to_mesh_value(vertices, faces);
-                mesh_outputs.push(mesh_val);
-            }
-            sweeps.push(solid);
-        }
-        let mut out = BTreeMap::new();
-        out.insert(PIN_OUTPUT_SURFACE.to_string(), Value::List(sweeps));
-        out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(mesh_outputs));
-        return Ok(out);
-    }
-
     let multi_source = input_source_count(meta, 1) >= 2;
     let branch_values = collect_loft_branch_values(&inputs[1], multi_source);
     let mut sweep_surfaces = Vec::new();
@@ -2907,22 +2787,21 @@ fn evaluate_sweep_one(inputs: &[Value], meta: &MetaMap) -> ComponentResult {
         unify_curve_directions(&mut sections);
 
         // Determine sweep result based on section configuration
-        let (surface_value, mesh_value) = if sections.len() == 1 {
+        let mesh_value = if sections.len() == 1 {
             // Single profile case - use geom::sweep1 with miter handling
             sweep_single_profile_geom(&sections[0], &rail_polyline, miter_type, tol, component)?
         } else {
             // Multiple sections - orient each section along the rail, then loft
             let oriented_sections = orient_sections_along_rail(&sections, &rail_polyline, component)?;
-            let (surface, mesh_val) = build_loft_surface_geom(
+            build_loft_surface_geom(
                 oriented_sections,
                 GeomLoftOptions::default(),
                 tol,
                 component,
-            )?;
-            (surface, mesh_val)
+            )?
         };
 
-        sweep_surfaces.push(surface_value);
+        sweep_surfaces.push(mesh_value.clone());
         sweep_meshes.push(mesh_value);
     }
 
@@ -2955,14 +2834,10 @@ fn sweep_single_profile_geom(
     miter: MiterType,
     tol: Tolerance,
     component: &str,
-) -> Result<(Value, Value), ComponentError> {
-    // Prepare profile - remove duplicate closing point if exists
-    let mut profile_points = profile.to_vec();
+) -> Result<Value, ComponentError> {
+    // Prepare profile - keep closing point if exists (geom's clean_polyline handles deduplication)
+    let profile_points = profile.to_vec();
     let profile_closed = is_polyline_closed_with_tolerance(&profile_points, tol);
-    
-    if profile_closed && profile_points.len() > 2 {
-        profile_points.pop(); // Remove duplicate closing point for clean processing
-    }
 
     // The profile needs to be centered at the rail start for proper sweep behavior.
     // Calculate profile centroid and translate profile to origin.
@@ -3030,11 +2905,10 @@ fn sweep_single_profile_geom(
     )
     .map_err(|e| sweep_error_to_component_error(e, component))?;
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    Ok((surface_value, mesh_value))
+    Ok(mesh_value)
 }
 
 /// Checks if a polyline is closed using tolerance-aware point comparison.
@@ -3435,30 +3309,6 @@ fn apply_sweep_frame_to_section(section: &[[f64; 3]], frame: &FrenetFrame) -> Ve
         .collect()
 }
 
-/// Convert a legacy `Value::Surface` representation to `Value::Mesh`.
-fn legacy_surface_to_mesh_value(vertices: &[[f64; 3]], faces: &[Vec<u32>]) -> Value {
-    // Flatten faces into triangle indices
-    let mut indices = Vec::new();
-    for face in faces {
-        if face.len() >= 3 {
-            // Triangulate the face using fan triangulation
-            for i in 1..(face.len() - 1) {
-                indices.push(face[0]);
-                indices.push(face[i] as u32);
-                indices.push(face[i + 1] as u32);
-            }
-        }
-    }
-
-    Value::Mesh {
-        vertices: vertices.to_vec(),
-        indices,
-        normals: None,
-        uvs: None,
-        diagnostics: None,
-    }
-}
-
 fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
     let component = "Extrude Point";
     let base_segments = coerce::coerce_curve_segments(inputs.get(0).unwrap_or(&Value::Null))?;
@@ -3482,13 +3332,12 @@ fn evaluate_extrude_point(inputs: &[Value]) -> ComponentResult {
     let (mesh, diagnostics) = extrude_to_point_with_tolerance(&profile, geom_tip, is_profile_closed, tol)
         .map_err(|e| extrusion_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs
+    // Return mesh outputs (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_EXTRUSION.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -3576,13 +3425,12 @@ fn evaluate_pipe(inputs: &[Value]) -> ComponentResult {
     )
     .map_err(|e| pipe_error_to_component_error(e, component))?;
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_PIPE.to_string(), Value::List(vec![surface_value]));
+    out.insert(PIN_OUTPUT_PIPE.to_string(), Value::List(vec![mesh_value.clone()]));
     out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(vec![mesh_value]));
     Ok(out)
 }
@@ -3638,13 +3486,12 @@ fn evaluate_four_point_surface(inputs: &[Value], meta: &MetaMap) -> ComponentRes
     let (mesh, diagnostics) = mesh_four_point_surface_from_points(&points, quality)
         .map_err(|e| ComponentError::new(format!("{component}: {e}")))?;
 
-    // Convert to output values
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Convert to output value
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return both mesh and surface outputs for compatibility
+    // Return mesh output (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -3846,7 +3693,6 @@ fn evaluate_fragment_patch(inputs: &[Value]) -> ComponentResult {
 
     // Collect all mesh outputs, adding auto-close warnings to the first diagnostics
     let mut mesh_values: Vec<Value> = Vec::with_capacity(patch_results.len());
-    let mut surface_values: Vec<Value> = Vec::with_capacity(patch_results.len());
     let mut first_mesh = true;
 
     for (mesh, mut diagnostics) in patch_results {
@@ -3857,17 +3703,17 @@ fn evaluate_fragment_patch(inputs: &[Value]) -> ComponentResult {
             }
             first_mesh = false;
         }
-        mesh_values.push(geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics)));
-        surface_values.push(geom_mesh_to_value_surface(mesh));
+        mesh_values.push(geom_mesh_to_value_mesh(mesh, Some(diagnostics)));
     }
 
-    // Return the primary patch output (first surface) and list of all meshes
+    // Return the primary patch output (first mesh) and list of all meshes
     let mut out = BTreeMap::new();
-    if surface_values.len() == 1 {
-        out.insert(PIN_OUTPUT_PATCH.to_string(), surface_values.into_iter().next().unwrap());
-        out.insert(PIN_OUTPUT_MESH.to_string(), mesh_values.into_iter().next().unwrap());
+    if mesh_values.len() == 1 {
+        let mesh_val = mesh_values.into_iter().next().unwrap();
+        out.insert(PIN_OUTPUT_PATCH.to_string(), mesh_val.clone());
+        out.insert(PIN_OUTPUT_MESH.to_string(), mesh_val);
     } else {
-        out.insert(PIN_OUTPUT_PATCH.to_string(), Value::List(surface_values));
+        out.insert(PIN_OUTPUT_PATCH.to_string(), Value::List(mesh_values.clone()));
         out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(mesh_values));
     }
     Ok(out)
@@ -4000,13 +3846,12 @@ fn evaluate_revolution(inputs: &[Value]) -> ComponentResult {
     )
     .map_err(|e| revolve_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return primary surface on "S" pin for backward compatibility
+    // Return mesh on "S" pin (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -4066,7 +3911,6 @@ fn evaluate_boundary_surfaces(inputs: &[Value]) -> ComponentResult {
 
     // Collect all mesh outputs, adding auto-close warnings to the first diagnostics
     let mut mesh_values: Vec<Value> = Vec::with_capacity(results.len());
-    let mut surface_values: Vec<Value> = Vec::with_capacity(results.len());
     let mut first_mesh = true;
 
     for (mesh, mut diagnostics) in results {
@@ -4077,13 +3921,12 @@ fn evaluate_boundary_surfaces(inputs: &[Value]) -> ComponentResult {
             }
             first_mesh = false;
         }
-        mesh_values.push(geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics)));
-        surface_values.push(geom_mesh_to_value_surface(mesh));
+        mesh_values.push(geom_mesh_to_value_mesh(mesh, Some(diagnostics)));
     }
 
-    // Return the list of surfaces (Boundary Surfaces always returns a list)
+    // Return the list of meshes (Boundary Surfaces always returns a list)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), Value::List(surface_values));
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), Value::List(mesh_values.clone()));
     out.insert(PIN_OUTPUT_MESH.to_string(), Value::List(mesh_values));
     Ok(out)
 }
@@ -4237,13 +4080,12 @@ fn evaluate_rail_revolution(inputs: &[Value]) -> ComponentResult {
     )
     .map_err(|e| revolve_error_to_component_error(e, component))?;
 
-    // Output as Value::Mesh (primary) and also provide legacy Value::Surface
-    let mesh_value = geom_mesh_to_value_mesh(mesh.clone(), Some(diagnostics));
-    let surface_value = geom_mesh_to_value_surface(mesh);
+    // Output as Value::Mesh
+    let mesh_value = geom_mesh_to_value_mesh(mesh, Some(diagnostics));
 
-    // Return primary surface on "S" pin for backward compatibility
+    // Return mesh on "S" pin (legacy surface support removed)
     let mut out = BTreeMap::new();
-    out.insert(PIN_OUTPUT_SURFACE.to_string(), surface_value);
+    out.insert(PIN_OUTPUT_SURFACE.to_string(), mesh_value.clone());
     out.insert(PIN_OUTPUT_MESH.to_string(), mesh_value);
     Ok(out)
 }
@@ -4337,7 +4179,7 @@ fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, Compo
         Value::Point(point) => Ok(vec![*point]),
         Value::Vector(vector) => Ok(vec![*vector]),
         Value::CurveLine { p1, p2 } => Ok(vec![*p1, *p2]),
-        Value::Surface { vertices, .. } => Ok(vertices.clone()),
+        Value::Mesh { vertices, .. } => Ok(vertices.clone()),
         Value::List(values) => {
             let mut points = Vec::new();
             for entry in values {
@@ -4347,34 +4189,6 @@ fn collect_points(value: &Value, component: &str) -> Result<Vec<[f64; 3]>, Compo
         }
         other => Err(ComponentError::new(format!(
             "{component} verwacht punt-achtige invoer, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_direction(
-    value: &Value,
-    component: &str,
-    name: &str,
-) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Vector(vector) => Ok(*vector),
-        Value::CurveLine { p1, p2 } => Ok(subtract_points(*p2, *p1)),
-        Value::Number(height) => Ok([0.0, 0.0, *height]),
-        Value::List(values) if values.len() == 1 => coerce_direction(&values[0], component, name),
-        other => Err(ComponentError::new(format!(
-            "{component} verwacht een richting voor {name}, kreeg {}",
-            other.kind()
-        ))),
-    }
-}
-
-fn coerce_point(value: &Value, component: &str, name: &str) -> Result<[f64; 3], ComponentError> {
-    match value {
-        Value::Point(point) => Ok(*point),
-        Value::List(values) if values.len() == 1 => coerce_point(&values[0], component, name),
-        other => Err(ComponentError::new(format!(
-            "{component} verwacht een punt voor {name}, kreeg {}",
             other.kind()
         ))),
     }
@@ -4650,161 +4464,6 @@ fn coerce_angle_domain_params(value: &Value, component: &str) -> Result<AngleDom
     }
 }
 
-fn create_surface_from_points(
-    points: &[[f64; 3]],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    create_surface_from_points_with_padding(points, 0.0, component)
-}
-
-fn create_surface_from_points_with_padding(
-    points: &[[f64; 3]],
-    padding: f64,
-    component: &str,
-) -> Result<Value, ComponentError> {
-    if points.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist minstens twee unieke punten"
-        )));
-    }
-
-    let mut min = points[0];
-    let mut max = points[0];
-    for point in points.iter().skip(1) {
-        for axis in 0..3 {
-            min[axis] = min[axis].min(point[axis]);
-            max[axis] = max[axis].max(point[axis]);
-        }
-    }
-
-    let padding = padding.max(0.0);
-    for axis in 0..3 {
-        min[axis] -= padding;
-        max[axis] += padding;
-    }
-
-    let spans = [
-        (max[0] - min[0], 0usize),
-        (max[1] - min[1], 1usize),
-        (max[2] - min[2], 2usize),
-    ];
-
-    let mut sorted = spans;
-    sorted.sort_by(
-        |a, b| match (a.0.partial_cmp(&b.0), b.0.partial_cmp(&a.0)) {
-            (Some(order), _) => order.reverse(),
-            (None, Some(order)) => order,
-            _ => Ordering::Equal,
-        },
-    );
-
-    let (primary_span, primary_axis) = sorted[0];
-    if primary_span.abs() <= EPSILON {
-        return Err(ComponentError::new(format!(
-            "{component} kon geen oppervlak vormen uit samenvallende punten"
-        )));
-    }
-
-    let secondary_axis = sorted
-        .iter()
-        .skip(1)
-        .find(|(span, axis)| *axis != primary_axis && span.abs() > EPSILON)
-        .map(|(_, axis)| *axis)
-        .unwrap_or_else(|| if primary_axis != 0 { 0 } else { 1 });
-
-    let mut min_secondary = min[secondary_axis];
-    let mut max_secondary = max[secondary_axis];
-    if (max_secondary - min_secondary).abs() <= EPSILON {
-        min_secondary -= 0.5;
-        max_secondary += 0.5;
-    }
-
-    let third_axis = (0..3)
-        .find(|axis| *axis != primary_axis && *axis != secondary_axis)
-        .unwrap_or(primary_axis);
-    let mid_third = (min[third_axis] + max[third_axis]) * 0.5;
-
-    let mut vertices = Vec::with_capacity(4);
-    for &a in &[min[primary_axis], max[primary_axis]] {
-        for &b in &[min_secondary, max_secondary] {
-            let mut vertex = [0.0; 3];
-            vertex[primary_axis] = a;
-            vertex[secondary_axis] = b;
-            vertex[third_axis] = mid_third;
-            vertices.push(vertex);
-        }
-    }
-
-    let faces = vec![vec![0, 1, 2], vec![0, 2, 3]];
-    Ok(Value::Surface { vertices, faces })
-}
-
-/// Creates a surface from a closed curve, similar to the Surface component behavior.
-/// This function is used when Sweep1 receives a closed curve primitive.
-fn create_surface_from_closed_curve(
-    polyline: &[[f64; 3]],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    // Remove duplicate closing point if it exists
-    let mut points = polyline.to_vec();
-    if points.len() > 1 && points_equal(points[0], *points.last().unwrap()) {
-        points.pop();
-    }
-
-    if points.len() < 3 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist minstens drie unieke punten voor een gesloten curve",
-        )));
-    }
-
-    // Compute plane normal for the closed curve
-    let normal = polyline_normal(polyline);
-    if is_zero_vector(normal) {
-        return Err(ComponentError::new(format!(
-            "{component} kon geen geldige normaal berekenen voor de gesloten curve",
-        )));
-    }
-
-    // Compute centroid
-    let centroid = points.iter().fold([0.0; 3], |acc, p| add_vector(acc, *p));
-    let n = points.len() as f64;
-    let centroid = [centroid[0] / n, centroid[1] / n, centroid[2] / n];
-
-    // Find plane axes
-    let (axis_x, axis_y) = plane_basis(normal);
-
-    // Sort points by angle around centroid for proper triangulation
-    let mut entries: Vec<(f64, [f64; 3])> = points
-        .iter()
-        .map(|point| {
-            let diff = subtract_points(*point, centroid);
-            let x = dot_product(diff, axis_x);
-            let y = dot_product(diff, axis_y);
-            (y.atan2(x), *point)
-        })
-        .collect();
-
-    entries.sort_by(|a, b| match a.0.partial_cmp(&b.0) {
-        Some(order) => order,
-        None => Ordering::Equal,
-    });
-
-    let sorted_points: Vec<[f64; 3]> = entries.into_iter().map(|entry| entry.1).collect();
-
-    // Create triangulated faces for the planar surface
-    let mut faces: Vec<Vec<u32>> = Vec::new();
-    
-    for i in 1..sorted_points.len().saturating_sub(1) {
-        faces.push(vec![0, i as u32, (i + 1) as u32]);
-    }
-
-    // Create a surface value that can be used with sweep_surface_along_polyline
-    Ok(Value::Surface {
-        vertices: sorted_points,
-        faces,
-    })
-}
-
 fn expect_input<'a>(
     inputs: &'a [Value],
     index: usize,
@@ -4874,81 +4533,6 @@ fn is_zero_vector(vector: [f64; 3]) -> bool {
     vector.iter().all(|component| component.abs() < EPSILON)
 }
 
-fn offset_rail_polyline(
-    rail_polyline: &[[f64; 3]],
-    section_origin: [f64; 3],
-) -> Vec<[f64; 3]> {
-    if rail_polyline.is_empty() {
-        return Vec::new();
-    }
-
-    let translation = subtract_points(section_origin, rail_polyline[0]);
-    rail_polyline
-        .iter()
-        .map(|point| add_vector(*point, translation))
-        .collect()
-}
-
-fn dedup_consecutive_points(mut points: Vec<[f64; 3]>, closed: bool) -> Vec<[f64; 3]> {
-    let mut deduped = Vec::with_capacity(points.len());
-    for point in points.drain(..) {
-        if deduped
-            .last()
-            .map_or(true, |last| !points_equal(*last, point))
-        {
-            deduped.push(point);
-        }
-    }
-
-    if closed && deduped.len() > 2 && points_equal(deduped[0], *deduped.last().unwrap()) {
-        deduped.pop();
-    }
-
-    deduped
-}
-
-fn project_point_on_polyline(point: [f64; 3], polyline: &[[f64; 3]]) -> (f64, f64) {
-    if polyline.len() < 2 {
-        return (0.0, distance(point, polyline.get(0).copied().unwrap_or([0.0; 3])));
-    }
-
-    let mut best_t = 0.0;
-    let mut best_dist = f64::MAX;
-    let mut accumulated = 0.0;
-    let total_length = polyline_length(polyline);
-
-    for window in polyline.windows(2) {
-        let a = window[0];
-        let b = window[1];
-        let ab = subtract_points(b, a);
-        let ab_len_sq = dot_product(ab, ab);
-        if ab_len_sq < EPSILON {
-            continue;
-        }
-        let ap = subtract_points(point, a);
-        let t_seg = (dot_product(ap, ab) / ab_len_sq).clamp(0.0, 1.0);
-        let closest = add_vector(a, [
-            ab[0] * t_seg,
-            ab[1] * t_seg,
-            ab[2] * t_seg,
-        ]);
-        let dist = distance(point, closest);
-        if dist < best_dist {
-            best_dist = dist;
-            let seg_length = ab_len_sq.sqrt();
-            let seg_t = accumulated + seg_length * t_seg;
-            best_t = if total_length > 0.0 {
-                seg_t / total_length
-            } else {
-                0.0
-            };
-        }
-        accumulated += ab_len_sq.sqrt();
-    }
-
-    (best_t, best_dist)
-}
-
 fn plane_basis(normal: [f64; 3]) -> ([f64; 3], [f64; 3]) {
     let n = {
         let n = normalize(normal);
@@ -4999,22 +4583,6 @@ fn into_output(pin: &str, value: Value) -> ComponentResult {
     Ok(outputs)
 }
 
-fn collect_surfaces_recursive<'a>(
-    value: &'a Value,
-    surfaces: &mut Vec<coerce::Surface<'a>>,
-) -> Result<(), ComponentError> {
-    match value {
-        Value::Surface { .. } => surfaces.push(coerce::coerce_surface(value)?),
-        Value::List(values) => {
-            for entry in values {
-                collect_surfaces_recursive(entry, surfaces)?;
-            }
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
 fn pick_longest_polyline(polylines: Vec<Vec<[f64; 3]>>) -> Option<Vec<[f64; 3]>> {
     polylines
         .into_iter()
@@ -5055,418 +4623,6 @@ fn polyline_centroid(points: &[[f64; 3]]) -> [f64; 3] {
     [sum[0] / denom, sum[1] / denom, sum[2] / denom]
 }
 
-fn find_boundary_polylines(surface: &coerce::Surface<'_>) -> Vec<Vec<u32>> {
-    let mut edge_counts = HashMap::new();
-    for face in surface.faces {
-        if face.len() < 2 {
-            continue;
-        }
-        for i in 0..face.len() {
-            let p1_idx = face[i];
-            let p2_idx = face[(i + 1) % face.len()];
-
-            // Normaliseer de edge door de kleinste index eerst te plaatsen
-            let edge = if p1_idx < p2_idx {
-                (p1_idx, p2_idx)
-            } else {
-                (p2_idx, p1_idx)
-            };
-            *edge_counts.entry(edge).or_insert(0) += 1;
-        }
-    }
-
-    let boundary_edges: Vec<_> = edge_counts
-        .into_iter()
-        .filter(|(_, count)| *count == 1)
-        .map(|(edge, _)| edge)
-        .collect();
-
-    if boundary_edges.is_empty() {
-        return Vec::new();
-    }
-
-    let mut adj_list: HashMap<u32, Vec<u32>> = HashMap::new();
-    for (p1, p2) in boundary_edges {
-        adj_list.entry(p1).or_default().push(p2);
-        adj_list.entry(p2).or_default().push(p1);
-    }
-
-    let mut polylines = Vec::new();
-    let mut visited = std::collections::HashSet::new();
-
-    for start_node in adj_list.keys() {
-        if visited.contains(start_node) {
-            continue;
-        }
-
-        let mut current_polyline_indices = Vec::new();
-        let mut current_node = *start_node;
-
-        while !visited.contains(&current_node) {
-            visited.insert(current_node);
-            current_polyline_indices.push(current_node);
-
-            let next_node = adj_list
-                .get(&current_node)
-                .unwrap()
-                .iter()
-                .find(|&node| !visited.contains(node));
-
-            if let Some(node) = next_node {
-                current_node = *node;
-            } else {
-                // Einde van een open polyline
-                break;
-            }
-        }
-        if current_polyline_indices.len() > 1 {
-            polylines.push(current_polyline_indices);
-        }
-    }
-
-    polylines
-}
-
-fn calculate_surface_normal(surface: &coerce::Surface<'_>) -> [f64; 3] {
-    if surface.faces.is_empty() || surface.faces[0].len() < 3 {
-        return [0.0, 0.0, 1.0]; // Standaard normaal als het oppervlak niet goed gedefinieerd is
-    }
-
-    let first_face_indices = &surface.faces[0];
-    let p1 = surface.vertices[first_face_indices[0] as usize];
-    let p2 = surface.vertices[first_face_indices[1] as usize];
-    let p3 = surface.vertices[first_face_indices[2] as usize];
-
-    let v1 = subtract_points(p2, p1);
-    let v2 = subtract_points(p3, p1);
-
-    normalize(cross_product(v1, v2))
-}
-
-/// Sweeps a surface along a rail polyline, ensuring proper positioning relative to the rail origin.
-fn sweep_surface_along_polyline(
-    surface: coerce::Surface<'_>,
-    rail_polyline: &[[f64; 3]],
-    component: &str,
-    add_caps: bool,
-) -> Result<Value, ComponentError> {
-    if surface.vertices.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één vertex",
-        )));
-    }
-    if surface.faces.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één face",
-        )));
-    }
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee punten",
-        )));
-    }
-
-    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee unieke punten",
-        )));
-    }
-
-    let surface_normal = calculate_surface_normal(&surface);
-    let boundary_polylines_indices = find_boundary_polylines(&surface);
-
-    let mut vertices: Vec<[f64; 3]> = surface.vertices.to_vec();
-    let mut faces = if add_caps {
-        surface.faces.clone()
-    } else {
-        Vec::new()
-    };
-
-    let mut last_layer_start = 0u32;
-    let base_faces = if add_caps {
-        Some(surface.faces.clone())
-    } else {
-        None
-    };
-
-    // Sweep along the rail by positioning the original surface at each rail point
-    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
-        let prev_rail_point = rail_polyline[i - 1];
-        let rail_direction = subtract_points(rail_point, prev_rail_point);
-        
-        if is_zero_vector(rail_direction) {
-            continue;
-        }
-
-        // Calculate the transformation from the original section to the current rail position
-        // Use the rail start point as reference, not the surface's first vertex
-        let rail_start = rail_polyline[0];
-        let translation = subtract_points(rail_point, rail_start);
-        
-        let new_layer_start = vertices.len() as u32;
-        let new_layer_vertices: Vec<[f64; 3]> = surface.vertices
-            .iter()
-            .map(|vertex| add_vector(*vertex, translation))
-            .collect();
-        vertices.extend(new_layer_vertices.iter());
-
-        for polyline_indices in &boundary_polylines_indices {
-            let polyline_vertices: Vec<[f64; 3]> = polyline_indices
-                .iter()
-                .map(|&i| vertices[i as usize])
-                .collect();
-
-            // Bereken de normaal van de polyline
-            let p1 = polyline_vertices[0];
-            let p2 = polyline_vertices[1];
-            let p3 = *polyline_vertices.get(2).unwrap_or(&p1);
-            let v1 = subtract_points(p2, p1);
-            let v2 = subtract_points(p3, p1);
-            let polyline_normal = normalize(cross_product(v1, v2));
-
-            let mut corrected_indices = polyline_indices.clone();
-            // Keer de polyline om als de normaal in de tegenovergestelde richting van de oppervlaknormaal wijst
-            if dot_product(polyline_normal, surface_normal) < 0.0 {
-                corrected_indices.reverse();
-            }
-
-            let n = corrected_indices.len();
-            if n < 2 {
-                continue;
-            }
-
-            for j in 0..n {
-                let current_idx = corrected_indices[j];
-                let next_idx = corrected_indices[(j + 1) % n];
-
-                let v1 = last_layer_start + current_idx;
-                let v2 = last_layer_start + next_idx;
-                let v3 = new_layer_start + next_idx;
-                let v4 = new_layer_start + current_idx;
-
-                // Gebruik een consistente winding order voor de vlakken
-                faces.push(vec![v1, v4, v2]);
-                faces.push(vec![v2, v4, v3]);
-            }
-        }
-
-        last_layer_start = new_layer_start;
-    }
-
-    if let Some(base_faces) = base_faces {
-        for face in &base_faces {
-            if face.len() < 2 {
-                continue;
-            }
-            let mut top_face = Vec::with_capacity(face.len());
-            for &index in face.iter().rev() {
-                top_face.push(last_layer_start + index);
-            }
-            faces.push(top_face);
-        }
-    }
-
-    Ok(Value::Surface { vertices, faces })
-}
-
-fn sweep_polyline_along_rail(
-    profile: &[[f64; 3]],
-    rail_polyline: &[[f64; 3]],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    let mut profile = profile.to_vec();
-    let mut profile_closed = false;
-    if profile.len() >= 3 && points_equal(profile[0], *profile.last().unwrap()) {
-        profile.pop(); // remove duplicate closing point, keep closed flag
-        profile_closed = true;
-    } else if profile.len() >= 2 && points_equal(profile[0], *profile.last().unwrap()) {
-        profile.pop(); // degenerate "closed" with only two equal points -> treat as open
-    }
-
-    // Verwijder opeenvolgende dubbele punten om degeneratie te voorkomen.
-    profile = dedup_consecutive_points(profile, profile_closed);
-
-    // Zorg voor een consistente CCW-winding zoals in BoxRectangle zodat front-faces correct zijn.
-    if profile_closed && profile.len() >= 3 {
-        let normal = {
-            let n = polyline_normal(&profile);
-            if is_zero_vector(n) {
-                [0.0, 0.0, 1.0]
-            } else {
-                n
-            }
-        };
-        let signed_area = signed_area_in_plane(&profile, normal);
-        if signed_area < 0.0 {
-            profile.reverse();
-        }
-    }
-
-    if profile.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een sectiepolyline",
-        )));
-    }
-
-    if profile.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een sectiepolyline met minstens twee punten",
-        )));
-    }
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee punten",
-        )));
-    }
-
-    let rail_polyline: Vec<[f64; 3]> = dedup_consecutive_points(rail_polyline.to_vec(), false);
-    if rail_polyline.len() < 2 {
-        return Err(ComponentError::new(format!(
-            "{component} vereist een rail met minstens twee unieke punten",
-        )));
-    }
-
-    // Calculate the initial section origin (this will be kept at the rail start)
-    let section_origin = profile[0];
-    
-    // Create a proper sweep by positioning section curves along the rail
-    // while maintaining proper orientation and keeping the original section at the start
-    let mut vertices = profile.clone();
-    let mut faces: Vec<Vec<u32>> = Vec::new();
-
-    let layer_size = profile.len();
-    let profile_indices: Vec<u32> = (0..layer_size as u32).collect();
-    let ordered_profile = if profile_closed && layer_size >= 3 {
-        let normal = polyline_normal(&profile);
-        let winding = polyline_winding_direction(&profile, normal);
-        if winding < 0.0 {
-            let mut reversed = profile_indices.clone();
-            reversed.reverse();
-            reversed
-        } else {
-            profile_indices.clone()
-        }
-    } else {
-        profile_indices.clone()
-    };
-
-    if profile_closed && layer_size >= 3 {
-        let mut bottom = ordered_profile.clone();
-        bottom.reverse();
-        faces.push(bottom);
-    }
-
-    let mut last_layer_start = 0u32;
-
-    // Sweep along the rail by positioning sections at each rail point
-    for (i, &rail_point) in rail_polyline.iter().enumerate().skip(1) {
-        let prev_rail_point = rail_polyline[i - 1];
-        let rail_direction = subtract_points(rail_point, prev_rail_point);
-        
-        if is_zero_vector(rail_direction) {
-            continue;
-        }
-
-        // Calculate the transformation from the original section to the current rail position
-        let translation = subtract_points(rail_point, section_origin);
-        
-        // Create the new layer by translating the original profile (not the previous layer)
-        // This ensures the original section shape is maintained at each position
-        let new_layer_start = vertices.len() as u32;
-        let new_layer_vertices: Vec<[f64; 3]> = profile
-            .iter()
-            .map(|vertex| add_vector(*vertex, translation))
-            .collect();
-
-        vertices.extend(new_layer_vertices.iter());
-
-        // Create faces between the current and previous layers
-        let edge_count = if profile_closed { layer_size } else { layer_size.saturating_sub(1) };
-        for j in 0..edge_count {
-            let current_idx = ordered_profile[j];
-            let next_idx = ordered_profile[(j + 1) % layer_size];
-            let v1 = last_layer_start + current_idx;
-            let v2 = last_layer_start + next_idx;
-            let v3 = new_layer_start + next_idx;
-            let v4 = new_layer_start + current_idx;
-            faces.push(vec![v1, v2, v4]);
-            faces.push(vec![v2, v3, v4]);
-        }
-
-        last_layer_start = new_layer_start;
-    }
-
-    if profile_closed && layer_size >= 3 {
-        let mut top_face = Vec::with_capacity(layer_size);
-        for &index in ordered_profile.iter() {
-            top_face.push(last_layer_start + index);
-        }
-        faces.push(top_face);
-    }
-
-    Ok(Value::Surface { vertices, faces })
-}
-
-
-#[allow(dead_code)]
-fn extrude_surface_along_vector(
-    surface: coerce::Surface<'_>,
-    direction: [f64; 3],
-    component: &str,
-) -> Result<Value, ComponentError> {
-    if surface.vertices.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één vertex"
-        )));
-    }
-    if surface.faces.is_empty() {
-        return Err(ComponentError::new(format!(
-            "{component} verwacht een surface met minstens één face"
-        )));
-    }
-    if is_zero_vector(direction) {
-        return Err(ComponentError::new(format!(
-            "{component} kan niet extruderen zonder railrichting"
-        )));
-    }
-
-    let offset = surface.vertices.len() as u32;
-
-    let mut vertices = surface.vertices.clone();
-    vertices.extend(
-        surface
-            .vertices
-            .iter()
-            .map(|vertex| add_vector(*vertex, direction)),
-    );
-
-    let mut faces = Vec::new();
-    for face in surface.faces.iter() {
-        if face.len() < 2 {
-            continue;
-        }
-
-        faces.push(face.clone());
-
-        let mut top_face = Vec::with_capacity(face.len());
-        for &index in face.iter().rev() {
-            top_face.push(index + offset);
-        }
-        faces.push(top_face);
-
-        for (current, next) in face
-            .iter()
-            .zip(face.iter().cycle().skip(1))
-            .take(face.len())
-        {
-            faces.push(vec![*current, *next, *next + offset, *current + offset]);
-        }
-    }
-
-    Ok(Value::Surface { vertices, faces })
-}
-
 /// Bepaalt of een polyline gesloten is door het eerste en laatste punt te vergelijken.
 fn is_closed(polyline: &[[f64; 3]]) -> bool {
     if polyline.len() < 3 {
@@ -5486,11 +4642,6 @@ struct PreparedBoundaryLoops {
 }
 
 impl PreparedBoundaryLoops {
-    /// Returns true if any polylines were auto-closed.
-    fn has_auto_closed(&self) -> bool {
-        !self.auto_closed_indices.is_empty()
-    }
-
     /// Generates warning messages about auto-closed curves.
     /// Returns a vector of warning strings suitable for adding to diagnostics.
     fn auto_close_warnings(&self, component: &str) -> Vec<String> {
@@ -5860,7 +5011,8 @@ mod tests {
         let out = result.as_ref().unwrap();
         if let Some(Value::Mesh { vertices, .. }) = out.get(PIN_OUTPUT_MESH) {
             vertices.len()
-        } else if let Some(Value::Surface { vertices, .. }) = out.get(PIN_OUTPUT_SURFACE) {
+        } else if let Some(Value::Mesh { vertices, .. }) = out.get(PIN_OUTPUT_SURFACE) {
+            // Both S and M pins now output Value::Mesh
             vertices.len()
         } else {
             0

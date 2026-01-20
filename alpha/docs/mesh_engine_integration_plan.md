@@ -456,3 +456,94 @@ Integration verification (native + wasm)
 - [x] `cargo build -p ghx-engine --target wasm32-unknown-unknown`: passes (default feature set used by wasm).
 - [x] Add/extend regression tests that compare a handful of key component outputs before/after (vertex/face counts, watertightness diagnostics, stable pin outputs) without requiring perfect geometric identity. **Done:** `alpha/ghx-engine/tests/regression_component_outputs.rs` (25 tests covering Extrude, Loft, Sweep, Pipe, Revolution, MeshPrimitives, SurfacePrimitives, pin stability, watertightness, diagnostics, and cross-component compatibility).
 
+Phase 4 - Legacy Value::Surface removal (post-migration)
+Goal: delete the legacy `Value::Surface` path once all consumers are on `Value::Mesh`.
+
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/graph/value.rs`, 
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/graph/evaluator.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/lib.rs`, 
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/coerce.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/curve_spline.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/params_geometry.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/maths_script.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/display_preview.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/surface_freeform.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/surface_primitive.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/surface_util.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/surface_analysis.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/transform_affine.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/transform_euclidean.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/transform_array.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/transform_util.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/surface_subd.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/vector_grid.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/vector_point.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/mesh_analysis.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/mesh_primitive.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/components/mesh_triangulation.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/geom/subdivision.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/geom/surface_ops.rs`, plus update tests
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/geom/fillet_chamfer.rs`,
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/src/geom/solid.rs` (renamed `LegacySurfaceMesh` to `BrepMesh`, removed `_legacy` suffixes from functions),
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/tests/regression_component_outputs.rs` (removed unused `face_count` field and legacy Surface comment from `MeshSnapshot`),
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/ghx-engine/tests/integration.rs`, and docs
+- [x] Remove `Value::Surface` variant + adapters and delete legacy branches in  `alpha/docs/geometry_rendering.md`.
+
+Phase 5 - Build Warning Cleanup
+-------------------------------
+Goal: Eliminate compiler warnings for cleaner builds and better code hygiene.
+
+Unused imports (run `cargo fix --lib -p ghx-engine` to auto-fix)
+- [x] `src/components/maths_util.rs:8`: Remove unused import `coerce`
+- [x] `src/components/surface_freeform.rs:35`: Remove unused import `sweep2_polyline_with_tolerance`
+- [x] `src/components/surface_freeform.rs:59`: Remove unused import `SurfaceBuilderQuality`
+- [x] `src/components/vector_point.rs:7`: Remove unused import `PlaneValue`
+- [x] `src/graph/internal_expression.rs:6`: Remove unused import `ValueKind`
+
+Deprecated methods
+- [x] `src/components/surface_util.rs:1174`: Replace `geom_mesh_to_surface_legacy` with `geom_mesh_to_value`
+- [x] `src/components/sets_sequence.rs:426,429,596`: Replace `gen_range` with `random_range` (3 occurrences)
+
+Unused variables (prefix with underscore or remove)
+- [x] `src/components/maths_operators.rs:653`: Prefix `context` with underscore
+- [x] `src/components/surface_freeform.rs:1604`: Prefix `poly` with underscore
+- [x] `src/geom/revolve.rs:737`: Prefix `tol` with underscore
+- [x] `src/parse/ghx_xml.rs:571`: Prefix `name` with underscore
+
+Dead code - unused functions (remove or add `#[allow(dead_code)]` if needed for future use)
+- [x] `src/lib.rs:184`: Added `#[allow(dead_code)]` to `GeometryItem::Mesh` variant (preserved for potential zero-copy future use)
+- [x] `src/components/coerce.rs:1193`: Removed `clamp_to_unit` (unused, local definitions exist in vector_plane.rs and vector_vector.rs)
+- [x] `src/components/curve_primitive.rs:1249`: Removed `create_arc_points` (unused legacy wrapper)
+- [x] `src/components/curve_primitive.rs:2307`: Removed `Plane::from_origin_and_normal` (unused, different Plane struct in transform_array.rs has its own)
+- [x] `src/components/surface_freeform.rs:4198`: Removed `coerce_direction`
+- [x] `src/components/surface_freeform.rs:4215`: Removed `coerce_point`
+- [x] `src/components/surface_freeform.rs:4565`: Removed `offset_rail_polyline`
+- [x] `src/components/surface_freeform.rs:4580`: Removed `dedup_consecutive_points`
+- [x] `src/components/surface_freeform.rs:4598`: Removed `project_point_on_polyline`
+- [x] `src/components/surface_freeform.rs:4730`: Removed `find_boundary_polylines`
+- [x] `src/components/surface_freeform.rs:4802`: Removed `calculate_surface_normal`
+- [x] `src/components/surface_freeform.rs:4838`: Removed `PreparedBoundaryLoops::has_auto_closed`
+- [x] `src/components/surface_util.rs:1621`: Removed `Face::centroid` (added `#[allow(dead_code)]` to struct as `vertices` field is also unused)
+- [x] `src/components/surface_util.rs:1669,1677,1686`: Removed `EdgeData::vector`, `length`, `touches_point`
+- [x] `src/components/surface_util.rs:1723,1737,1815`: Removed `BrepData::get_naked_edges`, `find_loops`, `to_value`
+- [x] `src/components/surface_util.rs:1881,1889,1893,1897`: Removed `ShapeMetrics::sample_point`, `normal_hint`, `tangent_hint_u`, `tangent_hint_v`
+- [x] `src/components/surface_util.rs:2329,2347,2351,2355,2363,2367`: Removed utility functions `normalize`, `distance`, `dot`, `cross`, `clamp`, `clamp01`
+- [x] `src/components/transform_euclidean.rs:411,424`: Remove `Plane::from_points`, `from_origin`
+- [x] `src/components/vector_point.rs:29`: Remove type alias `Line`
+- [x] `src/components/vector_point.rs:1444,1464,1473,1479`: Remove `cross`, `safe_normalized`, `normalize`, `orthogonal_vector`
+- [x] `src/components/vector_vector.rs:853,861`: Remove `normalize`, `orthogonal_vector`
+- [x] `src/geom/sweep.rs:1774`: Remove `compute_rail_frames`
+
+Dead code - unused fields/structs
+- [x] `src/components/curve_util.rs:1139`: Add `#[allow(dead_code)]` to `Plane::y_axis` field (computed for completeness but not directly accessed)
+- [x] `src/components/surface_util.rs:1617`: Add `#[allow(dead_code)]` to `Face::vertices` field (stored for potential future use)
+- [x] `src/geom/curve_ops.rs:202`: Add `#[allow(dead_code)]` to `OffsetPlane::normal` field (stored for completeness)
+- [x] `src/geom/sweep.rs:1629`: Add `#[allow(dead_code)]` to `RailFrameResult::cusp_indices` field (populated for diagnostics/future use)
+- [x] `src/parse/ghx_xml.rs:963`: Add `#[allow(dead_code)]` to `ArchiveDocument::items` field (required for serde deserialization)
+- [x] `src/parse/ghx_xml.rs:997,1001`: Add `#[allow(dead_code)]` to `RawItem::index`, `type_code` fields (required for serde deserialization)
+
+Dependency warnings
+- [x] Update or replace `nom v1.2.4` (future-incompat warning) — **Completed:** Replaced `meval` (which depended on `nom v1.2.4`) with `fasteval v0.2.4` which has zero dependencies
+
+
+

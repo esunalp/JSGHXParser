@@ -994,7 +994,7 @@ impl SubdMesh {
     ///
     /// Accepts either:
     /// - A serialized SubD: `List["subd", vertices, edges, faces]`
-    /// - A `Value::Surface` or `Value::Mesh` (converted to SubD faces)
+    /// - A `Value::Mesh` (converted to SubD faces)
     ///
     /// Returns `None` if the value cannot be parsed.
     #[must_use]
@@ -1003,22 +1003,14 @@ impl SubdMesh {
         if let Some(subd) = Self::try_parse_subd_value(value) {
             return Some(subd);
         }
-        // Try parsing as surface/mesh
-        Self::from_surface_value(value)
+        // Try parsing as mesh
+        Self::from_mesh_value(value)
     }
 
-    /// Try to parse a `Value::Surface` or `Value::Mesh` as a `SubdMesh`.
+    /// Try to parse a `Value::Mesh` as a `SubdMesh`.
     #[must_use]
-    pub fn from_surface_value(value: &Value) -> Option<Self> {
+    pub fn from_mesh_value(value: &Value) -> Option<Self> {
         match value {
-            Value::Surface { vertices, faces } => {
-                let face_indices: Vec<Vec<usize>> = faces
-                    .iter()
-                    .filter(|face| face.len() >= 3)
-                    .map(|face| face.iter().map(|idx| *idx as usize).collect())
-                    .collect();
-                Some(Self::from_vertices_faces(vertices.clone(), face_indices))
-            }
             Value::Mesh {
                 vertices, indices, ..
             } => {
@@ -1033,7 +1025,7 @@ impl SubdMesh {
             Value::List(values) => {
                 // Try each element in the list
                 for entry in values {
-                    if let Some(subd) = Self::from_surface_value(entry) {
+                    if let Some(subd) = Self::from_mesh_value(entry) {
                         return Some(subd);
                     }
                 }
@@ -1310,77 +1302,6 @@ impl SubdMesh {
             Value::List(edges),
             Value::List(faces),
         ])
-    }
-
-    /// Convert to a legacy `Value::Surface`.
-    ///
-    /// This creates a polygon mesh (not triangulated) from the SubD control mesh.
-    #[must_use]
-    pub fn to_surface_value(&self) -> Value {
-        let mut clone = self.clone();
-        clone.rebuild_topology();
-        let vertices = clone.vertices.iter().map(|v| v.position).collect();
-        let faces = clone
-            .faces
-            .iter()
-            .filter(|face| face.vertices.len() >= 3)
-            .map(|face| face.vertices.iter().map(|idx| *idx as u32).collect())
-            .collect();
-        Value::Surface { vertices, faces }
-    }
-
-    /// Convert to a `Value::Surface` with subdivision/smoothing applied.
-    ///
-    /// # Arguments
-    /// * `density` - Subdivision density (1 = control mesh, 2+ = smoothed).
-    #[must_use]
-    pub fn to_surface_with_density(&self, density: usize) -> Value {
-        if density <= 1 {
-            return self.to_surface_value();
-        }
-        let mut clone = self.clone();
-        let steps = density.saturating_sub(1);
-        if steps > 0 {
-            clone.smooth(steps);
-        }
-        clone.rebuild_topology();
-
-        let mut vertices: Vec<[f64; 3]> = clone.vertices.iter().map(|v| v.position).collect();
-        let mut faces: Vec<Vec<u32>> = Vec::new();
-
-        for face in &clone.faces {
-            if face.vertices.len() < 3 {
-                continue;
-            }
-            let mut centroid = [0.0, 0.0, 0.0];
-            let mut count = 0usize;
-            for id in &face.vertices {
-                if let Some(vertex) = clone.vertex(*id) {
-                    centroid[0] += vertex.position[0];
-                    centroid[1] += vertex.position[1];
-                    centroid[2] += vertex.position[2];
-                    count += 1;
-                }
-            }
-            if count < 3 {
-                continue;
-            }
-            centroid[0] /= count as f64;
-            centroid[1] /= count as f64;
-            centroid[2] /= count as f64;
-            let centroid_index = vertices.len();
-            vertices.push(centroid);
-            for index in 0..face.vertices.len() {
-                let a = face.vertices[index] as u32;
-                let b = face.vertices[(index + 1) % face.vertices.len()] as u32;
-                faces.push(vec![a, b, centroid_index as u32]);
-            }
-        }
-
-        if faces.is_empty() {
-            return clone.to_surface_value();
-        }
-        Value::Surface { vertices, faces }
     }
 
     /// Convert to a `Value::Mesh` (triangle mesh).

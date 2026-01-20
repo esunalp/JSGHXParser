@@ -1,16 +1,13 @@
 //! Grasshopper components for mesh triangulation, delaunay, and voronoi operations.
 //!
-//! # Mesh Engine Integration (Phase 3)
+//! # Mesh Engine Integration
 //!
-//! Mesh-producing components in this module now output `Value::Mesh` as the primary type.
-//! This provides:
+//! Mesh-producing components in this module output `Value::Mesh`:
 //! - Indexed triangle list with flat indices (divisible by 3)
 //! - Optional per-vertex normals for smooth shading
 //! - Mesh diagnostics with vertex/triangle counts
 //!
 //! Components that produce edges, polylines, or other non-mesh outputs are unchanged.
-//! The legacy `Value::Surface` output is no longer emitted. Downstream consumers
-//! should use `expect_mesh_like()` for backward compatibility with both types.
 
 use std::collections::BTreeMap;
 

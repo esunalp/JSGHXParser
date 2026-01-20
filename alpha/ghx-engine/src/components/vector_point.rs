@@ -4,7 +4,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use crate::graph::node::MetaMap;
-use crate::graph::value::{ColorValue, PlaneValue, TextTagValue, Value};
+use crate::graph::value::{ColorValue, TextTagValue, Value};
 
 use super::{Component, ComponentError, ComponentResult, coerce};
 
@@ -26,7 +26,6 @@ const PIN_OUTPUT_TAGS: &str = "Tag";
 
 const EPSILON: f64 = 1e-9;
 type Plane = coerce::Plane;
-type Line = coerce::Line;
 
 /// Beschikbare componenten binnen deze module.
 #[derive(Debug, Clone, Copy)]
@@ -1180,7 +1179,6 @@ pub(crate) fn parse_color_value(value: &Value) -> Option<ColorValue> {
         Value::Text(text) => parse_color_text(text),
         Value::Null
         | Value::CurveLine { .. }
-        | Value::Surface { .. }
         | Value::Mesh { .. }
         | Value::Domain(_)
         | Value::Matrix(_)
@@ -1345,7 +1343,6 @@ fn collect_mask(value: &Value, output: &mut Vec<char>) {
         | Value::Point(_)
         | Value::Vector(_)
         | Value::CurveLine { .. }
-        | Value::Surface { .. }
         | Value::Mesh { .. }
         | Value::Domain(_)
         | Value::Matrix(_)
@@ -1443,14 +1440,6 @@ fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }
 
-fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
 fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
 }
@@ -1461,34 +1450,6 @@ fn subtract(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 
 fn scale(vector: [f64; 3], factor: f64) -> [f64; 3] {
     [vector[0] * factor, vector[1] * factor, vector[2] * factor]
-}
-
-fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
-    let length = vector_length(vector);
-    if length < EPSILON {
-        None
-    } else {
-        Some((scale(vector, 1.0 / length), length))
-    }
-}
-
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
-    safe_normalized(vector)
-        .map(|(unit, _)| unit)
-        .unwrap_or([0.0, 0.0, 0.0])
-}
-
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
-    let abs_x = vector[0].abs();
-    let abs_y = vector[1].abs();
-    let abs_z = vector[2].abs();
-    if abs_x <= abs_y && abs_x <= abs_z {
-        normalize([0.0, -vector[2], vector[1]])
-    } else if abs_y <= abs_x && abs_y <= abs_z {
-        normalize([-vector[2], 0.0, vector[0]])
-    } else {
-        normalize([-vector[1], vector[0], 0.0])
-    }
 }
 
 fn find_parent(parents: &mut [usize], index: usize) -> usize {

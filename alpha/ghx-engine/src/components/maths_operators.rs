@@ -650,7 +650,7 @@ fn evaluate_binary_gate(
 
 fn evaluate_binary_arithmetic(
     inputs: &[Value],
-    context: &str,
+    _context: &str,
     operation: impl Fn(f64, f64) -> Result<f64, ComponentError>,
 ) -> ComponentResult {
     let a = coerce::coerce_number_with_default(inputs.get(0));

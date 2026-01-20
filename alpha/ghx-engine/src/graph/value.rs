@@ -1017,7 +1017,7 @@ where
 // MeshData - Owned mesh data (returned by expect_mesh_like and conversions)
 // ============================================================================
 
-/// Owned mesh data extracted from a `Value::Mesh` or converted from `Value::Surface`.
+/// Owned mesh data extracted from a `Value::Mesh`.
 ///
 /// This struct owns its data and can be freely manipulated. Use this when you
 /// need to modify mesh data or when the original `Value` may go out of scope.
@@ -1107,25 +1107,6 @@ impl MeshData {
             normals: self.normals,
             uvs: self.uvs,
             diagnostics: self.diagnostics,
-        }
-    }
-
-    /// Converts to a `Value::Surface` (legacy format).
-    ///
-    /// **Note**: This is a lossy conversion:
-    /// - Normals and UVs are discarded
-    /// - Each triangle becomes a separate face
-    #[must_use]
-    pub fn into_surface_legacy(self) -> Value {
-        let faces: Vec<Vec<u32>> = self
-            .indices
-            .chunks(3)
-            .filter(|chunk| chunk.len() == 3)
-            .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
-            .collect();
-        Value::Surface {
-            vertices: self.vertices,
-            faces,
         }
     }
 
@@ -1271,14 +1252,11 @@ impl MeshData {
     // Value Conversion Helpers
     // ========================================================================
 
-    /// Attempts to create a `MeshData` from a `Value`.
-    ///
-    /// This method accepts either `Value::Mesh` or `Value::Surface` (legacy),
-    /// returning owned mesh data in either case.
+    /// Attempts to create a `MeshData` from a `Value::Mesh`.
     ///
     /// # Errors
     ///
-    /// Returns an error if the value is not a mesh-like type.
+    /// Returns an error if the value is not a `Mesh`.
     ///
     /// # Example
     ///
@@ -1290,14 +1268,14 @@ impl MeshData {
         value.expect_mesh_like()
     }
 
-    /// Attempts to create a `MeshData` from a `Value`, consuming it.
+    /// Attempts to create a `MeshData` from a `Value::Mesh`, consuming it.
     ///
     /// This is more efficient than `from_value` when you own the value,
     /// as it avoids cloning the mesh data.
     ///
     /// # Errors
     ///
-    /// Returns an error if the value is not a mesh-like type.
+    /// Returns an error if the value is not a `Mesh`.
     ///
     /// # Example
     ///
@@ -1509,15 +1487,6 @@ pub enum Value {
     Vector([f64; 3]),
     /// Een lijnsegment, beschreven door twee punten.
     CurveLine { p1: [f64; 3], p2: [f64; 3] },
-    /// Een (prismatische) mesh representatie.
-    /// 
-    /// **Legacy type** - kept for backward compatibility.
-    /// New code should prefer `Value::Mesh` which provides additional
-    /// attributes (normals, UVs) and diagnostics information.
-    Surface {
-        vertices: Vec<[f64; 3]>,
-        faces: Vec<Vec<u32>>,
-    },
     /// A triangle mesh with optional attributes and diagnostics.
     ///
     /// This is the preferred mesh representation for the new geometry engine.
@@ -1614,7 +1583,6 @@ impl Hash for Value {
             }
             // Non-trivial hash impls below.
             // For now, these are not hashed, which is not ideal but avoids complexity.
-            Value::Surface { .. } => {}
             Value::Mesh { .. } => {}
             Value::Domain(_) => {}
             Value::Matrix(_) => {}
@@ -1639,14 +1607,6 @@ impl fmt::Display for Value {
                 "Line [{},{},{}] to [{},{},{}]",
                 p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]
             ),
-            Self::Surface { vertices, faces } => {
-                write!(
-                    f,
-                    "Surface [{} vertices, {} faces]",
-                    vertices.len(),
-                    faces.len()
-                )
-            }
             Self::Mesh { vertices, indices, normals, uvs, .. } => {
                 let tri_count = indices.len() / 3;
                 let attrs = match (normals.is_some(), uvs.is_some()) {
@@ -1708,7 +1668,6 @@ impl Value {
             Self::Point(_) => ValueKind::Point,
             Self::Vector(_) => ValueKind::Vector,
             Self::CurveLine { .. } => ValueKind::CurveLine,
-            Self::Surface { .. } => ValueKind::Surface,
             Self::Mesh { .. } => ValueKind::Mesh,
             Self::Domain(_) => ValueKind::Domain,
             Self::Matrix(_) => ValueKind::Matrix,
@@ -1770,14 +1729,6 @@ impl Value {
         }
     }
 
-    /// Verwacht een `Surface` en retourneert de mesh-data.
-    pub fn expect_surface(&self) -> Result<(&[[f64; 3]], &[Vec<u32>]), ValueError> {
-        match self {
-            Self::Surface { vertices, faces } => Ok((vertices, faces)),
-            _ => Err(ValueError::type_mismatch("Surface", self.kind())),
-        }
-    }
-
     /// Mesh data returned by `expect_mesh`.
     ///
     /// Contains references to the mesh buffers and optional diagnostics.
@@ -1806,9 +1757,6 @@ impl Value {
     /// Unlike `expect_mesh()` which returns references, this method clones
     /// the mesh data into an owned `MeshData` struct. Use this when you need
     /// to modify the mesh or when the original `Value` may go out of scope.
-    ///
-    /// **Note**: This only accepts `Value::Mesh`, not `Value::Surface`.
-    /// For accepting both types, use `expect_mesh_like()`.
     ///
     /// # Example
     ///
@@ -1866,14 +1814,9 @@ impl Value {
         }
     }
 
-    /// Expects a mesh-like value (`Mesh` or `Surface`) and returns mesh data.
+    /// Expects a mesh value and returns mesh data.
     ///
-    /// This is a convenience method that accepts both the new `Mesh` type and
-    /// the legacy `Surface` type, converting the latter on the fly.
-    ///
-    /// For `Value::Surface`, faces are converted to triangle indices by taking
-    /// the first three vertices of each face. Normals and UVs are not available
-    /// for legacy surfaces.
+    /// This is equivalent to `expect_mesh_owned()`.
     pub fn expect_mesh_like(&self) -> Result<MeshData, ValueError> {
         match self {
             Self::Mesh {
@@ -1889,27 +1832,13 @@ impl Value {
                 uvs: uvs.clone(),
                 diagnostics: diagnostics.clone(),
             }),
-            Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangles using fan triangulation.
-                // This properly handles quads and n-gons by producing (n-2) triangles
-                // per n-gon face, preserving all geometry.
-                let indices = triangulate_polygon_faces(faces);
-                Ok(MeshData {
-                    vertices: vertices.clone(),
-                    indices,
-                    normals: None,
-                    uvs: None,
-                    diagnostics: None,
-                })
-            }
-            _ => Err(ValueError::type_mismatch("Mesh or Surface", self.kind())),
+            _ => Err(ValueError::type_mismatch("Mesh", self.kind())),
         }
     }
 
-    /// Consumes a mesh-like value and returns owned `MeshData` without cloning.
+    /// Consumes a mesh value and returns owned `MeshData` without cloning.
     ///
-    /// Accepts both `Value::Mesh` and `Value::Surface`, consuming the value.
-    /// For `Value::Surface`, faces are converted to triangle indices.
+    /// This is equivalent to `into_mesh_data()`.
     ///
     /// This is the most efficient way to extract mesh data when you own the Value.
     ///
@@ -1934,81 +1863,14 @@ impl Value {
                 uvs,
                 diagnostics,
             }),
-            Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangles using fan triangulation.
-                // This properly handles quads and n-gons by producing (n-2) triangles
-                // per n-gon face, preserving all geometry.
-                let indices = triangulate_polygon_faces_owned(faces);
-                Ok(MeshData {
-                    vertices,
-                    indices,
-                    normals: None,
-                    uvs: None,
-                    diagnostics: None,
-                })
-            }
-            _ => Err(ValueError::type_mismatch("Mesh or Surface", self.kind())),
+            _ => Err(ValueError::type_mismatch("Mesh", self.kind())),
         }
     }
 
-    /// Converts a `Value::Mesh` to a `Value::Surface` for legacy compatibility.
-    ///
-    /// Returns `None` if this value is not a `Mesh`.
-    ///
-    /// **Note**: This conversion is lossy:
-    /// - Normals and UVs are discarded
-    /// - Triangle indices are converted to single-triangle face lists
-    /// - Diagnostics are discarded
-    #[must_use]
-    pub fn mesh_to_surface_legacy(&self) -> Option<Value> {
-        match self {
-            Self::Mesh { vertices, indices, .. } => {
-                // Convert triangle indices to polygon faces
-                let faces: Vec<Vec<u32>> = indices
-                    .chunks(3)
-                    .filter(|chunk| chunk.len() == 3)
-                    .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
-                    .collect();
-                Some(Value::Surface {
-                    vertices: vertices.clone(),
-                    faces,
-                })
-            }
-            _ => None,
-        }
-    }
-
-    /// Converts a `Value::Surface` to a `Value::Mesh`.
-    ///
-    /// Returns `None` if this value is not a `Surface`.
-    ///
-    /// **Note**: 
-    /// - Polygon faces are triangulated using fan triangulation (preserves all geometry)
-    /// - Normals and UVs are not generated (set to `None`)
-    /// - Diagnostics are not generated (set to `None`)
-    #[must_use]
-    pub fn surface_legacy_to_mesh(&self) -> Option<Value> {
-        match self {
-            Self::Surface { vertices, faces } => {
-                // Convert polygon faces to triangles using fan triangulation.
-                // This properly handles quads and n-gons.
-                let indices = triangulate_polygon_faces(faces);
-                Some(Value::Mesh {
-                    vertices: vertices.clone(),
-                    indices,
-                    normals: None,
-                    uvs: None,
-                    diagnostics: None,
-                })
-            }
-            _ => None,
-        }
-    }
-
-    /// Returns `true` if this value is a mesh-like geometry (`Mesh` or `Surface`).
+    /// Returns `true` if this value is a mesh geometry.
     #[must_use]
     pub fn is_mesh_like(&self) -> bool {
-        matches!(self, Self::Mesh { .. } | Self::Surface { .. })
+        matches!(self, Self::Mesh { .. })
     }
 
     /// Verwacht een lijst en geeft een slice terug.
@@ -2139,7 +2001,6 @@ pub enum ValueKind {
     Point,
     Vector,
     CurveLine,
-    Surface,
     Mesh,
     Domain,
     List,
@@ -2162,7 +2023,6 @@ impl fmt::Display for ValueKind {
             Self::Point => "Point",
             Self::Vector => "Vector",
             Self::CurveLine => "CurveLine",
-            Self::Surface => "Surface",
             Self::Mesh => "Mesh",
             Self::Domain => "Domain",
             Self::Matrix => "Matrix",
@@ -2429,20 +2289,6 @@ mod tests {
     }
 
     #[test]
-    fn expect_surface_returns_references() {
-        let vertices = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
-        let faces = vec![vec![0, 1, 1]];
-        let value = Value::Surface {
-            vertices: vertices.clone(),
-            faces: faces.clone(),
-        };
-
-        let (verts, fcs) = value.expect_surface().unwrap();
-        assert_eq!(verts, vertices.as_slice());
-        assert_eq!(fcs, faces.as_slice());
-    }
-
-    #[test]
     fn expect_curve_line_returns_endpoints() {
         let value = Value::CurveLine {
             p1: [0.0, 0.0, 0.0],
@@ -2533,13 +2379,10 @@ mod tests {
 
     #[test]
     fn expect_mesh_rejects_non_mesh() {
-        let value = Value::Surface {
-            vertices: vec![[0.0, 0.0, 0.0]],
-            faces: vec![],
-        };
+        let value = Value::Point([0.0, 0.0, 0.0]);
         let err = value.expect_mesh().unwrap_err();
         assert_eq!(err.expected(), "Mesh");
-        assert_eq!(err.found(), ValueKind::Surface);
+        assert_eq!(err.found(), ValueKind::Point);
     }
 
     #[test]
@@ -2556,67 +2399,6 @@ mod tests {
         assert_eq!(mesh_data.vertex_count(), 3);
         assert_eq!(mesh_data.triangle_count(), 1);
         assert!(mesh_data.has_normals());
-    }
-
-    #[test]
-    fn expect_mesh_like_converts_surface() {
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let mesh_data = value.expect_mesh_like().unwrap();
-        assert_eq!(mesh_data.vertex_count(), 4);
-        assert_eq!(mesh_data.triangle_count(), 2);
-        assert_eq!(mesh_data.indices, vec![0, 1, 2, 0, 2, 3]);
-        assert!(!mesh_data.has_normals());
-        assert!(!mesh_data.has_uvs());
-    }
-
-    #[test]
-    fn mesh_to_surface_legacy_conversion() {
-        let mesh = Value::Mesh {
-            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            indices: vec![0, 1, 2],
-            normals: Some(vec![[0.0, 0.0, 1.0]; 3]),
-            uvs: None,
-            diagnostics: None,
-        };
-
-        let surface = mesh.mesh_to_surface_legacy().unwrap();
-        assert_eq!(surface.kind(), ValueKind::Surface);
-
-        let (verts, faces) = surface.expect_surface().unwrap();
-        assert_eq!(verts.len(), 3);
-        assert_eq!(faces.len(), 1);
-        assert_eq!(faces[0], vec![0, 1, 2]);
-    }
-
-    #[test]
-    fn surface_legacy_to_mesh_conversion() {
-        let surface = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let mesh = surface.surface_legacy_to_mesh().unwrap();
-        assert_eq!(mesh.kind(), ValueKind::Mesh);
-
-        let mesh_ref = mesh.expect_mesh().unwrap();
-        assert_eq!(mesh_ref.vertex_count(), 4);
-        assert_eq!(mesh_ref.triangle_count(), 2);
-        assert!(!mesh_ref.has_normals());
-        assert!(!mesh_ref.has_uvs());
     }
 
     #[test]
@@ -2677,61 +2459,6 @@ mod tests {
     }
 
     #[test]
-    fn expect_mesh_like_quad_surface_produces_correct_triangles() {
-        // A surface with a single quad face should produce 2 triangles
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2, 3]], // Single quad face
-        };
-
-        let mesh_data = value.expect_mesh_like().unwrap();
-        assert_eq!(mesh_data.vertex_count(), 4);
-        assert_eq!(mesh_data.triangle_count(), 2); // Quad -> 2 triangles
-        assert_eq!(mesh_data.indices, vec![0, 1, 2, 0, 2, 3]);
-    }
-
-    #[test]
-    fn into_mesh_data_like_quad_surface_produces_correct_triangles() {
-        // Test the owned/consuming version
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2, 3]], // Single quad face
-        };
-
-        let mesh_data = value.into_mesh_data_like().unwrap();
-        assert_eq!(mesh_data.vertex_count(), 4);
-        assert_eq!(mesh_data.triangle_count(), 2); // Quad -> 2 triangles
-        assert_eq!(mesh_data.indices, vec![0, 1, 2, 0, 2, 3]);
-    }
-
-    #[test]
-    fn surface_legacy_to_mesh_quad_produces_correct_triangles() {
-        let surface = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2, 3]], // Single quad face
-        };
-
-        let mesh = surface.surface_legacy_to_mesh().unwrap();
-        let mesh_ref = mesh.expect_mesh().unwrap();
-        assert_eq!(mesh_ref.triangle_count(), 2); // Quad -> 2 triangles
-    }
-
-    #[test]
     fn is_mesh_like_identifies_mesh_types() {
         let mesh = Value::Mesh {
             vertices: vec![],
@@ -2740,14 +2467,9 @@ mod tests {
             uvs: None,
             diagnostics: None,
         };
-        let surface = Value::Surface {
-            vertices: vec![],
-            faces: vec![],
-        };
         let point = Value::Point([0.0, 0.0, 0.0]);
 
         assert!(mesh.is_mesh_like());
-        assert!(surface.is_mesh_like());
         assert!(!point.is_mesh_like());
     }
 
@@ -3502,14 +3224,11 @@ mod tests {
     }
 
     #[test]
-    fn expect_mesh_owned_rejects_surface() {
-        let value = Value::Surface {
-            vertices: vec![[0.0, 0.0, 0.0]],
-            faces: vec![],
-        };
+    fn expect_mesh_owned_rejects_non_mesh() {
+        let value = Value::Point([0.0, 0.0, 0.0]);
         let err = value.expect_mesh_owned().unwrap_err();
         assert_eq!(err.expected(), "Mesh");
-        assert_eq!(err.found(), ValueKind::Surface);
+        assert_eq!(err.found(), ValueKind::Point);
     }
 
     #[test]
@@ -3542,24 +3261,6 @@ mod tests {
         let mesh_data = value.into_mesh_data_like().unwrap();
         assert_eq!(mesh_data.vertex_count(), 3);
         assert!(mesh_data.has_normals());
-    }
-
-    #[test]
-    fn into_mesh_data_like_converts_surface() {
-        let value = Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2], vec![0, 2, 3]],
-        };
-
-        let mesh_data = value.into_mesh_data_like().unwrap();
-        assert_eq!(mesh_data.vertex_count(), 4);
-        assert_eq!(mesh_data.triangle_count(), 2);
-        assert!(!mesh_data.has_normals());
     }
 
     // ========================================================================
@@ -3839,18 +3540,6 @@ mod tests {
         assert_eq!(mesh_data.vertex_count(), 3);
         assert_eq!(mesh_data.triangle_count(), 1);
         assert!(mesh_data.has_normals());
-    }
-
-    #[test]
-    fn mesh_data_from_value_accepts_surface() {
-        let value = Value::Surface {
-            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.5, 1.0, 0.0]],
-            faces: vec![vec![0, 1, 2]],
-        };
-
-        let mesh_data = super::MeshData::from_value(&value).unwrap();
-        assert_eq!(mesh_data.vertex_count(), 3);
-        assert_eq!(mesh_data.triangle_count(), 1);
     }
 
     #[test]

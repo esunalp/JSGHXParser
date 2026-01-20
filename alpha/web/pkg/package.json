@@ -4,11 +4,9 @@
   "version": "0.1.0",
   "files": [
     "ghx_engine_bg.wasm",
-    "ghx_engine.js",
-    "ghx_engine.d.ts"
+    "ghx_engine.js"
   ],
   "main": "ghx_engine.js",
-  "types": "ghx_engine.d.ts",
   "sideEffects": [
     "./snippets/*"
   ]

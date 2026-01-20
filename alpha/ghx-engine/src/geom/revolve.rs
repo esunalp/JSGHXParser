@@ -734,6 +734,7 @@ fn build_revolved_mesh_rodrigues(
     steps: usize,
     is_closed_profile: bool,
     weld_seam: bool,
+    #[allow(unused_variables)]
     tol: Tolerance,
 ) -> Result<(Vec<Point3>, Vec<[f64; 2]>, Vec<u32>), RevolveError> {
     let profile_len = profile.len();

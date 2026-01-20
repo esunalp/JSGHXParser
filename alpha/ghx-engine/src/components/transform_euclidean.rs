@@ -315,10 +315,6 @@ where
             p1: point_fn(*p1),
             p2: point_fn(*p2),
         },
-        Value::Surface { vertices, faces } => Value::Surface {
-            vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
-            faces: faces.clone(),
-        },
         Value::Mesh {
             vertices,
             indices,
@@ -410,26 +406,6 @@ impl Plane {
 
     fn from_coerce_plane(plane: coerce::Plane) -> Self {
         Self::normalize_axes(plane.origin, plane.x_axis, plane.y_axis, plane.z_axis)
-    }
-
-    fn from_points(a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Self {
-        let x_axis = safe_normalize(subtract(b, a))
-            .map(|(axis, _)| axis)
-            .unwrap_or([1.0, 0.0, 0.0]);
-        let raw_y = subtract(c, a);
-        let y_projection = subtract(raw_y, scale(x_axis, dot(raw_y, x_axis)));
-        let y_axis = safe_normalize(y_projection)
-            .map(|(axis, _)| axis)
-            .unwrap_or([0.0, 1.0, 0.0]);
-        let z_axis = normalize(cross(x_axis, y_axis));
-        Self::normalize_axes(a, x_axis, y_axis, z_axis)
-    }
-
-    fn from_origin(origin: [f64; 3]) -> Self {
-        Self {
-            origin,
-            ..Self::default()
-        }
     }
 
     fn normalize_axes(

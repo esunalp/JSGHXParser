@@ -609,7 +609,6 @@ fn collect_value_geometry(
     match value {
         Value::Point(_)
         | Value::CurveLine { .. }
-        | Value::Surface { .. }
         | Value::Mesh { .. } => {
             geometry.push(GeometryEntry {
                 source_node: node_id,
@@ -662,9 +661,12 @@ mod tests {
         let mut outputs = BTreeMap::new();
         outputs.insert(
             "Geometry".to_string(),
-            Value::Surface {
+            Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-                faces: vec![vec![0, 1, 2]],
+                indices: vec![0, 1, 2],
+                normals: None,
+                uvs: None,
+                diagnostics: None,
             },
         );
         outputs.insert(

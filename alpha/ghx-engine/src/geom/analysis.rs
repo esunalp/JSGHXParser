@@ -3,7 +3,7 @@
 //! This module centralizes lightweight analysis utilities (surface frames, legacy
 //! B-rep-like edge extraction) so Grasshopper-style components can remain thin.
 
-use super::solid::LegacySurfaceMesh;
+use super::solid::BrepMesh;
 use super::surface::Surface;
 use super::{Point3, Tolerance, Vec3};
 
@@ -249,7 +249,7 @@ impl LegacyBrepData {
         }
     }
 
-    pub fn extend_from_surface_mesh(&mut self, surface: &LegacySurfaceMesh, tol: Tolerance) {
+    pub fn extend_from_surface_mesh(&mut self, surface: &BrepMesh, tol: Tolerance) {
         self.extend_from_surface_buffers(&surface.vertices, &surface.faces, tol);
     }
 

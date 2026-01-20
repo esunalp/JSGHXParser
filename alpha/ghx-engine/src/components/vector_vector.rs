@@ -850,27 +850,6 @@ fn vector_length_squared(vector: [f64; 3]) -> f64 {
     dot(vector, vector)
 }
 
-fn normalize(vector: [f64; 3]) -> [f64; 3] {
-    if let Some((normalized, _)) = safe_normalized(vector) {
-        normalized
-    } else {
-        [0.0, 0.0, 0.0]
-    }
-}
-
-fn orthogonal_vector(vector: [f64; 3]) -> [f64; 3] {
-    let abs_x = vector[0].abs();
-    let abs_y = vector[1].abs();
-    let abs_z = vector[2].abs();
-    if abs_x <= abs_y && abs_x <= abs_z {
-        normalize([0.0, -vector[2], vector[1]])
-    } else if abs_y <= abs_x && abs_y <= abs_z {
-        normalize([-vector[2], 0.0, vector[0]])
-    } else {
-        normalize([-vector[1], vector[0], 0.0])
-    }
-}
-
 fn safe_normalized(vector: [f64; 3]) -> Option<([f64; 3], f64)> {
     let length = vector_length(vector);
     if length < EPSILON {

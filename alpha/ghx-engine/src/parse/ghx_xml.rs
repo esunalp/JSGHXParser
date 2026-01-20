@@ -568,7 +568,7 @@ fn apply_value_list_meta(container: &RawChunk, node: &mut Node) {
         .collect();
 
     for (idx, item_chunk) in list_items.iter().enumerate() {
-        let name = item_chunk.item_value("Name").unwrap_or("").to_string();
+        let _name = item_chunk.item_value("Name").unwrap_or("").to_string();
         let expression = item_chunk
             .item_value("Expression")
             .unwrap_or("")
@@ -960,6 +960,7 @@ impl GhxSlider {
 #[derive(Debug, Default, Deserialize)]
 struct ArchiveDocument {
     #[serde(default)]
+    #[allow(dead_code)] // Required for serde deserialization but not directly accessed
     items: RawItems,
     #[serde(default)]
     chunks: RawChunks,
@@ -994,10 +995,12 @@ struct RawItem {
     #[serde(rename = "@name")]
     name: String,
     #[serde(rename = "@index")]
+    #[allow(dead_code)] // Required for serde deserialization but not directly accessed
     index: Option<usize>,
     #[serde(rename = "@type_name")]
     type_name: Option<String>,
     #[serde(rename = "@type_code")]
+    #[allow(dead_code)] // Required for serde deserialization but not directly accessed
     type_code: Option<String>,
     #[serde(rename = "$text")]
     text: Option<String>,

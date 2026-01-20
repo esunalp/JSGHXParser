@@ -148,7 +148,7 @@ fn eval_extrude(inputs: &[Value]) -> NodeResult {
   let base_curve = inputs[0].as_curve();
   let direction = inputs[1].as_vector_or_number();
   let mesh = mesh_extrude(base_curve, direction);
-  NodeResult::Value(Value::Surface(mesh))
+  NodeResult::Value(Value::Mesh(mesh))
 }
 ```
 
@@ -490,8 +490,8 @@ EVALUATION
   - Add: sum of two numbers.
   - Construct Point: (x,y,z) → `Value::Point([f64;3])`.
   - Line (2pt): `Point,Point` → `Value::CurveLine { p1, p2 }`.
-  - Extrude (simple): `CurveLine` + height (number or vector) → `Value::Surface { vertices, faces }`.
-    * A minimal prism mesh is acceptable; normals computed client-side in Three.js.
+  - Extrude (simple): `CurveLine` + height (number or vector) → `Value::Mesh { vertices, indices, normals, uvs, diagnostics }`.
+    * A minimal prism mesh is acceptable; normals optionally computed client-side in Three.js if not provided.
 
 FRONT-END CONTRACT
 - JS is responsible for: loading GHX text, rendering UI sliders, calling Engine APIs, and converting geometry to Three.js objects.

@@ -428,10 +428,6 @@ where
             p1: point_fn(*p1),
             p2: point_fn(*p2),
         },
-        Value::Surface { vertices, faces } => Value::Surface {
-            vertices: vertices.iter().map(|v| point_fn(*v)).collect(),
-            faces: faces.clone(),
-        },
         Value::Mesh {
             vertices,
             indices,

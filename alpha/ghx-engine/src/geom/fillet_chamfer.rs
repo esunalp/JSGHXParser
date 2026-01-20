@@ -24,7 +24,6 @@
 use std::collections::{HashMap, HashSet};
 
 use super::mesh::GeomMesh;
-use super::solid::LegacySurfaceMesh;
 use super::{GeomMeshDiagnostics, Point3, Tolerance, Vec3};
 
 #[derive(Debug, thiserror::Error)]
@@ -46,9 +45,6 @@ pub enum FilletChamferError {
 
     #[error("mesh index out of bounds: {index} >= {vertex_count}")]
     MeshIndexOutOfBounds { index: u32, vertex_count: usize },
-
-    #[error("legacy surface mesh must be triangulated (all faces len == 3)")]
-    LegacyMeshNotTriangulated,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -308,57 +304,6 @@ pub fn fillet_triangle_mesh_edges(
     let (mesh, mesh_diag) = super::mesh::finalize_mesh(out_points, None, out_indices, tol);
     diag.warnings.extend(mesh_diag.warnings.clone());
     Ok((mesh, mesh_diag, diag))
-}
-
-/// Convenience wrapper for `Value::Surface`-style legacy meshes.
-///
-/// Input must already be triangulated (`faces` must all have length 3).
-pub fn fillet_legacy_triangle_mesh_edges(
-    brep: &LegacySurfaceMesh,
-    edges: &[(u32, u32)],
-    options: FilletEdgeOptions,
-    tol: Tolerance,
-) -> Result<(LegacySurfaceMesh, GeomMeshDiagnostics, FilletMeshEdgeDiagnostics), FilletChamferError>
-{
-    if brep.vertices.is_empty() || brep.faces.is_empty() {
-        return Ok((
-            brep.clone(),
-            GeomMeshDiagnostics::default(),
-            FilletMeshEdgeDiagnostics::default(),
-        ));
-    }
-
-    let mut indices = Vec::with_capacity(brep.faces.len() * 3);
-    for face in &brep.faces {
-        if face.len() != 3 {
-            return Err(FilletChamferError::LegacyMeshNotTriangulated);
-        }
-        indices.extend_from_slice(face);
-    }
-
-    let mesh = GeomMesh {
-        positions: brep.vertices.clone(),
-        indices,
-        uvs: None,
-        normals: None,
-        tangents: None,
-    };
-
-    let (mesh, mesh_diag, fillet_diag) = fillet_triangle_mesh_edges(&mesh, edges, options, tol)?;
-    let faces = mesh
-        .indices
-        .chunks_exact(3)
-        .map(|tri| vec![tri[0], tri[1], tri[2]])
-        .collect::<Vec<_>>();
-
-    Ok((
-        LegacySurfaceMesh {
-            vertices: mesh.positions,
-            faces,
-        },
-        mesh_diag,
-        fillet_diag,
-    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

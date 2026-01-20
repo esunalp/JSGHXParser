@@ -1,16 +1,22 @@
 //! Solid / B-rep-like utilities.
 //!
-//! This module hosts geometry logic that is still surfaced through legacy component adapters
-//! (e.g. `Value::Surface` in `components/surface_util.rs`). The implementations are intentionally
+//! This module hosts geometry logic that is surfaced through component adapters
+//! (e.g. `Value::Mesh` in `components/surface_util.rs`). The implementations are intentionally
 //! conservative: they aim to be deterministic, WASM-safe, and tolerant-aware.
 //!
 //! # Implemented Features
 //!
-//! - [`brep_join_legacy`]: Join multiple surface meshes by welding matching naked edges.
-//! - [`cap_holes_legacy`]: Cap planar boundary loops using 2D triangulation.
-//! - [`cap_holes_ex_legacy`]: Extended capping with additional options.
-//! - [`merge_faces_legacy`]: Merge coplanar/continuous faces with tolerance guards.
-//! - [`legacy_surface_is_closed`]: Check if a surface mesh is watertight.
+//! - [`brep_join`]: Join multiple surface meshes by welding matching naked edges.
+//! - [`cap_holes`]: Cap planar boundary loops using 2D triangulation.
+//! - [`cap_holes_ex`]: Extended capping with additional options.
+//! - [`merge_faces`]: Merge coplanar/continuous faces with tolerance guards.
+//! - [`is_brep_closed`]: Check if a surface mesh is watertight.
+//!
+//! # BrepMesh vs GeomMesh
+//!
+//! This module uses [`BrepMesh`] for n-gon face support (quads, pentagons, etc.),
+//! while [`super::mesh::GeomMesh`] is strictly triangles. Use `BrepMesh` for B-rep
+//! operations that preserve face topology, and convert to `GeomMesh` for rendering.
 
 use std::collections::HashMap;
 
@@ -18,16 +24,30 @@ use super::triangulation::triangulate_trim_region;
 use super::trim::{TrimLoop, TrimRegion, UvPoint};
 use super::{Tolerance, Vec3};
 
-/// Legacy "surface" mesh used by existing components (`Value::Surface`).
+/// B-rep mesh supporting n-gon faces.
 ///
-/// Faces may be n-gons; indices refer to `vertices`.
+/// Unlike [`super::mesh::GeomMesh`] which is strictly triangles with flat indices,
+/// `BrepMesh` supports arbitrary n-gon faces (quads, pentagons, etc.) stored as
+/// per-face vertex index lists. This makes it suitable for B-rep operations that
+/// need to preserve face topology.
+///
+/// # Converting to GeomMesh
+/// To convert for rendering, triangulate each face:
+/// ```ignore
+/// let triangles: Vec<u32> = brep.faces.iter()
+///     .flat_map(|face| {
+///         // Fan triangulation for convex faces
+///         (1..face.len()-1).flat_map(|i| vec![face[0], face[i], face[i+1]])
+///     })
+///     .collect();
+/// ```
 #[derive(Debug, Clone, PartialEq)]
-pub struct LegacySurfaceMesh {
+pub struct BrepMesh {
     pub vertices: Vec<[f64; 3]>,
     pub faces: Vec<Vec<u32>>,
 }
 
-impl LegacySurfaceMesh {
+impl BrepMesh {
     /// Creates a new empty mesh.
     #[must_use]
     pub fn new() -> Self {
@@ -53,7 +73,7 @@ impl LegacySurfaceMesh {
     }
 }
 
-impl Default for LegacySurfaceMesh {
+impl Default for BrepMesh {
     fn default() -> Self {
         Self::new()
     }
@@ -75,7 +95,7 @@ pub struct BrepJoinDiagnostics {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BrepJoinResult {
-    pub breps: Vec<LegacySurfaceMesh>,
+    pub breps: Vec<BrepMesh>,
     pub closed: Vec<bool>,
     pub diagnostics: BrepJoinDiagnostics,
 }
@@ -93,11 +113,11 @@ pub struct BrepJoinResult {
 ///
 /// # Example
 /// ```ignore
-/// let result = brep_join_legacy(vec![mesh1, mesh2], Tolerance::default_geom());
+/// let result = brep_join(vec![mesh1, mesh2], Tolerance::default_geom());
 /// assert_eq!(result.breps.len(), 1); // Joined into a single shell
 /// ```
 #[must_use]
-pub fn brep_join_legacy(breps: Vec<LegacySurfaceMesh>, tol: Tolerance) -> BrepJoinResult {
+pub fn brep_join(breps: Vec<BrepMesh>, tol: Tolerance) -> BrepJoinResult {
     if breps.is_empty() {
         return BrepJoinResult {
             breps: Vec::new(),
@@ -107,7 +127,7 @@ pub fn brep_join_legacy(breps: Vec<LegacySurfaceMesh>, tol: Tolerance) -> BrepJo
     }
 
     if breps.len() == 1 {
-        let is_closed = legacy_surface_is_closed(&breps[0], tol);
+        let is_closed = is_brep_closed(&breps[0], tol);
         return BrepJoinResult {
             closed: vec![is_closed],
             diagnostics: BrepJoinDiagnostics {
@@ -129,7 +149,7 @@ pub fn brep_join_legacy(breps: Vec<LegacySurfaceMesh>, tol: Tolerance) -> BrepJo
     // Build naked edge info for each brep
     let mut brep_naked_edges: Vec<Vec<NakedEdgeInfo>> = Vec::with_capacity(breps.len());
     for brep in &breps {
-        let graph = LegacyEdgeGraph::from_surface(brep, tol);
+        let graph = BrepEdgeGraph::from_brep(brep, tol);
         let naked = graph.naked_edges();
         brep_naked_edges.push(naked);
     }
@@ -188,7 +208,7 @@ pub fn brep_join_legacy(breps: Vec<LegacySurfaceMesh>, tol: Tolerance) -> BrepJo
     // Check closedness of each result
     let mut closed = Vec::with_capacity(result_breps.len());
     for brep in &result_breps {
-        closed.push(legacy_surface_is_closed(brep, tol));
+        closed.push(is_brep_closed(brep, tol));
     }
 
     diagnostics.output_count = result_breps.len();
@@ -218,14 +238,14 @@ fn edges_match(a: &NakedEdgeInfo, b: &NakedEdgeInfo, tol: Tolerance) -> bool {
 
 /// Merges multiple breps into a single mesh, welding coincident vertices.
 fn merge_breps(
-    breps: &[LegacySurfaceMesh],
+    breps: &[BrepMesh],
     indices: &[usize],
     tol: Tolerance,
-) -> (LegacySurfaceMesh, usize) {
+) -> (BrepMesh, usize) {
     let total_verts: usize = indices.iter().map(|&i| breps[i].vertices.len()).sum();
     let total_faces: usize = indices.iter().map(|&i| breps[i].faces.len()).sum();
 
-    let mut merged = LegacySurfaceMesh::with_capacity(total_verts, total_faces);
+    let mut merged = BrepMesh::with_capacity(total_verts, total_faces);
     let mut merged_count = 0usize;
 
     for &brep_idx in indices {
@@ -284,7 +304,7 @@ pub struct CapHolesDiagnostics {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct CapHolesResult {
-    pub brep: LegacySurfaceMesh,
+    pub brep: BrepMesh,
     pub is_solid: bool,
     pub diagnostics: CapHolesDiagnostics,
 }
@@ -319,12 +339,12 @@ impl Default for CapHolesExOptions {
 ///
 /// # Example
 /// ```ignore
-/// let result = cap_holes_legacy(open_mesh, Tolerance::default_geom());
+/// let result = cap_holes(open_mesh, Tolerance::default_geom());
 /// assert!(result.is_solid);
 /// ```
 #[must_use]
-pub fn cap_holes_legacy(brep: LegacySurfaceMesh, tol: Tolerance) -> CapHolesResult {
-    cap_holes_ex_legacy(brep, tol, CapHolesExOptions::default())
+pub fn cap_holes(brep: BrepMesh, tol: Tolerance) -> CapHolesResult {
+    cap_holes_ex(brep, tol, CapHolesExOptions::default())
 }
 
 /// Extended hole capping with additional options.
@@ -340,11 +360,11 @@ pub fn cap_holes_legacy(brep: LegacySurfaceMesh, tol: Tolerance) -> CapHolesResu
 ///     max_planarity_deviation: 0.01,
 ///     ..Default::default()
 /// };
-/// let result = cap_holes_ex_legacy(open_mesh, tol, options);
+/// let result = cap_holes_ex(open_mesh, tol, options);
 /// ```
 #[must_use]
-pub fn cap_holes_ex_legacy(
-    mut brep: LegacySurfaceMesh,
+pub fn cap_holes_ex(
+    mut brep: BrepMesh,
     tol: Tolerance,
     options: CapHolesExOptions,
 ) -> CapHolesResult {
@@ -360,7 +380,7 @@ pub fn cap_holes_ex_legacy(
         };
     }
 
-    let graph = LegacyEdgeGraph::from_surface(&brep, tol);
+    let graph = BrepEdgeGraph::from_brep(&brep, tol);
     diagnostics.open_edge_count_before = graph.naked_edge_count();
 
     if diagnostics.open_edge_count_before == 0 {
@@ -516,7 +536,7 @@ pub fn cap_holes_ex_legacy(
         }
     }
 
-    let graph_after = LegacyEdgeGraph::from_surface(&brep, tol);
+    let graph_after = BrepEdgeGraph::from_brep(&brep, tol);
     diagnostics.open_edge_count_after = graph_after.naked_edge_count();
     let is_solid = diagnostics.open_edge_count_after == 0;
 
@@ -543,7 +563,7 @@ pub struct MergeFacesDiagnostics {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MergeFacesResult {
-    pub brep: LegacySurfaceMesh,
+    pub brep: BrepMesh,
     pub diagnostics: MergeFacesDiagnostics,
 }
 
@@ -560,11 +580,11 @@ pub struct MergeFacesResult {
 ///
 /// # Example
 /// ```ignore
-/// let result = merge_faces_legacy(&[mesh1, mesh2], Tolerance::default_geom());
+/// let result = merge_faces(&[mesh1, mesh2], Tolerance::default_geom());
 /// assert!(result.diagnostics.merged_count > 0);
 /// ```
 #[must_use]
-pub fn merge_faces_legacy(breps: &[LegacySurfaceMesh], tol: Tolerance) -> Option<MergeFacesResult> {
+pub fn merge_faces(breps: &[BrepMesh], tol: Tolerance) -> Option<MergeFacesResult> {
     if breps.is_empty() {
         return None;
     }
@@ -644,7 +664,7 @@ pub fn merge_faces_legacy(breps: &[LegacySurfaceMesh], tol: Tolerance) -> Option
     diagnostics.group_count = groups.len();
 
     // Build output mesh
-    let mut result = LegacySurfaceMesh::with_capacity(
+    let mut result = BrepMesh::with_capacity(
         combined.vertices.len(),
         groups.len(),
     );
@@ -680,11 +700,11 @@ pub fn merge_faces_legacy(breps: &[LegacySurfaceMesh], tol: Tolerance) -> Option
 }
 
 /// Combines multiple breps into a single mesh with welded vertices.
-fn combine_breps(breps: &[LegacySurfaceMesh], tol: Tolerance) -> LegacySurfaceMesh {
+fn combine_breps(breps: &[BrepMesh], tol: Tolerance) -> BrepMesh {
     let total_verts: usize = breps.iter().map(|b| b.vertices.len()).sum();
     let total_faces: usize = breps.iter().map(|b| b.faces.len()).sum();
 
-    let mut combined = LegacySurfaceMesh::with_capacity(total_verts, total_faces);
+    let mut combined = BrepMesh::with_capacity(total_verts, total_faces);
 
     for brep in breps {
         let mut vertex_remap: Vec<u32> = Vec::with_capacity(brep.vertices.len());
@@ -718,7 +738,7 @@ fn combine_breps(breps: &[LegacySurfaceMesh], tol: Tolerance) -> LegacySurfaceMe
 }
 
 /// Builds adjacency list: for each face, lists faces that share an edge.
-fn build_face_adjacency(mesh: &LegacySurfaceMesh, _tol: Tolerance) -> Vec<Vec<usize>> {
+fn build_face_adjacency(mesh: &BrepMesh, _tol: Tolerance) -> Vec<Vec<usize>> {
     let mut edge_to_faces: HashMap<EdgeKey, Vec<usize>> = HashMap::new();
 
     for (face_idx, face) in mesh.faces.iter().enumerate() {
@@ -764,7 +784,7 @@ fn compute_face_normal(vertices: &[[f64; 3]], face: &[u32]) -> Option<Vec3> {
 
 /// Checks if two adjacent faces are coplanar (on the same plane).
 fn faces_coplanar(
-    mesh: &LegacySurfaceMesh,
+    mesh: &BrepMesh,
     face_i: usize,
     face_j: usize,
     normal: Vec3,
@@ -799,7 +819,7 @@ fn faces_coplanar(
 
 /// Merges multiple coplanar faces into a single polygon.
 fn merge_coplanar_faces(
-    mesh: &LegacySurfaceMesh,
+    mesh: &BrepMesh,
     face_indices: &[usize],
     _tol: Tolerance,
 ) -> Result<Vec<u32>, String> {
@@ -892,31 +912,35 @@ impl EdgeKey {
     }
 }
 
+/// Checks if a B-rep mesh is closed (watertight).
+///
+/// A mesh is considered closed if it has no naked (boundary) edges,
+/// meaning every edge is shared by exactly two faces.
 #[must_use]
-pub fn legacy_surface_is_closed(brep: &LegacySurfaceMesh, tol: Tolerance) -> bool {
+pub fn is_brep_closed(brep: &BrepMesh, tol: Tolerance) -> bool {
     if brep.vertices.is_empty() || brep.faces.is_empty() {
         return false;
     }
-    LegacyEdgeGraph::from_surface(brep, tol).naked_edge_count() == 0
+    BrepEdgeGraph::from_brep(brep, tol).naked_edge_count() == 0
 }
 
 #[derive(Debug, Default, Clone)]
-struct LegacyEdgeGraph {
+struct BrepEdgeGraph {
     edges: Vec<EdgeData>,
 }
 
-impl LegacyEdgeGraph {
-    fn from_surface(surface: &LegacySurfaceMesh, tol: Tolerance) -> Self {
+impl BrepEdgeGraph {
+    fn from_brep(brep: &BrepMesh, tol: Tolerance) -> Self {
         let mut graph = Self::default();
-        for (face_index, face) in surface.faces.iter().enumerate() {
+        for (face_index, face) in brep.faces.iter().enumerate() {
             if face.len() < 2 {
                 continue;
             }
             for segment in 0..face.len() {
                 let a = face[segment] as usize;
                 let b = face[(segment + 1) % face.len()] as usize;
-                let Some(&start) = surface.vertices.get(a) else { continue };
-                let Some(&end) = surface.vertices.get(b) else { continue };
+                let Some(&start) = brep.vertices.get(a) else { continue };
+                let Some(&end) = brep.vertices.get(b) else { continue };
                 graph.add_edge(start, end, face_index, tol);
             }
         }

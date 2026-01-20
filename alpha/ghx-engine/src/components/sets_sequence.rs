@@ -423,10 +423,10 @@ impl Component for Random {
 
         for _ in 0..number {
             let value = if integers {
-                let val = rng.gen_range(range.start.round() as i64..=range.end.round() as i64);
+                let val = rng.random_range(range.start.round() as i64..=range.end.round() as i64);
                 Value::Number(val as f64)
             } else {
-                let val = rng.gen_range(range.start..=range.end);
+                let val = rng.random_range(range.start..=range.end);
                 Value::Number(val)
             };
             random_numbers.push(value);
@@ -593,7 +593,7 @@ impl Component for Jitter {
             let k = (list.len() as f64 * jitter).round() as usize;
             // Partial Fisher-Yates shuffle
             for i in 0..k.min(list.len()) {
-                let j = rng.gen_range(i..list.len());
+                let j = rng.random_range(i..list.len());
                 shuffled_list.swap(i, j);
             }
         }

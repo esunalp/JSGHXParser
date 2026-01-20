@@ -1,7 +1,8 @@
-//! Grasshopper Mesh Analysis componenten.
+//! Grasshopper Mesh Analysis components.
 //!
-//! This module provides mesh analysis components that work with both the new
-//! `Value::Mesh` type and the legacy `Value::Surface` type for backward compatibility.
+//! This module provides mesh analysis components for working with `Value::Mesh`.
+//! Components accept mesh inputs and provide analysis outputs like edges, normals,
+//! closest points, and face deconstruction.
 
 use super::{Component, ComponentError, ComponentResult};
 use crate::components::coerce::{coerce_surface_like, coerce_text};
@@ -158,15 +159,15 @@ impl Component for FaceBoundaries {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface_like(&inputs[0])?;
+        let mesh_data = coerce_surface_like(&inputs[0])?;
 
-        let polylines: Vec<Value> = surface
+        let polylines: Vec<Value> = mesh_data
             .faces
             .iter()
             .map(|face| {
                 let polyline_vertices: Vec<Value> = face
                     .iter()
-                    .map(|&vertex_index| Value::Point(surface.vertices[vertex_index as usize]))
+                    .map(|&vertex_index| Value::Point(mesh_data.vertices[vertex_index as usize]))
                     .collect();
                 Value::List(polyline_vertices)
             })
@@ -183,11 +184,11 @@ impl Component for MeshEdges {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface_like(&inputs[0])?;
+        let mesh_data = coerce_surface_like(&inputs[0])?;
 
         let mut edge_counts: HashMap<(u32, u32), u32> = HashMap::new();
 
-        for face in &surface.faces {
+        for face in &mesh_data.faces {
             for i in 0..face.len() {
                 let v1 = face[i];
                 let v2 = face[(i + 1) % face.len()];
@@ -201,8 +202,8 @@ impl Component for MeshEdges {
         let mut non_manifold_edges = Vec::new();
 
         for (edge, count) in edge_counts {
-            let v1 = surface.vertices[edge.0 as usize];
-            let v2 = surface.vertices[edge.1 as usize];
+            let v1 = mesh_data.vertices[edge.0 as usize];
+            let v2 = mesh_data.vertices[edge.1 as usize];
             let line = Value::List(vec![Value::Point(v1), Value::Point(v2)]);
 
             match count {
@@ -232,23 +233,23 @@ impl Component for MeshClosestPoint {
             Value::Point(p) => p,
             _ => return Err(ComponentError::new("Input 'Point' must be a single Point.")),
         };
-        let surface = coerce_surface_like(&inputs[1])?;
+        let mesh_data = coerce_surface_like(&inputs[1])?;
 
         let mut min_dist_sq = f64::INFINITY;
         let mut closest_point = [0.0, 0.0, 0.0];
         let mut closest_face_index = 0;
         let mut closest_params = [0.0, 0.0, 0.0];
 
-        for (i, face) in surface.faces.iter().enumerate() {
+        for (i, face) in mesh_data.faces.iter().enumerate() {
             if face.len() < 3 {
                 continue;
             }
 
             // Triangulate polygon faces for simplicity
             for j in 1..face.len() - 1 {
-                let v0 = surface.vertices[face[0] as usize];
-                let v1 = surface.vertices[face[j] as usize];
-                let v2 = surface.vertices[face[j + 1] as usize];
+                let v0 = mesh_data.vertices[face[0] as usize];
+                let v1 = mesh_data.vertices[face[j] as usize];
+                let v2 = mesh_data.vertices[face[j + 1] as usize];
 
                 let (dist_sq, p, params) = closest_point_on_triangle(point, v0, v1, v2);
 
@@ -342,7 +343,7 @@ impl Component for MeshEval {
                 "Inputs 'Mesh' and 'Parameter' are required.",
             ));
         }
-        let surface = coerce_surface_like(&inputs[0])?;
+        let mesh_data = coerce_surface_like(&inputs[0])?;
         let (face_index_f64, u, v) = match &inputs[1] {
             Value::List(list) if list.len() == 3 => {
                 let face_idx = match list[0] {
@@ -367,14 +368,14 @@ impl Component for MeshEval {
         };
 
         let face_index = face_index_f64.round() as usize;
-        if face_index >= surface.faces.len() {
+        if face_index >= mesh_data.faces.len() {
             return Err(ComponentError::new(format!(
                 "Face index {} is out of bounds.",
                 face_index
             )));
         }
 
-        let face = &surface.faces[face_index];
+        let face = &mesh_data.faces[face_index];
         if face.len() < 3 {
             return Err(ComponentError::new(format!(
                 "Face {} is not a valid triangle.",
@@ -383,9 +384,9 @@ impl Component for MeshEval {
         }
 
         // We assume the barycentric coordinates are for the first triangle of the face.
-        let v0 = surface.vertices[face[0] as usize];
-        let v1 = surface.vertices[face[1] as usize];
-        let v2 = surface.vertices[face[2] as usize];
+        let v0 = mesh_data.vertices[face[0] as usize];
+        let v1 = mesh_data.vertices[face[1] as usize];
+        let v2 = mesh_data.vertices[face[2] as usize];
 
         let w = 1.0 - u - v;
 
@@ -423,21 +424,21 @@ impl Component for FaceCircles {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface_like(&inputs[0])?;
+        let mesh_data = coerce_surface_like(&inputs[0])?;
 
         let mut centers = Vec::new();
         let mut ratios = Vec::new();
 
-        for face in &surface.faces {
+        for face in &mesh_data.faces {
             if face.len() < 3 {
                 continue;
             }
 
             // Triangulate polygon faces
             for i in 1..face.len() - 1 {
-                let v0 = surface.vertices[face[0] as usize];
-                let v1 = surface.vertices[face[i] as usize];
-                let v2 = surface.vertices[face[i + 1] as usize];
+                let v0 = mesh_data.vertices[face[0] as usize];
+                let v1 = mesh_data.vertices[face[i] as usize];
+                let v2 = mesh_data.vertices[face[i + 1] as usize];
 
                 let a_sq =
                     (v2[0] - v1[0]).powi(2) + (v2[1] - v1[1]).powi(2) + (v2[2] - v1[2]).powi(2);
@@ -495,10 +496,10 @@ impl Component for DeconstructMesh {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
 
-        // Accept both Value::Mesh and Value::Surface using coerce_surface_like
-        let surface = coerce_surface_like(&inputs[0])?;
-        let vertices = &surface.vertices;
-        let faces = &surface.faces;
+        // Coerce Value::Mesh to a polygon-face representation
+        let mesh_data = coerce_surface_like(&inputs[0])?;
+        let vertices = &mesh_data.vertices;
+        let faces = &mesh_data.faces;
 
         let vertices_list: Vec<Value> = vertices.iter().map(|&v| Value::Point(v)).collect();
 
@@ -578,19 +579,19 @@ impl Component for FaceNormals {
         if inputs.is_empty() {
             return Err(ComponentError::new("Input 'Mesh' is missing."));
         }
-        let surface = coerce_surface_like(&inputs[0])?;
+        let mesh_data = coerce_surface_like(&inputs[0])?;
 
         let mut centers = Vec::new();
         let mut normals = Vec::new();
 
-        for face in &surface.faces {
+        for face in &mesh_data.faces {
             if face.len() < 3 {
                 continue;
             }
 
             let mut center = [0.0, 0.0, 0.0];
             for &vertex_index in face {
-                let v = surface.vertices[vertex_index as usize];
+                let v = mesh_data.vertices[vertex_index as usize];
                 center[0] += v[0];
                 center[1] += v[1];
                 center[2] += v[2];
@@ -601,9 +602,9 @@ impl Component for FaceNormals {
             center[2] /= len;
             centers.push(Value::Point(center));
 
-            let v0 = surface.vertices[face[0] as usize];
-            let v1 = surface.vertices[face[1] as usize];
-            let v2 = surface.vertices[face[2] as usize];
+            let v0 = mesh_data.vertices[face[0] as usize];
+            let v1 = mesh_data.vertices[face[1] as usize];
+            let v2 = mesh_data.vertices[face[2] as usize];
 
             let edge1 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
             let edge2 = [v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2]];

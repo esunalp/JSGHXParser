@@ -426,15 +426,9 @@ fn coerce_subd(value: Option<&Value>, context: &str) -> Result<SubdMesh, Compone
     if let Some(subd) = SubdMesh::from_value(value) {
         return Ok(subd);
     }
-    if let Some(subd) = SubdMesh::from_surface_value(value) {
-        return Ok(subd);
-    }
     if let Value::List(values) = value {
         for entry in values {
             if let Some(subd) = SubdMesh::from_value(entry) {
-                return Ok(subd);
-            }
-            if let Some(subd) = SubdMesh::from_surface_value(entry) {
                 return Ok(subd);
             }
         }
@@ -444,21 +438,20 @@ fn coerce_subd(value: Option<&Value>, context: &str) -> Result<SubdMesh, Compone
     )))
 }
 
-/// Coerce a Value (expected to be a mesh or surface) to a SubdMesh.
+/// Coerce a Value (expected to be a mesh) to a SubdMesh.
 fn coerce_mesh_as_subd(value: Option<&Value>, context: &str) -> Result<SubdMesh, ComponentError> {
     let Some(value) = value else {
         return Err(ComponentError::new(format!("{context} vereist een mesh")));
     };
-    SubdMesh::from_surface_value(value)
+    SubdMesh::from_mesh_value(value)
         .ok_or_else(|| ComponentError::new(format!("{context} kon de mesh niet lezen")))
 }
 
-/// Collect points from a Value (supports Point, Vector, CurveLine, Surface, Mesh, List).
+/// Collect points from a Value (supports Point, Vector, CurveLine, Mesh, List).
 fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
-        Some(Value::Surface { vertices, .. }) => vertices.clone(),
         Some(Value::Mesh { vertices, .. }) => vertices.clone(),
         Some(Value::List(values)) => values
             .iter()

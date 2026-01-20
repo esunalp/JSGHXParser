@@ -117,22 +117,23 @@ fn line_sample_produces_curve_line() {
 }
 
 #[test]
-fn extrude_sample_produces_surface_with_faces() {
+fn extrude_sample_produces_mesh_with_triangles() {
     let result = evaluate_sample(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../../tools/ghx-samples/minimal_extrude.ghx"
     )));
-    let surface = result
+    let mesh = result
         .geometry
         .iter()
         .find_map(|entry| match &entry.value {
-            Value::Surface { vertices, faces } => Some((vertices, faces)),
+            Value::Mesh { vertices, indices, .. } => Some((vertices, indices)),
             _ => None,
         })
-        .expect("surface output present");
+        .expect("mesh output present");
 
-    assert_eq!(surface.0.len(), 4);
-    assert!(!surface.1.is_empty());
+    assert!(mesh.0.len() >= 4, "expected at least 4 vertices, got {}", mesh.0.len());
+    assert!(!mesh.1.is_empty(), "expected non-empty indices");
+    assert_eq!(mesh.1.len() % 3, 0, "indices must be divisible by 3 for triangles");
 }
 
 #[test]
@@ -155,23 +156,27 @@ fn line_sample_matches_expected_snapshot() {
 }
 
 #[test]
-fn flip_surface_evaluates_without_guide_input() {
+fn flip_mesh_evaluates_without_guide_input() {
     let mut graph = Graph::new();
     let mut node = Node::new(NodeId::new(0));
     node.guid = Some("{c3d1f2b8-8596-4e8d-8861-c28ba8ffb4f4}".to_owned());
     node.nickname = Some("Flip".to_owned());
     node.add_input_pin("S");
     node.add_input_pin("G");
+    // Create a simple quad as two triangles
     node.set_input(
         "S",
-        Value::Surface {
+        Value::Mesh {
             vertices: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
                 [1.0, 1.0, 0.0],
                 [0.0, 1.0, 0.0],
             ],
-            faces: vec![vec![0_u32, 1, 2, 3]],
+            indices: vec![0, 1, 2, 0, 2, 3], // Two triangles forming a quad
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         },
     );
 
@@ -306,13 +311,15 @@ fn assert_value_close(actual: &Value, expected: &Value, tol: f64) {
             assert_point_close(lp2, *rp2);
         }
         (
-            Value::Surface {
+            Value::Mesh {
                 vertices: lv,
-                faces: lf,
+                indices: li,
+                ..
             },
-            Value::Surface {
+            Value::Mesh {
                 vertices: rv,
-                faces: rf,
+                indices: ri,
+                ..
             },
         ) => {
             assert_eq!(lv.len(), rv.len(), "vertex count differs");
@@ -325,7 +332,7 @@ fn assert_value_close(actual: &Value, expected: &Value, tol: f64) {
                     );
                 }
             }
-            assert_eq!(lf, rf, "face indices differ");
+            assert_eq!(li, ri, "triangle indices differ");
         }
         (Value::Point(a), Value::Point(b)) => assert_point_close(a, *b),
         _ => panic!("mismatched geometry variants: {actual:?} vs {expected:?}"),

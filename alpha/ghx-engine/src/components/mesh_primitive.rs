@@ -2,17 +2,15 @@
 //!
 //! Categorie: Mesh > Primitive
 //!
-//! # Mesh Engine Integration (Phase 3)
+//! # Mesh Output
 //!
-//! All mesh primitive components now output `Value::Mesh` as the primary type.
-//! This provides:
+//! All mesh primitive components output `Value::Mesh` which provides:
 //! - Indexed triangle list with flat indices (divisible by 3)
 //! - Optional per-vertex normals for smooth shading
 //! - Optional per-vertex UVs (for textured primitives)
 //! - Mesh diagnostics with vertex/triangle counts
 //!
-//! The legacy `Value::Surface` output is no longer emitted. Downstream consumers
-//! should use `expect_mesh_like()` for backward compatibility with both types.
+//! Use `expect_mesh_like()` or `expect_mesh()` to extract mesh data from outputs.
 
 use std::collections::BTreeMap;
 

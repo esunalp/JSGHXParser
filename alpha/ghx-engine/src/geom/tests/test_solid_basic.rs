@@ -1,11 +1,11 @@
 use crate::geom::Tolerance;
 use crate::geom::solid::{
-    CapHolesExOptions, LegacySurfaceMesh, brep_join_legacy, cap_holes_ex_legacy,
-    cap_holes_legacy, legacy_surface_is_closed, merge_faces_legacy,
+    BrepMesh, CapHolesExOptions, brep_join, cap_holes, cap_holes_ex,
+    is_brep_closed, merge_faces,
 };
 
-fn open_box() -> LegacySurfaceMesh {
-    LegacySurfaceMesh {
+fn open_box() -> BrepMesh {
+    BrepMesh {
         vertices: vec![
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -26,16 +26,16 @@ fn open_box() -> LegacySurfaceMesh {
     }
 }
 
-fn closed_box() -> LegacySurfaceMesh {
+fn closed_box() -> BrepMesh {
     let mut mesh = open_box();
     mesh.faces.push(vec![4, 5, 6, 7]); // top
     mesh
 }
 
 /// Creates two open boxes that share a face, suitable for testing brep_join.
-fn two_adjacent_open_boxes() -> (LegacySurfaceMesh, LegacySurfaceMesh) {
+fn two_adjacent_open_boxes() -> (BrepMesh, BrepMesh) {
     // Box 1: at origin, missing the +X face
-    let box1 = LegacySurfaceMesh {
+    let box1 = BrepMesh {
         vertices: vec![
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -57,7 +57,7 @@ fn two_adjacent_open_boxes() -> (LegacySurfaceMesh, LegacySurfaceMesh) {
     };
 
     // Box 2: at x=1, missing the -X face
-    let box2 = LegacySurfaceMesh {
+    let box2 = BrepMesh {
         vertices: vec![
             [1.0, 0.0, 0.0],
             [2.0, 0.0, 0.0],
@@ -85,9 +85,9 @@ fn two_adjacent_open_boxes() -> (LegacySurfaceMesh, LegacySurfaceMesh) {
 fn cap_holes_closes_open_box() {
     let tol = Tolerance::default_geom();
     let mesh = open_box();
-    assert!(!legacy_surface_is_closed(&mesh, tol));
+    assert!(!is_brep_closed(&mesh, tol));
 
-    let result = cap_holes_legacy(mesh, tol);
+    let result = cap_holes(mesh, tol);
     assert_eq!(result.diagnostics.holes_found, 1);
     assert_eq!(result.diagnostics.caps_added, 1);
     assert_eq!(result.diagnostics.added_face_count, 2);
@@ -100,9 +100,9 @@ fn cap_holes_closes_open_box() {
 fn cap_holes_no_op_on_closed_box() {
     let tol = Tolerance::default_geom();
     let mesh = closed_box();
-    assert!(legacy_surface_is_closed(&mesh, tol));
+    assert!(is_brep_closed(&mesh, tol));
 
-    let result = cap_holes_legacy(mesh.clone(), tol);
+    let result = cap_holes(mesh.clone(), tol);
     assert_eq!(result.diagnostics.holes_found, 0);
     assert_eq!(result.diagnostics.caps_added, 0);
     assert_eq!(result.diagnostics.added_face_count, 0);
@@ -123,7 +123,7 @@ fn cap_holes_ex_respects_max_loop_vertices() {
         ..Default::default()
     };
 
-    let result = cap_holes_ex_legacy(mesh, tol, options);
+    let result = cap_holes_ex(mesh, tol, options);
     assert_eq!(result.diagnostics.holes_found, 1);
     assert_eq!(result.diagnostics.caps_added, 0); // Skipped due to vertex limit
     assert!(!result.is_solid);
@@ -135,7 +135,7 @@ fn cap_holes_ex_tracks_planarity_deviation() {
     let tol = Tolerance::default_geom();
     let mesh = open_box(); // Planar hole
 
-    let result = cap_holes_ex_legacy(mesh, tol, CapHolesExOptions::default());
+    let result = cap_holes_ex(mesh, tol, CapHolesExOptions::default());
     assert!(result.is_solid);
     // Planar hole should have near-zero deviation
     assert!(result.diagnostics.max_planarity_deviation < 1e-6);
@@ -144,7 +144,7 @@ fn cap_holes_ex_tracks_planarity_deviation() {
 #[test]
 fn brep_join_reports_closedness() {
     let tol = Tolerance::default_geom();
-    let result = brep_join_legacy(vec![open_box(), closed_box()], tol);
+    let result = brep_join(vec![open_box(), closed_box()], tol);
     // These two boxes don't share edges, so they remain separate
     assert_eq!(result.breps.len(), 2);
     // Check that we have one open and one closed, order may vary due to HashMap iteration
@@ -160,10 +160,10 @@ fn brep_join_welds_adjacent_boxes() {
     let (box1, box2) = two_adjacent_open_boxes();
 
     // Each box is open
-    assert!(!legacy_surface_is_closed(&box1, tol));
-    assert!(!legacy_surface_is_closed(&box2, tol));
+    assert!(!is_brep_closed(&box1, tol));
+    assert!(!is_brep_closed(&box2, tol));
 
-    let result = brep_join_legacy(vec![box1, box2], tol);
+    let result = brep_join(vec![box1, box2], tol);
 
     // The boxes share edges and should be merged
     assert!(result.diagnostics.welded_edge_count > 0 || result.diagnostics.merged_vertex_count > 0);
@@ -172,7 +172,7 @@ fn brep_join_welds_adjacent_boxes() {
 #[test]
 fn brep_join_empty_input() {
     let tol = Tolerance::default_geom();
-    let result = brep_join_legacy(Vec::new(), tol);
+    let result = brep_join(Vec::new(), tol);
     assert!(result.breps.is_empty());
     assert!(result.closed.is_empty());
     assert_eq!(result.diagnostics.input_count, 0);
@@ -182,7 +182,7 @@ fn brep_join_empty_input() {
 fn brep_join_single_input() {
     let tol = Tolerance::default_geom();
     let mesh = closed_box();
-    let result = brep_join_legacy(vec![mesh.clone()], tol);
+    let result = brep_join(vec![mesh.clone()], tol);
     assert_eq!(result.breps.len(), 1);
     assert_eq!(result.closed, vec![true]);
     assert_eq!(result.diagnostics.input_count, 1);
@@ -194,7 +194,7 @@ fn merge_faces_combines_coplanar_faces() {
     let tol = Tolerance::default_geom();
 
     // Two coplanar triangles that share an edge
-    let mesh = LegacySurfaceMesh {
+    let mesh = BrepMesh {
         vertices: vec![
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -207,8 +207,8 @@ fn merge_faces_combines_coplanar_faces() {
         ],
     };
 
-    let result = merge_faces_legacy(&[mesh], tol)
-        .expect("merge_faces_legacy should succeed");
+    let result = merge_faces(&[mesh], tol)
+        .expect("merge_faces should succeed");
 
     assert_eq!(result.diagnostics.before, 2);
     // Coplanar faces should be merged into one
@@ -218,7 +218,7 @@ fn merge_faces_combines_coplanar_faces() {
 #[test]
 fn merge_faces_empty_input() {
     let tol = Tolerance::default_geom();
-    let result = merge_faces_legacy(&[], tol);
+    let result = merge_faces(&[], tol);
     assert!(result.is_none());
 }
 
@@ -227,7 +227,7 @@ fn merge_faces_preserves_non_coplanar() {
     let tol = Tolerance::default_geom();
 
     // Two triangles that are NOT coplanar
-    let mesh = LegacySurfaceMesh {
+    let mesh = BrepMesh {
         vertices: vec![
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -240,24 +240,24 @@ fn merge_faces_preserves_non_coplanar() {
         ],
     };
 
-    let result = merge_faces_legacy(&[mesh], tol)
-        .expect("merge_faces_legacy should succeed");
+    let result = merge_faces(&[mesh], tol)
+        .expect("merge_faces should succeed");
 
     // Non-coplanar faces should NOT be merged
     assert_eq!(result.diagnostics.after, 2);
 }
 
 #[test]
-fn legacy_surface_mesh_default() {
-    let mesh = LegacySurfaceMesh::default();
+fn brep_mesh_default() {
+    let mesh = BrepMesh::default();
     assert!(mesh.is_empty());
     assert!(mesh.vertices.is_empty());
     assert!(mesh.faces.is_empty());
 }
 
 #[test]
-fn legacy_surface_mesh_with_capacity() {
-    let mesh = LegacySurfaceMesh::with_capacity(100, 50);
+fn brep_mesh_with_capacity() {
+    let mesh = BrepMesh::with_capacity(100, 50);
     assert!(mesh.is_empty());
     assert!(mesh.vertices.capacity() >= 100);
     assert!(mesh.faces.capacity() >= 50);

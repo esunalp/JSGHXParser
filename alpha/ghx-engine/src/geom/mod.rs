@@ -122,7 +122,7 @@ pub use extrusion::{
 };
 pub use fillet_chamfer::{
     FilletChamferError, FilletEdgeOptions, FilletMeshEdgeDiagnostics, FilletPolylineDiagnostics,
-    TriangleMeshEdge, fillet_legacy_triangle_mesh_edges, fillet_polyline_points,
+    TriangleMeshEdge, fillet_polyline_points,
     fillet_triangle_mesh_edges, list_triangle_mesh_edges,
 };
 pub use loft::{
@@ -216,14 +216,13 @@ pub use simplify::{
     simplify_by_ratio, simplify_mesh, simplify_mesh_with_tolerance, simplify_to_count,
 };
 pub use solid::{
-    BrepJoinDiagnostics, BrepJoinResult, CapHolesDiagnostics, CapHolesExOptions, CapHolesResult,
-    LegacySurfaceMesh, MergeFacesDiagnostics, MergeFacesResult,
-    brep_join_legacy, cap_holes_ex_legacy, cap_holes_legacy, legacy_surface_is_closed,
-    merge_faces_legacy,
+    BrepJoinDiagnostics, BrepJoinResult, BrepMesh, CapHolesDiagnostics, CapHolesExOptions,
+    CapHolesResult, MergeFacesDiagnostics, MergeFacesResult,
+    brep_join, cap_holes, cap_holes_ex, is_brep_closed, merge_faces,
 };
 pub use brep_ops::{
     BrepJoinComponentResult, BrepJoinOptions, MergeFacesComponentResult, MergeFacesOptions,
-    brep_join, is_brep_closed, merge_brep_faces,
+    brep_join_component, is_brep_closed_with_tolerance, merge_brep_faces,
 };
 pub use surface_ops::{
     DivideSurfaceBoundsOptions, DivideSurfaceBoundsResult, IsotrimBoundsDiagnostics,

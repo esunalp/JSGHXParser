@@ -181,6 +181,9 @@ enum GeometryItem<'a> {
     Polyline {
         points: Vec<[f64; 3]>,
     },
+    /// A mesh with borrowed data (intended for zero-copy scenarios).
+    /// Currently unused but preserved for potential future optimization.
+    #[allow(dead_code)]
     Mesh {
         vertices: &'a [[f64; 3]],
         faces: &'a [Vec<u32>],
@@ -805,13 +808,6 @@ fn append_geometry_value<'a>(
                 end: *p2,
             });
         }
-        Value::Surface { vertices, faces } => {
-            items.push(GeometryItem::Mesh {
-                vertices,
-                faces,
-                material: material.map(MaterialExport::from),
-            });
-        }
         Value::Mesh { vertices, indices, .. } => {
             // Convert triangle indices to polygon faces for the legacy output format
             let faces: Vec<Vec<u32>> = indices
@@ -909,9 +905,12 @@ mod tests {
                 p1: [0.0, 0.0, 0.0],
                 p2: [5.0, 0.0, 0.0],
             },
-            Value::Surface {
+            Value::Mesh {
                 vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
-                faces: vec![vec![0, 1, 2]],
+                indices: vec![0, 1, 2],
+                normals: None,
+                uvs: None,
+                diagnostics: None,
             },
         ]);
 
@@ -926,7 +925,7 @@ mod tests {
         assert_eq!(items.len(), 3);
         assert!(matches!(items[0], GeometryItem::Point { .. }));
         assert!(matches!(items[1], GeometryItem::Line { .. }));
-        assert!(matches!(items[2], GeometryItem::Mesh { .. }));
+        assert!(matches!(items[2], GeometryItem::MeshOwned { .. }));
     }
 
     #[test]

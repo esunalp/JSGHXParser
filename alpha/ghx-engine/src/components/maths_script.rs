@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use meval::{Context, ContextProvider, Expr};
+use fasteval::Evaler;
 use rand::{Rng, rng};
 
 use crate::graph::node::{MetaLookupExt, MetaMap, MetaValue};
@@ -238,13 +238,7 @@ impl ExpressionComponent {
             )));
         }
 
-        let expr: Expr = expression.parse().map_err(|error| {
-            ComponentError::new(format!(
-                "Component `{}` kon expressie niet parsen: {error}",
-                self.name
-            ))
-        })?;
-
+        // Build variable mapping and values
         let mut values = Vec::with_capacity(self.variables.len());
         let mut mapping = HashMap::new();
         for (index, variable) in self.variables.iter().enumerate() {
@@ -255,17 +249,13 @@ impl ExpressionComponent {
             }
         }
 
-        let variable_context = VariableContext::new(mapping, values);
-        let context = build_context();
-
-        let result = expr
-            .eval_with_context((&variable_context, &context))
-            .map_err(|error| {
-                ComponentError::new(format!(
-                    "Component `{}` kon expressie niet evalueren: {error}",
-                    self.name
-                ))
-            })?;
+        // Evaluate using fasteval
+        let result = evaluate_with_fasteval(&expression, &mapping, &values).map_err(|error| {
+            ComponentError::new(format!(
+                "Component `{}` kon expressie niet evalueren: {error}",
+                self.name
+            ))
+        })?;
 
         let mut outputs = BTreeMap::new();
         for pin in deduplicate_pins(self.output_pins) {
@@ -276,25 +266,69 @@ impl ExpressionComponent {
     }
 }
 
-struct VariableContext {
-    mapping: HashMap<String, usize>,
-    values: Vec<f64>,
-}
+/// Evaluate an expression using fasteval with variables and custom functions.
+fn evaluate_with_fasteval(
+    expression: &str,
+    mapping: &HashMap<String, usize>,
+    values: &[f64],
+) -> Result<f64, String> {
+    let parser = fasteval::Parser::new();
+    let mut slab = fasteval::Slab::new();
 
-impl VariableContext {
-    fn new(mapping: HashMap<String, usize>, values: Vec<f64>) -> Self {
-        Self { mapping, values }
-    }
-}
+    let expr_ref = parser
+        .parse(expression, &mut slab.ps)
+        .map_err(|e| format!("{e:?}"))?
+        .from(&slab.ps);
 
-impl ContextProvider for VariableContext {
-    fn get_var(&self, name: &str) -> Option<f64> {
-        self.mapping
-            .get(name)
-            .copied()
-            .and_then(|index| self.values.get(index))
-            .copied()
-    }
+    // Create namespace callback that handles both variables and custom functions
+    let mut ns = |name: &str, args: Vec<f64>| -> Option<f64> {
+        // First check if it's a variable (no args or args should be ignored for variables)
+        if let Some(&index) = mapping.get(name) {
+            return values.get(index).copied();
+        }
+
+        // Handle custom functions
+        match name {
+            // Custom math functions not in fasteval builtins
+            "clamp" => {
+                if args.len() >= 3 {
+                    Some(clamp(args[0], args[1], args[2]))
+                } else {
+                    None
+                }
+            }
+            "lerp" => {
+                if args.len() >= 3 {
+                    Some(lerp(args[0], args[1], args[2]))
+                } else {
+                    None
+                }
+            }
+            "deg" => args.first().map(|v| v.to_degrees()),
+            "rad" => args.first().map(|v| v.to_radians()),
+            "frac" => args.first().map(|v| v.fract()),
+            "mod" | "modulo" => {
+                if args.len() >= 2 {
+                    Some(modulo(args[0], args[1]))
+                } else {
+                    None
+                }
+            }
+            "sgn" => args.first().map(|v| v.signum()),
+            "sec" => args.first().map(|v| 1.0 / v.cos()),
+            "csc" => args.first().map(|v| 1.0 / v.sin()),
+            "cot" => args.first().map(|v| 1.0 / v.tan()),
+            // Boolean functions - fasteval has && and || operators, but we provide function forms too
+            "not" => args.first().map(|v| if to_boolean(*v) { 0.0 } else { 1.0 }),
+            "if" | "select" => Some(conditional(&args)),
+            "random" | "rand" => Some(random_value(&args)),
+            _ => None,
+        }
+    };
+
+    expr_ref
+        .eval(&slab, &mut ns)
+        .map_err(|e| format!("{e:?}"))
 }
 
 fn expression_from_inputs(inputs: &[Value]) -> Option<String> {
@@ -350,7 +384,6 @@ fn coerce_expression(value: &Value) -> Option<String> {
         | Value::Point(_)
         | Value::Vector(_)
         | Value::CurveLine { .. }
-        | Value::Surface { .. }
         | Value::Mesh { .. }
         | Value::DateTime(_)
         | Value::Complex(_)
@@ -448,49 +481,6 @@ fn deduplicate_pins(pins: &'static [&'static str]) -> Vec<String> {
         }
     }
     result
-}
-
-fn build_context() -> Context<'static> {
-    let mut context = Context::new();
-    context.func3("clamp", clamp);
-    context.func3("lerp", lerp);
-    context.func("deg", |value| value.to_degrees());
-    context.func("rad", |value| value.to_radians());
-    context.func("frac", |value| value.fract());
-    context.func2("mod", modulo);
-    context.func2("modulo", modulo);
-    context.func("sign", f64::signum);
-    context.func("sgn", f64::signum);
-    context.func("sec", |value| 1.0 / value.cos());
-    context.func("csc", |value| 1.0 / value.sin());
-    context.func("cot", |value| 1.0 / value.tan());
-    context.func2("and", |a, b| {
-        if to_boolean(a) && to_boolean(b) {
-            1.0
-        } else {
-            0.0
-        }
-    });
-    context.func2("or", |a, b| {
-        if to_boolean(a) || to_boolean(b) {
-            1.0
-        } else {
-            0.0
-        }
-    });
-    context.func2("xor", |a, b| {
-        if to_boolean(a) ^ to_boolean(b) {
-            1.0
-        } else {
-            0.0
-        }
-    });
-    context.func("not", |value| if to_boolean(value) { 0.0 } else { 1.0 });
-    context.funcn("if", conditional, 2..4);
-    context.funcn("select", conditional, 2..4);
-    context.funcn("random", random_value, 0..3);
-    context.funcn("rand", random_value, 0..3);
-    context
 }
 
 fn to_boolean(value: f64) -> bool {

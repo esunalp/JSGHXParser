@@ -20,7 +20,7 @@ Alles begint in een component in de `ghx-engine` (bijvoorbeeld `curve_primitive.
 
 -   **Punten**: Worden weergegeven als `Value::Point`.
 -   **Lijnen/Curves**: Worden doorgaans weergegeven als een lijst van punten: `Value::List(vec![Value::Point(...)])` of als `Value::CurveLine { p1, p2 }`.
--   **Oppervlakken/Meshes**: Worden weergegeven als `Value::Surface { vertices: Vec<[f64; 3]>, faces: Vec<Vec<u32>> }`.
+-   **Oppervlakken/Meshes**: Worden weergegeven als `Value::Mesh { vertices: Vec<[f64; 3]>, indices: Vec<u32>, normals: Option<Vec<[f64; 3]>>, uvs: Option<Vec<[f64; 2]>>, diagnostics: Option<MeshDiagnostics> }`.
 
 ### 2. Conversie naar `GeometryItem` (Rust Backend)
 

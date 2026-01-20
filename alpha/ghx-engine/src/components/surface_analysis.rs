@@ -1,13 +1,11 @@
 //! Implementaties van Grasshopper "Surface → Analysis" componenten.
 //!
-//! This module provides surface analysis components that work with both the new
-//! `Value::Mesh` type and the legacy `Value::Surface` type for backward compatibility.
+//! This module provides surface analysis components that work with `Value::Mesh`.
 //!
 //! # Mesh Support
 //!
 //! Components that only need a triangulated representation (e.g., for computing
-//! normals, areas, bounds, or closest points) accept both `Value::Mesh` and
-//! `Value::Surface` inputs transparently.
+//! normals, areas, bounds, or closest points) accept `Value::Mesh` inputs.
 //!
 //! Components that require true surface parameterization (e.g., curvature evaluation,
 //! osculating circles) will produce clear error messages when given a `Value::Mesh`
@@ -110,12 +108,12 @@ fn require_parametric_surface(
     }
 }
 
-/// Checks if a value could be a surface (for error messages).
+/// Checks if a value is a mesh (for error messages).
 /// Currently unused but retained for potential input validation diagnostics.
 #[allow(dead_code)]
 fn is_surface_or_mesh(value: Option<&Value>) -> bool {
     match value {
-        Some(Value::Surface { .. }) | Some(Value::Mesh { .. }) => true,
+        Some(Value::Mesh { .. }) => true,
         Some(Value::List(items)) if !items.is_empty() => is_surface_or_mesh(items.first()),
         _ => false,
     }
@@ -136,9 +134,6 @@ fn is_surface_or_mesh(value: Option<&Value>) -> bool {
 /// - Grid dimensions cannot be inferred
 fn try_extract_vertex_grid_surface(value: Option<&Value>) -> Option<VertexGridSurface> {
     let (vertices, faces) = match value {
-        Some(Value::Surface { vertices, faces }) if vertices.len() >= 4 => {
-            (vertices.clone(), Some(faces.clone()))
-        }
         Some(Value::Mesh { vertices, indices, .. }) if vertices.len() >= 4 => {
             // Convert flat indices to face list for grid inference
             let faces: Vec<Vec<u32>> = indices
@@ -693,7 +688,7 @@ fn evaluate_surface_points(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_area_moments(inputs: &[Value], context: &str) -> ComponentResult {
-    // First, try to use proper mesh analysis for Value::Mesh or Value::Surface
+    // First, try to use proper mesh analysis for Value::Mesh
     if let Some(mut mesh_metrics) = MeshMetrics::from_value(inputs.get(0)) {
         let area = mesh_metrics.area();
         let centroid = Value::Point(mesh_metrics.centroid());
@@ -745,7 +740,7 @@ fn evaluate_area_moments(inputs: &[Value], context: &str) -> ComponentResult {
 }
 
 fn evaluate_volume(inputs: &[Value], context: &str) -> ComponentResult {
-    // First, try to use proper mesh analysis for Value::Mesh or Value::Surface
+    // First, try to use proper mesh analysis for Value::Mesh
     if let Some(mut mesh_metrics) = MeshMetrics::from_value(inputs.get(0)) {
         let volume = mesh_metrics.volume();
         let centroid = mesh_metrics.centroid();
@@ -803,7 +798,7 @@ fn evaluate_shape_in_brep(inputs: &[Value]) -> ComponentResult {
 }
 
 fn evaluate_area(inputs: &[Value], context: &str) -> ComponentResult {
-    // First, try to use proper mesh analysis for Value::Mesh or Value::Surface
+    // First, try to use proper mesh analysis for Value::Mesh
     if let Some(mut mesh_metrics) = MeshMetrics::from_value(inputs.get(0)) {
         let area = mesh_metrics.area();
         let centroid = mesh_metrics.centroid();
@@ -827,7 +822,7 @@ fn evaluate_area(inputs: &[Value], context: &str) -> ComponentResult {
 }
 
 fn evaluate_volume_moments(inputs: &[Value], context: &str) -> ComponentResult {
-    // First, try to use proper mesh analysis for Value::Mesh or Value::Surface
+    // First, try to use proper mesh analysis for Value::Mesh
     if let Some(mut mesh_metrics) = MeshMetrics::from_value(inputs.get(0)) {
         let volume = mesh_metrics.volume();
         let centroid = mesh_metrics.centroid();
@@ -1607,7 +1602,7 @@ struct MeshClosestPointResult {
 /// distance computation instead of AABB clamping.
 ///
 /// Returns `Some(MeshClosestPointResult)` if the value is a valid mesh (Value::Mesh
-/// or Value::Surface with triangle indices), `None` otherwise.
+/// with triangle indices), `None` otherwise.
 fn try_mesh_closest_point(value: Option<&Value>, target: [f64; 3]) -> Option<MeshClosestPointResult> {
     let geom_mesh = value_to_geom_mesh(value)?;
     let query = GeomPoint3::new(target[0], target[1], target[2]);
@@ -1636,7 +1631,7 @@ fn try_mesh_closest_point(value: Option<&Value>, target: [f64; 3]) -> Option<Mes
 /// Attempts to test if a point is inside a mesh using proper ray-casting
 /// containment testing instead of AABB containment.
 ///
-/// Returns `Some(bool)` if the value is a valid mesh (Value::Mesh or Value::Surface
+/// Returns `Some(bool)` if the value is a valid mesh (Value::Mesh
 /// with triangle indices), `None` otherwise.
 ///
 /// # Arguments
@@ -1667,8 +1662,6 @@ fn try_mesh_point_containment(value: Option<&Value>, point: [f64; 3], strict: bo
 }
 
 /// Converts a Value to a GeomMesh if possible.
-///
-/// Handles both Value::Mesh and Value::Surface (legacy format).
 fn value_to_geom_mesh(value: Option<&Value>) -> Option<GeomMesh> {
     match value {
         Some(Value::Mesh { vertices, indices, normals, uvs, .. }) => {
@@ -1682,17 +1675,6 @@ fn value_to_geom_mesh(value: Option<&Value>) -> Option<GeomMesh> {
                 uvs: uvs.clone(),
                 tangents: None,
             })
-        }
-        Some(Value::Surface { vertices, faces }) => {
-            if vertices.is_empty() || faces.is_empty() {
-                return None;
-            }
-            // Convert face list to triangle indices
-            let indices = surface_faces_to_triangle_indices(faces);
-            if indices.is_empty() {
-                return None;
-            }
-            Some(GeomMesh::new(vertices.clone(), indices))
         }
         _ => None,
     }
@@ -1778,7 +1760,7 @@ struct MeshMetrics {
 }
 
 impl MeshMetrics {
-    /// Attempts to create MeshMetrics from a Value::Mesh or Value::Surface.
+    /// Attempts to create MeshMetrics from a Value::Mesh.
     /// Returns None if the input is not a mesh-like value.
     fn from_value(value: Option<&Value>) -> Option<Self> {
         match value {
@@ -1790,26 +1772,6 @@ impl MeshMetrics {
                 Some(Self {
                     vertices: vertices.clone(),
                     indices: indices.clone(),
-                    min,
-                    max,
-                    cached_area: None,
-                    cached_volume: None,
-                    cached_centroid: None,
-                })
-            }
-            Some(Value::Surface { vertices, faces }) => {
-                if vertices.is_empty() || faces.is_empty() {
-                    return None;
-                }
-                // Convert face list to triangle indices
-                let indices = surface_faces_to_triangle_indices(faces);
-                if indices.is_empty() {
-                    return None;
-                }
-                let (min, max) = bounding_box(vertices);
-                Some(Self {
-                    vertices: vertices.clone(),
-                    indices,
                     min,
                     max,
                     cached_area: None,
@@ -2074,23 +2036,6 @@ impl MeshMetrics {
             (self.min[2] + self.max[2]) * 0.5,
         ]
     }
-}
-
-/// Converts legacy Surface face lists (which may be quads/n-gons) to triangle indices.
-fn surface_faces_to_triangle_indices(faces: &[Vec<u32>]) -> Vec<u32> {
-    let mut indices = Vec::new();
-    for face in faces {
-        if face.len() < 3 {
-            continue;
-        }
-        // Fan triangulation for polygons
-        for i in 1..(face.len() - 1) {
-            indices.push(face[0]);
-            indices.push(face[i] as u32);
-            indices.push(face[i + 1] as u32);
-        }
-    }
-    indices
 }
 
 // ============================================================================
@@ -2496,7 +2441,6 @@ fn collect_points(value: Option<&Value>) -> Vec<[f64; 3]> {
     match value {
         Some(Value::Point(point)) | Some(Value::Vector(point)) => vec![*point],
         Some(Value::CurveLine { p1, p2 }) => vec![*p1, *p2],
-        Some(Value::Surface { vertices, .. }) => vertices.clone(),
         // Support for Value::Mesh - extract vertices from the mesh
         Some(Value::Mesh { vertices, .. }) => vertices.clone(),
         Some(Value::List(values)) => values
@@ -2646,7 +2590,7 @@ struct MeshTopology {
 }
 
 impl MeshTopology {
-    /// Extracts topology from a Value::Mesh or Value::Surface.
+    /// Extracts topology from a Value::Mesh.
     ///
     /// Returns `None` if the input is not a valid mesh-like value.
     fn from_value(value: Option<&Value>) -> Option<Self> {
@@ -2662,12 +2606,6 @@ impl MeshTopology {
                     .map(|chunk| vec![chunk[0], chunk[1], chunk[2]])
                     .collect();
                 (vertices.clone(), faces)
-            }
-            Some(Value::Surface { vertices, faces }) => {
-                if vertices.is_empty() || faces.is_empty() {
-                    return None;
-                }
-                (vertices.clone(), faces.clone())
             }
             Some(Value::List(items)) if !items.is_empty() => {
                 return Self::from_value(items.first());
@@ -2875,15 +2813,18 @@ mod tests {
         }
     }
 
-    /// Creates a simple surface Value for testing.
-    fn make_test_surface() -> Value {
-        Value::Surface {
+    /// Creates a simple single-triangle mesh Value for testing (equivalent to old make_test_surface).
+    fn make_simple_triangle_mesh() -> Value {
+        Value::Mesh {
             vertices: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
                 [0.5, 1.0, 0.0],
             ],
-            faces: vec![vec![0, 1, 2]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         }
     }
 
@@ -2897,8 +2838,10 @@ mod tests {
     }
 
     #[test]
-    fn is_mesh_value_returns_false_for_surface() {
-        assert!(!is_mesh_value(Some(&make_test_surface())));
+    fn is_mesh_value_returns_false_for_non_mesh() {
+        // Non-mesh values like points should return false
+        let point = Value::Point([1.0, 2.0, 3.0]);
+        assert!(!is_mesh_value(Some(&point)));
     }
 
     #[test]
@@ -2931,9 +2874,11 @@ mod tests {
     }
 
     #[test]
-    fn require_parametric_surface_accepts_surface() {
+    fn require_parametric_surface_accepts_non_mesh_values() {
+        // Non-mesh values like points should pass through (they'll be handled by other validation)
+        let point = Value::Point([1.0, 2.0, 3.0]);
         let result = require_parametric_surface(
-            Some(&make_test_surface()),
+            Some(&point),
             "TestComponent",
             "curvature",
         );
@@ -2964,9 +2909,9 @@ mod tests {
     }
 
     #[test]
-    fn collect_points_extracts_from_surface() {
-        let surface = make_test_surface();
-        let points = collect_points(Some(&surface));
+    fn collect_points_extracts_from_simple_triangle() {
+        let mesh = make_simple_triangle_mesh();
+        let points = collect_points(Some(&mesh));
         assert_eq!(points.len(), 3);
     }
 
@@ -3146,31 +3091,6 @@ mod tests {
     }
 
     // ========================================================================
-    // Test: Surface-parameterization components still accept Surface
-    // ========================================================================
-
-    #[test]
-    fn evaluate_surface_accepts_surface() {
-        let surface = make_test_surface();
-        let result = evaluate_surface_sample_component(&[surface]);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn surface_curvature_accepts_surface() {
-        let surface = make_test_surface();
-        let result = evaluate_surface_curvature(&[surface]);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn osculating_circles_accepts_surface() {
-        let surface = make_test_surface();
-        let result = evaluate_osculating_circles(&[surface]);
-        assert!(result.is_ok());
-    }
-
-    // ========================================================================
     // Test: MeshMetrics creation and basic properties
     // ========================================================================
 
@@ -3186,9 +3106,9 @@ mod tests {
     }
 
     #[test]
-    fn mesh_metrics_from_surface_value() {
-        let surface = make_test_surface();
-        let metrics = MeshMetrics::from_value(Some(&surface));
+    fn mesh_metrics_from_simple_triangle_mesh() {
+        let mesh = make_simple_triangle_mesh();
+        let metrics = MeshMetrics::from_value(Some(&mesh));
         assert!(metrics.is_some());
         let m = metrics.unwrap();
         assert_eq!(m.vertices.len(), 3);
@@ -3472,28 +3392,31 @@ mod tests {
     }
 
     // ========================================================================
-    // Test: Value::Surface also uses MeshMetrics
+    // Test: MeshMetrics works for triangulated mesh
     // ========================================================================
 
     #[test]
-    fn evaluate_area_uses_mesh_metrics_for_surface() {
-        // Single triangle surface with area 0.5
-        let surface = Value::Surface {
+    fn evaluate_area_uses_mesh_metrics_for_triangulated_mesh() {
+        // Single triangle mesh with area 0.5
+        let mesh = Value::Mesh {
             vertices: vec![
                 [0.0, 0.0, 0.0],
                 [1.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0],
             ],
-            faces: vec![vec![0, 1, 2]],
+            indices: vec![0, 1, 2],
+            normals: None,
+            uvs: None,
+            diagnostics: None,
         };
-        let result = evaluate_area(&[surface], "Area").unwrap();
+        let result = evaluate_area(&[mesh], "Area").unwrap();
         let area = match result.get(PIN_OUTPUT_AREA) {
             Some(Value::Number(n)) => *n,
             _ => panic!("Expected area output"),
         };
         assert!(
             (area - 0.5).abs() < 1e-10,
-            "Surface area should be 0.5, got {}",
+            "Mesh area should be 0.5, got {}",
             area
         );
     }
@@ -3765,10 +3688,10 @@ mod tests {
     }
 
     #[test]
-    fn mesh_topology_from_surface_value() {
-        let surface = make_test_surface();
-        let topology = MeshTopology::from_value(Some(&surface));
-        assert!(topology.is_some(), "Should create topology from surface");
+    fn mesh_topology_from_simple_triangle_mesh() {
+        let mesh = make_simple_triangle_mesh();
+        let topology = MeshTopology::from_value(Some(&mesh));
+        assert!(topology.is_some(), "Should create topology from simple triangle mesh");
         let t = topology.unwrap();
         // Single triangle has 1 face and 3 edges
         assert_eq!(t.faces.len(), 1, "Single triangle should have 1 face");
@@ -4206,20 +4129,6 @@ mod tests {
     }
 
     #[test]
-    fn surface_points_accepts_surface_input() {
-        // Surface inputs should work (falling back to legacy AABB-based extraction)
-        let surface = make_test_surface();
-        let result = evaluate_surface_points(&[surface]);
-        assert!(result.is_ok(), "Surface Points should accept surface input");
-        let outputs = result.unwrap();
-        assert!(outputs.contains_key(PIN_OUTPUT_POINTS));
-        assert!(outputs.contains_key(PIN_OUTPUT_WEIGHTS));
-        assert!(outputs.contains_key(PIN_OUTPUT_GREVILLE));
-        assert!(outputs.contains_key(PIN_OUTPUT_U_COUNT));
-        assert!(outputs.contains_key(PIN_OUTPUT_V_COUNT));
-    }
-
-    #[test]
     fn surface_points_rejects_mesh_in_list() {
         // A mesh wrapped in a single-element list should also be rejected
         let mesh_list = Value::List(vec![make_test_mesh()]);
@@ -4249,17 +4158,6 @@ mod tests {
             "Error should mention component name: {}",
             err_msg
         );
-    }
-
-    #[test]
-    fn dimensions_accepts_surface_input() {
-        // Surface inputs should work (legacy AABB-based size extraction)
-        let surface = make_test_surface();
-        let result = evaluate_dimensions(&[surface]);
-        assert!(result.is_ok(), "Dimensions should accept surface input");
-        let outputs = result.unwrap();
-        assert!(outputs.contains_key("U"));
-        assert!(outputs.contains_key("V"));
     }
 
     #[test]

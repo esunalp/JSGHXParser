@@ -2,7 +2,7 @@
 //!
 //! This module provides components for geometry display and preview, including:
 //!
-//! - **Custom Preview**: Apply materials to any geometry (Mesh or Surface)
+//! - **Custom Preview**: Apply materials to any geometry (Mesh)
 //! - **Mesh Preview**: Preview meshes with optional diagnostics visualization
 //! - **Cloud/Dot Display**: Point cloud visualization
 //! - **Symbol Display**: 2D symbol display at locations
@@ -10,10 +10,9 @@
 //!
 //! # Mesh Support
 //!
-//! Components in this module support both `Value::Mesh` (preferred) and
-//! `Value::Surface` (legacy). When a `Value::Mesh` is provided, it is rendered
-//! directly with full attribute support (normals, UVs). For `Value::Surface`,
-//! the existing rendering path is maintained for backward compatibility.
+//! Components in this module use `Value::Mesh` for all mesh geometry.
+//! When a `Value::Mesh` is provided, it is rendered directly with full
+//! attribute support (normals, UVs).
 //!
 //! # Diagnostics Visualization
 //!
@@ -114,8 +113,8 @@ fn custom_preview(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         return Err(ComponentError::new("Expected 2 inputs: Geometry, Material"));
     }
 
-    // Normalize the geometry input: handle both Value::Mesh and Value::Surface directly
-    // Both types are passed through unchanged - the rendering layer handles both.
+    // Normalize the geometry input: handle Value::Mesh directly
+    // The geometry is passed through unchanged - the rendering layer handles it.
     let geometry = normalize_geometry_for_preview(&inputs[0]);
     let material = coerce_material(&inputs[1])?;
 
@@ -128,7 +127,7 @@ fn custom_preview(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
 /// Mesh Preview component with optional diagnostics visualization.
 ///
 /// Inputs:
-/// - `M` (0): Mesh geometry (`Value::Mesh` or `Value::Surface`)
+/// - `M` (0): Mesh geometry (`Value::Mesh`)
 /// - `Mat` (1): Optional material (`Value::Material` or `Value::Color`)
 /// - `D` (2): Optional show diagnostics flag (`Value::Boolean`, default: false)
 ///
@@ -146,7 +145,7 @@ fn mesh_preview(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
         return Err(ComponentError::new("Expected at least 1 input: Mesh"));
     }
 
-    // Get the mesh geometry - accept both Value::Mesh and Value::Surface
+    // Get the mesh geometry
     let geometry = normalize_geometry_for_preview(&inputs[0]);
 
     // Optional material (default to a neutral gray material)
@@ -192,19 +191,15 @@ fn mesh_preview(inputs: &[Value], _meta: &MetaMap) -> ComponentResult {
     Ok(outputs)
 }
 
-/// Normalizes geometry input for preview, handling both Mesh and Surface types.
+/// Normalizes geometry input for preview.
 ///
-/// For `Value::Mesh`: passed through unchanged (preferred path)
-/// For `Value::Surface`: passed through unchanged (legacy path)
+/// For `Value::Mesh`: passed through unchanged
 /// For `Value::List`: recursively normalizes each element
 /// For other types: passed through unchanged (may be curves, points, etc.)
 fn normalize_geometry_for_preview(value: &Value) -> Value {
     match value {
-        // Preferred path: Value::Mesh is passed through directly
+        // Value::Mesh is passed through directly
         Value::Mesh { .. } => value.clone(),
-
-        // Legacy path: Value::Surface is passed through for backward compatibility
-        Value::Surface { .. } => value.clone(),
 
         // Handle lists of geometry by recursively normalizing each element
         Value::List(items) => {
@@ -227,8 +222,7 @@ fn normalize_geometry_for_preview(value: &Value) -> Value {
 /// - `non_manifold_edges`: List of `Value::CurveLine` representing non-manifold edges (edges with >2 adjacent faces)
 /// - `diagnostics`: Optional `MeshDiagnostics` if the value is a `Value::Mesh` with diagnostics
 ///
-/// For `Value::Surface` or `Value::Mesh` without embedded diagnostics, edges are computed
-/// from the mesh topology directly.
+/// For `Value::Mesh` without embedded diagnostics, edges are computed from the mesh topology directly.
 fn extract_mesh_diagnostics_edges(value: &Value) -> (Vec<Value>, Vec<Value>, Option<MeshDiagnostics>) {
     // Try to get embedded diagnostics from Value::Mesh
     let embedded_diagnostics = match value {
@@ -669,19 +663,6 @@ mod tests {
         }
     }
 
-    /// Creates a simple test surface (quad, legacy format)
-    fn test_surface() -> Value {
-        Value::Surface {
-            vertices: vec![
-                [0.0, 0.0, 0.0],
-                [1.0, 0.0, 0.0],
-                [1.0, 1.0, 0.0],
-                [0.0, 1.0, 0.0],
-            ],
-            faces: vec![vec![0, 1, 2, 3]],
-        }
-    }
-
     /// Creates a mesh with an open edge (boundary)
     fn test_open_mesh() -> Value {
         Value::Mesh {
@@ -733,26 +714,6 @@ mod tests {
                 assert!(normals.is_some());
             }
             other => panic!("Expected Value::Mesh, got {:?}", other),
-        }
-    }
-
-    #[test]
-    fn test_custom_preview_with_surface() {
-        let inputs = vec![test_surface(), test_material()];
-        let meta = MetaMap::new();
-
-        let result = custom_preview(&inputs, &meta);
-        assert!(result.is_ok());
-
-        let outputs = result.unwrap();
-
-        // Verify the geometry is preserved as Value::Surface
-        match &outputs["Geometry"] {
-            Value::Surface { vertices, faces } => {
-                assert_eq!(vertices.len(), 4);
-                assert_eq!(faces.len(), 1);
-            }
-            other => panic!("Expected Value::Surface, got {:?}", other),
         }
     }
 
@@ -817,18 +778,6 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_mesh_diagnostics_edges_from_surface() {
-        let surface = test_surface();
-        let (open_edges, non_manifold_edges, diagnostics) =
-            extract_mesh_diagnostics_edges(&surface);
-
-        // Quad surface converted to triangle has edges
-        // (after triangulation, we take first 3 vertices as one triangle)
-        assert!(!open_edges.is_empty() || diagnostics.is_some());
-        assert_eq!(non_manifold_edges.len(), 0);
-    }
-
-    #[test]
     fn test_normalize_geometry_preserves_mesh() {
         let mesh = test_mesh();
         let normalized = normalize_geometry_for_preview(&mesh);
@@ -844,24 +793,10 @@ mod tests {
     }
 
     #[test]
-    fn test_normalize_geometry_preserves_surface() {
-        let surface = test_surface();
-        let normalized = normalize_geometry_for_preview(&surface);
-
-        match normalized {
-            Value::Surface { vertices, faces } => {
-                assert_eq!(vertices.len(), 4);
-                assert_eq!(faces.len(), 1);
-            }
-            _ => panic!("Expected Value::Surface to be preserved"),
-        }
-    }
-
-    #[test]
     fn test_normalize_geometry_handles_list() {
-        let mesh = test_mesh();
-        let surface = test_surface();
-        let list = Value::List(vec![mesh, surface]);
+        let mesh1 = test_mesh();
+        let mesh2 = test_open_mesh();
+        let list = Value::List(vec![mesh1, mesh2]);
 
         let normalized = normalize_geometry_for_preview(&list);
 
@@ -869,7 +804,7 @@ mod tests {
             Value::List(items) => {
                 assert_eq!(items.len(), 2);
                 assert!(matches!(items[0], Value::Mesh { .. }));
-                assert!(matches!(items[1], Value::Surface { .. }));
+                assert!(matches!(items[1], Value::Mesh { .. }));
             }
             _ => panic!("Expected Value::List to be preserved"),
         }

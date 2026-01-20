@@ -11,7 +11,7 @@ Build a single, uniform meshing pipeline under `alpha/ghx-engine/src/geom/` that
 
 ## Non‑negotiables
 - Keep components thin: **components only coerce inputs + call `geom::*` + return Values**. No geometry algorithms in `src/components/*`.
-- Preserve backward compatibility: keep `Value::Surface` adapters where needed while preferring `Value::Mesh` once Phase 3 begins.
+- Use `Value::Mesh` exclusively for all mesh/surface outputs (legacy `Value::Surface` was removed in Phase 4).
 - Preserve Grasshopper semantics: pin order + GUIDs must not change; new pins are **optional and append-only**.
 - Respect existing math utilities: reuse `maths_*`, `vector_*`, `transform_*`, `sets_*` instead of duplicating.
 - Keep it minimal: simplest correct implementation; avoid unnecessary abstractions/dependencies.
