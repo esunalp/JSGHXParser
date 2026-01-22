@@ -976,6 +976,10 @@ fn collect_points_into(
     output: &mut Vec<[f64; 3]>,
 ) -> Result<(), ComponentError> {
     match value {
+        Value::Null => {
+            // Null input is allowed; returns empty (caller uses default origin).
+            Ok(())
+        }
         Value::Point(point) | Value::Vector(point) => {
             output.push(*point);
             Ok(())
