@@ -563,6 +563,24 @@ fn merge_outputs(
     existing
 }
 
+fn should_collect_curve_container(pin: &str, value: &Value) -> bool {
+    matches!(value, Value::List(_)) && is_curve_output_pin(pin)
+}
+
+fn is_curve_output_pin(pin: &str) -> bool {
+    let normalized = pin.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return false;
+    }
+    if normalized == "c" || normalized == "crv" || normalized == "curve" || normalized == "curves" {
+        return true;
+    }
+    normalized.contains("curve")
+        || normalized.contains("crv")
+        || normalized.contains("spline")
+        || normalized.contains("polyline")
+}
+
 #[cfg(feature = "parallel")]
 fn collect_geometry(
     node_id: NodeId,
@@ -571,8 +589,26 @@ fn collect_geometry(
 ) {
     let material = outputs.values().find_map(extract_material_value);
 
-    let mut collected = outputs
-        .values()
+    let mut curve_values = Vec::new();
+    let mut other_values = Vec::new();
+
+    for (pin, value) in outputs {
+        if should_collect_curve_container(pin, value) {
+            curve_values.push(value);
+        } else {
+            other_values.push(value);
+        }
+    }
+
+    for value in curve_values {
+        geometry.push(GeometryEntry {
+            source_node: node_id,
+            value: value.clone(),
+            material,
+        });
+    }
+
+    let mut collected = other_values
         .par_iter()
         .map(|value| {
             let mut local = Vec::new();
@@ -595,8 +631,16 @@ fn collect_geometry(
 ) {
     let material = outputs.values().find_map(extract_material_value);
 
-    for value in outputs.values() {
-        collect_value_geometry(node_id, value, material, geometry);
+    for (pin, value) in outputs {
+        if should_collect_curve_container(pin, value) {
+            geometry.push(GeometryEntry {
+                source_node: node_id,
+                value: value.clone(),
+                material,
+            });
+        } else {
+            collect_value_geometry(node_id, value, material, geometry);
+        }
     }
 }
 
