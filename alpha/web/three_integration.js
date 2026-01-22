@@ -118,6 +118,9 @@ const OVERLAY_POINT_COLOR = new THREE.Color(0x000000);
 const POINT_SPHERE_RADIUS_MM = 10;
 const POINT_SPHERE_WIDTH_SEGMENTS = 16;
 const POINT_SPHERE_HEIGHT_SEGMENTS = 12;
+const POINT_SPRITE_SIZE_MM = POINT_SPHERE_RADIUS_MM * 2;
+const OVERLAY_POINT_CLOUD_THRESHOLD = 2000;
+const OVERLAY_TIMING_ENABLED = false;
 
 function createMeshObject(item) {
   if (!Array.isArray(item.vertices) || item.vertices.length === 0) {
@@ -237,25 +240,43 @@ function createMeshObject(item) {
   return mesh;
 }
 
-function createSegmentsObject(points) {
-    if (!points || points.length < 2) {
+function createSegmentsObject(positions) {
+    if (!Array.isArray(positions) || positions.length < 6) {
         return null;
     }
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    ensureGeometryHasVertexNormals(geometry, { compute: false });
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     const material = new THREE.LineBasicMaterial({
         color: OVERLAY_LINE_COLOR,
         transparent: true,
         opacity: 0.95,
         depthWrite: false,
     });
-    const object = new THREE.Line(geometry, material);
+    const object = new THREE.LineSegments(geometry, material);
     return { object, disposables: [geometry, material] };
 }
 
-function createPointsObject(points) {
-    if (!Array.isArray(points) || !points.length) {
+function createPointsObject(positions) {
+    if (!Array.isArray(positions) || positions.length < 3) {
         return null;
+    }
+    const count = Math.floor(positions.length / 3);
+    if (count === 0) {
+        return null;
+    }
+    if (count >= OVERLAY_POINT_CLOUD_THRESHOLD) {
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({
+            color: OVERLAY_POINT_COLOR,
+            size: POINT_SPRITE_SIZE_MM,
+            sizeAttenuation: true,
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false,
+        });
+        const object = new THREE.Points(geometry, material);
+        return { object, disposables: [geometry, material] };
     }
     const geometry = new THREE.SphereGeometry(
         POINT_SPHERE_RADIUS_MM,
@@ -270,12 +291,17 @@ function createPointsObject(points) {
         },
         { side: DEFAULT_MESH_SIDE },
     );
-    const object = new THREE.InstancedMesh(geometry, material, points.length);
+    const object = new THREE.InstancedMesh(geometry, material, count);
     const matrix = new THREE.Matrix4();
-    points.forEach((point, index) => {
-        matrix.makeTranslation(point.x, point.y, point.z);
+    for (let index = 0; index < count; index += 1) {
+        const offset = index * 3;
+        matrix.makeTranslation(
+            positions[offset],
+            positions[offset + 1],
+            positions[offset + 2],
+        );
         object.setMatrixAt(index, matrix);
-    });
+    }
     object.instanceMatrix.needsUpdate = true;
     object.castShadow = false;
     object.receiveShadow = false;
@@ -395,6 +421,8 @@ export function createThreeApp(canvas) {
   const overlayItemsByNode = new Map();
 
   function rebuildOverlayGroup() {
+      const shouldTime = OVERLAY_TIMING_ENABLED && typeof performance !== 'undefined';
+      const startTime = shouldTime ? performance.now() : 0;
       if (currentOverlayGroup) {
           scene.remove(currentOverlayGroup);
           disposeSceneObject(currentOverlayGroup);
@@ -403,45 +431,66 @@ export function createThreeApp(canvas) {
       if (!overlayEnabled || overlayItemsByNode.size === 0) {
           return;
       }
+
+      const segmentPositions = [];
+      const pointPositions = [];
+
+      for (const items of overlayItemsByNode.values()) {
+          for (const item of items) {
+              if (item.type === 'Line') {
+                  const start = item.start;
+                  const end = item.end;
+                  if (Array.isArray(start) && start.length >= 3 && Array.isArray(end) && end.length >= 3) {
+                      segmentPositions.push(
+                          start[0], start[1], start[2],
+                          end[0], end[1], end[2],
+                      );
+                  }
+              } else if (item.type === 'Polyline' && Array.isArray(item.points)) {
+                  const points = item.points;
+                  for (let index = 1; index < points.length; index += 1) {
+                      const start = points[index - 1];
+                      const end = points[index];
+                      if (Array.isArray(start) && start.length >= 3 && Array.isArray(end) && end.length >= 3) {
+                          segmentPositions.push(
+                              start[0], start[1], start[2],
+                              end[0], end[1], end[2],
+                          );
+                      }
+                  }
+              } else if (item.type === 'Point' && Array.isArray(item.coordinates) && item.coordinates.length >= 3) {
+                  pointPositions.push(
+                      item.coordinates[0],
+                      item.coordinates[1],
+                      item.coordinates[2],
+                  );
+              }
+          }
+      }
+
       const group = new THREE.Group();
       group.name = 'GHXCurveOverlay';
 
-      for (const items of overlayItemsByNode.values()) {
-          items.forEach(item => {
-              if (item.type === 'Line') {
-                  const points = [item.start, item.end]
-                      .filter(Array.isArray)
-                      .map(p => new THREE.Vector3(p[0], p[1], p[2]));
-                  const segmentObject = createSegmentsObject(points);
-                  if (segmentObject) {
-                      group.add(segmentObject.object);
-                  }
-              } else if (item.type === 'Polyline') {
-                  const points = Array.isArray(item.points)
-                      ? item.points.map(p => new THREE.Vector3(p[0], p[1], p[2]))
-                      : [];
-                  const segmentObject = createSegmentsObject(points);
-                  if (segmentObject) {
-                      group.add(segmentObject.object);
-                  }
-              } else if (item.type === 'Point') {
-                  const point = new THREE.Vector3(item.coordinates[0], item.coordinates[1], item.coordinates[2]);
-                  const pointObject = createPointsObject([point]);
-                  if (pointObject) {
-                      group.add(pointObject.object);
-                  }
-              }
-          });
+      const segmentObject = createSegmentsObject(segmentPositions);
+      if (segmentObject) {
+          group.add(segmentObject.object);
+      }
+
+      const pointObject = createPointsObject(pointPositions);
+      if (pointObject) {
+          group.add(pointObject.object);
       }
 
       if (group.children.length > 0) {
-          group.traverse(child => {
-              if (child.geometry) {
-                  ensureGeometryHasVertexNormals(child.geometry, { compute: false });
-              }
-          });
           currentOverlayGroup = group;
           scene.add(currentOverlayGroup);
+      }
+
+      if (shouldTime) {
+          const durationMs = performance.now() - startTime;
+          const segmentCount = Math.floor(segmentPositions.length / 6);
+          const pointCount = Math.floor(pointPositions.length / 3);
+          console.debug(`[ghx] overlay rebuild ${durationMs.toFixed(1)}ms (segments ${segmentCount}, points ${pointCount})`);
       }
   }
 
